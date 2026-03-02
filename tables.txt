@@ -1,0 +1,183 @@
+
+
+-- Siguraduhin na malinis ang database bago i-run
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ==========================================
+-- 1. REFERENCE TABLES (Lookup Tables)
+-- ==========================================
+
+-- Mga uri ng sulat (e.g., Memo, Invitation, Billing)
+CREATE TABLE `ref_letter_kinds` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `kind_name` VARCHAR(100) NOT NULL UNIQUE,
+    `description` VARCHAR(255)
+) ENGINE=InnoDB;
+
+-- Overall global status (e.g., Pending, Completed, Archived)
+CREATE TABLE `ref_statuses` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `status_name` VARCHAR(50) NOT NULL UNIQUE
+) ENGINE=InnoDB;
+
+-- Mga Department o Section (e.g., IT, Accounting, HR, Legal)
+CREATE TABLE `ref_departments` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `dept_name` VARCHAR(100) NOT NULL UNIQUE,
+    `dept_code` VARCHAR(20) UNIQUE -- e.g., 'ADMIN', 'ACCTG'
+) ENGINE=InnoDB;
+
+-- Mga steps/milestones (e.g., For Review, For Signature, For Release)
+CREATE TABLE `ref_process_steps` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `step_name` VARCHAR(100) NOT NULL UNIQUE,
+    `description` TEXT
+) ENGINE=InnoDB;
+
+-- ==========================================
+-- 2. CORE TABLES
+-- ==========================================
+
+-- Users Table
+CREATE TABLE `users` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(255) NOT NULL,
+    `user_name` VARCHAR(50) NOT NULL UNIQUE,
+    `password` VARCHAR(255) NOT NULL, -- Recommended: Hashed password
+    `level` ENUM('Admin', 'Staff', 'Viewer') DEFAULT 'Staff',
+    `dept_id` INT,
+    CONSTRAINT `fk_user_dept` FOREIGN KEY (`dept_id`) REFERENCES `ref_departments`(`id`)
+) ENGINE=InnoDB;
+
+-- Main Letters Table (The Heart of the System)
+CREATE TABLE `letters` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `atg_id` VARCHAR(50) NOT NULL UNIQUE, -- Business logic ID
+    `date_received` DATE NOT NULL,
+    `sender` VARCHAR(255),
+    `summary` LONGTEXT,
+    `kind_id` INT,
+    `global_status_id` INT,
+    `encoder_id` INT,
+    `endorsed` ENUM('Yes', 'No', 'Pending') DEFAULT 'No',
+    `file_path` VARCHAR(255),
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (atg_id),
+    CONSTRAINT `fk_kind` FOREIGN KEY (`kind_id`) REFERENCES `ref_letter_kinds`(`id`),
+    CONSTRAINT `fk_global_status` FOREIGN KEY (`global_status_id`) REFERENCES `ref_statuses`(`id`),
+    CONSTRAINT `fk_encoder` FOREIGN KEY (`encoder_id`) REFERENCES `users`(`id`)
+) ENGINE=InnoDB;
+
+-- ==========================================
+-- 3. FLEXIBLE WORKFLOW & TRACKING
+-- ==========================================
+
+-- Dito nangyayari ang "Routing". Pwedeng i-assign ang sulat sa kahit anong dept at step.
+CREATE TABLE `letter_assignments` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `letter_id` INT NOT NULL,
+    `dept_id` INT NOT NULL, -- Kaninong department ipapasa?
+    `step_id` INT NOT NULL, -- Anong gagawin nila? (e.g., For Review)
+    `assigned_by` INT,
+    `current_status` ENUM('Pending', 'In Progress', 'Done', 'Returned') DEFAULT 'Pending',
+    `due_date` DATETIME,
+    `remarks` TEXT,
+    `completed_at` DATETIME,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_assign_letter` FOREIGN KEY (`letter_id`) REFERENCES `letters`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_assign_dept` FOREIGN KEY (`dept_id`) REFERENCES `ref_departments`(`id`),
+    CONSTRAINT `fk_assign_step` FOREIGN KEY (`step_id`) REFERENCES `ref_process_steps`(`id`),
+    CONSTRAINT `fk_assign_user` FOREIGN KEY (`assigned_by`) REFERENCES `users`(`id`)
+) ENGINE=InnoDB;
+
+-- Audit Trail (History ng lahat ng galaw ng sulat)
+CREATE TABLE `letter_logs` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `letter_id` INT NOT NULL,
+    `user_id` INT,
+    `action_taken` VARCHAR(255), -- e.g., "Assigned to Legal", "Status changed to Done"
+    `log_date` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `metadata` JSON, -- Optional: Para sa detailed changes
+    CONSTRAINT `fk_log_letter` FOREIGN KEY (`letter_id`) REFERENCES `letters`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ==========================================
+-- 4. ADDITIONAL UTILITY TABLES
+-- ==========================================
+
+-- Comments/Discussion per Letter
+CREATE TABLE `comments` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `letter_id` INT NOT NULL,
+    `user_id` INT NOT NULL,
+    `comment_body` LONGTEXT NOT NULL,
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_comment_letter` FOREIGN KEY (`letter_id`) REFERENCES `letters`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
+) ENGINE=InnoDB;
+
+-- Physical Storage info
+CREATE TABLE `trays` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `letter_id` INT NOT NULL,
+    `tray_no` VARCHAR(50) NOT NULL,
+    CONSTRAINT `fk_tray_letter` FOREIGN KEY (`letter_id`) REFERENCES `letters`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Relationships between letters (e.g., Mother Letter and Attachments)
+CREATE TABLE `link_letters` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `main_letter_id` INT NOT NULL,
+    `attached_letter_id` INT NOT NULL,
+    CONSTRAINT `fk_main_let` FOREIGN KEY (`main_letter_id`) REFERENCES `letters`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_attach_let` FOREIGN KEY (`attached_letter_id`) REFERENCES `letters`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- 1. SEED DEPARTMENTS (Para sa Flexibility)
+INSERT INTO `ref_departments` (`dept_name`, `dept_code`) VALUES 
+('Administrative Office', 'ADMIN'),
+('Information Technology', 'IT'),
+('Accounting & Finance', 'ACCTG'),
+('Legal Department', 'LEGAL');
+
+-- 2. SEED PROCESS STEPS (Ang mga milestones)
+INSERT INTO `ref_process_steps` (`step_name`, `description`) VALUES 
+('Initial Routing', 'Sending the letter to the concerned department'),
+('For Review/Analysis', 'Technical or legal evaluation of the content'),
+('For Signature/Approval', 'Final signing by the head of office'),
+('For Filing/Archiving', 'Physical and digital storage of the document');
+
+-- 3. SEED STATUSES (Global Status)
+INSERT INTO `ref_statuses` (`status_name`) VALUES 
+('New / Incoming'),
+('Active / Processing'),
+('Completed'),
+('Cancelled');
+
+-- 4. SEED LETTER KINDS
+INSERT INTO `ref_letter_kinds` (`kind_name`, `description`) VALUES 
+('Memorandum', 'Internal office guidelines or notices'),
+('Invitation', 'Events, seminars, or meeting invites'),
+('Billing/Statement', 'Invoices and financial documents');
+
+-- 5. SEED USERS (Felix Pareja and Admin)
+-- Tandaan: Sa production, dapat ay 'hashed' ang passwords mo.
+INSERT INTO `users` (`name`, `user_name`, `password`, `level`, `dept_id`) VALUES 
+('System Administrator', 'admin', 'admin123', 'Admin', 1), -- Admin in Office 1
+('Felix Pareja', 'felix_pareja', 'felix2026', 'Staff', 2); -- Staff in IT Dept (2)
+
+-- 6. SEED A TEST LETTER
+INSERT INTO `letters` (`atg_id`, `date_received`, `sender`, `summary`, `kind_id`, `global_status_id`, `encoder_id`, `endorsed`) VALUES 
+('ATG-2026-0001', '2026-02-20', 'Regional Director', 'Request for server upgrade in the IT department.', 1, 2, 2, 'No');
+
+-- 7. SEED FLEXIBLE WORKFLOW ASSIGNMENT
+-- I-assign natin ang letter sa IT Dept para sa 'Review' (step 2)
+INSERT INTO `letter_assignments` (`letter_id`, `dept_id`, `step_id`, `assigned_by`, `current_status`, `remarks`) VALUES 
+(1, 2, 2, 1, 'In Progress', 'Felix, please check the server specs mentioned here.');
+
+-- 8. SEED INITIAL LOG
+INSERT INTO `letter_logs` (`letter_id`, `user_id`, `action_taken`) VALUES 
+(1, 1, 'Created letter and assigned to IT Department for Review.');

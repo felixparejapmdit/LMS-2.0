@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased selection:bg-blue-100 selection:text-blue-900 transition-colors duration-300;
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  .dark body {
+    @apply bg-[#0D0D0D] text-slate-100 selection:bg-orange-900 selection:text-orange-100;
+  }
+
+  .dark .bg-white {
+    @apply bg-[#141414] !important;
+  }
+
+  .dark .border-gray-100,
+  .dark .border-slate-100,
+  .dark .border-slate-200 {
+    @apply border-[#222] !important;
+  }
+
+  .dark .text-gray-900,
+  .dark .text-slate-900 {
+    @apply text-slate-100 !important;
+  }
+
+  .dark .text-gray-500,
+  .dark .text-slate-500 {
+    @apply text-slate-400 !important;
+  }
+
+  .dark .bg-slate-50 {
+    @apply bg-[#0D0D0D] !important;
+  }
+
+  .dark [class*="bg-[#F9FAFB]"] {
+    @apply bg-[#0D0D0D] !important;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-slate-800 hover:bg-slate-700;
+}
+
+.prose {
+  @apply max-w-none;
+}
+
+.dark .prose {
+  @apply text-slate-300;
+}
+
+.prose p {
+  @apply mb-4 leading-relaxed;
+}

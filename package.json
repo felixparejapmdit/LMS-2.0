@@ -1,0 +1,13 @@
+{
+    "name": "lms-2.0-root",
+    "version": "1.0.0",
+    "description": "Root management for LMS 2.0",
+    "scripts": {
+        "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix react-frontend\"",
+        "start": "concurrently \"npm start --prefix backend\" \"npm run dev --prefix react-frontend\"",
+        "install-all": "npm install --prefix backend && npm install --prefix react-frontend"
+    },
+    "devDependencies": {
+        "concurrently": "^9.1.2"
+    }
+}

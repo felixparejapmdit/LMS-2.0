@@ -1,0 +1,243 @@
+
+import React, { useEffect, useState } from "react";
+import Sidebar from "../../components/Sidebar";
+import { useAuth } from "../../context/AuthContext";
+import {
+    Table as TableIcon,
+    Search,
+    Loader2,
+    RefreshCw,
+    Activity,
+    FileText,
+    Eye,
+    Calendar,
+    User as UserIcon,
+    Hash,
+    ChevronRight,
+    GitMerge
+} from "lucide-react";
+import letterService from "../../services/letterService";
+import { useNavigate } from "react-router-dom";
+
+export default function LetterTracker() {
+    const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const navigate = useNavigate();
+
+    const [letters, setLetters] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [selectedLetter, setSelectedLetter] = useState(null);
+    const [isTrackDrawerOpen, setIsTrackDrawerOpen] = useState(false);
+
+    // Filter Logic
+    const isSuperAdmin = user?.roleData?.name?.toUpperCase() === 'ADMIN' || user?.roleData?.name?.toUpperCase() === 'SUPER ADMIN';
+
+    // Theme Variables
+    const textColor = layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white';
+    const cardBg = layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const pageBg = layoutStyle === 'linear' ? 'bg-[#080808]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+
+    const fetchLetters = async (isRefreshing = false) => {
+        if (isRefreshing) setRefreshing(true);
+        try {
+            const data = await letterService.getAll();
+            let filtered = Array.isArray(data) ? data : [];
+
+            // Apply Role-based filtering
+            if (!isSuperAdmin) {
+                filtered = filtered.filter(l => l.encoder_id === user.id);
+            }
+
+            setLetters(filtered);
+        } catch (error) {
+            console.error("Failed to fetch letters:", error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchLetters();
+    }, [user]);
+
+    const filteredLetters = letters.filter(letter =>
+        letter.entry_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        letter.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        letter.summary?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const handleTrackOpen = (letter) => {
+        setSelectedLetter(letter);
+        setIsTrackDrawerOpen(true);
+    };
+
+    const handleViewPDF = (letter) => {
+        if (!letter.scanned_copy) return;
+        const url = `http://localhost:5000${letter.scanned_copy}`;
+        window.open(url, '_blank');
+    };
+
+    return (
+        <div className={`flex h-screen ${pageBg} overflow-hidden font-sans`}>
+            <Sidebar />
+
+            <main className="flex-1 flex flex-col overflow-hidden relative">
+                {/* Header */}
+                <header className={`h-20 flex items-center justify-between px-8 border-b ${layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-gray-100 dark:border-[#222]'}`}>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-400 md:hidden"><TableIcon className="w-5 h-5" /></button>
+                        <div>
+                            <h1 className={`text-sm font-black uppercase tracking-[0.2em] ${textColor}`}>Digital Archive</h1>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Letter Tracker & Monitoring</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => fetchLetters(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>
+                    </div>
+                </header>
+
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 custom-scrollbar">
+                    <div className="max-w-full mx-auto space-y-6">
+                        {/* Summary & Search */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <h2 className={`text-2xl font-black uppercase tracking-tight ${textColor}`}>Letter Tracker</h2>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{isSuperAdmin ? 'Full Access Monitoring' : 'Your Registered Records'}</p>
+                            </div>
+                            <div className="relative group min-w-[300px]">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search reference, sender..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-white' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Table Container */}
+                        <div className={`rounded-[2.5rem] border overflow-hidden shadow-sm ${cardBg}`}>
+                            <div className="overflow-x-auto custom-scrollbar">
+                                <table className="w-full text-left border-collapse min-w-[1000px]">
+                                    <thead>
+                                        <tr className={`border-b ${layoutStyle === 'linear' ? 'border-[#1a1a1a] bg-[#111]' : 'border-gray-50 dark:border-[#222] bg-gray-50/50'}`}>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Reference #</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Date Received</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Sender</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Letter Summary</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Status</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Track</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">PDF</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50 dark:divide-[#222]">
+                                        {loading ? (
+                                            <tr><td colSpan="7" className="p-20 text-center"><Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto" /></td></tr>
+                                        ) : filteredLetters.length === 0 ? (
+                                            <tr><td colSpan="7" className="p-20 text-center text-gray-400 font-bold uppercase tracking-widest">No matching records found</td></tr>
+                                        ) : filteredLetters.map((letter) => (
+                                            <tr key={letter.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
+                                                <td className="p-5 whitespace-nowrap">
+                                                    <span className={`text-[10px] font-black px-2.5 py-1 rounded bg-slate-100 dark:bg-white/10 ${textColor}`}>
+                                                        {letter.entry_id}
+                                                    </span>
+                                                </td>
+                                                <td className="p-5 whitespace-nowrap">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{new Date(letter.date_received).toLocaleDateString()}</span>
+                                                        <span className="text-[10px] text-orange-500 font-black">{new Date(letter.date_received).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-5 text-xs font-black text-slate-700 dark:text-slate-200 uppercase truncate max-w-[150px]">
+                                                    {letter.sender}
+                                                </td>
+                                                <td className="p-5 max-w-xs">
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium line-clamp-2">{letter.summary}</p>
+                                                </td>
+                                                <td className="p-5 text-center">
+                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${letter.status?.status_name === 'Incoming' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'}`}>
+                                                        {letter.status?.status_name || 'REGISTERED'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-5 text-center px-0">
+                                                    <button onClick={() => handleTrackOpen(letter)} className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all transform hover:scale-110 mx-auto border border-indigo-100 dark:border-indigo-900/20 shadow-sm"><Activity className="w-4 h-4" /></button>
+                                                </td>
+                                                <td className="p-5 text-center px-0">
+                                                    {letter.scanned_copy ? (
+                                                        <button onClick={() => handleViewPDF(letter)} className="p-2.5 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all transform hover:scale-110 mx-auto border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-4 h-4" /></button>
+                                                    ) : <span className="text-gray-200">-</span>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            {/* TRACK DRAWER */}
+            {isTrackDrawerOpen && selectedLetter && (
+                <div className="fixed inset-0 z-[100] flex justify-end">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsTrackDrawerOpen(false)} />
+                    <div className={`w-full max-w-md ${cardBg} h-full relative z-10 animate-in slide-in-from-right duration-500 flex flex-col border-l`}>
+                        <div className="p-8 border-b flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/10 flex items-center justify-center text-indigo-500">
+                                    <GitMerge className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Workflow Track</h2>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedLetter.entry_id}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsTrackDrawerOpen(false)} className="p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl text-gray-400"><ChevronRight className="w-6 h-6" /></button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                            <div className="relative pl-8 space-y-12 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-white/5">
+                                {/* Entry Point */}
+                                <div className="relative">
+                                    <div className="absolute -left-9 w-6 h-6 rounded-full bg-orange-500 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
+                                    <div>
+                                        <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Entry Registration</p>
+                                        <h4 className={`text-sm font-bold mt-1 ${textColor}`}>Letter Registered by {selectedLetter.encoder?.first_name || 'Guest'}</h4>
+                                        <p className="text-xs text-gray-500 mt-2 line-clamp-3">{selectedLetter.summary}</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{new Date(selectedLetter.date_received).toLocaleString()}</p>
+                                    </div>
+                                </div>
+
+                                {/* Dynamic Logs */}
+                                {selectedLetter.logs?.map((log, i) => (
+                                    <div key={i} className="relative">
+                                        <div className="absolute -left-9 w-6 h-6 rounded-full bg-indigo-500 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
+                                        <div>
+                                            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Update</p>
+                                            <h4 className={`text-sm font-bold mt-1 ${textColor}`}>{log.action_taken}</h4>
+                                            <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{new Date(log.created_at).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* Final Status */}
+                                <div className="relative pt-4">
+                                    <div className="absolute -left-9 w-6 h-6 rounded-full bg-slate-200 dark:bg-white/10 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
+                                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Current State</p>
+                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-500 text-white`}>
+                                            {selectedLetter.status?.status_name || 'PROCESSING'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
