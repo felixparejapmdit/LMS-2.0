@@ -54,8 +54,12 @@ class ImportController {
                 stats: { imported, updated, total: data.length }
             });
         } catch (error) {
-            console.error('Import Persons Error:', error.message);
-            res.status(500).json({ error: 'Failed to fetch or process persons data. Check if URL is correct and reachable.' });
+            console.error('Import Persons Error:', error);
+            res.status(500).json({
+                error: 'Import Failed',
+                message: error.message,
+                details: error.response?.data || 'No additional details'
+            });
         }
     }
 

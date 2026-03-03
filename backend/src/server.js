@@ -14,7 +14,25 @@ async function startServer() {
         // Sync models
         await sequelize.sync();
 
-        // Self-Healing: Ensure layout columns exist
+        // Self-Healing: Ensure Endorsement table exists (new feature)
+        try {
+            const Endorsement = require('./models/Endorsement');
+            await Endorsement.sync({ alter: true });
+            console.log('Endorsement table synced.');
+        } catch (e) {
+            console.warn('Endorsement sync warning:', e.message);
+        }
+
+        // Self-Healing: Ensure Person table is up to date
+        try {
+            const Person = require('./models/Person');
+            await Person.sync({ alter: true });
+            console.log('Person table synced.');
+        } catch (e) {
+            console.warn('Person sync warning:', e.message);
+        }
+
+        // Self-Healing: Ensure layout columns exist in directus_users
         try {
             await sequelize.query("ALTER TABLE directus_users ADD COLUMN layout_style VARCHAR(255) DEFAULT 'notion'");
             console.log('Added missing layout_style column.');
