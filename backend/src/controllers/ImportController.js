@@ -74,17 +74,18 @@ class ImportController {
                 return res.status(400).json({ error: 'Invalid data format from API. Expected "data" array.' });
             }
 
-            // Find valid 'User' role ID (UUID)
-            // Try to find by name 'User' first, case-insensitive
-            let userRole = await Role.findOne({
-                where: sequelize.where(
-                    sequelize.fn('LOWER', sequelize.col('name')),
-                    'user'
-                )
+            // Find valid 'User' and 'Admin' role IDs
+            const roles = await Role.findAll();
+            const roleMap = {};
+            roles.forEach(r => {
+                const name = r.name.toLowerCase();
+                if (name === 'user') roleMap.user = r.id;
+                if (name === 'admin' || name === 'administrator') roleMap.admin = r.id;
             });
 
-            // Fallback UUID if role is not found in DB yet
-            const roleId = userRole ? userRole.id : '2f3d79a9-ebfe-4937-98c2-46012a18b7c7';
+            // Default fallback IDs (from checkRoles.js)
+            const DEFAULT_USER_ROLE = roleMap.user || 'ebceed4d-42e4-4f97-8a45-873b1298d310';
+            const DEFAULT_ADMIN_ROLE = roleMap.admin || 'ec986bba-2c97-47a8-968f-f8a163e5f014';
 
             let imported = 0;
             let updated = 0;
@@ -104,6 +105,11 @@ class ImportController {
                     type: argon2.argon2id
                 });
 
+                // Determine Role based on 'level'
+                // If the PHP API level is 'Admin', use Admin role
+                const isLegacyAdmin = (item.level || '').toLowerCase().includes('admin');
+                const roleId = isLegacyAdmin ? DEFAULT_ADMIN_ROLE : DEFAULT_USER_ROLE;
+
                 const existingUser = await User.findOne({ where: { username } });
 
                 if (existingUser) {
@@ -111,7 +117,8 @@ class ImportController {
                         first_name,
                         last_name,
                         password: hashedPassword,
-                        role: roleId
+                        role: roleId,
+                        status: 'active'
                     });
                     updated++;
                 } else {
@@ -121,7 +128,8 @@ class ImportController {
                         email: `${username}@lms.local`,
                         username: username,
                         password: hashedPassword,
-                        role: roleId
+                        role: roleId,
+                        status: 'active'
                     });
                     imported++;
                 }

@@ -34,6 +34,13 @@ const User = sequelize.define('User', {
     islogin: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+    },
+    status: {
+        type: DataTypes.STRING,
+        defaultValue: 'active'
+    },
+    location: {
+        type: DataTypes.STRING
     }
 }, {
     tableName: 'directus_users',
