@@ -2,7 +2,7 @@ const argon2 = require('argon2');
 
 async function testPassword() {
     const passwordInput = 'f@1th';
-    const storedHash = '$argon2id$v=19$m=65536,t=3,p=4$SzkKfUd1Ixl5nHIfvtMYKw$8n1QYBqdjxQtcZTBLjFSBjMc98mHvRvyNgWgbIpLgiU';
+    const storedHash = '$argon2id$v=19$m=65536,t=3,p=4$BWjOzYsCn2eJbrBieWNq3A$HedN8iEyZXeeRhLqaonFv0trj9VzmzE7iG1ZDDdj11E';
 
     try {
         console.log(`Testing password: "${passwordInput}"`);
