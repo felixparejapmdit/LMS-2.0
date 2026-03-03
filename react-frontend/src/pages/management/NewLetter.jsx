@@ -122,7 +122,7 @@ export default function NewLetter() {
             return;
         }
         try {
-            const response = await axios.get(`http://localhost:5000/api/persons/search?query=${query}`);
+            const response = await axios.get(``${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/search?query=${query}`);
             setSuggestions(response.data);
             setShowSuggestions(response.data.length > 0);
         } catch (error) {
@@ -207,7 +207,7 @@ export default function NewLetter() {
                 formDataUpload.append('no_record', 'true');
                 formDataUpload.append('description', `Scanned copy for ${formData.sender}`);
 
-                const response = await axios.post('http://localhost:5000/api/attachments/upload', formDataUpload, {
+                const response = await axios.post('`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/upload', formDataUpload, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 scannedCopyPath = response.data.file_path;

@@ -47,7 +47,7 @@ export default function Sidebar() {
     if (!user) return;
     const fetchCount = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/endorsements/count');
+        const res = await fetch('`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements/count');
         const data = await res.json();
         setNotificationCount(data.count || 0);
       } catch { }

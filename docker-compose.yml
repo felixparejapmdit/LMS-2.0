@@ -19,3 +19,34 @@ services:
       CORS_CREDENTIALS: "true"
       CORS_METHODS: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
       CORS_ALLOWED_HEADERS: "Content-Type,Authorization"
+      PUBLIC_URL: "http://172.18.162.169:8055"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./directus/database:/app/directus/database
+      - ./backend/uploads:/app/uploads
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+    depends_on:
+      - directus
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./react-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://172.18.162.169:5000/api
+        VITE_DIRECTUS_URL: http://172.18.162.169:8055
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

@@ -46,7 +46,7 @@ export default function Home() {
         if (showRefresh) setRefreshing(true);
         try {
             const deptId = user?.dept_id?.id ?? user?.dept_id ?? null;
-            const response = await axios.get(`http://localhost:5000/api/stats/dashboard?department_id=${deptId}`);
+            const response = await axios.get(``${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/stats/dashboard?department_id=${deptId}`);
             setStats(response.data);
         } catch (error) {
             console.error("Error fetching stats:", error);
