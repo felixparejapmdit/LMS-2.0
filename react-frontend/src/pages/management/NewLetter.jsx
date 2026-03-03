@@ -478,7 +478,7 @@ export default function NewLetter() {
                             {/* Summary */}
                             <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-4`}>
                                 <div className="flex items-center justify-between mb-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Brief Summary / Remarks</label>
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Letter Summary</label>
                                     <span className="text-[10px] text-red-500 font-black tracking-widest">REQUIRED FIELD</span>
                                 </div>
                                 <textarea
@@ -486,7 +486,7 @@ export default function NewLetter() {
                                     required
                                     value={formData.summary}
                                     onChange={e => setFormData({ ...formData, summary: e.target.value })}
-                                    placeholder="Paste letter summary or key points here..."
+                                    placeholder="Enter Letter Summary"
                                     className={`w-full px-4 py-3 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-orange-500 resize-none transition-all ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                 />
                             </section>
@@ -495,7 +495,7 @@ export default function NewLetter() {
                             <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-6`}>
                                 <div className={`flex items-center gap-3 border-b pb-6 mb-2 ${layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-slate-50 dark:border-[#222]'}`}>
                                     <Upload className={`w-5 h-5 text-indigo-400`} />
-                                    <h3 className={`font-bold ${textColor}`}>Electronic Attachments (Scanned Letter)</h3>
+                                    <h3 className={`font-bold ${textColor}`}>Attachments (Scanned Letter)</h3>
                                 </div>
 
                                 <div

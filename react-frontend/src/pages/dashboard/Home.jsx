@@ -160,7 +160,7 @@ export default function Home() {
                     <div className="lg:col-span-2 space-y-6">
                         <div className="flex items-center justify-between">
                             <h2 className={`text-lg font-black uppercase tracking-tight ${layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white'}`}>
-                                Priority Workflow
+                                Recently Received
                             </h2>
                             <button onClick={() => navigate('/inbox')} className={`text-xs font-bold uppercase tracking-widest flex items-center gap-1 transition-colors ${layoutStyle === 'linear' ? 'text-indigo-400 hover:text-indigo-300' : 'text-blue-600 hover:text-blue-700'}`}>
                                 View Inbox <ChevronRight className="w-4 h-4" />
@@ -224,9 +224,6 @@ export default function Home() {
 
                     {/* Side Panel - Operations */}
                     <div className="space-y-6">
-                        <h2 className={`text-lg font-black uppercase tracking-tight ${layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white'}`}>
-                            Online Presence
-                        </h2>
                         <div className={`p-6 md:p-8 rounded-[2.5rem] border overflow-hidden relative ${layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' :
                             layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' :
                                 layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
@@ -246,12 +243,6 @@ export default function Home() {
                                         </p>
                                     </div>
                                 </div>
-                                <p className={`text-[10px] font-bold uppercase tracking-widest leading-relaxed ${layoutStyle === 'modern' || layoutStyle === 'default' ? 'text-indigo-100' : 'text-gray-500'}`}>
-                                    Personnel currently active across the document management cluster.
-                                </p>
-                                <button onClick={() => fetchStats(true)} className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all backdrop-blur-sm flex items-center justify-center gap-2 ${layoutStyle === 'modern' || layoutStyle === 'default' ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-gray-50 dark:bg-white/5 hover:bg-gray-100 text-gray-400'}`}>
-                                    <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} /> Sync Metrics
-                                </button>
                             </div>
                         </div>
 
