@@ -51,4 +51,14 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Error Handling Middleware
+app.use((err, req, res, next) => {
+    console.error('SERVER ERROR:', err.stack);
+    res.status(500).json({
+        error: 'System Error',
+        message: err.message,
+        path: req.path
+    });
+});
+
 module.exports = app;
