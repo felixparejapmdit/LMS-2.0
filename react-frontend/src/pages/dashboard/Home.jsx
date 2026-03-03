@@ -46,7 +46,7 @@ export default function Home() {
         if (showRefresh) setRefreshing(true);
         try {
             const deptId = user?.dept_id?.id ?? user?.dept_id ?? null;
-            const response = await axios.get(`http://localhost:5000/api/stats/dashboard?department_id=${deptId}`);
+            const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/stats/dashboard?department_id=${deptId}`);
             setStats(response.data);
         } catch (error) {
             console.error("Error fetching stats:", error);
@@ -58,7 +58,8 @@ export default function Home() {
 
     const checkHealth = async () => {
         try {
-            const response = await axios.get("http://localhost:5000/health");
+            const healthUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '') + '/health';
+            const response = await axios.get(healthUrl);
             setSystemStatus({ isOnline: response.data.status === 'OK', uptime: response.data.uptime });
         } catch (error) {
             setSystemStatus({ isOnline: false, uptime: 0 });

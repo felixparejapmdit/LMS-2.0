@@ -31,7 +31,7 @@ export default function LetterEndorsement() {
     const fetchEndorsements = async () => {
         setLoading(true);
         try {
-            const res = await axios.get("http://localhost:5000/api/endorsements");
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements`);
             setEndorsements(Array.isArray(res.data) ? res.data : []);
         } catch (e) {
             console.error("Failed to fetch endorsements:", e);
@@ -47,7 +47,7 @@ export default function LetterEndorsement() {
     const handleDelete = async (id) => {
         if (!window.confirm("Remove this endorsement record?")) return;
         try {
-            await axios.delete(`http://localhost:5000/api/endorsements/${id}`);
+            await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements/${id}`);
             fetchEndorsements();
         } catch (e) {
             alert("Delete failed.");

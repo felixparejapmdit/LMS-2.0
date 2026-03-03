@@ -30,7 +30,7 @@ export default function Spam() {
     const fetchPeople = async () => {
         setLoading(true);
         try {
-            const res = await axios.get("http://localhost:5000/api/persons");
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons`);
             setPeople(res.data);
         } catch (error) {
             console.error("Error fetching people:", error);
@@ -54,7 +54,7 @@ export default function Spam() {
 
         setSubmitting(true);
         try {
-            await axios.post("http://localhost:5000/api/persons", {
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons`, {
                 name: formName,
                 telegram: formTelegram,
                 name_id: null,

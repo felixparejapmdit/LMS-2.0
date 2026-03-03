@@ -37,7 +37,8 @@ export default function LetterDetail() {
     if (!rawPath) return null;
     const normalized = rawPath.replace(/\\/g, '/');
     const filename = normalized.split('/uploads/').pop();
-    return `http://localhost:5000/uploads/${filename}`;
+    const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+    return `${baseUrl}/uploads/${filename}`;
   };
 
   // Friendly filename
@@ -45,7 +46,7 @@ export default function LetterDetail() {
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/letters/${id}`);
+      const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letters/${id}`);
       setLetter(response.data);
     } catch (error) {
       console.error("Fetch failed:", error);
@@ -68,7 +69,7 @@ export default function LetterDetail() {
       );
 
       if (assignment) {
-        await axios.put(`http://localhost:5000/api/letter-assignments/${assignment.id}`, {
+        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${assignment.id}`, {
           status: "Done",
           completed_at: new Date()
         });

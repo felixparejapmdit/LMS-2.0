@@ -14,7 +14,7 @@ export default function NotificationBell() {
         if (!user) return;
         const fetchCount = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/endorsements/count');
+                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements/count`);
                 const data = await res.json();
                 setCount(data.count || 0);
             } catch { }

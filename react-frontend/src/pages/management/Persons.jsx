@@ -45,7 +45,7 @@ export default function Persons() {
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
-            const res = await axios.get("http://localhost:5000/api/persons");
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons`);
             setPersons(Array.isArray(res.data) ? res.data : []);
         } catch (error) {
             console.error("Fetch failed", error);
@@ -74,9 +74,9 @@ export default function Persons() {
         setError("");
         try {
             if (modalMode === 'create') {
-                await axios.post("http://localhost:5000/api/persons", formData);
+                await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons`, formData);
             } else {
-                await axios.put(`http://localhost:5000/api/persons/${selectedPerson.id}`, formData);
+                await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/${selectedPerson.id}`, formData);
             }
             setIsModalOpen(false);
             fetchData();
@@ -91,7 +91,7 @@ export default function Persons() {
     const handleDelete = async (id) => {
         if (!window.confirm("Are you sure you want to delete this contact?")) return;
         try {
-            await axios.delete(`http://localhost:5000/api/persons/${id}`);
+            await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/${id}`);
             fetchData();
         } catch (err) {
             console.error("Delete failed:", err);

@@ -121,20 +121,20 @@ export default function MasterTable() {
             const stats = await statusService.getAll();
             setStatuses(stats);
 
-            const stepsData = await axios.get('http://localhost:5000/api/process-steps');
+            const stepsData = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/process-steps`);
             setSteps(stepsData.data);
 
 
             const kindsData = await letterKindService.getAll().catch(() => []);
             setLetterKinds(kindsData);
 
-            const personsData = await axios.get('http://localhost:5000/api/persons').catch(() => ({ data: [] }));
+            const personsData = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons`).catch(() => ({ data: [] }));
             setPersons(Array.isArray(personsData.data) ? personsData.data : []);
 
-            const traysData = await axios.get('http://localhost:5000/api/trays');
+            const traysData = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/trays`);
             setTrays(traysData.data);
 
-            const attachmentsData = await axios.get('http://localhost:5000/api/attachments');
+            const attachmentsData = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments`);
             setAttachments(attachmentsData.data);
         } catch (error) {
             console.error("Fetch failed", error);
@@ -169,7 +169,7 @@ export default function MasterTable() {
             return;
         }
         try {
-            const res = await axios.get(`http://localhost:5000/api/persons/search?query=${query}`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/search?query=${query}`);
             setEndorseSuggestions(res.data);
             setShowEndorseSuggestions(res.data.length > 0);
         } catch { }
@@ -232,12 +232,12 @@ export default function MasterTable() {
         try {
             setLoading(true);
             if (newStatus === "Combine Selected PDFs") {
-                const res = await axios.post('http://localhost:5000/api/attachments/combine-selected', {
+                const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/combine-selected`, {
                     letter_ids: selectedIds
                 });
                 if (res.data.file_path) {
                     const b64 = btoa(res.data.file_path);
-                    window.open(`http://localhost:5000/api/attachments/view-path?path=${b64}`, '_blank');
+                    window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view-path?path=${b64}`, '_blank');
                 }
             } else {
                 for (const id of selectedIds) {
@@ -279,7 +279,7 @@ export default function MasterTable() {
                     }
                 }
 
-                const uploadRes = await axios.post('http://localhost:5000/api/attachments/upload', formData, {
+                const uploadRes = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/upload`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
 
@@ -293,12 +293,12 @@ export default function MasterTable() {
             if (updatedLetter.currentStepId) {
                 if (updatedLetter.assignments && updatedLetter.assignments.length > 0) {
                     const latest = updatedLetter.assignments.sort((a, b) => b.id - a.id)[0];
-                    await axios.put(`http://localhost:5000/api/letter-assignments/${latest.id}`, {
+                    await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${latest.id}`, {
                         step_id: updatedLetter.currentStepId
                     });
                 } else {
                     // If no assignment exists, create one!
-                    await axios.post(`http://localhost:5000/api/letter-assignments`, {
+                    await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments`, {
                         letter_id: updatedLetter.id,
                         step_id: updatedLetter.currentStepId,
                         department_id: user?.dept_id?.id || user?.dept_id || null,
@@ -311,7 +311,7 @@ export default function MasterTable() {
 
             // 3. If endorsement person selected, record endorsement then navigate
             if (selectedLetter.endorse_to && selectedLetter.endorse_to !== '') {
-                await axios.post('http://localhost:5000/api/endorsements', {
+                await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements`, {
                     letter_id: updatedLetter.id,
                     endorsed_to: selectedLetter.endorse_to,
                     endorsed_by: user?.id || null,
@@ -345,9 +345,9 @@ export default function MasterTable() {
     const handleViewPDF = (letter) => {
         if (letter.scanned_copy) {
             const encodedPath = btoa(letter.scanned_copy);
-            window.open(`http://localhost:5000/api/attachments/view-path?path=${encodedPath}`, '_blank');
+            window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view-path?path=${encodedPath}`, '_blank');
         } else if (letter.attachment_id) {
-            window.open(`http://localhost:5000/api/attachments/view/${letter.attachment_id}`, '_blank');
+            window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view/${letter.attachment_id}`, '_blank');
         } else {
             alert("No document available to view.");
         }

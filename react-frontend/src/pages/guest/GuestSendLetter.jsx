@@ -83,7 +83,7 @@ export default function GuestSendLetter() {
             return;
         }
         try {
-            const response = await axios.get(`http://localhost:5000/api/persons/search?query=${query}`);
+            const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/search?query=${query}`);
             setSuggestions(response.data);
             setShowSuggestions(response.data.length > 0);
         } catch (error) {
@@ -137,7 +137,7 @@ export default function GuestSendLetter() {
                 formDataUpload.append('file', attachments[0]);
                 formDataUpload.append('no_record', 'true');
 
-                const response = await axios.post('http://localhost:5000/api/attachments/upload', formDataUpload, {
+                const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/upload`, formDataUpload, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 scannedCopyPath = response.data.file_path;
@@ -150,7 +150,7 @@ export default function GuestSendLetter() {
             }
 
             // 3. Save the letter
-            await axios.post('http://localhost:5000/api/letters', {
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letters`, {
                 sender: formData.senders.join('; '),
                 encoder: formData.encoder, // Pass typed encoder name for syncing to Persons
                 summary: formData.regarding + dateInfo,

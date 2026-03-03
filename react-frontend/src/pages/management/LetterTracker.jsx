@@ -74,8 +74,8 @@ export default function LetterTracker() {
     };
 
     const handleViewPDF = (letter) => {
-        if (!letter.scanned_copy) return;
-        const url = `http://localhost:5000${letter.scanned_copy}`;
+        const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+        const url = `${baseUrl}${letter.scanned_copy}`;
         window.open(url, '_blank');
     };
 
