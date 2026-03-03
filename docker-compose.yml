@@ -29,7 +29,7 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./directus/database:/app/directus/database
+      - ./directus/database:/directus/database
       - ./backend/uploads:/app/uploads
     environment:
       PORT: 5000
