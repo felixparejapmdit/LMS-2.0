@@ -43,7 +43,7 @@ export default function VIPView() {
 
     const fetchSteps = async () => {
         try {
-            const response = await axios.get("`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/process-steps?vip=true");
+            const response = await axios.get("http://localhost:5000/api/process-steps?vip=true");
             setSteps(response.data);
             if (!selectedStepId && response.data.length > 0) {
                 setSelectedStepId(response.data[0].id);
@@ -66,7 +66,7 @@ export default function VIPView() {
             setLoading(true);
             try {
                 // Get assignments for this step to see which letters are here
-                const response = await axios.get(``${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments?step_id=${selectedStepId}&status=Pending&vip=true`);
+                const response = await axios.get(`http://localhost:5000/api/letter-assignments?step_id=${selectedStepId}&status=Pending&vip=true`);
 
                 // Extract letters from assignments with safer mapping
                 const letterList = response.data
@@ -101,7 +101,7 @@ export default function VIPView() {
     const fetchComments = async (letterId) => {
         setIsCommentsLoading(true);
         try {
-            const response = await axios.get(``${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments/letter/${letterId}`);
+            const response = await axios.get(`http://localhost:5000/api/comments/letter/${letterId}`);
             setComments(response.data);
         } catch (error) {
             console.error("Error fetching comments:", error);
@@ -137,7 +137,7 @@ export default function VIPView() {
         setIsSaving(true);
         try {
             // Create a new comment entry in the collection
-            await axios.post(``${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments`, {
+            await axios.post(`http://localhost:5000/api/comments`, {
                 letter_id: selectedLetter.id,
                 user_id: user.id,
                 comment_body: marginalNote
@@ -487,8 +487,8 @@ export default function VIPView() {
                             {selectedLetter.scanned_copy || selectedLetter.attachment_id ? (
                                 <iframe
                                     src={selectedLetter.scanned_copy
-                                        ? ``${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view-path?path=${btoa(selectedLetter.scanned_copy)}`
-                                        : ``${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view/${selectedLetter.attachment_id}`
+                                        ? `http://localhost:5000/api/attachments/view-path?path=${btoa(selectedLetter.scanned_copy)}`
+                                        : `http://localhost:5000/api/attachments/view/${selectedLetter.attachment_id}`
                                     }
                                     className="w-full h-full border-none shadow-inner"
                                     title="PDF Content"

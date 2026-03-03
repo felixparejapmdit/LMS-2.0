@@ -62,7 +62,7 @@ export default function Dashboard({ view = "inbox" }) {
     setAssignments([]); // Clear stale data before fetching new tab content
     try {
       const deptId = user?.dept_id?.id ?? user?.dept_id ?? null;
-      let url = ``${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments?department_id=${deptId}`;
+      let url = `http://localhost:5000/api/letter-assignments?department_id=${deptId}`;
 
       if (view === 'inbox') {
         url += '&status=Pending&exclude_vip=true';
@@ -84,7 +84,7 @@ export default function Dashboard({ view = "inbox" }) {
   const fetchInboxStats = async () => {
     try {
       const deptId = user?.dept_id?.id ?? user?.dept_id ?? null;
-      const res = await axios.get(``${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/stats/inbox?department_id=${deptId}`);
+      const res = await axios.get(`http://localhost:5000/api/stats/inbox?department_id=${deptId}`);
       setInboxStats(res.data);
     } catch (error) {
       console.error("Error fetching inbox stats:", error);
@@ -158,7 +158,7 @@ export default function Dashboard({ view = "inbox" }) {
       }
 
       // Update via backend
-      await axios.put(``${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${assignmentId}`, {
+      await axios.put(`http://localhost:5000/api/letter-assignments/${assignmentId}`, {
         step_id: nextStep.id
       });
 

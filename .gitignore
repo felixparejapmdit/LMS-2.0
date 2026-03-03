@@ -8,12 +8,11 @@ dist/
 build/
 .next/
 
-# Environment variables (SENSITIVE - never commit these)
-.env
+# Environment variables
 .env.local
 .env.development.local
 .env.test.local
-.env.production.local
+# Note: .env (production/Proxmox config) IS committed intentionally
 
 # Logs
 logs/

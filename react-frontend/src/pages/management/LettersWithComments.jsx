@@ -72,8 +72,8 @@ export default function LettersWithComments() {
     const handleViewPDF = (letter) => {
         if (!letter.scanned_copy && !letter.attachment_id) return;
         const url = letter.scanned_copy
-            ? ``${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view-path?path=${btoa(letter.scanned_copy)}`
-            : ``${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view/${letter.attachment_id}`;
+            ? `http://localhost:5000/api/attachments/view-path?path=${btoa(letter.scanned_copy)}`
+            : `http://localhost:5000/api/attachments/view/${letter.attachment_id}`;
         window.open(url, '_blank');
     };
 
