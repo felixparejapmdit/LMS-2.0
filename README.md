@@ -165,4 +165,4 @@ git push
 
 ---
 
-*Developed by Felix Pareja · PMD-IT Projects · 2026*
+*Developed by Felix Pareja · PMD-ITT Projects · 2026*
