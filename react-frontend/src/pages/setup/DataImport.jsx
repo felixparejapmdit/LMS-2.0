@@ -44,9 +44,9 @@ export default function DataImport() {
     };
 
     // UI Helpers
-    const textColor = layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white';
-    const cardBg = layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-    const pageBg = layoutStyle === 'linear' ? 'bg-[#080808]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const textColor = 'text-slate-900 dark:text-white';
+    const cardBg = 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const pageBg = 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
 
     return (
         <div className={`min-h-screen ${pageBg} flex font-sans transition-colors duration-300`}>

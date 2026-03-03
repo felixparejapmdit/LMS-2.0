@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
     const [isGuest, setIsGuest] = useState(localStorage.getItem("isGuest") === "true");
     const [loading, setLoading] = useState(true);
     const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
-    const [layoutStyle, setLayoutStyle] = useState(localStorage.getItem("layoutStyle") || "modern"); // 'modern', 'notion', 'linear', 'grid'
+    const [layoutStyle, setLayoutStyle] = useState(localStorage.getItem("layoutStyle") || "notion"); // 'notion', 'grid'
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(localStorage.getItem("isSidebarExpanded") === "true");
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [permissions, setPermissions] = useState([]);
@@ -60,12 +60,27 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem("isSidebarExpanded", isSidebarExpanded);
     }, [isSidebarExpanded]);
 
-    const toggleTheme = () => {
-        setTheme(prev => (prev === "light" ? "dark" : "light"));
+    const toggleTheme = async () => {
+        const newTheme = theme === "light" ? "dark" : "light";
+        setTheme(newTheme);
+        if (user?.id && !isGuest) {
+            try {
+                await axios.put(`${BACKEND_URL}/users/${user.id}`, { theme_preference: newTheme });
+            } catch (err) {
+                console.error("Failed to sync theme to backend", err);
+            }
+        }
     };
 
-    const toggleLayoutStyle = (style) => {
+    const toggleLayoutStyle = async (style) => {
         setLayoutStyle(style);
+        if (user?.id && !isGuest) {
+            try {
+                await axios.put(`${BACKEND_URL}/users/${user.id}`, { layout_style: style });
+            } catch (err) {
+                console.error("Failed to sync layout to backend", err);
+            }
+        }
     };
 
     const toggleSidebar = () => {
@@ -107,6 +122,8 @@ export const AuthProvider = ({ children }) => {
             const updatedMe = { ...me, islogin: true };
 
             setUser(updatedMe);
+            if (me.layout_style) setLayoutStyle(me.layout_style);
+            if (me.theme_preference) setTheme(me.theme_preference);
             return { success: true };
         } catch (error) {
             console.error("Login failed:", error);
@@ -159,6 +176,8 @@ export const AuthProvider = ({ children }) => {
             }
 
             setUser(me);
+            if (me.layout_style) setLayoutStyle(me.layout_style);
+            if (me.theme_preference) setTheme(me.theme_preference);
         } catch (error) {
             setUser(null);
             setPermissions([]);
@@ -166,6 +185,24 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (!user?.id || isGuest) return;
+
+        const syncPrefs = async () => {
+            try {
+                const response = await axios.get(`${BACKEND_URL}/users/${user.id}`);
+                const me = response.data;
+                if (me.layout_style && me.layout_style !== layoutStyle) setLayoutStyle(me.layout_style);
+                if (me.theme_preference && me.theme_preference !== theme) setTheme(me.theme_preference);
+            } catch (error) {
+                console.error("Failed to sync preferences:", error);
+            }
+        };
+
+        const interval = setInterval(syncPrefs, 30000); // Sync every 30 seconds
+        return () => clearInterval(interval);
+    }, [user?.id, isGuest, layoutStyle, theme]);
 
     useEffect(() => {
         checkAuth();

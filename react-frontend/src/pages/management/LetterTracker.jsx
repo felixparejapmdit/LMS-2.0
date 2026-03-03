@@ -34,9 +34,9 @@ export default function LetterTracker() {
     const isSuperAdmin = user?.roleData?.name?.toUpperCase() === 'ADMIN' || user?.roleData?.name?.toUpperCase() === 'SUPER ADMIN';
 
     // Theme Variables
-    const textColor = layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white';
-    const cardBg = layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-    const pageBg = layoutStyle === 'linear' ? 'bg-[#080808]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const textColor = 'text-slate-900 dark:text-white';
+    const cardBg = 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const pageBg = 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
 
     const fetchLetters = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
@@ -85,7 +85,7 @@ export default function LetterTracker() {
 
             <main className="flex-1 flex flex-col overflow-hidden relative">
                 {/* Header */}
-                <header className={`h-20 flex items-center justify-between px-8 border-b ${layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-gray-100 dark:border-[#222]'}`}>
+                <header className={`h-20 flex items-center justify-between px-8 border-b ${'border-gray-100 dark:border-[#222]'}`}>
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-400 md:hidden"><TableIcon className="w-5 h-5" /></button>
                         <div>
@@ -113,7 +113,7 @@ export default function LetterTracker() {
                                     placeholder="Search reference, sender..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-white' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
+                                    className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
                                 />
                             </div>
                         </div>
@@ -123,7 +123,7 @@ export default function LetterTracker() {
                             <div className="overflow-x-auto custom-scrollbar">
                                 <table className="w-full text-left border-collapse min-w-[1000px]">
                                     <thead>
-                                        <tr className={`border-b ${layoutStyle === 'linear' ? 'border-[#1a1a1a] bg-[#111]' : 'border-gray-50 dark:border-[#222] bg-gray-50/50'}`}>
+                                        <tr className={`border-b ${'border-gray-50 dark:border-[#222] bg-gray-50/50'}`}>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Reference #</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Date Received</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Sender</th>

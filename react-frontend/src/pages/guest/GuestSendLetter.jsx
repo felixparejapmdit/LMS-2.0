@@ -250,13 +250,13 @@ export default function GuestSendLetter() {
     };
 
     // Layout-specific styling
-    const pageBg = layoutStyle === 'linear' ? 'bg-[#080808]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
-    const headerBg = layoutStyle === 'linear' ? 'bg-[#080808]/80 backdrop-blur-md border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-100' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-    const cardBg = layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-    const accentColor = layoutStyle === 'linear' ? 'bg-indigo-600 hover:bg-indigo-500' : layoutStyle === 'grid' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#F6A17B] hover:bg-[#e8946e]';
-    const textColor = layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white';
-    const subTextColor = layoutStyle === 'linear' ? 'text-indigo-400' : 'text-blue-600';
-    const inputBg = layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-slate-50 dark:bg-white/5 border-slate-50 dark:border-[#333] text-slate-800 dark:text-white';
+    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-100' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const accentColor = layoutStyle === 'grid' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#F6A17B] hover:bg-[#e8946e]';
+    const textColor = 'text-slate-900 dark:text-white';
+    const subTextColor = 'text-blue-600';
+    const inputBg = 'bg-slate-50 dark:bg-white/5 border-slate-50 dark:border-[#333] text-slate-800 dark:text-white';
 
     const isRegularUser = String(user?.roleData?.name || '').trim().toUpperCase() === 'USER';
 
@@ -271,7 +271,7 @@ export default function GuestSendLetter() {
                         {isRegularUser && (
                             <button
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className={`lg:hidden p-2 rounded-xl border ${layoutStyle === 'linear' ? 'border-[#222] text-[#eee]' : 'border-slate-100 text-slate-600'}`}
+                                className={`lg:hidden p-2 rounded-xl border ${'border-slate-100 text-slate-600'}`}
                             >
                                 <Menu className="w-5 h-5" />
                             </button>
@@ -283,7 +283,7 @@ export default function GuestSendLetter() {
                                 <h1 className={`text-xl font-black tracking-tighter ${textColor}`}>{referenceNo}</h1>
                             </div>
                         </div>
-                        <div className={`h-8 w-[1px] ${layoutStyle === 'linear' ? 'bg-[#222]' : 'bg-slate-100'}`}></div>
+                        <div className={`h-8 w-[1px] ${'bg-slate-100'}`}></div>
                         <div className="flex flex-col">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Entry Date</span>
                             <span className={`text-sm font-bold ${textColor}`}>{today}</span>
@@ -293,7 +293,7 @@ export default function GuestSendLetter() {
                     <div className="flex items-center gap-4">
                         {!isRegularUser && (
                             <>
-                                <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${layoutStyle === 'linear' ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-600/20' : 'bg-orange-600/10 text-orange-600 border border-orange-600/20'}`}>
+                                <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${'bg-orange-600/10 text-orange-600 border border-orange-600/20'}`}>
                                     Guest Mode
                                 </div>
                                 <button
@@ -318,7 +318,7 @@ export default function GuestSendLetter() {
                         {/* Metadata Section */}
                         <div className="lg:col-span-8 space-y-8 md:space-y-12">
                             <section className={`${cardBg} p-8 md:p-16 rounded-[2.5rem] md:rounded-[3.5rem] border shadow-2xl shadow-slate-200/5 space-y-8 md:space-y-12`}>
-                                <div className={`flex items-center gap-4 border-b pb-8 ${layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-slate-50 dark:border-[#222]'}`}>
+                                <div className={`flex items-center gap-4 border-b pb-8 ${'border-slate-50 dark:border-[#222]'}`}>
                                     <FileText className={`w-6 h-6 ${subTextColor}`} />
                                     <h2 className={`text-lg font-black uppercase tracking-tight ${textColor}`}>Letter Metadata</h2>
                                 </div>
@@ -355,7 +355,7 @@ export default function GuestSendLetter() {
                                                         {showSuggestions && activeSenderIndex === index && (
                                                             <div
                                                                 ref={suggestionRef}
-                                                                className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
+                                                                className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
                                                             >
                                                                 {suggestions.map((person) => (
                                                                     <div
@@ -390,7 +390,7 @@ export default function GuestSendLetter() {
 
                                         <button
                                             onClick={addSender}
-                                            className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed ${layoutStyle === 'linear' ? 'border-[#222] text-[#444] hover:text-[#eee] hover:border-[#444]' : 'border-slate-100 dark:border-[#333] text-slate-400 hover:border-orange-500/30 hover:text-orange-600'} transition-all`}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed ${'border-slate-100 dark:border-[#333] text-slate-400 hover:border-orange-500/30 hover:text-orange-600'} transition-all`}
                                         >
                                             <Plus className="w-4 h-4" />
                                             <span className="text-[10px] font-black uppercase tracking-widest">Add another sender</span>
@@ -483,13 +483,13 @@ export default function GuestSendLetter() {
                                                         setActiveSenderIndex('encoder');
                                                         if (formData.encoder.length >= 2) fetchSuggestions(formData.encoder.split(',').pop().trim());
                                                     }}
-                                                    className={`w-full px-6 py-4 border-2 rounded-2xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-sm font-black uppercase tracking-wider outline-none ${!validateFormat(formData.encoder) ? 'border-red-500/50' : ''} ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] text-slate-600 dark:text-slate-200'}`}
+                                                    className={`w-full px-6 py-4 border-2 rounded-2xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-sm font-black uppercase tracking-wider outline-none ${!validateFormat(formData.encoder) ? 'border-red-500/50' : ''} ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] text-slate-600 dark:text-slate-200'}`}
                                                 />
 
                                                 {showSuggestions && activeSenderIndex === 'encoder' && (
                                                     <div
                                                         ref={suggestionRef}
-                                                        className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
+                                                        className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
                                                     >
                                                         {suggestions.map((person) => (
                                                             <div
@@ -518,7 +518,7 @@ export default function GuestSendLetter() {
                         {/* Attachment Section */}
                         <div className="lg:col-span-4 space-y-8 md:space-y-12">
                             <section className={`${cardBg} p-8 md:p-16 rounded-[2.5rem] md:rounded-[3.5rem] border shadow-2xl flex flex-col`}>
-                                <div className={`flex items-center gap-4 border-b pb-8 mb-10 ${layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-slate-50 dark:border-[#222]'}`}>
+                                <div className={`flex items-center gap-4 border-b pb-8 mb-10 ${'border-slate-50 dark:border-[#222]'}`}>
                                     <Upload className={`w-6 h-6 ${subTextColor}`} />
                                     <h2 className={`text-lg font-black uppercase tracking-tight ${textColor}`}>Attachments</h2>
                                 </div>
@@ -531,7 +531,7 @@ export default function GuestSendLetter() {
                                         <select
                                             value={formData.refAttachmentId}
                                             onChange={(e) => setFormData({ ...formData, refAttachmentId: e.target.value })}
-                                            className={`w-full px-4 py-3 rounded-2xl border-2 transition-all outline-none text-sm font-bold ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee] focus:border-indigo-500' : 'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] focus:border-orange-500'}`}
+                                            className={`w-full px-4 py-3 rounded-2xl border-2 transition-all outline-none text-sm font-bold ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] focus:border-orange-500'}`}
                                         >
                                             <option value="">-- None --</option>
                                             {refAttachments.map(att => (
@@ -546,7 +546,7 @@ export default function GuestSendLetter() {
                                         onClick={() => fileInputRef.current.click()}
                                         onDragOver={(e) => e.preventDefault()}
                                         onDrop={handleDrop}
-                                        className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-12 transition-all cursor-pointer group ${layoutStyle === 'linear' ? 'border-[#222] bg-white/5 hover:bg-white/10' : 'border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5'}`}
+                                        className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-12 transition-all cursor-pointer group ${'border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5'}`}
                                     >
                                         <input
                                             type="file"
@@ -568,9 +568,9 @@ export default function GuestSendLetter() {
                                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attached Files ({attachments.length})</h4>
                                         <div className="max-h-40 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                                             {attachments.map((file, index) => (
-                                                <div key={index} className={`flex items-center justify-between p-3 rounded-xl border group ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222]' : 'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}>
+                                                <div key={index} className={`flex items-center justify-between p-3 rounded-xl border group ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}>
                                                     <div className="flex items-center gap-3 truncate">
-                                                        <div className={`w-8 h-8 bg-white dark:bg-white/10 border rounded-lg flex items-center justify-center ${subTextColor} ${layoutStyle === 'linear' ? 'border-[#222]' : 'border-slate-100'}`}>
+                                                        <div className={`w-8 h-8 bg-white dark:bg-white/10 border rounded-lg flex items-center justify-center ${subTextColor} ${'border-slate-100'}`}>
                                                             <FileText className="w-4 h-4" />
                                                         </div>
                                                         <span className={`text-xs font-bold truncate ${textColor}`}>{file.name}</span>
@@ -593,13 +593,13 @@ export default function GuestSendLetter() {
                                 <div className="mt-12 space-y-4">
                                     <button
                                         onClick={handleSend}
-                                        className={`w-full py-5 ${accentColor} text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98] ${layoutStyle === 'linear' ? 'shadow-indigo-900/20' : 'shadow-orange-100'}`}
+                                        className={`w-full py-5 ${accentColor} text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98] ${'shadow-orange-100'}`}
                                     >
                                         <Send className="w-4 h-4" /> Send Letter
                                     </button>
                                     <button
                                         onClick={handleClear}
-                                        className={`w-full py-5 bg-transparent border-2 font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all ${layoutStyle === 'linear' ? 'border-[#222] text-[#444] hover:text-[#eee] hover:border-[#444]' : 'border-slate-100 dark:border-[#333] text-slate-400 hover:border-red-100 dark:hover:border-red-900/20 hover:text-red-500'}`}
+                                        className={`w-full py-5 bg-transparent border-2 font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all ${'border-slate-100 dark:border-[#333] text-slate-400 hover:border-red-100 dark:hover:border-red-900/20 hover:text-red-500'}`}
                                     >
                                         <Trash2 className="w-4 h-4" /> Clear All Fields
                                     </button>
@@ -616,7 +616,7 @@ export default function GuestSendLetter() {
                     <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
                         <span className="hover:text-blue-600 cursor-pointer">Security Policy</span>
                         <span className="hover:text-blue-600 cursor-pointer">Encryption Protocol</span>
-                        <span className={`px-3 py-1 rounded ${layoutStyle === 'linear' ? 'bg-[#1a1a1a] text-[#444]' : 'bg-slate-50 text-slate-300'}`}>Build 2.0.4-Guest</span>
+                        <span className={`px-3 py-1 rounded ${'bg-slate-50 text-slate-300'}`}>Build 2.0.4-Guest</span>
                     </div>
                 </footer>
             </div>

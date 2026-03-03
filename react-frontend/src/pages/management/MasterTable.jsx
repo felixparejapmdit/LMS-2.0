@@ -45,9 +45,9 @@ export default function MasterTable() {
     const navigate = useNavigate();
 
     // Theme Variables (derived locally)
-    const textColor = layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white';
-    const cardBg = layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-    const pageBg = layoutStyle === 'linear' ? 'bg-[#080808]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const textColor = 'text-slate-900 dark:text-white';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
 
     const [letters, setLetters] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -374,7 +374,7 @@ export default function MasterTable() {
             <Sidebar />
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
                 {/* Header */}
-                <header className={`h-16 ${layoutStyle === 'linear' ? 'bg-[#080808] border-[#1a1a1a]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]'} border-b px-4 md:px-8 flex items-center justify-between z-10`}>
+                <header className={`h-16 ${'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]'} border-b px-4 md:px-8 flex items-center justify-between z-10`}>
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-400 md:hidden transition-colors"><Menu className="w-5 h-5" /></button>
                         <div className="flex items-center gap-2">
@@ -411,14 +411,14 @@ export default function MasterTable() {
                                     placeholder="Find letters, senders, summaries..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-white' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
+                                    className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
                                 />
                             </div>
                         </div>
 
                         {/* Bulk Status Actions Bar */}
                         {selectedIds.length > 0 && (
-                            <div className={`p-4 rounded-3xl border flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300 ${layoutStyle === 'linear' ? 'bg-indigo-500/10 border-indigo-500/20' : 'bg-orange-50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/20'}`}>
+                            <div className={`p-4 rounded-3xl border flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300 ${'bg-orange-50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/20'}`}>
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-white dark:bg-white/10 rounded-full flex items-center justify-center text-orange-500 shadow-sm border border-orange-100 dark:border-orange-900/20">
                                         <CheckSquare className="w-5 h-5" />
@@ -452,11 +452,11 @@ export default function MasterTable() {
                         )}
 
                         {/* Table Container */}
-                        <div className={`rounded-[2.5rem] border overflow-hidden shadow-sm ${layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
+                        <div className={`rounded-[2.5rem] border overflow-hidden shadow-sm ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
                             <div className="overflow-x-auto custom-scrollbar">
                                 <table className="w-full text-left border-collapse min-w-[1200px]">
                                     <thead>
-                                        <tr className={`border-b ${layoutStyle === 'linear' ? 'border-[#1a1a1a] bg-[#111]' : 'border-gray-50 dark:border-[#222] bg-gray-50/50 dark:bg-white/5'}`}>
+                                        <tr className={`border-b ${'border-gray-50 dark:border-[#222] bg-gray-50/50 dark:bg-white/5'}`}>
                                             <th className="p-5 w-12 text-center">
                                                 <button onClick={toggleSelectAll} className="text-gray-400 hover:text-orange-500 transition-colors">
                                                     {selectedIds.length === filteredLetters.length && filteredLetters.length > 0 ? <CheckSquare className="w-5 h-5 text-orange-500" /> : <Square className="w-5 h-5" />}
@@ -583,9 +583,9 @@ export default function MasterTable() {
             {isDrawerOpen && selectedLetter && (
                 <div className="fixed inset-0 z-[100] flex justify-end">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsDrawerOpen(false)} />
-                    <div className={`w-full max-w-xl ${layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-l border-[#1a1a1a]' : 'bg-white dark:bg-[#141414] shadow-2xl'} h-full relative z-10 animate-in slide-in-from-right duration-500 flex flex-col`}>
+                    <div className={`w-full max-w-xl ${'bg-white dark:bg-[#141414] shadow-2xl'} h-full relative z-10 animate-in slide-in-from-right duration-500 flex flex-col`}>
                         {/* Drawer Header */}
-                        <div className={`p-8 border-b ${layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-gray-50 dark:border-[#222]'} flex items-center justify-between`}>
+                        <div className={`p-8 border-b ${'border-gray-50 dark:border-[#222]'} flex items-center justify-between`}>
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-900/10 flex items-center justify-center text-red-500">
                                     <FileText className="w-6 h-6" />
@@ -604,7 +604,7 @@ export default function MasterTable() {
                         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
                             <div className="space-y-6">
                                 {/* Core Info Card */}
-                                <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222]' : 'bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] shadow-inner'} space-y-6`}>
+                                <div className={`p-6 rounded-[2rem] border ${'bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] shadow-inner'} space-y-6`}>
 
 
 
@@ -731,7 +731,7 @@ export default function MasterTable() {
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sender Entity</label>
                                         <input
                                             type="text"
-                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-white' : 'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold ${'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
                                             value={selectedLetter.sender || ""}
                                             onChange={(e) => setSelectedLetter({ ...selectedLetter, sender: e.target.value })}
                                         />
@@ -778,7 +778,7 @@ export default function MasterTable() {
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Summary / Content</label>
                                         <textarea
                                             rows="4"
-                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold resize-none ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-white' : 'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold resize-none ${'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
                                             value={selectedLetter.summary || ""}
                                             onChange={(e) => setSelectedLetter({ ...selectedLetter, summary: e.target.value })}
                                         />
@@ -789,7 +789,7 @@ export default function MasterTable() {
                                         <select
                                             value={selectedLetter.letter_type || "Non-Confidential"}
                                             onChange={(e) => setSelectedLetter({ ...selectedLetter, letter_type: e.target.value })}
-                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-white' : 'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 ${'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
                                         >
                                             <option value="Confidential">Confidential</option>
                                             <option value="Non-Confidential">Non-Confidential</option>
@@ -800,7 +800,7 @@ export default function MasterTable() {
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">VEM Code</label>
                                         <input
                                             type="text"
-                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-white' : 'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold ${'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
                                             value={selectedLetter.vemcode || ""}
                                             onChange={(e) => setSelectedLetter({ ...selectedLetter, vemcode: e.target.value })}
                                         />
@@ -810,7 +810,7 @@ export default function MasterTable() {
                                         <label className="text-[10px] font-black text-indigo-500 uppercase tracking-wides">EVM Marginal Note</label>
                                         <input
                                             type="text"
-                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-white' : 'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold ${'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
                                             value={selectedLetter.evemnote || ""}
                                             onChange={(e) => setSelectedLetter({ ...selectedLetter, evemnote: e.target.value })}
                                         />
@@ -820,7 +820,7 @@ export default function MasterTable() {
                                         <label className="text-[10px] font-black text-indigo-500 uppercase tracking-wides">AEVM Marginal Note</label>
                                         <textarea
                                             rows="2"
-                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold resize-none ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-white' : 'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold resize-none ${'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
                                             value={selectedLetter.aevmnote || ""}
                                             onChange={(e) => setSelectedLetter({ ...selectedLetter, aevmnote: e.target.value })}
                                         />
@@ -830,7 +830,7 @@ export default function MasterTable() {
                                         <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">ATG Marginal Note</label>
                                         <textarea
                                             rows="3"
-                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold resize-none ${layoutStyle === 'linear' ? 'bg-indigo-500/5 border-indigo-500/20 text-white' : 'bg-indigo-50 dark:bg-indigo-900/5 border-indigo-100 dark:border-indigo-900/20 text-slate-900 dark:text-white'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold resize-none ${'bg-indigo-50 dark:bg-indigo-900/5 border-indigo-100 dark:border-indigo-900/20 text-slate-900 dark:text-white'}`}
                                             value={selectedLetter.atgnote || ""}
                                             onChange={(e) => setSelectedLetter({ ...selectedLetter, atgnote: e.target.value })}
                                         />
@@ -887,7 +887,7 @@ export default function MasterTable() {
 
                                         {/* Current / Selected Attachment Info */}
                                         {selectedLetter.scanned_copy && (
-                                            <div className={`p-4 mb-4 rounded-2xl border ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222]' : 'bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20'} flex items-center justify-between`}>
+                                            <div className={`p-4 mb-4 rounded-2xl border ${'bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20'} flex items-center justify-between`}>
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
                                                         <FileText className="w-5 h-5" />
@@ -928,7 +928,7 @@ export default function MasterTable() {
                                         </div>
 
                                         {selectedLetter.attachment_id && (
-                                            <div className={`p-4 rounded-2xl border ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222]' : 'bg-orange-50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/20'} flex items-center justify-between`}>
+                                            <div className={`p-4 rounded-2xl border ${'bg-orange-50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/20'} flex items-center justify-between`}>
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/20">
                                                         <FileText className="w-5 h-5" />
@@ -957,7 +957,7 @@ export default function MasterTable() {
                         </div>
 
                         {/* Drawer Footer */}
-                        <div className={`p-8 border-t ${layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-gray-50 dark:border-[#222]'} flex items-center gap-3`}>
+                        <div className={`p-8 border-t ${'border-gray-50 dark:border-[#222]'} flex items-center gap-3`}>
                             <button
                                 onClick={() => setIsDrawerOpen(false)}
                                 className="flex-1 py-4 px-6 rounded-2xl border border-gray-200 dark:border-[#333] text-xs font-black uppercase tracking-widest text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
@@ -981,9 +981,9 @@ export default function MasterTable() {
             {isTrackDrawerOpen && (
                 <div className="fixed inset-0 z-[100] flex justify-start">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsTrackDrawerOpen(false)} />
-                    <div className={`w-full max-w-md ${layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-r border-[#1a1a1a]' : 'bg-white dark:bg-[#141414] shadow-2xl'} h-full relative z-10 animate-in slide-in-from-left duration-500 flex flex-col`}>
+                    <div className={`w-full max-w-md ${'bg-white dark:bg-[#141414] shadow-2xl'} h-full relative z-10 animate-in slide-in-from-left duration-500 flex flex-col`}>
                         {/* Drawer Header */}
-                        <div className={`p-8 border-b ${layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-gray-50 dark:border-[#222]'} flex items-center justify-between`}>
+                        <div className={`p-8 border-b ${'border-gray-50 dark:border-[#222]'} flex items-center justify-between`}>
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/10 flex items-center justify-center text-indigo-500">
                                     <GitMerge className="w-6 h-6" />
@@ -1040,7 +1040,7 @@ export default function MasterTable() {
                             </div>
                         </div>
 
-                        <div className={`p-8 border-t ${layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-gray-50 dark:border-[#222]'}`}>
+                        <div className={`p-8 border-t ${'border-gray-50 dark:border-[#222]'}`}>
                             <button
                                 onClick={() => setIsTrackDrawerOpen(false)}
                                 className="w-full py-4 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-600/20"

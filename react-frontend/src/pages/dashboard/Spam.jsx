@@ -90,7 +90,7 @@ export default function Spam() {
         <div className={`min-h-screen ${pageBg} flex overflow-hidden`}>
             <Sidebar />
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                <header className={`h-16 ${layoutStyle === 'linear' ? 'bg-[#080808] border-[#1a1a1a]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]'} border-b px-8 flex items-center justify-between z-10 shrink-0`}>
+                <header className={`h-16 ${'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]'} border-b px-8 flex items-center justify-between z-10 shrink-0`}>
                     <div className="flex items-center gap-3">
                         <Users className="w-5 h-5 text-orange-500" />
                         <h1 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Contact Directory / Spam</h1>

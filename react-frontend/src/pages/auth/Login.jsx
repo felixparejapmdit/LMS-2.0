@@ -26,14 +26,14 @@ export default function Login() {
   };
 
   // Layout-specific styling mapping
-  const pageBg = layoutStyle === 'linear' ? 'bg-[#080808]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50 text-slate-900' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
-  const cardBg = layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-  const accentColor = layoutStyle === 'linear' ? 'bg-indigo-600 hover:bg-indigo-500' : layoutStyle === 'grid' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#F6A17B] hover:bg-[#e8946e]';
-  const textColor = layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white';
-  const inputBg = layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-[#333] text-slate-900 dark:text-white';
-  const ringColor = layoutStyle === 'linear' ? 'focus:ring-indigo-500' : layoutStyle === 'grid' ? 'focus:ring-blue-500' : 'focus:ring-orange-500';
+  const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50 text-slate-900' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+  const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+  const accentColor = layoutStyle === 'grid' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#F6A17B] hover:bg-[#e8946e]';
+  const textColor = 'text-slate-900 dark:text-white';
+  const inputBg = 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-[#333] text-slate-900 dark:text-white';
+  const ringColor = layoutStyle === 'grid' ? 'focus:ring-blue-500' : 'focus:ring-orange-500';
 
-  const frameBorder = layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-slate-200 dark:border-white/10';
+  const frameBorder = 'border-slate-200 dark:border-white/10';
 
   return (
     <div className={`flex min-h-screen ${pageBg} transition-colors duration-500 font-sans`}>
@@ -108,7 +108,7 @@ export default function Login() {
 
               <div className="relative py-4">
                 <div className="absolute inset-0 flex items-center">
-                  <div className={`w-full border-t ${layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-slate-100 dark:border-white/5'}`}></div>
+                  <div className={`w-full border-t border-slate-100 dark:border-white/5`}></div>
                 </div>
               </div>
 
@@ -118,7 +118,7 @@ export default function Login() {
                   loginGuest();
                   navigate("/guest/send-letter");
                 }}
-                className={`w-full py-4 bg-transparent border-2 ${layoutStyle === 'linear' ? 'border-[#1a1a1a] text-[#666] hover:text-white hover:border-[#333]' : 'border-slate-100 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-200'} rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3`}
+                className={`w-full py-4 bg-transparent border-2 border-slate-100 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-200 rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3`}
               >
                 <User className="w-4 h-4" />
                 Login as Guest

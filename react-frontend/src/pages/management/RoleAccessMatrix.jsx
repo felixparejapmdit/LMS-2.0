@@ -60,9 +60,9 @@ export default function RoleAccessMatrix() {
     const [matrix, setMatrix] = useState({}); // { [page_id]: permissions }
     const [message, setMessage] = useState({ type: "", text: "" });
 
-    const textColor = layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white';
-    const cardBg = layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-    const pageBg = layoutStyle === 'linear' ? 'bg-[#080808]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const textColor = 'text-slate-900 dark:text-white';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
 
     const fetchRoles = async () => {
         try {
@@ -186,7 +186,7 @@ export default function RoleAccessMatrix() {
                 </header>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 custom-scrollbar">
-                    <div className="max-w-[1400px] mx-auto space-y-8">
+                    <div className="max-w-[100vw] mx-auto space-y-8 px-4 md:px-8">
                         {/* Selector */}
                         <div className={`p-8 rounded-[2.5rem] border shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 ${cardBg}`}>
                             <div className="flex items-center gap-6">
@@ -220,7 +220,7 @@ export default function RoleAccessMatrix() {
                             <div className="overflow-x-auto custom-scrollbar">
                                 <table className="w-full text-left border-collapse min-w-[1000px]">
                                     <thead>
-                                        <tr className={`border-b ${layoutStyle === 'linear' ? 'border-[#1a1a1a] bg-[#111]' : 'border-gray-50 dark:border-[#222] bg-gray-50/50 dark:bg-white/5'}`}>
+                                        <tr className={`border-b ${'border-gray-50 dark:border-[#222] bg-gray-50/50 dark:bg-white/5'}`}>
                                             <th className="p-8 w-[300px] text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Functional Area (Page)</th>
                                             {ACTIONS.map(action => (
                                                 <th key={action.id} className="p-8 text-center text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">

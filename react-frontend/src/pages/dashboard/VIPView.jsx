@@ -158,16 +158,15 @@ export default function VIPView() {
         }
     };
 
-    const textColor = layoutStyle === 'linear' ? 'text-white' : 'text-slate-900 dark:text-white';
-    const cardBg = layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' :
-        layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' :
-            layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
-                'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] shadow-sm';
+    const textColor = 'text-slate-900 dark:text-white';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' :
+        layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
+            'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] shadow-sm';
 
     const renderVIPContent = () => (
         <div className="space-y-8">
             {/* Header section (Custom for VIP) */}
-            <div className={`p-8 rounded-[2.5rem] border ${layoutStyle === 'linear' ? 'bg-[#111] border-[#1a1a1a]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] shadow-sm'}`}>
+            <div className={`p-8 rounded-[2.5rem] border ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] shadow-sm'}`}>
                 <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="flex items-center gap-6">
                         <div className="w-16 h-16 rounded-[2rem] bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-500/20 shrink-0">
@@ -317,24 +316,6 @@ export default function VIPView() {
             );
         }
 
-        if (layoutStyle === 'linear') {
-            return (
-                <div className="min-h-screen bg-[#080808] text-[#eee] font-sans">
-                    <main className="flex-1 flex flex-col">
-                        <header className="h-14 border-b border-[#1a1a1a] flex items-center justify-between px-4 md:px-6 bg-[#080808]/80 backdrop-blur-md sticky top-0 z-20">
-                            <div className="flex items-center gap-2 text-xs font-bold text-[#666] uppercase tracking-widest">
-                                <span className="text-indigo-400">EXECUTIVE</span>
-                                <ChevronRight className="w-3 h-3" />
-                                <span className="text-[#eee]">VIP VIEW</span>
-                            </div>
-                        </header>
-                        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-10">
-                            {renderVIPContent()}
-                        </div>
-                    </main>
-                </div>
-            );
-        }
 
         if (layoutStyle === 'notion') {
             return (

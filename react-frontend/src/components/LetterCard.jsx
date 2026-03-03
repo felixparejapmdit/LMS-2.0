@@ -26,7 +26,7 @@ export default function LetterCard({
   dueDate,
   attachment,
   tray,
-  layout = "modern",
+  layout = "notion",
   actions = null
 }) {
   const isPastDue = dueDate && new Date(dueDate) < new Date();
@@ -35,48 +35,6 @@ export default function LetterCard({
     day: 'numeric'
   }) : 'No deadline';
 
-  if (layout === 'linear') {
-    return (
-      <Link
-        to={`/letter/${letterId}`}
-        className="flex items-center gap-6 px-4 py-3 hover:bg-[#111] transition-all group border-l-2 border-transparent hover:border-indigo-500"
-      >
-        <div className="flex items-center gap-3 min-w-[120px]">
-          <span className="text-[10px] font-bold text-[#444] group-hover:text-indigo-400 transition-colors uppercase tracking-widest">{atgId}</span>
-        </div>
-
-        <div className="flex-1 flex items-center gap-6 min-w-0">
-          <div className="flex items-center gap-2 px-2 py-0.5 bg-[#1a1a1a] border border-[#222] rounded text-[9px] font-bold text-[#666] uppercase">
-            {step || 'ACTIVE'}
-          </div>
-          <span className="text-sm font-bold text-[#eee] truncate w-48">{sender}</span>
-          <div
-            className="text-xs text-[#555] truncate flex-1"
-            dangerouslySetInnerHTML={{ __html: summary?.substring(0, 80) + '...' }}
-          />
-        </div>
-
-        <div className="flex items-center gap-6">
-          <div className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${isPastDue ? 'text-red-500/50' : 'text-[#444]'}`}>
-            <Clock className="w-3 h-3" />
-            {formattedDate}
-          </div>
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#444] uppercase tracking-widest min-w-[80px]">
-            <MapPin className="w-3 h-3" />
-            {tray?.tray_no || 'No Tray'}
-          </div>
-          <div className="flex items-center gap-2">
-            {actions}
-            <div className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${status === 'Done' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-orange-500/10 text-orange-500 border border-orange-500/20'
-              }`}>
-              {status}
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-[#222] group-hover:text-[#444] transition-colors" />
-        </div>
-      </Link>
-    );
-  }
 
   if (layout === 'grid') {
     return (

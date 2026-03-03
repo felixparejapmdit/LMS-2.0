@@ -41,6 +41,14 @@ const User = sequelize.define('User', {
     },
     location: {
         type: DataTypes.STRING
+    },
+    layout_style: {
+        type: DataTypes.STRING,
+        defaultValue: 'notion'
+    },
+    theme_preference: {
+        type: DataTypes.STRING,
+        defaultValue: 'light'
     }
 }, {
     tableName: 'directus_users',

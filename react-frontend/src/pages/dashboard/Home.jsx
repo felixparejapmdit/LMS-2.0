@@ -85,10 +85,9 @@ export default function Home() {
     };
 
     const StatCard = ({ title, value, icon: Icon, colorClass, bgClass, trend }) => (
-        <div className={`p-6 rounded-[2rem] border transition-all hover:shadow-lg ${layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a] hover:border-indigo-500/30' :
-            layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222] hover:border-gray-200' :
-                layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
-                    'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] shadow-sm'
+        <div className={`p-6 rounded-[2rem] border transition-all hover:shadow-lg ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222] hover:border-gray-200' :
+            layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
+                'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] shadow-sm'
             }`}>
             <div className="flex justify-between items-start mb-4">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${bgClass} shrink-0`}>
@@ -102,10 +101,10 @@ export default function Home() {
                 )}
             </div>
             <div>
-                <h3 className={`text-3xl font-black tracking-tight ${layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white'}`}>
+                <h3 className={`text-3xl font-black tracking-tight ${'text-slate-900 dark:text-white'}`}>
                     {value}
                 </h3>
-                <p className={`text-xs font-bold uppercase tracking-widest mt-1 ${layoutStyle === 'linear' ? 'text-[#666]' : 'text-slate-400'}`}>
+                <p className={`text-xs font-bold uppercase tracking-widest mt-1 ${'text-slate-400'}`}>
                     {title}
                 </p>
             </div>
@@ -160,16 +159,16 @@ export default function Home() {
                     {/* Main Content - Recent Work */}
                     <div className="lg:col-span-2 space-y-6">
                         <div className="flex items-center justify-between">
-                            <h2 className={`text-lg font-black uppercase tracking-tight ${layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white'}`}>
+                            <h2 className={`text-lg font-black uppercase tracking-tight ${'text-slate-900 dark:text-white'}`}>
                                 Recently Received
                             </h2>
-                            <button onClick={() => navigate('/inbox')} className={`text-xs font-bold uppercase tracking-widest flex items-center gap-1 transition-colors ${layoutStyle === 'linear' ? 'text-indigo-400 hover:text-indigo-300' : 'text-blue-600 hover:text-blue-700'}`}>
+                            <button onClick={() => navigate('/inbox')} className={`text-xs font-bold uppercase tracking-widest flex items-center gap-1 transition-colors ${'text-blue-600 hover:text-blue-700'}`}>
                                 View Inbox <ChevronRight className="w-4 h-4" />
                             </button>
                         </div>
 
                         {stats.recentTasks.length === 0 ? (
-                            <div className={`py-16 flex flex-col items-center justify-center rounded-[2.5rem] border ${layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
+                            <div className={`py-16 flex flex-col items-center justify-center rounded-[2.5rem] border ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
                                 <Inbox className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" />
                                 <p className="font-bold text-gray-400 uppercase tracking-widest text-xs">No incoming letters right now</p>
                             </div>
@@ -186,7 +185,7 @@ export default function Home() {
                                         status={task.status?.status_name || 'Incoming'}
                                         step={null}
                                         dueDate={task.date_received}
-                                        layout={layoutStyle === 'default' ? 'modern' : layoutStyle}
+                                        layout={layoutStyle}
                                     />
                                 ))}
                             </div>
@@ -199,7 +198,7 @@ export default function Home() {
                                 </h2>
                             </div>
                             {stats.atgLetters?.length === 0 ? (
-                                <div className={`py-12 flex flex-col items-center justify-center rounded-[2.5rem] border border-dashed ${layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
+                                <div className={`py-12 flex flex-col items-center justify-center rounded-[2.5rem] border border-dashed ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
                                     <p className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">No letters flagged for ATG Dashboard</p>
                                 </div>
                             ) : (
@@ -215,7 +214,7 @@ export default function Home() {
                                             status={assignment.status}
                                             step={assignment.step?.step_name}
                                             dueDate={assignment.due_date || assignment.letter?.date_received}
-                                            layout={layoutStyle === 'default' ? 'modern' : layoutStyle}
+                                            layout={layoutStyle}
                                         />
                                     ))}
                                 </div>
@@ -225,21 +224,20 @@ export default function Home() {
 
                     {/* Side Panel - Operations */}
                     <div className="space-y-6">
-                        <div className={`p-6 md:p-8 rounded-[2.5rem] border overflow-hidden relative ${layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' :
-                            layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' :
-                                layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
-                                    'bg-indigo-600 border-none text-white shadow-xl shadow-indigo-200/50 dark:shadow-indigo-900/20'
+                        <div className={`p-6 md:p-8 rounded-[2.5rem] border overflow-hidden relative ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' :
+                            layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
+                                'bg-indigo-600 border-none text-white shadow-xl shadow-indigo-200/50 dark:shadow-indigo-900/20'
                             }`}>
                             <div className="space-y-6">
                                 <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${layoutStyle === 'modern' || layoutStyle === 'default' ? 'bg-white/20' : 'bg-indigo-500/10'}`}>
-                                        <Activity className={`w-6 h-6 ${layoutStyle === 'modern' || layoutStyle === 'default' ? 'text-white' : 'text-indigo-500'}`} />
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${'bg-indigo-500/10'}`}>
+                                        <Activity className={`w-6 h-6 ${'text-indigo-500'}`} />
                                     </div>
                                     <div>
                                         <p className="text-sm font-black uppercase tracking-tight">
                                             Online Users
                                         </p>
-                                        <p className={`text-2xl font-black mt-1 ${layoutStyle === 'modern' || layoutStyle === 'default' ? 'text-white' : 'text-indigo-500'}`}>
+                                        <p className={`text-2xl font-black mt-1 ${'text-indigo-500'}`}>
                                             {stats.onlineUsers}
                                         </p>
                                     </div>
@@ -248,15 +246,15 @@ export default function Home() {
                         </div>
 
                         {/* Quick Actions */}
-                        <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
-                            <h3 className={`text-xs font-black uppercase tracking-widest mb-4 ${layoutStyle === 'linear' ? 'text-[#666]' : 'text-gray-400'}`}>Quick Workflows</h3>
+                        <div className={`p-6 rounded-[2rem] border ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
+                            <h3 className={`text-xs font-black uppercase tracking-widest mb-4 ${'text-gray-400'}`}>Quick Workflows</h3>
                             <div className="grid grid-cols-2 gap-3">
-                                <button onClick={() => navigate('/new-letter')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${layoutStyle === 'linear' ? 'bg-[#111] hover:bg-[#1a1a1a] text-[#eee]' : 'bg-slate-50 dark:bg-[#1a1a1a] hover:bg-slate-100 dark:hover:bg-[#222]'}`}>
-                                    <FileText className={`w-5 h-5 ${layoutStyle === 'linear' ? 'text-indigo-400' : 'text-blue-500'}`} />
+                                <button onClick={() => navigate('/new-letter')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${'bg-slate-50 dark:bg-[#1a1a1a] hover:bg-slate-100 dark:hover:bg-[#222]'}`}>
+                                    <FileText className={`w-5 h-5 ${'text-blue-500'}`} />
                                     <span className="text-[10px] font-black uppercase tracking-widest">Compose</span>
                                 </button>
-                                <button onClick={() => navigate('/setup/trays')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${layoutStyle === 'linear' ? 'bg-[#111] hover:bg-[#1a1a1a] text-[#eee]' : 'bg-slate-50 dark:bg-[#1a1a1a] hover:bg-slate-100 dark:hover:bg-[#222]'}`}>
-                                    <Inbox className={`w-5 h-5 ${layoutStyle === 'linear' ? 'text-indigo-400' : 'text-blue-500'}`} />
+                                <button onClick={() => navigate('/setup/trays')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${'bg-slate-50 dark:bg-[#1a1a1a] hover:bg-slate-100 dark:hover:bg-[#222]'}`}>
+                                    <Inbox className={`w-5 h-5 ${'text-blue-500'}`} />
                                     <span className="text-[10px] font-black uppercase tracking-widest">Trays</span>
                                 </button>
                             </div>
@@ -297,34 +295,6 @@ export default function Home() {
         );
     }
 
-    if (layoutStyle === 'linear') {
-        return (
-            <div className="min-h-screen bg-[#080808] text-[#eee] flex overflow-hidden font-sans">
-                <Sidebar />
-                <main className="flex-1 flex flex-col h-screen overflow-hidden border-l border-[#1a1a1a]">
-                    <header className="h-14 border-b border-[#1a1a1a] flex items-center justify-between px-4 md:px-6 bg-[#080808]/80 backdrop-blur-md sticky top-0 z-20">
-                        <div className="flex items-center gap-4">
-                            <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-[#666] md:hidden"><Menu className="w-5 h-5" /></button>
-                            <div className="flex items-center gap-2 text-xs font-bold text-[#666] uppercase tracking-widest">
-                                <span className="text-indigo-400">HOME</span>
-                                <ChevronRight className="w-3 h-3" />
-                                <span className="text-[#eee]">DASHBOARD</span>
-                            </div>
-                        </div>
-                        <button onClick={() => fetchStats(true)} className="p-2 hover:bg-[#1a1a1a] rounded-lg transition-all text-[#666]"><RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} /></button>
-                    </header>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        <div className="w-full px-4 md:px-6 py-6 md:py-10">
-                            <div className="mb-10">
-                                <h1 className="text-3xl font-black tracking-tight text-[#eee] uppercase">COMMAND CENTER</h1>
-                            </div>
-                            {renderDashboardContent()}
-                        </div>
-                    </div>
-                </main>
-            </div>
-        );
-    }
 
     if (layoutStyle === 'notion') {
         return (
@@ -337,8 +307,7 @@ export default function Home() {
                             <div className="flex items-center gap-4 text-gray-400 mb-6">
                                 <span className="text-xs font-medium decoration-gray-200 underline-offset-4 flex items-center gap-1"><LayoutDashboard className="w-3 h-3" /> DASHBOARD</span>
                             </div>
-                            <h1 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white tracking-tight mb-4">Workspace Overview</h1>
-                            <p className="text-lg text-gray-500 dark:text-gray-400">Bird's-eye view of your document management operations, workflows, and performance analytics.</p>
+
                         </div>
                         {renderDashboardContent()}
                     </div>
@@ -360,10 +329,6 @@ export default function Home() {
                 </header>
                 <div className="flex-1 overflow-y-auto p-4 md:p-8">
                     <div className="w-full">
-                        <div className="mb-8">
-                            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Workspace Overview</h2>
-                            <p className="text-sm text-gray-500 mt-2">Key metrics and recent activity for your department's workflows.</p>
-                        </div>
                         {renderDashboardContent()}
                     </div>
                 </div>

@@ -100,17 +100,17 @@ export default function Sidebar() {
       label: "Settings",
       path: "#",
       children: [
+        { icon: Settings, label: "Access Matrix", path: "/setup/role-matrix" },
         { icon: Settings, label: "App Settings", path: "/settings" },
-        { icon: Box, label: "Trays", path: "/setup/trays" },
-        { icon: UserIcon, label: "Users", path: "/setup/users" },
-        { icon: UserIcon, label: "Contacts", path: "/setup/persons" },
-        { icon: Building2, label: "Departments", path: "/setup/departments" },
-        { icon: Tags, label: "Kinds", path: "/setup/letter-kinds" },
-        { icon: GitMerge, label: "Steps", path: "/setup/process-steps" },
-        { icon: Activity, label: "Statuses", path: "/setup/statuses" },
-        { icon: Paperclip, label: "Attachments", path: "/setup/attachments" },
-        { icon: ShieldCheck, label: "Access Matrix", path: "/setup/role-matrix" },
-        { icon: CloudDownload, label: "Data Import", path: "/setup/data-import" },
+        { icon: Settings, label: "Attachments", path: "/setup/attachments" },
+        { icon: Settings, label: "Contacts", path: "/setup/persons" },
+        { icon: Settings, label: "Data Import", path: "/setup/data-import" },
+        { icon: Settings, label: "Departments", path: "/setup/departments" },
+        { icon: Settings, label: "Kinds", path: "/setup/letter-kinds" },
+        { icon: Settings, label: "Statuses", path: "/setup/statuses" },
+        { icon: Settings, label: "Steps", path: "/setup/process-steps" },
+        { icon: Settings, label: "Trays", path: "/setup/trays" },
+        { icon: Settings, label: "Users", path: "/setup/users" },
       ]
     },
     ...(isSuperAdmin ? [
@@ -135,7 +135,9 @@ export default function Sidebar() {
   const filteredNavItems = navItems.filter(item => {
     const key = getPageKey(item.path);
     if (item.children) {
-      item.children = item.children.filter(child => hasPermission(getPageKey(child.path)));
+      item.children = item.children
+        .filter(child => hasPermission(getPageKey(child.path)))
+        .sort((a, b) => a.label.localeCompare(b.label)); // Sort children alphabetically
       return item.children.length > 0;
     }
     if (item.path === "#") return true;
@@ -179,7 +181,7 @@ export default function Sidebar() {
                       e.preventDefault();
                       toggleSubmenu(item.label);
                     } else {
-                      setIsMobileMenuOpen(false);
+                      // setIsMobileMenuOpen(false);
                     }
                   }}
                   title={!isSidebarExpanded ? item.label : ""}
@@ -265,126 +267,6 @@ export default function Sidebar() {
       );
     }
 
-    if (layoutStyle === 'linear') {
-      return (
-        <>
-          <div className="h-16 flex items-center justify-between px-4 shrink-0">
-            <div className="flex items-center gap-3">
-              <div
-                onClick={() => navigate('/endorsements')}
-                className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white shrink-0 group/bell cursor-pointer relative transition-all hover:scale-105 active:scale-95"
-              >
-                <Bell className="w-5 h-5 transition-transform group-hover/bell:rotate-12" />
-                {notificationCount > 0 && (
-                  <div className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-red-600 border-2 border-white dark:border-[#080808] rounded-full flex items-center justify-center text-[8px] font-black animate-bounce shadow-sm">
-                    {notificationCount > 9 ? '9+' : notificationCount}
-                  </div>
-                )}
-              </div>
-              {(isSidebarExpanded || isMobileMenuOpen) && (
-                <div className="flex flex-col animate-in fade-in slide-in-from-left-2 transition-all">
-                  <span className="text-xs font-black text-[#eee] uppercase tracking-tighter leading-none">LMS 2.0</span>
-                  <span className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em] mt-1 opacity-70">Linear Hub</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-
-            {filteredNavItems.map((item) => (
-              <div key={item.label} className="flex flex-col">
-                <NavLink
-                  to={item.path}
-                  onClick={(e) => {
-                    if (item.children) {
-                      e.preventDefault();
-                      toggleSubmenu(item.label);
-                    } else {
-                      setIsMobileMenuOpen(false);
-                    }
-                  }}
-                  title={!isSidebarExpanded ? item.label : ""}
-                  className={({ isActive }) => `
-                  flex items-center gap-3 p-2 rounded-lg transition-all duration-200 group/nav relative
-                  ${isActive && !item.children && item.path !== "#"
-                      ? "bg-[#161616] text-indigo-400 border border-[#222] shadow-[0_0_15px_-5px_rgba(79,70,229,0.3)]"
-                      : "text-[#666] hover:text-[#eee] hover:bg-[#111]"}
-                  ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
-                `}
-                >
-                  <item.icon className="w-5 h-5 transition-transform group-hover/nav:scale-110 shrink-0" />
-                  {(isSidebarExpanded || isMobileMenuOpen) && (
-                    <span className="text-[10px] font-black uppercase tracking-[0.15em] shrink-0">{item.label}</span>
-                  )}
-                  {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
-                    <ChevronRight className={`w-3 h-3 ml-auto transition-transform duration-300 ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
-                  )}
-                </NavLink>
-
-                {item.children && expandedMenus[item.label] && (isSidebarExpanded || isMobileMenuOpen) && (
-                  <div className="pl-4 mt-1 space-y-1 border-l border-[#222] ml-4">
-                    {item.children.map(child => (
-                      <NavLink
-                        key={child.path}
-                        to={child.path}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={({ isActive }) => `
-                        flex items-center gap-3 p-2 rounded-lg transition-all duration-200
-                        ${isActive
-                            ? "bg-[#161616] text-indigo-400 border border-[#222]"
-                            : "text-[#555] hover:text-[#ddd] hover:bg-[#111]"}
-                        `}
-                      >
-                        <child.icon className="w-4 h-4 shrink-0" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.15em]">{child.label}</span>
-                      </NavLink>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </nav>
-
-          <div className="p-2 border-t border-[#1a1a1a] space-y-1 shrink-0">
-            <button
-              onClick={toggleTheme}
-              className={`w-full flex items-center gap-3 p-2 text-[#666] hover:text-[#eee] hover:bg-[#111] rounded-lg transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}`}
-            >
-              {theme === 'light' ? <Moon className="w-5 h-5 shrink-0" /> : <Sun className="w-5 h-5 shrink-0" />}
-              {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-[10px] font-black uppercase tracking-[0.15em]">{theme === 'light' ? 'Dark' : 'Light'}</span>}
-            </button>
-
-            {/* Combined Profile & Logout Section - Bottom */}
-            <div className="mt-2 pt-2 border-t border-[#1a1a1a]">
-              <button
-                onClick={handleLogout}
-                className={`
-                  w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 group/logout
-                  hover:bg-red-500/10 border border-transparent hover:border-red-500/20
-                  ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
-                `}
-              >
-                <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center text-white shrink-0 shadow-[0_0_8px_-2px_rgba(79,70,229,0.5)] group-hover/logout:bg-red-600 transition-colors">
-                  <UserIcon className="w-4 h-4 group-hover/logout:hidden" />
-                  <LogOut className="w-4 h-4 hidden group-hover/logout:block" />
-                </div>
-                {(isSidebarExpanded || isMobileMenuOpen) && (
-                  <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
-                    <span className="text-[9px] font-black text-[#eee] uppercase truncate tracking-[0.1em] group-hover/logout:text-red-500">
-                      {user?.first_name} {user?.last_name}
-                    </span>
-                    <span className="text-[8px] font-bold text-indigo-400 uppercase truncate tracking-widest leading-none mt-1 group-hover/logout:text-red-400/70">
-                      Eject • {user?.roleData?.name || user?.role || 'User'}
-                    </span>
-                  </div>
-                )}
-              </button>
-            </div>
-          </div>
-        </>
-      );
-    }
 
     if (layoutStyle === 'notion') {
       return (
@@ -404,8 +286,8 @@ export default function Sidebar() {
               </div>
               {(isSidebarExpanded || isMobileMenuOpen) && (
                 <div className="flex flex-col animate-in fade-in slide-in-from-left-2 transition-all">
-                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300 tracking-tight leading-none truncate">LMS 2.0 Workspace</span>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Endorsements Hub</span>
+                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300 tracking-tight leading-none truncate">LMS 2.0</span>
+
                 </div>
               )}
             </div>
@@ -423,7 +305,7 @@ export default function Sidebar() {
                       e.preventDefault();
                       toggleSubmenu(item.label);
                     } else {
-                      setIsMobileMenuOpen(false);
+                      // setIsMobileMenuOpen(false);
                     }
                   }}
                   title={!isSidebarExpanded ? item.label : ""}
@@ -542,7 +424,7 @@ export default function Sidebar() {
                     e.preventDefault();
                     toggleSubmenu(item.label);
                   } else {
-                    setIsMobileMenuOpen(false);
+                    // setIsMobileMenuOpen(false);
                   }
                 }}
                 title={!isSidebarExpanded ? item.label : ""}
@@ -637,7 +519,6 @@ export default function Sidebar() {
 
   const getSidebarBg = () => {
     switch (layoutStyle) {
-      case 'linear': return "bg-[#0c0c0c] border-[#1a1a1a]";
       case 'notion': return "bg-[#FBFBFA] dark:bg-[#141414] border-gray-100 dark:border-[#222]";
       default: return "bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]";
     }

@@ -132,10 +132,10 @@ export default function Trays() {
         setIsMenuOpen(null);
     };
 
-    const pageBg = layoutStyle === 'linear' ? 'bg-[#080808]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
-    const headerBg = layoutStyle === 'linear' ? 'bg-[#080808]/80 backdrop-blur-md border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
-    const cardBg = layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-    const textColor = layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white';
+    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const textColor = 'text-slate-900 dark:text-white';
 
     return (
         <div className={`min-h-screen ${pageBg} flex overflow-hidden`}>
@@ -173,8 +173,8 @@ export default function Trays() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-12 custom-scrollbar">
-                    <div className="max-w-7xl mx-auto">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 custom-scrollbar">
+                    <div className="max-w-[100vw] mx-auto">
                         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
                             <div>
                                 <h2 className={`text-3xl font-bold ${textColor}`}>Tray Management</h2>
@@ -209,7 +209,7 @@ export default function Trays() {
                                 <p className="text-sm text-slate-400 max-w-xs">No physical trays found. Use the 'Add Tray' button to define your storage bins.</p>
                             </div>
                         ) : (
-                            <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : "space-y-4"}>
+                            <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-6" : "space-y-4"}>
                                 {trays.map((tray) => {
                                     const count = tray.letters?.length || 0;
                                     const capacity = tray.capacity || 100;
@@ -377,7 +377,7 @@ export default function Trays() {
                                         placeholder="e.g. A-101"
                                         value={formData.tray_no}
                                         onChange={e => setFormData({ ...formData, tray_no: e.target.value })}
-                                        className={`w-full px-6 py-4 rounded-2xl border ${layoutStyle === 'linear' ? 'bg-[#1a1a1a] border-[#333] text-[#eee]' : 'bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'} text-sm font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-inner`}
+                                        className={`w-full px-6 py-4 rounded-2xl border ${'bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'} text-sm font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-inner`}
                                     />
                                 </div>
 
@@ -389,7 +389,7 @@ export default function Trays() {
                                         placeholder="Physical location or purpose"
                                         value={formData.description}
                                         onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                        className={`w-full px-6 py-4 rounded-2xl border ${layoutStyle === 'linear' ? 'bg-[#1a1a1a] border-[#333] text-[#eee]' : 'bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'} text-sm font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-inner`}
+                                        className={`w-full px-6 py-4 rounded-2xl border ${'bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'} text-sm font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-inner`}
                                     />
                                 </div>
 
@@ -400,7 +400,7 @@ export default function Trays() {
                                         required
                                         value={formData.capacity}
                                         onChange={e => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
-                                        className={`w-full px-6 py-4 rounded-2xl border ${layoutStyle === 'linear' ? 'bg-[#1a1a1a] border-[#333] text-[#eee]' : 'bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'} text-sm font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-inner`}
+                                        className={`w-full px-6 py-4 rounded-2xl border ${'bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'} text-sm font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-inner`}
                                     />
                                 </div>
 

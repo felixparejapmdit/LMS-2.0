@@ -228,10 +228,10 @@ export default function NewLetter() {
         }
     };
 
-    const pageBg = layoutStyle === 'linear' ? 'bg-[#080808]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
-    const headerBg = layoutStyle === 'linear' ? 'bg-[#080808]/80 backdrop-blur-md border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
-    const textColor = layoutStyle === 'linear' ? 'text-[#eee]' : layoutStyle === 'notion' ? 'text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white';
-    const cardBg = layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
+    const textColor = layoutStyle === 'notion' ? 'text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
 
     return (
         <div className={`h-screen ${pageBg} flex overflow-hidden transition-colors duration-300`}>
@@ -247,7 +247,7 @@ export default function NewLetter() {
                         </button>
                         <button
                             onClick={() => navigate(-1)}
-                            className={`p-2 rounded-lg transition-colors ${layoutStyle === 'linear' ? 'hover:bg-[#1a1a1a] text-[#666]' : 'hover:bg-slate-50 text-slate-500'}`}
+                            className={`p-2 rounded-lg transition-colors ${'hover:bg-slate-50 text-slate-500'}`}
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </button>
@@ -295,7 +295,7 @@ export default function NewLetter() {
                                             required
                                             value={formData.date_received}
                                             onChange={e => setFormData({ ...formData, date_received: e.target.value })}
-                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -303,7 +303,7 @@ export default function NewLetter() {
                                         <select
                                             value={formData.direction}
                                             onChange={e => setFormData({ ...formData, direction: e.target.value })}
-                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                         >
                                             <option value="Incoming">Incoming</option>
                                             <option value="Outgoing">Outgoing</option>
@@ -326,13 +326,13 @@ export default function NewLetter() {
                                             onChange={handleSenderChange}
                                             onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
                                             autoComplete="off"
-                                            className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                            className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                         />
 
                                         {showSuggestions && (
                                             <div
                                                 ref={suggestionRef}
-                                                className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
+                                                className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
                                             >
                                                 {suggestions.map((person) => (
                                                     <div
@@ -363,7 +363,7 @@ export default function NewLetter() {
                                         required
                                         value={formData.kind}
                                         onChange={e => setFormData({ ...formData, kind: e.target.value })}
-                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     >
                                         {kinds.map(k => <option key={k.id} value={k.id}>{k.kind_name}</option>)}
                                     </select>
@@ -374,7 +374,7 @@ export default function NewLetter() {
                                     <select
                                         value={formData.letter_type}
                                         onChange={e => setFormData({ ...formData, letter_type: e.target.value })}
-                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     >
                                         <option value="Non-Confidential">Non-Confidential</option>
                                         <option value="Confidential">Confidential</option>
@@ -388,7 +388,7 @@ export default function NewLetter() {
                                         placeholder="Reference VEM Code"
                                         value={formData.vemcode}
                                         onChange={e => setFormData({ ...formData, vemcode: e.target.value })}
-                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     />
                                 </div>
 
@@ -398,7 +398,7 @@ export default function NewLetter() {
                                         required
                                         value={formData.global_status}
                                         onChange={e => setFormData({ ...formData, global_status: e.target.value })}
-                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     >
                                         {statuses.map(s => <option key={s.id} value={s.id}>{s.status_name}</option>)}
                                     </select>
@@ -409,7 +409,7 @@ export default function NewLetter() {
                                     <select
                                         value={formData.attachment_id}
                                         onChange={e => setFormData({ ...formData, attachment_id: e.target.value })}
-                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     >
                                         <option value="">-- No Physical Attachment --</option>
                                         {attachments.map(a => <option key={a.id} value={a.id}>{a.attachment_name}</option>)}
@@ -421,22 +421,22 @@ export default function NewLetter() {
                                     <select
                                         value={formData.tray_id}
                                         onChange={e => setFormData({ ...formData, tray_id: e.target.value })}
-                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     >
                                         <option value="">-- Select Tray (Optional) --</option>
                                         {trays.map(t => <option key={t.id} value={t.id}>{t.tray_no} - {t.description}</option>)}
                                     </select>
                                 </div>
 
-                                <div className={`space-y-2 pt-4 border-t ${layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-gray-50 dark:border-[#222]'}`}>
-                                    <label className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${layoutStyle === 'linear' ? 'text-indigo-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                                <div className={`space-y-2 pt-4 border-t ${'border-gray-50 dark:border-[#222]'}`}>
+                                    <label className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${'text-gray-700 dark:text-gray-300'}`}>
                                         <Building2 className="w-3 h-3" />
                                         Department
                                     </label>
                                     <select
                                         value={formData.assigned_dept}
                                         onChange={e => setFormData({ ...formData, assigned_dept: e.target.value })}
-                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${layoutStyle === 'linear' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20 text-blue-700 dark:text-blue-400'}`}
+                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20 text-blue-700 dark:text-blue-400'}`}
                                     >
                                         <option value="">No Department</option>
                                         {departments.map(d => <option key={d.id} value={d.id}>{d.dept_name}</option>)}
@@ -452,7 +452,7 @@ export default function NewLetter() {
                                         rows="3"
                                         value={formData.evemnote}
                                         onChange={e => setFormData({ ...formData, evemnote: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -461,7 +461,7 @@ export default function NewLetter() {
                                         rows="3"
                                         value={formData.aevmnote}
                                         onChange={e => setFormData({ ...formData, aevmnote: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -470,7 +470,7 @@ export default function NewLetter() {
                                         rows="3"
                                         value={formData.atgnote}
                                         onChange={e => setFormData({ ...formData, atgnote: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     />
                                 </div>
                             </section>
@@ -487,13 +487,13 @@ export default function NewLetter() {
                                     value={formData.summary}
                                     onChange={e => setFormData({ ...formData, summary: e.target.value })}
                                     placeholder="Enter Letter Summary"
-                                    className={`w-full px-4 py-3 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-orange-500 resize-none transition-all ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                    className={`w-full px-4 py-3 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-orange-500 resize-none transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                 />
                             </section>
 
                             {/* Digital Attachment (Scanned Copy) */}
                             <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-6`}>
-                                <div className={`flex items-center gap-3 border-b pb-6 mb-2 ${layoutStyle === 'linear' ? 'border-[#1a1a1a]' : 'border-slate-50 dark:border-[#222]'}`}>
+                                <div className={`flex items-center gap-3 border-b pb-6 mb-2 ${'border-slate-50 dark:border-[#222]'}`}>
                                     <Upload className={`w-5 h-5 text-indigo-400`} />
                                     <h3 className={`font-bold ${textColor}`}>Attachments (Scanned Letter)</h3>
                                 </div>
@@ -502,7 +502,7 @@ export default function NewLetter() {
                                     onClick={() => fileInputRef.current.click()}
                                     onDragOver={(e) => e.preventDefault()}
                                     onDrop={handleDrop}
-                                    className={`flex flex-col items-center justify-center border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-12 transition-all cursor-pointer group ${layoutStyle === 'linear' ? 'border-[#222] bg-white/5 hover:bg-white/10' : 'border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5'}`}
+                                    className={`flex flex-col items-center justify-center border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-12 transition-all cursor-pointer group ${'border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5'}`}
                                 >
                                     <input
                                         type="file"
@@ -523,9 +523,9 @@ export default function NewLetter() {
                                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected Files ({scannedFiles.length})</h4>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                                             {scannedFiles.map((file, index) => (
-                                                <div key={index} className={`flex items-center justify-between p-3 rounded-xl border group animate-in fade-in slide-in-from-bottom-2 duration-300 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222]' : 'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}>
+                                                <div key={index} className={`flex items-center justify-between p-3 rounded-xl border group animate-in fade-in slide-in-from-bottom-2 duration-300 ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}>
                                                     <div className="flex items-center gap-3 truncate">
-                                                        <div className={`w-8 h-8 bg-white dark:bg-white/10 border rounded-lg flex items-center justify-center text-orange-400 ${layoutStyle === 'linear' ? 'border-[#222]' : 'border-slate-100'}`}>
+                                                        <div className={`w-8 h-8 bg-white dark:bg-white/10 border rounded-lg flex items-center justify-center text-orange-400 ${'border-slate-100'}`}>
                                                             <FileText className="w-4 h-4" />
                                                         </div>
                                                         <span className={`text-xs font-bold truncate ${textColor}`}>{file.name}</span>
@@ -552,14 +552,14 @@ export default function NewLetter() {
                             <button
                                 type="button"
                                 onClick={() => navigate(-1)}
-                                className={`px-8 py-3 text-sm font-bold transition-colors ${layoutStyle === 'linear' ? 'text-[#444] hover:text-[#eee]' : 'text-gray-500 hover:text-gray-900'}`}
+                                className={`px-8 py-3 text-sm font-bold transition-colors ${'text-gray-500 hover:text-gray-900'}`}
                             >
                                 CANCEL
                             </button>
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className={`flex items-center gap-2 px-10 py-3 text-white text-sm font-bold rounded-2xl transition-all shadow-xl disabled:opacity-50 ${layoutStyle === 'linear' ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/20' : 'bg-[#F6A17B] hover:bg-[#e8946e] shadow-orange-100 dark:shadow-none'}`}
+                                className={`flex items-center gap-2 px-10 py-3 text-white text-sm font-bold rounded-2xl transition-all shadow-xl disabled:opacity-50 ${'bg-[#F6A17B] hover:bg-[#e8946e] shadow-orange-100 dark:shadow-none'}`}
                             >
                                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                 SEND LETTER

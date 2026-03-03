@@ -19,10 +19,10 @@ export default function Settings() {
     const { user, layoutStyle, toggleLayoutStyle, setIsMobileMenuOpen } = useAuth();
     const [loading, setLoading] = useState(false);
 
-    const pageBg = layoutStyle === 'linear' ? 'bg-[#080808]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
-    const headerBg = layoutStyle === 'linear' ? 'bg-[#080808]/80 backdrop-blur-md border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
-    const textColor = layoutStyle === 'linear' ? 'text-[#eee]' : layoutStyle === 'notion' ? 'text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white';
-    const cardBg = layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
+    const textColor = layoutStyle === 'notion' ? 'text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
 
     return (
         <div className={`min-h-screen ${pageBg} flex overflow-hidden transition-colors duration-300`}>
@@ -62,7 +62,7 @@ export default function Settings() {
                                         <input
                                             type="text"
                                             defaultValue={user?.first_name}
-                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300`}
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -70,7 +70,7 @@ export default function Settings() {
                                         <input
                                             type="text"
                                             defaultValue={user?.last_name}
-                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300`}
                                         />
                                     </div>
                                     <div className="md:col-span-2 space-y-2">
@@ -81,7 +81,7 @@ export default function Settings() {
                                                 type="email"
                                                 readOnly
                                                 value={user?.email}
-                                                className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm cursor-not-allowed outline-none ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#555]' : 'bg-gray-100 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-500'}`}
+                                                className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm cursor-not-allowed outline-none bg-gray-100 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-500`}
                                             />
                                         </div>
                                     </div>
@@ -95,14 +95,14 @@ export default function Settings() {
                                     <h3 className="font-bold">Organization</h3>
                                 </div>
 
-                                <div className={`p-4 rounded-xl border flex items-center justify-between ${layoutStyle === 'linear' ? 'bg-indigo-500/10 border-indigo-500/20' : 'bg-orange-50/50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/20'}`}>
+                                <div className={`p-4 rounded-xl border flex items-center justify-between bg-orange-50/50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/20`}>
                                     <div>
-                                        <p className={`text-xs font-bold uppercase ${layoutStyle === 'linear' ? 'text-indigo-400' : 'text-orange-900 dark:text-orange-400'}`}>Assigned Department</p>
-                                        <p className={`text-sm font-medium mt-1 ${layoutStyle === 'linear' ? 'text-indigo-300' : 'text-orange-700 dark:text-orange-300'}`}>
+                                        <p className={`text-xs font-bold uppercase text-orange-900 dark:text-orange-400`}>Assigned Department</p>
+                                        <p className={`text-sm font-medium mt-1 text-orange-700 dark:text-orange-300`}>
                                             {user?.department?.dept_name || user?.dept_id?.dept_name || 'No department assigned'}
                                         </p>
                                     </div>
-                                    <Lock className={`w-5 h-5 ${layoutStyle === 'linear' ? 'text-indigo-900' : 'text-orange-200'}`} />
+                                    <Lock className={`w-5 h-5 text-orange-200`} />
                                 </div>
                             </section>
 
@@ -113,18 +113,7 @@ export default function Settings() {
                                     <h3 className="font-bold">Layout System</h3>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <button
-                                        onClick={() => toggleLayoutStyle('modern')}
-                                        className={`p-4 rounded-xl border-2 transition-all text-left ${layoutStyle === 'modern' ? 'border-orange-500 bg-orange-50/50' : 'border-gray-100 dark:border-[#333] hover:border-gray-200'}`}
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className={`text-xs font-bold uppercase tracking-widest ${textColor}`}>Modern</span>
-                                            {layoutStyle === 'modern' && <div className="w-2 h-2 bg-orange-500 rounded-full"></div>}
-                                        </div>
-                                        <p className="text-[9px] text-gray-500 uppercase font-black">Bruno System</p>
-                                    </button>
-
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     <button
                                         onClick={() => toggleLayoutStyle('notion')}
                                         className={`p-4 rounded-xl border-2 transition-all text-left ${layoutStyle === 'notion' ? 'border-orange-500 bg-orange-50/50' : 'border-gray-100 dark:border-[#333] hover:border-gray-200'}`}
@@ -134,17 +123,6 @@ export default function Settings() {
                                             {layoutStyle === 'notion' && <div className="w-2 h-2 bg-orange-500 rounded-full"></div>}
                                         </div>
                                         <p className="text-[9px] text-gray-500 uppercase font-black">Canvas System</p>
-                                    </button>
-
-                                    <button
-                                        onClick={() => toggleLayoutStyle('linear')}
-                                        className={`p-4 rounded-xl border-2 transition-all text-left ${layoutStyle === 'linear' ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-100 dark:border-[#333] hover:border-gray-200'}`}
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className={`text-xs font-bold uppercase tracking-widest ${textColor}`}>Linear</span>
-                                            {layoutStyle === 'linear' && <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>}
-                                        </div>
-                                        <p className="text-[9px] text-gray-500 uppercase font-black">Issue System</p>
                                     </button>
 
                                     <button
@@ -163,7 +141,7 @@ export default function Settings() {
                             <div className="flex justify-end pt-4 pb-12">
                                 <button
                                     disabled={loading}
-                                    className={`flex items-center gap-2 px-8 py-3 text-white text-sm font-bold rounded-xl transition-all shadow-md ${layoutStyle === 'linear' ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/20' : 'bg-[#F6A17B] hover:bg-[#e8946e] shadow-orange-100 dark:shadow-none'}`}
+                                    className={`flex items-center gap-2 px-8 py-3 text-white text-sm font-bold rounded-xl transition-all shadow-md bg-[#F6A17B] hover:bg-[#e8946e] shadow-orange-100 dark:shadow-none`}
                                 >
                                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                     SAVE CHANGES

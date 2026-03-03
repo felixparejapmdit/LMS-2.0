@@ -116,24 +116,24 @@ export default function LetterEndorsement() {
     }, {});
 
     return (
-        <div className={`min-h-screen ${layoutStyle === 'linear' ? 'bg-[#080808]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]'} flex overflow-hidden`}>
+        <div className={`min-h-screen ${'bg-[#F9FAFB] dark:bg-[#0D0D0D]'} flex overflow-hidden`}>
             <Sidebar />
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
                 {/* Header */}
-                <header className={`h-16 ${layoutStyle === 'linear' ? 'bg-[#080808] border-[#1a1a1a]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]'} border-b px-4 md:px-8 flex items-center justify-between z-10`}>
+                <header className={`h-16 ${'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]'} border-b px-4 md:px-8 flex items-center justify-between z-10`}>
                     <div className="flex items-center gap-3">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-400 md:hidden">
                             <Menu className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => navigate(-1)}
-                            className={`p-2 rounded-xl transition-colors ${layoutStyle === 'linear' ? 'hover:bg-[#1a1a1a] text-[#666]' : 'hover:bg-gray-50 dark:hover:bg-white/5 text-gray-400'}`}
+                            className={`p-2 rounded-xl transition-colors ${'hover:bg-gray-50 dark:hover:bg-white/5 text-gray-400'}`}
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </button>
                         <div className="flex items-center gap-2">
-                            <Bell className={`w-4 h-4 ${layoutStyle === 'linear' ? 'text-orange-400' : 'text-orange-500'}`} />
-                            <h1 className={`text-xs font-bold uppercase tracking-widest ${layoutStyle === 'linear' ? 'text-[#aaa]' : 'text-gray-400'}`}>
+                            <Bell className={`w-4 h-4 ${'text-orange-500'}`} />
+                            <h1 className={`text-xs font-bold uppercase tracking-widest ${'text-gray-400'}`}>
                                 Letter Endorsements
                             </h1>
                             <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 text-[9px] font-black rounded-full">
@@ -148,7 +148,7 @@ export default function LetterEndorsement() {
                             placeholder="Search endorsements..."
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            className={`pl-9 pr-4 py-2 text-xs rounded-xl border outline-none w-56 ${layoutStyle === 'linear' ? 'bg-[#111] border-[#222] text-[#eee]' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-200'}`}
+                            className={`pl-9 pr-4 py-2 text-xs rounded-xl border outline-none w-56 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-200'}`}
                         />
                     </div>
                 </header>
@@ -184,10 +184,10 @@ export default function LetterEndorsement() {
                                     </div>
 
                                     {/* Table */}
-                                    <div className={`${layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'} rounded-2xl border shadow-sm overflow-hidden`}>
+                                    <div className={`${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'} rounded-2xl border shadow-sm overflow-hidden`}>
                                         <table className="w-full">
                                             <thead>
-                                                <tr className={`${layoutStyle === 'linear' ? 'border-[#1a1a1a] bg-[#111]' : 'border-gray-50 dark:border-[#222] bg-gray-50 dark:bg-white/5'} border-b`}>
+                                                <tr className={`${'border-gray-50 dark:border-[#222] bg-gray-50 dark:bg-white/5'} border-b`}>
                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3">LMS ID</th>
                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3">Sender</th>
                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3 hidden md:table-cell">Letter Summary</th>
@@ -195,16 +195,16 @@ export default function LetterEndorsement() {
                                                     <th className="text-right text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3">Actions</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className={`divide-y ${layoutStyle === 'linear' ? 'divide-[#1a1a1a]' : 'divide-gray-50 dark:divide-[#222]'}`}>
+                                            <tbody className={`divide-y ${'divide-gray-50 dark:divide-[#222]'}`}>
                                                 {items.map(e => (
-                                                    <tr key={e.id} className={`transition-colors ${layoutStyle === 'linear' ? 'hover:bg-[#111]' : 'hover:bg-gray-50/50 dark:hover:bg-white/5'}`}>
+                                                    <tr key={e.id} className={`transition-colors ${'hover:bg-gray-50/50 dark:hover:bg-white/5'}`}>
                                                         <td className="px-6 py-4">
-                                                            <span className={`text-xs font-black uppercase tracking-widest ${layoutStyle === 'linear' ? 'text-indigo-400' : 'text-orange-600'}`}>
+                                                            <span className={`text-xs font-black uppercase tracking-widest ${'text-orange-600'}`}>
                                                                 {e.letter?.lms_id || `#${e.letter_id}`}
                                                             </span>
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <p className={`text-xs font-bold ${layoutStyle === 'linear' ? 'text-[#ccc]' : 'text-gray-900 dark:text-white'}`}>
+                                                            <p className={`text-xs font-bold ${'text-gray-900 dark:text-white'}`}>
                                                                 {e.letter?.sender || "—"}
                                                             </p>
                                                         </td>

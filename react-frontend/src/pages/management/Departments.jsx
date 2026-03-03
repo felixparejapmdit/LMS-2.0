@@ -110,10 +110,10 @@ export default function Departments() {
         setIsMenuOpen(null);
     };
 
-    const pageBg = layoutStyle === 'linear' ? 'bg-[#080808]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
-    const headerBg = layoutStyle === 'linear' ? 'bg-[#080808]/80 backdrop-blur-md border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
-    const cardBg = layoutStyle === 'linear' ? 'bg-[#0c0c0c] border-[#1a1a1a]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-    const textColor = layoutStyle === 'linear' ? 'text-[#eee]' : 'text-slate-900 dark:text-white';
+    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const textColor = 'text-slate-900 dark:text-white';
 
     const totalPages = Math.ceil(departments.length / itemsPerPage);
     const paginatedDepartments = departments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -171,8 +171,8 @@ export default function Departments() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-12 custom-scrollbar">
-                    <div className="max-w-7xl mx-auto">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 custom-scrollbar">
+                    <div className="max-w-[100vw] mx-auto">
                         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
                             <div>
                                 <h2 className={`text-3xl font-bold ${textColor}`}>Departments</h2>
@@ -186,7 +186,7 @@ export default function Departments() {
                             <div className="flex flex-col items-center justify-center py-40 gap-4"><Loader2 className="w-10 h-10 text-emerald-500 animate-spin" /></div>
                         ) : (
                             <>
-                                <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : "space-y-4"}>
+                                <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-6" : "space-y-4"}>
                                     {paginatedDepartments.map(renderCard)}
                                 </div>
                                 {totalPages > 1 && (
@@ -204,8 +204,8 @@ export default function Departments() {
                                                     key={page}
                                                     onClick={() => setCurrentPage(page)}
                                                     className={`w-10 h-10 rounded-2xl text-[10px] font-black transition-all ${currentPage === page
-                                                            ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
-                                                            : 'bg-white dark:bg-[#141414] text-gray-500 border border-gray-100 dark:border-[#222] hover:border-emerald-200 hover:text-emerald-500 shadow-sm'
+                                                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
+                                                        : 'bg-white dark:bg-[#141414] text-gray-500 border border-gray-100 dark:border-[#222] hover:border-emerald-200 hover:text-emerald-500 shadow-sm'
                                                         }`}
                                                 >
                                                     {page}
