@@ -74,41 +74,45 @@ class ImportController {
                 return res.status(400).json({ error: 'Invalid data format from API. Expected "data" array.' });
             }
 
-            // Find valid 'User' and 'Admin' role IDs
+            // Find valid roles and prefer the built-in 'Administrator' for admins
             const roles = await Role.findAll();
-            const roleMap = {};
+            let adminRoleId = null;
+            let userRoleId = null;
+
+            // Directus traditionally uses "Administrator" for the super-admin role
+            // We want to find the ID for "Administrator" or "Admin"
             roles.forEach(r => {
                 const name = r.name.toLowerCase();
-                if (name === 'user') roleMap.user = r.id;
-                if (name === 'admin' || name === 'administrator') roleMap.admin = r.id;
+                if (name === 'administrator') adminRoleId = r.id;
+                if (name === 'user' && !userRoleId) userRoleId = r.id;
+                if (name === 'admin' && !adminRoleId) adminRoleId = r.id; // Fallback if Administrator not found
             });
 
-            // Default fallback IDs (from checkRoles.js)
-            const DEFAULT_USER_ROLE = roleMap.user || 'ebceed4d-42e4-4f97-8a45-873b1298d310';
-            const DEFAULT_ADMIN_ROLE = roleMap.admin || 'ec986bba-2c97-47a8-968f-f8a163e5f014';
+            // Absolute Fallbacks from your DB check
+            const FINAL_ADMIN_ROLE = adminRoleId || 'ec986bba-2c97-47a8-968f-f8a163e5f014';
+            const FINAL_USER_ROLE = userRoleId || 'ebceed4d-42e4-4f97-8a45-873b1298d310';
 
             let imported = 0;
             let updated = 0;
 
             for (const item of data) {
-                // Parse Name: "Badeth Serra" -> "Badeth" (first), "Serra" (last)
+                const username = (item.user_name || item.username || '').toLowerCase();
+                if (!username) continue;
+
+                // PROTECT THE CORE ADMIN: Don't overwrite the main system admin if it exists
+                if (username === 'admin' || username === 'superadmin') {
+                    console.log(`Skipping protected account: ${username}`);
+                    continue;
+                }
+
                 const nameParts = (item.name || '').trim().split(/\s+/);
                 const first_name = nameParts[0] || 'Unknown';
                 const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '---';
 
-                // Unique Key: username
-                const username = item.user_name || item.username;
-                if (!username) continue;
+                const hashedPassword = await argon2.hash(item.password, { type: argon2.argon2id });
 
-                // Hash password using Argon2id as requested
-                const hashedPassword = await argon2.hash(item.password, {
-                    type: argon2.argon2id
-                });
-
-                // Determine Role based on 'level'
-                // If the PHP API level is 'Admin', use Admin role
                 const isLegacyAdmin = (item.level || '').toLowerCase().includes('admin');
-                const roleId = isLegacyAdmin ? DEFAULT_ADMIN_ROLE : DEFAULT_USER_ROLE;
+                const roleId = isLegacyAdmin ? FINAL_ADMIN_ROLE : FINAL_USER_ROLE;
 
                 const existingUser = await User.findOne({ where: { username } });
 
