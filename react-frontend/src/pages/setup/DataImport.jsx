@@ -65,7 +65,7 @@ export default function DataImport() {
                 </header>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 custom-scrollbar">
-                    <div className="max-w-4xl mx-auto space-y-12">
+                    <div className="max-w-[100vw] mx-auto space-y-12">
 
                         {/* Header Info */}
                         <div className="space-y-2">
@@ -126,9 +126,12 @@ export default function DataImport() {
                                 )}
 
                                 {error.persons && (
-                                    <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-500/10 text-red-500 flex items-start gap-3">
-                                        <AlertCircle className="w-5 h-5 shrink-0" />
-                                        <p className="text-[10px] font-bold leading-relaxed">{error.persons}</p>
+                                    <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-500/10 text-red-500 flex flex-col gap-3">
+                                        <div className="flex items-start gap-3">
+                                            <AlertCircle className="w-5 h-5 shrink-0" />
+                                            <p className="text-[10px] font-black uppercase tracking-widest leading-none mt-1.5">Sync Error</p>
+                                        </div>
+                                        <p className="text-[10px] font-bold leading-relaxed bg-red-500/10 p-3 rounded-xl border border-red-200/20">{error.persons}</p>
                                     </div>
                                 )}
                             </div>
@@ -181,9 +184,12 @@ export default function DataImport() {
                                 )}
 
                                 {error.users && (
-                                    <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-500/10 text-red-500 flex items-start gap-3">
-                                        <AlertCircle className="w-5 h-5 shrink-0" />
-                                        <p className="text-[10px] font-bold leading-relaxed">{error.users}</p>
+                                    <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-500/10 text-red-500 flex flex-col gap-3">
+                                        <div className="flex items-start gap-3">
+                                            <AlertCircle className="w-5 h-5 shrink-0" />
+                                            <p className="text-[10px] font-black uppercase tracking-widest leading-none mt-1.5">Migration Error</p>
+                                        </div>
+                                        <p className="text-[10px] font-bold leading-relaxed bg-red-500/10 p-3 rounded-xl border border-red-200/20">{error.users}</p>
                                     </div>
                                 )}
                             </div>
