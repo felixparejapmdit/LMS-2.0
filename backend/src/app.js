@@ -41,6 +41,7 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/persons', personRoutes);
 app.use('/api/endorsements', endorsementRoutes);
 app.use('/api/role-permissions', rolePermissionRoutes);
+app.use('/api/import', require('./routes/importRoutes'));
 
 app.get('/health', (req, res) => {
     res.json({

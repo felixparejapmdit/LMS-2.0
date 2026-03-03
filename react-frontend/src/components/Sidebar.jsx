@@ -32,7 +32,8 @@ import {
   Plus,
   Bell,
   MessageSquare,
-  ShieldCheck
+  ShieldCheck,
+  CloudDownload
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -109,6 +110,7 @@ export default function Sidebar() {
         { icon: Activity, label: "Statuses", path: "/setup/statuses" },
         { icon: Paperclip, label: "Attachments", path: "/setup/attachments" },
         { icon: ShieldCheck, label: "Access Matrix", path: "/setup/role-matrix" },
+        { icon: CloudDownload, label: "Data Import", path: "/setup/data-import" },
       ]
     },
     ...(isSuperAdmin ? [

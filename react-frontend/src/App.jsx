@@ -30,6 +30,7 @@ import Attachments from "./pages/management/Attachments";
 
 // Setup
 import SetupWizard from "./pages/setup/SetupWizard";
+import DataImport from "./pages/setup/DataImport";
 
 // User
 import Settings from "./pages/user/Settings";
@@ -110,6 +111,7 @@ function AppRoutes() {
         <Route path="/setup/statuses" element={<ProtectedRoute><Statuses /></ProtectedRoute>} />
         <Route path="/setup/attachments" element={<ProtectedRoute><Attachments /></ProtectedRoute>} />
         <Route path="/setup/role-matrix" element={<ProtectedRoute><RoleAccessMatrix /></ProtectedRoute>} />
+        <Route path="/setup/data-import" element={<ProtectedRoute><DataImport /></ProtectedRoute>} />
         <Route path="/master-table" element={<ProtectedRoute><MasterTable /></ProtectedRoute>} />
         <Route path="/letters-with-comments" element={<ProtectedRoute><LettersWithComments /></ProtectedRoute>} />
         <Route path="/letter-tracker" element={<ProtectedRoute><LetterTracker /></ProtectedRoute>} />
