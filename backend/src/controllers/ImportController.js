@@ -129,7 +129,7 @@ class ImportController {
                     await User.create({
                         first_name,
                         last_name,
-                        email: `${username}@lms.local`,
+                        email: `${username}@lms-app.com`,
                         username: username,
                         password: hashedPassword,
                         role: roleId,

@@ -81,11 +81,14 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (username, password) => {
         try {
-            // Find user by username in our backend to get their correct email
+            // Find user by username in our backend with strict matching
             const userRes = await axios.get(`${BACKEND_URL}/users?username=${username}`);
             const foundUsers = userRes.data;
-            if (foundUsers.length === 0) throw new Error("User not found");
-            const userFetch = foundUsers[0];
+
+            // Strictly find the user that matches the typed username (case-insensitive)
+            const userFetch = foundUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
+
+            if (!userFetch) throw new Error("User not found in local database");
 
             await directus.login(userFetch.email, password);
             const meId = await directus.request(readMe({ fields: ['id'] }));
