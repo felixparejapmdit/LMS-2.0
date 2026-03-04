@@ -412,12 +412,7 @@ export default function VIPView() {
             {/* VIP MODAL OVERLAY */}
             {isModalOpen && selectedLetter && (
                 <div className="fixed inset-0 z-[1000] flex justify-end pointer-events-none">
-                    <div
-                        className="absolute inset-0 bg-slate-900/30 dark:bg-[#050505]/60 backdrop-blur-[2px] animate-in fade-in duration-300 pointer-events-auto"
-                        onClick={() => setIsModalOpen(false)}
-                    />
-
-                    <div className="relative w-full md:w-[85vw] lg:w-[75vw] xl:w-[65vw] h-full bg-white dark:bg-[#0c0c0c] flex flex-col lg:flex-row shadow-2xl animate-in slide-in-from-right duration-500 pointer-events-auto border-l border-slate-200 dark:border-[#222]">
+                    <div className="relative w-full md:w-[85vw] lg:w-[75vw] xl:w-[65vw] h-full bg-white dark:bg-[#0c0c0c] flex flex-col lg:flex-row shadow-[-20px_0_50px_rgba(0,0,0,0.15)] dark:shadow-[-20px_0_50px_rgba(0,0,0,0.6)] animate-in slide-in-from-right duration-500 pointer-events-auto border-l border-slate-200 dark:border-[#222]">
                         {/* LEFT COLUMN: INFO & COMMENTS */}
                         <div className="w-full lg:w-[400px] xl:w-[450px] flex flex-col border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-[#222] bg-slate-50/50 dark:bg-[#0A0A0A] shrink-0 h-1/2 lg:h-full">
                             {/* Modal Header */}
@@ -470,16 +465,14 @@ export default function VIPView() {
                                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                                                             {new Date(comment.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                                                         </span>
-                                                        {comment.user_id === user?.id && (
-                                                            <div className="opacity-0 group-hover/comment:opacity-100 flex items-center gap-1 transition-opacity">
-                                                                <button onClick={() => handleEditComment(comment)} className="p-1 text-slate-400 hover:text-blue-500 rounded transition-colors" title="Edit">
-                                                                    <Edit2 className="w-3.5 h-3.5" />
-                                                                </button>
-                                                                <button onClick={() => handleDeleteComment(comment.id)} className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors" title="Delete">
-                                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                                </button>
-                                                            </div>
-                                                        )}
+                                                        <div className="opacity-0 group-hover/comment:opacity-100 flex items-center gap-1 transition-opacity">
+                                                            <button onClick={() => handleEditComment(comment)} className="p-1 text-slate-400 hover:text-blue-500 rounded transition-colors" title="Edit">
+                                                                <Edit2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            <button onClick={() => handleDeleteComment(comment.id)} className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors" title="Delete">
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                     <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-snug whitespace-pre-wrap">
                                                         {comment.comment_body}
