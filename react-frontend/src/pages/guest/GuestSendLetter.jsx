@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import attachmentService from "../../services/attachmentService";
 import letterService from "../../services/letterService";
 import axios from "axios";
+import SuccessModal from "../../components/SuccessModal";
 
 export default function GuestSendLetter() {
     const { user, logout, layoutStyle, isMobileMenuOpen, setIsMobileMenuOpen } = useAuth();
@@ -38,6 +39,7 @@ export default function GuestSendLetter() {
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeSenderIndex, setActiveSenderIndex] = useState(null); // numeric for senders, 'encoder' for encoder
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const fileInputRef = useRef(null);
     const suggestionRef = useRef(null);
     const today = new Date().toLocaleDateString('en-US', {
@@ -161,9 +163,7 @@ export default function GuestSendLetter() {
                 assigned_dept: "" // No initial process step
             });
 
-            alert(`Letter registered successfully!`);
-            handleClear();
-            navigate("/letter-tracker");
+            setIsSuccessModalOpen(true);
         } catch (err) {
             console.error("Submission failed:", err);
             alert("Failed to send letter. Check console for details.");
@@ -255,17 +255,18 @@ export default function GuestSendLetter() {
     const subTextColor = 'text-blue-600';
     const inputBg = 'bg-slate-50 dark:bg-white/5 border-slate-50 dark:border-[#333] text-slate-800 dark:text-white';
 
-    const isRegularUser = String(user?.roleData?.name || '').trim().toUpperCase() === 'USER';
+    const isLoggedIn = !!user;
+    const isRegularUser = user?.roleData?.name === 'USER' || user?.role === 'USER';
 
     return (
         <div className={`flex min-h-screen ${pageBg} font-sans transition-colors duration-300`}>
-            {isRegularUser && <Sidebar />}
+            {isLoggedIn && <Sidebar />}
 
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Top Header / Status Bar */}
                 <header className={`h-auto md:h-24 py-4 md:py-0 ${headerBg} border-b px-4 md:px-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm sticky top-0 z-50`}>
                     <div className="flex items-center gap-4 md:gap-6">
-                        {isRegularUser && (
+                        {isLoggedIn && (
                             <button
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                                 className={`lg:hidden p-2 rounded-xl border ${'border-slate-100 text-slate-600'}`}
@@ -288,7 +289,7 @@ export default function GuestSendLetter() {
                     </div>
 
                     <div className="flex items-center gap-4">
-                        {!isRegularUser && (
+                        {!isLoggedIn && (
                             <>
                                 <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${'bg-orange-600/10 text-orange-600 border border-orange-600/20'}`}>
                                     Guest Mode
@@ -598,6 +599,16 @@ export default function GuestSendLetter() {
 
                 </footer>
             </div>
+
+            <SuccessModal
+                isOpen={isSuccessModalOpen}
+                onClose={() => {
+                    setIsSuccessModalOpen(false);
+                    handleClear();
+                    navigate("/letter-tracker");
+                }}
+                referenceNo={referenceNo}
+            />
         </div>
     );
 }

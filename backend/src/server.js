@@ -32,6 +32,23 @@ async function startServer() {
             console.warn('Person sync warning:', e.message);
         }
 
+        // Self-Healing: Ensure RolePermission table is up to date (field_permissions col)
+        try {
+            const RolePermission = require('./models/RolePermission');
+            await RolePermission.sync({ alter: true });
+
+            // Explicitly ensure unique index for SQLite
+            try {
+                await sequelize.query("CREATE UNIQUE INDEX IF NOT EXISTS role_page_unique ON role_permissions (role_id, page_name)");
+            } catch (idxErr) {
+                console.log('Index role_page_unique check: already exists or skipped');
+            }
+
+            console.log('RolePermission table synced.');
+        } catch (e) {
+            console.warn('RolePermission sync warning:', e.message);
+        }
+
         // Self-Healing: Ensure layout columns exist in directus_users
         try {
             await sequelize.query("ALTER TABLE directus_users ADD COLUMN layout_style VARCHAR(255) DEFAULT 'notion'");

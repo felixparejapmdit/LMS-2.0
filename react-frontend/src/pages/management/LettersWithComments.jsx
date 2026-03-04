@@ -18,7 +18,7 @@ import letterService from "../../services/letterService";
 import axios from "axios";
 
 export default function LettersWithComments() {
-    const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const { user, layoutStyle, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
 
     const [letters, setLetters] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -56,6 +56,15 @@ export default function LettersWithComments() {
     };
 
     const filteredLetters = letters.filter(l => {
+        // Data Visibility Filter for USER role
+        const roleName = user?.roleData?.name?.toString().toUpperCase() || '';
+        if (roleName === 'USER' && !isSuperAdmin) {
+            const isOwner = l.encoder_id === user.id;
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+            const isInDept = l.assignments?.some(a => (a.department_id?.id ?? a.department_id) === userDeptId);
+            if (!isOwner && !isInDept) return false;
+        }
+
         const step = getLatestStep(l).toLowerCase();
         const matchesTab = activeTab === "signature"
             ? step.includes("signature")

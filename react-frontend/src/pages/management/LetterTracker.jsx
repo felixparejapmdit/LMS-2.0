@@ -20,7 +20,7 @@ import letterService from "../../services/letterService";
 import { useNavigate } from "react-router-dom";
 
 export default function LetterTracker() {
-    const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const { user, layoutStyle, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
     const navigate = useNavigate();
 
     const [letters, setLetters] = useState([]);
@@ -30,9 +30,6 @@ export default function LetterTracker() {
     const [selectedLetter, setSelectedLetter] = useState(null);
     const [isTrackDrawerOpen, setIsTrackDrawerOpen] = useState(false);
 
-    // Filter Logic
-    const isSuperAdmin = user?.roleData?.name?.toUpperCase() === 'ADMIN' || user?.roleData?.name?.toUpperCase() === 'SUPER ADMIN';
-
     // Theme Variables
     const textColor = 'text-slate-900 dark:text-white';
     const cardBg = 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
@@ -41,13 +38,15 @@ export default function LetterTracker() {
     const fetchLetters = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
-            const data = await letterService.getAll();
-            let filtered = Array.isArray(data) ? data : [];
-
-            // Apply Role-based filtering
-            if (!isSuperAdmin) {
-                filtered = filtered.filter(l => l.encoder_id === user.id);
-            }
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+            const roleName = user?.roleData?.name || user?.role || '';
+            const data = await letterService.getAll({
+                user_id: user?.id,
+                role: roleName,
+                department_id: userDeptId,
+                full_name: `${user?.first_name} ${user?.last_name}`.trim()
+            });
+            const filtered = Array.isArray(data) ? data : [];
 
             setLetters(filtered);
         } catch (error) {
@@ -62,11 +61,27 @@ export default function LetterTracker() {
         fetchLetters();
     }, [user]);
 
-    const filteredLetters = letters.filter(letter =>
-        letter.entry_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        letter.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        letter.summary?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredLetters = letters.filter(letter => {
+        // 1. Data Visibility Filter based on Role
+        const roleName = user?.roleData?.name?.toString().toUpperCase() || '';
+        const isUserRole = roleName === 'USER';
+
+        if (isUserRole && !isSuperAdmin) {
+            const isOwner = letter.encoder_id === user.id;
+            // Check if letter belongs to user's department via assignments
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+            const isInUserDept = letter.assignments?.some(a => (a.department_id?.id ?? a.department_id) === userDeptId);
+
+            if (!isOwner && !isInUserDept) return false;
+        }
+
+        // 2. Search Filter
+        return (
+            letter.entry_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            letter.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            letter.summary?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    });
 
     const handleTrackOpen = (letter) => {
         setSelectedLetter(letter);

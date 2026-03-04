@@ -1,14 +1,29 @@
-const { LetterAssignment, Letter, ProcessStep, Department, Status, Tray, LetterKind, Comment } = require('../models/associations');
+const { LetterAssignment, Letter, ProcessStep, Department, Status, Tray, LetterKind, Comment, Endorsement } = require('../models/associations');
 const { Op } = require('sequelize');
 
 class LetterAssignmentController {
     static async getAll(req, res) {
         try {
-            const { department_id, step_id, status, vip, global_status, named_filter } = req.query;
+            const { department_id, step_id, status, vip, global_status, named_filter, user_id, role } = req.query;
             const where = {};
 
-            // Department filtering: Include requested department and unassigned letters
-            if (department_id && department_id !== 'null' && department_id !== 'undefined' && req.query.outbox !== 'true') {
+            const normalizedRole = role ? role.toString().toUpperCase() : '';
+
+            // Role-based filtering for USER role
+            if (normalizedRole === 'USER' && user_id) {
+                const { full_name } = req.query;
+                const deptFilter = department_id && department_id !== 'null' ? { department_id: department_id } : { department_id: null };
+                where[Op.or] = [
+                    { '$letter.encoder_id$': user_id },
+                    {
+                        [Op.and]: [
+                            deptFilter,
+                            { '$letter.endorsements.endorsed_to$': full_name ? full_name : 'NoEndorsementMatch' }
+                        ]
+                    }
+                ];
+            } else if (department_id && department_id !== 'null' && department_id !== 'undefined' && req.query.outbox !== 'true') {
+                // Default department filtering for non-USER or when explicitly requested
                 where[Op.or] = [
                     { department_id: department_id },
                     { department_id: null }
@@ -99,7 +114,8 @@ class LetterAssignmentController {
                     },
                     { model: Tray, as: 'tray' },
                     { model: LetterKind, as: 'letterKind' },
-                    { model: Comment, as: 'comments', attributes: ['id'] }
+                    { model: Comment, as: 'comments', attributes: ['id'] },
+                    { model: Endorsement, as: 'endorsements' }
                 ]
             };
 

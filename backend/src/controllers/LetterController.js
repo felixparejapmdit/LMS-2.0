@@ -1,20 +1,42 @@
-const { Letter, LetterAssignment, LetterLog, Person, User, ProcessStep, Status } = require('../models/associations');
+const { Letter, LetterAssignment, LetterLog, Person, User, ProcessStep, Status, Endorsement } = require('../models/associations');
 const sequelize = require('../config/db');
 const { Op } = require('sequelize');
 
 class LetterController {
     static async getAll(req, res) {
         try {
+            const { user_id, role, department_id, full_name } = req.query;
+            const where = {};
+
+            const normalizedRole = role ? role.toString().toUpperCase() : '';
+
+            if (normalizedRole === 'USER' && user_id) {
+                // USER can only see letters encoded by them 
+                // OR assigned to their department AND endorsed to them specifically
+                where[Op.or] = [
+                    { encoder_id: user_id },
+                    {
+                        [Op.and]: [
+                            { '$assignments.department_id$': department_id && department_id !== 'null' ? department_id : null },
+                            { '$endorsements.endorsed_to$': full_name ? full_name : 'NoEndorsementMatch' }
+                        ]
+                    }
+                ];
+            }
+
             const results = await Letter.findAll({
+                where,
                 include: [
                     'letterKind',
                     'status',
                     'attachment',
                     'tray',
                     'comments',
-                    { model: LetterAssignment, as: 'assignments', include: ['step', 'department'] }
+                    { model: LetterAssignment, as: 'assignments', include: ['step', 'department'] },
+                    { model: Endorsement, as: 'endorsements' }
                 ],
-                order: [['created_at', 'DESC']]
+                order: [['created_at', 'DESC']],
+                subQuery: false
             });
             res.json(results);
         } catch (error) {

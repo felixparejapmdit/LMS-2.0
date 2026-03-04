@@ -25,6 +25,7 @@ import { directus, directusUrl } from "../../hooks/useDirectus";
 import { uploadFiles } from "@directus/sdk";
 import userService from "../../services/userService";
 import departmentService from "../../services/departmentService";
+import axios from "axios";
 
 export default function Users() {
     const context = useAuth();
@@ -46,7 +47,7 @@ export default function Users() {
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 15;
 
-    const roles = ["Superuser", "Administrator", "System Admin", "User", "Encoder", "VIP"];
+    const [roles, setRoles] = useState([]);
 
     const [formData, setFormData] = useState({
         first_name: "",
@@ -54,7 +55,7 @@ export default function Users() {
         username: "",
         email: "",
         password: "",
-        role: "User",
+        role: "",
         dept_id: "",
         avatar: null
     });
@@ -108,12 +109,20 @@ export default function Users() {
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
-            const [usersData, deptsData] = await Promise.all([
+            const [usersData, deptsData, rolesRes] = await Promise.all([
                 userService.getAll(),
-                departmentService.getAll()
+                departmentService.getAll(),
+                axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/role-permissions/roles`)
             ]);
             setUsers(Array.isArray(usersData) ? usersData : []);
             setDepartments(Array.isArray(deptsData) ? deptsData : []);
+            setRoles(Array.isArray(rolesRes.data) ? rolesRes.data : []);
+
+            // Default role if none set
+            if (!formData.role && rolesRes.data?.length > 0) {
+                const defaultRole = rolesRes.data.find(r => r.name === 'User') || rolesRes.data[0];
+                setFormData(prev => ({ ...prev, role: defaultRole.id }));
+            }
         } catch (error) {
             console.error("Fetch failed", error);
             setError("Failed to fetch data.");
@@ -174,7 +183,7 @@ export default function Users() {
             username: "",
             email: "",
             password: "",
-            role: "User",
+            role: roles.find(r => r.name === 'User')?.id || roles[0]?.id || "",
             dept_id: "",
             avatar: null
         });
@@ -192,7 +201,7 @@ export default function Users() {
             username: user.username || "",
             email: user.email || "",
             password: "",
-            role: user.role || "User",
+            role: user.role || "",
             dept_id: user.dept_id || "",
             avatar: user.avatar || null
         });
@@ -218,8 +227,31 @@ export default function Users() {
         return matchesSearch && matchesRole && matchesDept;
     });
 
-    const totalPages = Math.ceil(filteredUsers.length / pageSize);
-    const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    const sortedUsers = [...filteredUsers].sort((a, b) => {
+        const roleA = a.roleData?.name || a.role || "";
+        const roleB = b.roleData?.name || b.role || "";
+        if (roleA !== roleB) return roleA.localeCompare(roleB);
+
+        const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
+        const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+
+    const totalPages = Math.ceil(sortedUsers.length / pageSize);
+    const paginatedUsers = sortedUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+    // Grouping logic for rendering
+    const groupUsersByRole = (usersList) => {
+        const groups = {};
+        usersList.forEach(u => {
+            const roleName = u.roleData?.name || u.role || "Unassigned";
+            if (!groups[roleName]) groups[roleName] = [];
+            groups[roleName].push(u);
+        });
+        return groups;
+    };
+
+    const groupedUsers = groupUsersByRole(paginatedUsers);
 
     // Reset pagination on filter change
     useEffect(() => {
@@ -331,7 +363,7 @@ export default function Users() {
                                     className="px-4 py-3 rounded-2xl border bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all min-w-[150px] font-bold text-gray-500"
                                 >
                                     <option value="">All Roles</option>
-                                    {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                                    {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                                 </select>
                                 <select
                                     value={selectedDepartment}
@@ -355,8 +387,21 @@ export default function Users() {
                             </div>
                         ) : (
                             <>
-                                <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-8" : "space-y-6"}>
-                                    {paginatedUsers.map(renderCard)}
+                                <div className="space-y-12">
+                                    {Object.entries(groupedUsers).map(([roleName, usersInRole]) => (
+                                        <div key={roleName} className="space-y-6">
+                                            <div className="flex items-center gap-4 px-2">
+                                                <div className="h-px bg-gray-100 dark:bg-white/5 flex-1" />
+                                                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-500 whitespace-nowrap bg-white dark:bg-[#141414] px-4 py-1 rounded-full border border-gray-100 dark:border-white/5">
+                                                    {roleName} ({usersInRole.length})
+                                                </h3>
+                                                <div className="h-px bg-gray-100 dark:bg-white/5 flex-1" />
+                                            </div>
+                                            <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-8" : "space-y-4"}>
+                                                {usersInRole.map(renderCard)}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
 
                                 {totalPages > 1 && (
@@ -479,7 +524,7 @@ export default function Users() {
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Role</label>
                                         <select value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold">
-                                            {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                                            {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                         </select>
                                     </div>
                                     <div className="space-y-1">

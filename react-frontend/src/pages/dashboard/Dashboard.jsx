@@ -61,8 +61,8 @@ export default function Dashboard({ view = "inbox" }) {
     setLoading(true);
     setAssignments([]); // Clear stale data before fetching new tab content
     try {
-      const deptId = user?.dept_id?.id ?? user?.dept_id ?? null;
-      let url = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments?department_id=${deptId}`;
+      const fullName = `${user?.first_name} ${user?.last_name}`.trim();
+      let url = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments?department_id=${deptId}&user_id=${user?.id}&role=${roleName}&full_name=${encodeURIComponent(fullName)}`;
 
       if (view === 'inbox') {
         url += '&status=Pending&exclude_vip=true';

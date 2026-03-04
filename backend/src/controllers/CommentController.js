@@ -40,6 +40,37 @@ class CommentController {
             res.status(400).json({ error: error.message });
         }
     }
+    static async update(req, res) {
+        try {
+            const { id } = req.params;
+            const { comment_body } = req.body;
+            const comment = await Comment.findByPk(id);
+            if (!comment) {
+                return res.status(404).json({ error: 'Comment not found' });
+            }
+            comment.comment_body = comment_body;
+            await comment.save();
+            res.json(comment);
+        } catch (error) {
+            console.error('[CommentController.update] ERROR:', error);
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    static async delete(req, res) {
+        try {
+            const { id } = req.params;
+            const comment = await Comment.findByPk(id);
+            if (!comment) {
+                return res.status(404).json({ error: 'Comment not found' });
+            }
+            await comment.destroy();
+            res.json({ message: 'Comment deleted successfully' });
+        } catch (error) {
+            console.error('[CommentController.delete] ERROR:', error);
+            res.status(500).json({ error: error.message });
+        }
+    }
 }
 
 module.exports = CommentController;

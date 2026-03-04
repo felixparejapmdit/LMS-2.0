@@ -42,7 +42,7 @@ import GuestSendLetter from "./pages/guest/GuestSendLetter";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
-const ProtectedRoute = ({ children, isVIPRoute = false }) => {
+const ProtectedRoute = ({ children }) => {
   const { user, loading, hasPermission } = useAuth();
   const location = useLocation();
 
@@ -61,29 +61,25 @@ const ProtectedRoute = ({ children, isVIPRoute = false }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const roleId = user?.role || user?.roleData?.id || '';
-  const roleName = String(user?.roleData?.name || '').trim().toUpperCase();
-  const isVIP = String(roleId).toLowerCase() === 'ac74f61c-344d-4648-9bcf-0ed4d2330b37' || roleName === 'VIP';
-
-  if (isVIP && !isVIPRoute) {
-    return <Navigate to="/vip-view" replace />;
-  }
-
-  if (!isVIP && isVIPRoute) {
-    return <Navigate to="/" replace />;
-  }
 
   // RBAC Check
   const getPageKey = (path) => {
     if (path === "/" || path === "/dashboard") return "home";
+    if (path === "/guest/send-letter") return "guest-send-letter";
     if (path.startsWith("/setup/")) return path.split("/").pop();
-    return path.replace("/", "");
+    if (path.startsWith("/letter/")) return "letter-detail"; // Map dynamic letter IDs to the detail permission
+    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+    // Handle any other specific dynamic mappings here
+    return cleanPath;
   };
 
   const pageKey = getPageKey(location.pathname);
   if (hasPermission && !hasPermission(pageKey, 'can_view')) {
     console.warn(`Access Denied for ${pageKey}`);
-    return <Navigate to="/" replace />;
+    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
+    if (roleName === 'VIP') return <Navigate to="/vip-view" replace />;
+    if (roleName === 'USER') return <Navigate to="/letter-tracker" replace />;
+    return <Navigate to="/letter-tracker" replace />;
   }
 
   return children;
@@ -101,7 +97,7 @@ function AppRoutes() {
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/inbox" element={<ProtectedRoute><Dashboard view="inbox" /></ProtectedRoute>} />
         <Route path="/outbox" element={<ProtectedRoute><Dashboard view="outbox" /></ProtectedRoute>} />
-        <Route path="/vip-view" element={<ProtectedRoute isVIPRoute={true}><VIPView /></ProtectedRoute>} />
+        <Route path="/vip-view" element={<ProtectedRoute><VIPView /></ProtectedRoute>} />
         <Route path="/new-letter" element={<ProtectedRoute><NewLetter /></ProtectedRoute>} />
         <Route path="/setup" element={<ProtectedRoute><SetupWizard /></ProtectedRoute>} />
         <Route path="/setup/trays" element={<ProtectedRoute><Trays /></ProtectedRoute>} />

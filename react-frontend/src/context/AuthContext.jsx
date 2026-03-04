@@ -50,12 +50,12 @@ export const AuthProvider = ({ children }) => {
 
         if (isAdmin || user?.email === 'felixpareja07@gmail.com') return true;
 
-        // If permissions haven't loaded yet or no records exist, allow by default
+        // If permissions haven't loaded yet or no records exist at all, allow by default (initial setup phase)
         if (!permissions || permissions.length === 0) return true;
 
         const perm = permissions.find(p => p.page_name === pageId);
-        // If no specific record for this page, allow by default (permissive)
-        if (!perm) return true;
+        // If we have permissions records but NONE for this specific page, deny by default (secure)
+        if (!perm) return false;
         return !!perm[action];
     };
 
@@ -157,7 +157,7 @@ export const AuthProvider = ({ children }) => {
             if (me.layout_style) setLayoutStyle(me.layout_style);
             if (me.theme_preference) setTheme(me.theme_preference);
             if (me.font_family) setFontFamily(me.font_family);
-            return { success: true };
+            return { success: true, user: updatedMe };
         } catch (error) {
             console.error("Login failed:", error);
             return { success: false, error: error.message };

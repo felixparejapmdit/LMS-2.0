@@ -42,10 +42,17 @@ import { directusUrl } from "../hooks/useDirectus";
 export default function Sidebar() {
   const { user, logout, theme, toggleTheme, layoutStyle, isSidebarExpanded, toggleSidebar, isMobileMenuOpen, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
-  const [expandedMenus, setExpandedMenus] = useState({});
+  const [expandedMenus, setExpandedMenus] = useState(() => {
+    const saved = localStorage.getItem('sidebar_expanded_menus');
+    return saved ? JSON.parse(saved) : {};
+  });
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const { hasPermission } = useAuth();
+
+  useEffect(() => {
+    localStorage.setItem('sidebar_expanded_menus', JSON.stringify(expandedMenus));
+  }, [expandedMenus]);
 
   useEffect(() => {
     if (!user) return;
@@ -77,29 +84,18 @@ export default function Sidebar() {
     }
   };
 
-  const roleId = user?.role || user?.roleData?.id || '';
-  const roleName = String(user?.roleData?.name || '').trim().toUpperCase();
-  const isVIP = String(roleId).toLowerCase() === 'ac74f61c-344d-4648-9bcf-0ed4d2330b37' || roleName === 'VIP';
-  const isRegularUser = roleName === 'USER';
-
-  const navItems = isRegularUser ? [
-    { icon: Search, label: "Letter Tracker", path: "/letter-tracker" },
-    { icon: FileUp, label: "Upload PDF Files", path: "/upload-pdf" },
-    { icon: Send, label: "Send A Letter", path: "/guest/send-letter" },
-  ] : [
+  const navItems = [
     { icon: Home, label: "Home", path: "/" },
-    ...(isVIP ? [
-      { icon: Inbox, label: "VIP View", path: "/vip-view" }
-    ] : [
-      { icon: Plus, label: "New Letter", path: "/new-letter" },
-      { icon: Inbox, label: "Inbox", path: "/inbox" },
-      { icon: Send, label: "Outbox", path: "/outbox" }
-    ]),
+    { icon: Inbox, label: "VIP View", path: "/vip-view" },
+    { icon: Plus, label: "New Letter", path: "/new-letter" },
+    { icon: Inbox, label: "Inbox", path: "/inbox" },
+    { icon: Send, label: "Outbox", path: "/outbox" },
     { icon: AlertCircle, label: "Spam", path: "/spam" },
     { icon: TableIcon, label: "Master Table", path: "/master-table" },
     { icon: MessageSquare, label: "Letters with Comment", path: "/letters-with-comments" },
     { icon: Search, label: "Letter Tracker", path: "/letter-tracker" },
     { icon: FileUp, label: "Upload PDF Files", path: "/upload-pdf" },
+    { icon: Send, label: "Send A Letter", path: "/guest/send-letter" },
     {
       icon: Settings,
       label: "Settings",
@@ -132,8 +128,10 @@ export default function Sidebar() {
 
   // Helper to get permission key from path
   const getPageKey = (path) => {
-    if (path === "/") return "home";
+    if (path === "/" || path === "/dashboard") return "home";
+    if (path === "/guest/send-letter") return "guest-send-letter";
     if (path.startsWith("/setup/")) return path.split("/").pop();
+    if (path.startsWith("/letter/")) return "letter-detail";
     return path.replace("/", "");
   };
 

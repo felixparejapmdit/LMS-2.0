@@ -18,7 +18,14 @@ export default function Login() {
 
     const result = await login(username, password);
     if (result.success) {
-      navigate("/");
+      const roleName = (result.user?.roleData?.name || result.user?.role || '').toString().toUpperCase();
+      if (roleName === 'USER') {
+        navigate("/letter-tracker");
+      } else if (roleName === 'VIP') {
+        navigate("/vip-view");
+      } else {
+        navigate("/");
+      }
     } else {
       setError(result.error || "Invalid credentials");
     }

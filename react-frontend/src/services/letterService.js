@@ -4,8 +4,8 @@ import API_BASE from '../config/apiConfig';
 const API_URL = `${API_BASE}/letters`;
 
 class LetterService {
-    async getAll() {
-        const response = await axios.get(API_URL);
+    async getAll(params = {}) {
+        const response = await axios.get(API_URL, { params });
         return response.data;
     }
 

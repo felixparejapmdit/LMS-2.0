@@ -13,6 +13,8 @@ const Role = require('./Role');
 const Attachment = require('./Attachment');
 const Person = require('./Person');
 const RolePermission = require('./RolePermission');
+const SystemPage = require('./SystemPage');
+const Endorsement = require('./Endorsement');
 
 // --- Letter Relationships ---
 Letter.belongsTo(LetterKind, { foreignKey: 'kind', as: 'letterKind' });
@@ -61,6 +63,11 @@ Status.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 LetterKind.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 ProcessStep.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 
+// --- Endorsements ---
+Letter.hasMany(Endorsement, { foreignKey: 'letter_id', as: 'endorsements' });
+Endorsement.belongsTo(Letter, { foreignKey: 'letter_id', as: 'letter' });
+Endorsement.belongsTo(User, { foreignKey: 'endorsed_by', as: 'endorser' });
+
 module.exports = {
     Letter,
     User,
@@ -76,5 +83,7 @@ module.exports = {
     Role,
     Attachment,
     Person,
-    RolePermission
+    RolePermission,
+    SystemPage,
+    Endorsement
 };

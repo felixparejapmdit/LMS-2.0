@@ -14,6 +14,7 @@ const commentRoutes = require('./routes/commentRoutes');
 const personRoutes = require('./routes/personRoutes');
 const endorsementRoutes = require('./routes/endorsementRoutes');
 const rolePermissionRoutes = require('./routes/rolePermissionRoutes');
+const systemPageRoutes = require('./routes/systemPageRoutes');
 const pdfSyncRoutes = require('./routes/pdfSyncRoutes');
 
 const path = require('path');
@@ -49,6 +50,7 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/persons', personRoutes);
 app.use('/api/endorsements', endorsementRoutes);
 app.use('/api/role-permissions', rolePermissionRoutes);
+app.use('/api/system-pages', systemPageRoutes);
 app.use('/api/import', require('./routes/importRoutes'));
 
 app.get('/health', (req, res) => {

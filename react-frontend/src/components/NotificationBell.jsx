@@ -24,9 +24,11 @@ export default function NotificationBell() {
         return () => clearInterval(interval);
     }, [user]);
 
-    const roleName = String(user?.roleData?.name || '').trim().toUpperCase();
+    const { hasPermission } = useAuth();
     const isHiddenPage = ['/login', '/setup/wizard', '/guest/send-letter', '/vip-view'].includes(location.pathname);
-    if (!user || isHiddenPage || roleName === 'USER') return null;
+
+    // Instead of hardcoded USER role check, check if they have permission to view the endorsements page
+    if (!user || isHiddenPage || !hasPermission('endorsements')) return null;
 
     return (
         <div className="fixed top-24 right-6 z-[99999] pointer-events-none sticky-notification">

@@ -4,6 +4,7 @@ const RolePermissionController = require('../controllers/RolePermissionControlle
 
 router.get('/', RolePermissionController.getAll);
 router.get('/role/:roleId', RolePermissionController.getByRole);
+router.get('/roles', RolePermissionController.getRoles);
 router.get('/roles-with-permissions', RolePermissionController.getRolesWithPermissions);
 router.post('/bulk-update', RolePermissionController.updateMultiple);
 

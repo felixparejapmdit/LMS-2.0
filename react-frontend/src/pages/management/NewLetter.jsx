@@ -30,6 +30,7 @@ import trayService from "../../services/trayService";
 import attachmentService from "../../services/attachmentService";
 import letterService from "../../services/letterService";
 import axios from "axios";
+import SuccessModal from "../../components/SuccessModal";
 
 export default function NewLetter() {
     const navigate = useNavigate();
@@ -59,6 +60,7 @@ export default function NewLetter() {
         tray_id: "",
         attachment_id: ""
     });
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
     const [scannedFiles, setScannedFiles] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
@@ -219,7 +221,7 @@ export default function NewLetter() {
                 encoder_id: user.id
             });
 
-            navigate("/master-table");
+            setIsSuccessModalOpen(true);
         } catch (err) {
             console.error("Creation failed:", err);
             setError(err.response?.data?.error || "Failed to create letter.");
@@ -600,6 +602,15 @@ export default function NewLetter() {
                     </form>
                 </div>
             </main >
+
+            <SuccessModal
+                isOpen={isSuccessModalOpen}
+                onClose={() => {
+                    setIsSuccessModalOpen(false);
+                    navigate("/master-table");
+                }}
+                referenceNo={predictedLmsId}
+            />
         </div >
     );
 }

@@ -41,7 +41,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 export default function MasterTable() {
-    const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const { user, layoutStyle, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
     const navigate = useNavigate();
 
     // Theme Variables (derived locally)
@@ -112,7 +112,14 @@ export default function MasterTable() {
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
-            const data = await letterService.getAll();
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+            const roleName = user?.roleData?.name || user?.role || '';
+            const data = await letterService.getAll({
+                user_id: user?.id,
+                role: roleName,
+                department_id: userDeptId,
+                full_name: `${user?.first_name} ${user?.last_name}`.trim()
+            });
             setLetters(Array.isArray(data) ? data : []);
 
             const depts = await departmentService.getAll();
@@ -353,11 +360,20 @@ export default function MasterTable() {
         }
     };
 
-    const filteredLetters = letters.filter(l =>
-        (l.lms_id?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (l.sender?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (l.summary?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredLetters = letters.filter(l => {
+        // Data Visibility Filter for USER role
+        const roleName = user?.roleData?.name?.toString().toUpperCase() || '';
+        if (roleName === 'USER' && !isSuperAdmin) {
+            const isOwner = l.encoder_id === user.id;
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+            const isInDept = l.assignments?.some(a => (a.department_id?.id ?? a.department_id) === userDeptId);
+            if (!isOwner && !isInDept) return false;
+        }
+
+        return (l.lms_id?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (l.sender?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (l.summary?.toLowerCase().includes(searchTerm.toLowerCase()));
+    });
 
     const getStatusStyle = (status) => {
         switch (status?.toLowerCase()) {

@@ -34,10 +34,20 @@ const RolePermission = sequelize.define('RolePermission', {
     can_special: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+    },
+    field_permissions: {
+        type: DataTypes.JSON,
+        defaultValue: {}
     }
 }, {
     tableName: 'role_permissions',
-    timestamps: true
+    timestamps: true,
+    indexes: [
+        {
+            unique: true,
+            fields: ['role_id', 'page_name']
+        }
+    ]
 });
 
 module.exports = RolePermission;
