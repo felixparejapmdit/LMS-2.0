@@ -396,7 +396,7 @@ export default function MasterTable() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-10 custom-scrollbar">
                     <div className="max-w-full mx-auto space-y-6">
                         {/* Summary & Search */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

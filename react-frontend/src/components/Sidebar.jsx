@@ -153,8 +153,8 @@ export default function Sidebar() {
     if (layoutStyle === 'grid') {
       return (
         <>
-          <div className="h-20 flex items-center justify-between px-5 border-b border-slate-50 dark:border-[#222] relative overflow-hidden shrink-0">
-            <div className="flex items-center gap-3">
+          <div className={`h-20 flex items-center border-b border-slate-50 dark:border-[#222] shrink-0 relative overflow-visible transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-between px-5'}`}>
+            <div className="flex items-center gap-3 overflow-visible z-50">
               <div
                 onClick={() => navigate('/endorsements')}
                 className="w-11 h-11 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200 dark:shadow-blue-600/20 shrink-0 group/bell cursor-pointer relative transition-all hover:scale-105 active:scale-95"
@@ -293,8 +293,8 @@ export default function Sidebar() {
     if (layoutStyle === 'notion') {
       return (
         <>
-          <div className="p-4 mb-4 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-3 overflow-hidden">
+          <div className={`p-4 mb-4 flex items-center shrink-0 overflow-visible transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-between'}`}>
+            <div className="flex items-center gap-3 overflow-visible z-50">
               <div
                 onClick={() => navigate('/endorsements')}
                 className="w-7 h-7 bg-orange-500 rounded flex items-center justify-center text-white shrink-0 group/bell cursor-pointer relative transition-all hover:scale-110 active:scale-95 shadow-sm"
@@ -430,8 +430,8 @@ export default function Sidebar() {
     // Default (Modern)
     return (
       <>
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-[#222] shrink-0">
-          <div className="flex items-center gap-3 overflow-hidden">
+        <div className={`h-16 flex items-center border-b border-gray-100 dark:border-[#222] shrink-0 transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : 'justify-between px-8'}`}>
+          <div className="flex items-center gap-3 overflow-visible z-50">
             <div
               onClick={() => navigate('/endorsements')}
               className="w-10 h-10 bg-orange-50 dark:bg-orange-900/10 rounded-xl flex items-center justify-center group/bell cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-all shrink-0 relative"

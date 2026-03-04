@@ -404,29 +404,6 @@ export default function NewLetter() {
                                     </select>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Physical Attachment</label>
-                                    <select
-                                        value={formData.attachment_id}
-                                        onChange={e => setFormData({ ...formData, attachment_id: e.target.value })}
-                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                    >
-                                        <option value="">-- No Physical Attachment --</option>
-                                        {attachments.map(a => <option key={a.id} value={a.id}>{a.attachment_name}</option>)}
-                                    </select>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Storage Tray (Physical Location)</label>
-                                    <select
-                                        value={formData.tray_id}
-                                        onChange={e => setFormData({ ...formData, tray_id: e.target.value })}
-                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                    >
-                                        <option value="">-- Select Tray (Optional) --</option>
-                                        {trays.map(t => <option key={t.id} value={t.id}>{t.tray_no} - {t.description}</option>)}
-                                    </select>
-                                </div>
 
                                 <div className={`space-y-2 pt-4 border-t ${'border-gray-50 dark:border-[#222]'}`}>
                                     <label className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${'text-gray-700 dark:text-gray-300'}`}>
@@ -491,61 +468,116 @@ export default function NewLetter() {
                                 />
                             </section>
 
-                            {/* Digital Attachment (Scanned Copy) */}
-                            <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-6`}>
-                                <div className={`flex items-center gap-3 border-b pb-6 mb-2 ${'border-slate-50 dark:border-[#222]'}`}>
-                                    <Upload className={`w-5 h-5 text-indigo-400`} />
-                                    <h3 className={`font-bold ${textColor}`}>Attachments (Scanned Letter)</h3>
-                                </div>
+                            {(() => {
+                                const selectedAtt = attachments.find(a => String(a.id) === String(formData.attachment_id));
+                                const attName = selectedAtt?.attachment_name?.toLowerCase() || "";
+                                const isLetterOrPhoto = attName.includes("letter") || attName.includes("photo");
 
-                                <div
-                                    onClick={() => fileInputRef.current.click()}
-                                    onDragOver={(e) => e.preventDefault()}
-                                    onDrop={handleDrop}
-                                    className={`flex flex-col items-center justify-center border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-12 transition-all cursor-pointer group ${'border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5'}`}
-                                >
-                                    <input
-                                        type="file"
-                                        multiple
-                                        className="hidden"
-                                        ref={fileInputRef}
-                                        onChange={handleFileChange}
-                                    />
-                                    <div className={`w-16 h-16 bg-white dark:bg-white/10 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform`}>
-                                        <Upload className={`w-6 h-6 text-orange-400`} />
-                                    </div>
-                                    <h3 className={`text-sm font-black uppercase tracking-widest mb-1 ${textColor}`}>Click to Upload</h3>
-                                    <p className="text-xs text-slate-400 font-medium">Scanned copies of the letter or related documents</p>
-                                </div>
+                                return (
+                                    <>
+                                        {/* Physical Attachment Selection - Moved Above Upload */}
+                                        <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-8`}>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-2">
+                                                    <FilePlus className="w-3 h-3" />
+                                                    Physical Attachment
+                                                </label>
+                                                <select
+                                                    value={formData.attachment_id}
+                                                    onChange={e => setFormData({ ...formData, attachment_id: e.target.value })}
+                                                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                                >
+                                                    <option value="">-- Select Physical Attachment --</option>
+                                                    {attachments.map(a => <option key={a.id} value={a.id}>{a.attachment_name}</option>)}
+                                                </select>
+                                            </div>
 
-                                {scannedFiles.length > 0 && (
-                                    <div className="mt-8 space-y-2">
-                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected Files ({scannedFiles.length})</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                                            {scannedFiles.map((file, index) => (
-                                                <div key={index} className={`flex items-center justify-between p-3 rounded-xl border group animate-in fade-in slide-in-from-bottom-2 duration-300 ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}>
-                                                    <div className="flex items-center gap-3 truncate">
-                                                        <div className={`w-8 h-8 bg-white dark:bg-white/10 border rounded-lg flex items-center justify-center text-orange-400 ${'border-slate-100'}`}>
-                                                            <FileText className="w-4 h-4" />
-                                                        </div>
-                                                        <span className={`text-xs font-bold truncate ${textColor}`}>{file.name}</span>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            removeAttachment(index);
-                                                        }}
-                                                        className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-2">
+                                                    <Clock className="w-3 h-3" />
+                                                    Storage Tray (Physical Location)
+                                                </label>
+                                                <select
+                                                    value={formData.tray_id}
+                                                    onChange={e => setFormData({ ...formData, tray_id: e.target.value })}
+                                                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                                >
+                                                    <option value="">-- Select Tray (Optional) --</option>
+                                                    {trays.map(t => <option key={t.id} value={t.id}>{t.tray_no} - {t.description}</option>)}
+                                                </select>
+                                            </div>
+                                        </section>
+
+                                        {/* Digital Attachment (Scanned Copy) - Disabled if Physical Attachment is not Letter/Photo */}
+                                        <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-6 relative overflow-hidden transition-all duration-300 ${!isLetterOrPhoto ? 'opacity-60 grayscale-[0.5] pointer-events-none select-none' : ''}`}>
+                                            <div className={`flex items-center justify-between border-b pb-6 mb-2 ${'border-slate-50 dark:border-[#222]'}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <Upload className={`w-5 h-5 text-indigo-400`} />
+                                                    <h3 className={`font-bold ${textColor}`}>Attachments (Scanned Letter)</h3>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </section>
+                                                {!isLetterOrPhoto && (
+                                                    <span className="text-[10px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-600 px-3 py-1 rounded-full border border-amber-500/20">
+                                                        {formData.attachment_id ? `Not available for ${selectedAtt?.attachment_name}` : 'Select Physical Attachment First'}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div
+                                                onClick={() => isLetterOrPhoto && fileInputRef.current.click()}
+                                                onDragOver={(e) => e.preventDefault()}
+                                                onDrop={(e) => isLetterOrPhoto && handleDrop(e)}
+                                                className={`flex flex-col items-center justify-center border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-12 transition-all group ${!isLetterOrPhoto ? 'cursor-not-allowed border-slate-200 dark:border-[#222] bg-slate-50/30' : 'cursor-pointer border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5'}`}
+                                            >
+                                                <input
+                                                    type="file"
+                                                    multiple
+                                                    disabled={!isLetterOrPhoto}
+                                                    className="hidden"
+                                                    ref={fileInputRef}
+                                                    onChange={handleFileChange}
+                                                />
+                                                <div className={`w-16 h-16 bg-white dark:bg-white/10 rounded-full flex items-center justify-center shadow-lg mb-4 ${isLetterOrPhoto ? 'group-hover:scale-110' : ''} transition-transform`}>
+                                                    <Upload className={`w-6 h-6 ${isLetterOrPhoto ? 'text-orange-400' : 'text-slate-300'}`} />
+                                                </div>
+                                                <h3 className={`text-sm font-black uppercase tracking-widest mb-1 ${isLetterOrPhoto ? textColor : 'text-slate-400'}`}>
+                                                    {isLetterOrPhoto ? 'Click to Upload' : 'Upload Restricted'}
+                                                </h3>
+                                                <p className="text-xs text-slate-400 font-medium">
+                                                    {isLetterOrPhoto ? 'Scanned copies of the letter or related documents' : 'Requires Physical Attachment classification: Letter or Photo'}
+                                                </p>
+                                            </div>
+
+                                            {isLetterOrPhoto && scannedFiles.length > 0 && (
+                                                <div className="mt-8 space-y-2">
+                                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected Files ({scannedFiles.length})</h4>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                                                        {scannedFiles.map((file, index) => (
+                                                            <div key={index} className={`flex items-center justify-between p-3 rounded-xl border group animate-in fade-in slide-in-from-bottom-2 duration-300 ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}>
+                                                                <div className="flex items-center gap-3 truncate">
+                                                                    <div className={`w-8 h-8 bg-white dark:bg-white/10 border rounded-lg flex items-center justify-center text-orange-400 ${'border-slate-100'}`}>
+                                                                        <FileText className="w-4 h-4" />
+                                                                    </div>
+                                                                    <span className={`text-xs font-bold truncate ${textColor}`}>{file.name}</span>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        removeAttachment(index);
+                                                                    }}
+                                                                    className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </section>
+                                    </>
+                                );
+                            })()}
                         </div>
 
                         <div className="flex justify-end gap-4 pt-6 pb-12">
@@ -567,7 +599,7 @@ export default function NewLetter() {
                         </div>
                     </form>
                 </div>
-            </main>
-        </div>
+            </main >
+        </div >
     );
 }

@@ -138,9 +138,9 @@ export default function Profile() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-12 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 custom-scrollbar">
                     <div className="max-w-4xl mx-auto">
-                        <div className="mb-12">
+                        <div className="mb-8">
                             <h2 className={`text-4xl font-black ${textColor} tracking-tight`}>Your Profile</h2>
                             <p className="text-gray-500 mt-2">Personalize your identity and manage security settings.</p>
                         </div>

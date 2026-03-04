@@ -241,7 +241,7 @@ export default function LetterDetail() {
       <div className="min-h-screen bg-white dark:bg-[#191919] flex overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto">
-          <div className="max-w-[1000px] mx-auto px-4 md:px-12 pt-12 md:pt-24 pb-16 md:pb-32 relative">
+          <div className="max-w-[1000px] mx-auto px-4 md:px-12 pt-6 md:pt-10 pb-16 md:pb-32 relative">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
               className="fixed top-6 left-4 p-2 bg-white/80 dark:bg-[#191919]/80 backdrop-blur shadow-sm border border-gray-100 dark:border-[#333] rounded-lg text-gray-400 md:hidden z-40"
@@ -253,10 +253,10 @@ export default function LetterDetail() {
                 <ChevronLeft className="w-3 h-3" /> back
               </button>
               <span>/</span>
-              <span className="text-gray-900 dark:text-gray-200">{letter.atg_id}</span>
+              <span className="text-gray-900 dark:text-gray-200">{letter.lms_id}</span>
             </div>
 
-            <h1 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white tracking-tighter mb-12">
+            <h1 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white tracking-tighter mb-8">
               {letter.sender}
             </h1>
 
@@ -317,17 +317,17 @@ export default function LetterDetail() {
                   <div className="space-y-5">
                     <div className="flex flex-col gap-1 text-xs">
                       <span className="text-gray-400 uppercase font-black tracking-tighter text-[9px]">Classification</span>
-                      <span className="text-gray-700 dark:text-gray-300 font-medium">{letter.kind?.kind_name}</span>
+                      <span className="text-gray-700 dark:text-gray-300 font-medium">{letter.letterKind?.kind_name || letter.kind?.kind_name || 'Standard'}</span>
                     </div>
                     <div className="flex flex-col gap-1 text-xs">
                       <span className="text-gray-400 uppercase font-black tracking-tighter text-[9px]">Process status</span>
-                      <span className="text-orange-600 font-bold">{letter.global_status?.status_name}</span>
+                      <span className="text-orange-600 font-bold">{letter.status?.status_name || 'Pending'}</span>
                     </div>
                     <div className="flex flex-col gap-1 text-xs">
                       <span className="text-gray-400 uppercase font-black tracking-tighter text-[9px]">Archive location</span>
                       <span className="text-gray-700 dark:text-gray-300 font-bold flex items-center gap-1">
                         <MapPin className="w-3 h-3" />
-                        {letter.tray_info?.tray_no || 'Pending filing'}
+                        {letter.tray?.tray_no || 'Pending filing'}
                       </span>
                     </div>
                   </div>
@@ -342,7 +342,7 @@ export default function LetterDetail() {
                     {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
                     COMPLETE TASK
                   </button>
-                  <p className="text-[9px] text-gray-400 mt-2 text-center uppercase tracking-widest font-bold">Action as {user.dept_id.dept_name}</p>
+                  <p className="text-[9px] text-gray-400 mt-2 text-center uppercase tracking-widest font-bold">Action as {user?.department?.dept_name || user?.dept_id?.dept_name || 'Department'}</p>
                 </div>
               </div>
             </div>
@@ -373,7 +373,7 @@ export default function LetterDetail() {
               <ChevronLeft className="w-5 h-5 text-gray-400 group-hover:text-orange-500" />
             </button>
             <div>
-              <h1 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-tight">{letter.atg_id}</h1>
+              <h1 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-tight">{letter.lms_id}</h1>
               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-none">Letter Details</p>
             </div>
           </div>

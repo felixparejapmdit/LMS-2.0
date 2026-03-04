@@ -29,7 +29,7 @@ export default function NotificationBell() {
     if (!user || isHiddenPage || roleName === 'USER') return null;
 
     return (
-        <div className="fixed top-20 right-6 z-[9999] pointer-events-none sticky-notification">
+        <div className="fixed top-24 right-6 z-[99999] pointer-events-none sticky-notification">
             <button
                 onClick={() => navigate('/endorsements')}
                 className="pointer-events-auto flex items-center justify-center p-3.5 bg-white dark:bg-[#111] border-2 border-orange-500 shadow-[0_0_25px_-5px_rgba(249,115,22,0.5)] rounded-2xl transition-all hover:scale-110 active:scale-95 group text-gray-500 hover:text-orange-500 hover:border-orange-600 focus:outline-none"

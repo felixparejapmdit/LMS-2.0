@@ -271,7 +271,7 @@ export default function Home() {
             <div className="min-h-screen bg-slate-50 dark:bg-[#0D0D0D] flex overflow-hidden font-sans">
                 <Sidebar />
                 <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                    <header className="h-20 bg-white dark:bg-[#0D0D0D] border-b border-slate-200 dark:border-[#222] px-4 md:px-12 flex items-center justify-between shadow-sm sticky top-0 z-20">
+                    <header className="h-16 bg-white dark:bg-[#0D0D0D] border-b border-slate-200 dark:border-[#222] px-4 md:px-12 flex items-center justify-between shadow-sm sticky top-0 z-20">
                         <div className="flex items-center gap-4">
                             <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
                             <div className="flex flex-col">
@@ -285,7 +285,7 @@ export default function Home() {
                             </button>
                         </div>
                     </header>
-                    <div className="flex-1 overflow-y-auto p-4 md:p-12 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pt-6 md:pt-10 custom-scrollbar">
                         <div className="w-full">
                             {renderDashboardContent()}
                         </div>
@@ -301,9 +301,9 @@ export default function Home() {
             <div className="min-h-screen bg-white dark:bg-[#191919] flex overflow-hidden">
                 <Sidebar />
                 <main className="flex-1 overflow-y-auto bg-white dark:bg-[#191919]">
-                    <div className="w-full min-h-screen px-4 md:px-12 pt-12 md:pt-24 pb-16 relative">
+                    <div className="w-full min-h-screen px-4 md:px-12 pt-6 md:pt-10 pb-16 relative">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="fixed top-6 left-4 p-2 bg-white/80 dark:bg-[#191919]/80 backdrop-blur border rounded-lg text-gray-400 md:hidden z-40"><Menu className="w-5 h-5" /></button>
-                        <div className="group mb-12">
+                        <div className="group mb-8">
                             <div className="flex items-center gap-4 text-gray-400 mb-6">
                                 <span className="text-xs font-medium decoration-gray-200 underline-offset-4 flex items-center gap-1"><LayoutDashboard className="w-3 h-3" /> DASHBOARD</span>
                             </div>
@@ -327,7 +327,7 @@ export default function Home() {
                     </div>
                     <button onClick={() => fetchStats(true)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-all"><RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /></button>
                 </header>
-                <div className="flex-1 overflow-y-auto p-4 md:p-8">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
                     <div className="w-full">
                         {renderDashboardContent()}
                     </div>

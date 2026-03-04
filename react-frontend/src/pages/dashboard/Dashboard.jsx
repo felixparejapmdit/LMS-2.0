@@ -217,7 +217,7 @@ export default function Dashboard({ view = "inbox" }) {
         <Sidebar />
         <main className="flex-1 flex flex-col h-screen overflow-hidden">
           {/* Grid Header */}
-          <header className="h-20 bg-white dark:bg-[#0D0D0D] border-b border-slate-200 dark:border-[#222] px-4 md:px-12 flex items-center justify-between shadow-sm sticky top-0 z-20">
+          <header className="h-16 bg-white dark:bg-[#0D0D0D] border-b border-slate-200 dark:border-[#222] px-4 md:px-12 flex items-center justify-between shadow-sm sticky top-0 z-20">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
@@ -275,7 +275,7 @@ export default function Dashboard({ view = "inbox" }) {
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-4 md:p-12 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pt-6 md:pt-10 custom-scrollbar">
             <div className="w-full">
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 md:gap-12">
 
@@ -388,14 +388,14 @@ export default function Dashboard({ view = "inbox" }) {
       <div className="min-h-screen bg-white dark:bg-[#191919] flex overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto bg-white dark:bg-[#191919]">
-          <div className="w-full min-h-screen px-4 md:px-12 pt-12 md:pt-24 pb-16 md:pb-32 relative">
+          <div className="w-full min-h-screen px-4 md:px-12 pt-6 md:pt-10 pb-16 md:pb-32 relative">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
               className="fixed top-6 left-4 p-2 bg-white/80 dark:bg-[#191919]/80 backdrop-blur shadow-sm border border-gray-100 dark:border-[#333] rounded-lg text-gray-400 md:hidden z-40"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="group mb-12">
+            <div className="group mb-8">
               <div className="flex items-center gap-4 text-gray-400 mb-6 opacity-0 group-hover:opacity-100 transition-opacity">
                 <span className="text-xs font-medium decoration-gray-200 underline-offset-4 flex items-center gap-1">
                   <Inbox className="w-3 h-3" /> {view.toUpperCase()}
@@ -410,7 +410,7 @@ export default function Dashboard({ view = "inbox" }) {
                   {view === 'inbox' ? activeTabLabel :
                     view === 'archive' ? 'Archive' :
                       view === 'upcoming' ? 'Upcoming deadlines' :
-                        view === 'outgoing' ? 'Sent correspondence' : 'Digital Outbox'}
+                        view === 'outgoing' ? 'Sent correspondence' : 'Outbox'}
                 </h1>
 
                 {view === 'inbox' && activeStepTab === 'atg_note' && (
@@ -589,7 +589,7 @@ export default function Dashboard({ view = "inbox" }) {
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           <div className="w-full">
             <div className="mb-8 flex items-center justify-between">
               <div className="flex items-center gap-6">
@@ -597,7 +597,7 @@ export default function Dashboard({ view = "inbox" }) {
                   {view === 'inbox' ? activeTabLabel :
                     view === 'archive' ? 'Archive' :
                       view === 'upcoming' ? 'Upcoming Tasks' :
-                        view === 'outgoing' ? 'Outgoing Letters' : 'Digital Outbox'}
+                        view === 'outgoing' ? 'Outgoing Letters' : 'Outbox'}
                 </h2>
 
                 {view === 'inbox' && activeStepTab === 'atg_note' && (

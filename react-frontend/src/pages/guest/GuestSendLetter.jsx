@@ -27,13 +27,10 @@ export default function GuestSendLetter() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        senders: [""],
         regarding: "",
-        requestedDateFrom: "",
-        requestedDateTo: "",
-        hasDeadline: false,
-        encoder: "GUEST, USER",
-        refAttachmentId: ""
+        encoder: "",
+        senders: [""],
+        refAttachmentId: "",
     });
     const [attachments, setAttachments] = useState([]);
     const [refAttachments, setRefAttachments] = useState([]);
@@ -101,10 +98,7 @@ export default function GuestSendLetter() {
         setFormData({
             senders: [""],
             regarding: "",
-            requestedDateFrom: "",
-            requestedDateTo: "",
-            hasDeadline: false,
-            encoder: "GUEST, USER",
+            encoder: "",
             refAttachmentId: ""
         });
         setAttachments([]);
@@ -131,8 +125,13 @@ export default function GuestSendLetter() {
             setLoading(true);
             let scannedCopyPath = null;
 
-            // 1. If there's a scanned file, upload the first one as primary scan
-            if (attachments.length > 0) {
+            // Determine if digital upload is allowed based on selected refAttachmentId
+            const selectedAtt = refAttachments.find(att => String(att.id) === String(formData.refAttachmentId));
+            const attName = selectedAtt?.attachment_name?.toLowerCase() || "";
+            const isLetterOrPhoto = attName.includes("letter") || attName.includes("photo");
+
+            // 1. If there's a scanned file AND it's a letter/photo, upload the first one as primary scan
+            if (isLetterOrPhoto && attachments.length > 0) {
                 const formDataUpload = new FormData();
                 formDataUpload.append('file', attachments[0]);
                 formDataUpload.append('no_record', 'true');
@@ -143,11 +142,8 @@ export default function GuestSendLetter() {
                 scannedCopyPath = response.data.file_path;
             }
 
-            // 2. Format the date range for the summary if present
+            // 2. Format the date range for the summary if present (removed, so this block is now empty)
             let dateInfo = "";
-            if (formData.hasDeadline) {
-                dateInfo = `\n(Schedule: ${formData.requestedDateFrom} to ${formData.requestedDateTo})`;
-            }
 
             // 3. Save the letter
             await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letters`, {
@@ -161,6 +157,7 @@ export default function GuestSendLetter() {
                 attachment_id: formData.refAttachmentId || null,
                 scanned_copy: scannedCopyPath,
                 direction: 'Incoming',
+                kind: null, // No kind selection in guest mode
                 assigned_dept: "" // No initial process step
             });
 
@@ -416,48 +413,7 @@ export default function GuestSendLetter() {
 
                                     <div className="space-y-10">
                                         {/* Requested Date */}
-                                        <div className="space-y-4">
-                                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                                <CalendarIcon className={`w-3 h-3 ${subTextColor}`} /> Requested Date , If any
-                                            </label>
-                                            <div className="flex flex-col gap-6">
-                                                <div className="flex items-center gap-6">
-                                                    <button
-                                                        onClick={() => setFormData({ ...formData, hasDeadline: !formData.hasDeadline })}
-                                                        className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all border-2 shrink-0 ${formData.hasDeadline ? 'bg-orange-600 border-orange-600 shadow-lg shadow-orange-600/20' : 'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}
-                                                    >
-                                                        {formData.hasDeadline ? <Check className="w-8 h-8 text-white" /> : <CalendarIcon className="w-6 h-6 text-slate-300" />}
-                                                    </button>
-                                                    <div className="flex flex-col">
-
-                                                        <p className="text-[10px] text-slate-400 font-medium">{formData.hasDeadline ? 'Schedule is active and required' : 'Click the icon to enable date range'}</p>
-                                                    </div>
-                                                </div>
-
-                                                {formData.hasDeadline && (
-                                                    <div className="flex flex-col md:flex-row gap-4 animate-in slide-in-from-top-4 fade-in duration-300">
-                                                        <div className="flex-1 relative">
-                                                            <span className="absolute left-3 top-0 -translate-y-1/2 px-1 text-[8px] font-black uppercase tracking-widest bg-white dark:bg-[#141414] text-slate-400 z-10">From</span>
-                                                            <input
-                                                                type="date"
-                                                                value={formData.requestedDateFrom}
-                                                                onChange={(e) => setFormData({ ...formData, requestedDateFrom: e.target.value })}
-                                                                className={`w-full px-4 py-4 border-2 rounded-2xl font-bold transition-all outline-none bg-white dark:bg-white/10 border-orange-100 dark:border-orange-900/40 text-orange-900 dark:text-orange-400 focus:border-orange-500`}
-                                                            />
-                                                        </div>
-                                                        <div className="flex-1 relative">
-                                                            <span className="absolute left-3 top-0 -translate-y-1/2 px-1 text-[8px] font-black uppercase tracking-widest bg-white dark:bg-[#141414] text-slate-400 z-10">To</span>
-                                                            <input
-                                                                type="date"
-                                                                value={formData.requestedDateTo}
-                                                                onChange={(e) => setFormData({ ...formData, requestedDateTo: e.target.value })}
-                                                                className={`w-full px-4 py-4 border-2 rounded-2xl font-bold transition-all outline-none bg-white dark:bg-white/10 border-orange-100 dark:border-orange-900/40 text-orange-900 dark:text-orange-400 focus:border-orange-500`}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
+                                        {/* This section is removed as per instruction */}
 
                                         {/* Encoder */}
                                         <div className="space-y-4 pt-4 border-t border-slate-50 dark:border-white/5">
@@ -509,6 +465,7 @@ export default function GuestSendLetter() {
                                                     </div>
                                                 )}
                                             </div>
+                                            {/* Letter Kind - This section is removed as per instruction */}
                                         </div>
                                     </div>
                                 </div>
@@ -518,77 +475,102 @@ export default function GuestSendLetter() {
                         {/* Attachment Section */}
                         <div className="lg:col-span-4 space-y-8 md:space-y-12">
                             <section className={`${cardBg} p-8 md:p-16 rounded-[2.5rem] md:rounded-[3.5rem] border shadow-2xl flex flex-col`}>
-                                <div className={`flex items-center gap-4 border-b pb-8 mb-10 ${'border-slate-50 dark:border-[#222]'}`}>
+                                <div className={`flex items-center gap-4 border-b pb-2 mb-10 ${'border-slate-50 dark:border-[#222]'}`}>
                                     <Upload className={`w-6 h-6 ${subTextColor}`} />
                                     <h2 className={`text-lg font-black uppercase tracking-tight ${textColor}`}>Attachments</h2>
                                 </div>
 
-                                <div className="space-y-6">
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                            Attachment
-                                        </label>
-                                        <select
-                                            value={formData.refAttachmentId}
-                                            onChange={(e) => setFormData({ ...formData, refAttachmentId: e.target.value })}
-                                            className={`w-full px-4 py-3 rounded-2xl border-2 transition-all outline-none text-sm font-bold ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] focus:border-orange-500'}`}
-                                        >
-                                            <option value="">-- None --</option>
-                                            {refAttachments.map(att => (
-                                                <option key={att.id} value={att.id}>
-                                                    {att.attachment_name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                {(() => {
+                                    const selectedAtt = refAttachments.find(att => String(att.id) === String(formData.refAttachmentId));
+                                    const attName = selectedAtt?.attachment_name?.toLowerCase() || "";
+                                    const isLetterOrPhoto = attName.includes("letter") || attName.includes("photo");
 
-                                    <div
-                                        onClick={() => fileInputRef.current.click()}
-                                        onDragOver={(e) => e.preventDefault()}
-                                        onDrop={handleDrop}
-                                        className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-12 transition-all cursor-pointer group ${'border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5'}`}
-                                    >
-                                        <input
-                                            type="file"
-                                            multiple
-                                            className="hidden"
-                                            ref={fileInputRef}
-                                            onChange={handleFileChange}
-                                        />
-                                        <div className={`w-20 h-20 bg-white dark:bg-white/10 rounded-full flex items-center justify-center shadow-lg mb-6 group-hover:scale-110 transition-transform`}>
-                                            <Upload className={`w-8 h-8 ${subTextColor}`} />
-                                        </div>
-                                        <h3 className={`text-sm font-black uppercase tracking-widest mb-1 ${textColor}`}>Click to Upload</h3>
-                                        <p className="text-xs text-slate-400 font-medium">or drag and drop files here</p>
-                                    </div>
-                                </div>
+                                    return (
+                                        <div className="space-y-8">
+                                            {/* Physical Attachment Selection - Moved Above Upload */}
+                                            <div className="space-y-3 pt-0 border-t border-slate-50 dark:border-white/5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                    Physical Attachment / Reference
+                                                </label>
+                                                <select
+                                                    value={formData.refAttachmentId}
+                                                    onChange={(e) => setFormData({ ...formData, refAttachmentId: e.target.value })}
+                                                    className={`w-full px-4 py-3 rounded-2xl border-2 transition-all outline-none text-sm font-bold ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] focus:border-orange-500'}`}
+                                                >
+                                                    <option value="">-- Select Physical Attachment --</option>
+                                                    {refAttachments.map(att => (
+                                                        <option key={att.id} value={att.id}>
+                                                            {att.attachment_name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
 
-                                {attachments.length > 0 && (
-                                    <div className="mt-8 space-y-2">
-                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attached Files ({attachments.length})</h4>
-                                        <div className="max-h-40 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
-                                            {attachments.map((file, index) => (
-                                                <div key={index} className={`flex items-center justify-between p-3 rounded-xl border group ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}>
-                                                    <div className="flex items-center gap-3 truncate">
-                                                        <div className={`w-8 h-8 bg-white dark:bg-white/10 border rounded-lg flex items-center justify-center ${subTextColor} ${'border-slate-100'}`}>
-                                                            <FileText className="w-4 h-4" />
-                                                        </div>
-                                                        <span className={`text-xs font-bold truncate ${textColor}`}>{file.name}</span>
-                                                    </div>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            removeAttachment(index);
-                                                        }}
-                                                        className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                            {/* Digital Upload - Disabled if not Letter/Photo */}
+                                            <div className={`space-y-6 transition-all duration-300 ${!isLetterOrPhoto ? 'opacity-60 grayscale-[0.5] pointer-events-none select-none' : ''}`}>
+                                                <div className="flex items-center justify-between">
+                                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scanned Letter Upload</h4>
+                                                    {!isLetterOrPhoto && (
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 dark:bg-amber-900/10 px-2 py-0.5 rounded border border-amber-500/20">
+                                                            Required: Physical Attachment (Letter/Photo)
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            ))}
+                                                <div
+                                                    onClick={() => isLetterOrPhoto && fileInputRef.current.click()}
+                                                    onDragOver={(e) => e.preventDefault()}
+                                                    onDrop={(e) => isLetterOrPhoto && handleDrop(e)}
+                                                    className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-12 transition-all group ${!isLetterOrPhoto ? 'cursor-not-allowed border-slate-200 dark:border-[#222] bg-slate-50/30' : 'cursor-pointer border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5'}`}
+                                                >
+                                                    <input
+                                                        type="file"
+                                                        multiple
+                                                        disabled={!isLetterOrPhoto}
+                                                        className="hidden"
+                                                        ref={fileInputRef}
+                                                        onChange={handleFileChange}
+                                                    />
+                                                    <div className={`w-20 h-20 bg-white dark:bg-white/10 rounded-full flex items-center justify-center shadow-lg mb-6 ${isLetterOrPhoto ? 'group-hover:scale-110' : ''} transition-transform`}>
+                                                        <Upload className={`w-8 h-8 ${isLetterOrPhoto ? subTextColor : 'text-slate-300'}`} />
+                                                    </div>
+                                                    <h3 className={`text-sm font-black uppercase tracking-widest mb-1 ${isLetterOrPhoto ? textColor : 'text-slate-400'}`}>
+                                                        {isLetterOrPhoto ? 'Click to Upload' : 'Upload Restricted'}
+                                                    </h3>
+                                                    <p className="text-xs text-slate-400 font-medium">
+                                                        {isLetterOrPhoto ? 'or drag and drop files here' : 'Only for Letter or Photo types'}
+                                                    </p>
+                                                </div>
+
+                                                {isLetterOrPhoto && attachments.length > 0 && (
+                                                    <div className="mt-8 space-y-2">
+                                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attached Files ({attachments.length})</h4>
+                                                        <div className="max-h-40 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                                                            {attachments.map((file, index) => (
+                                                                <div key={index} className={`flex items-center justify-between p-3 rounded-xl border group ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}>
+                                                                    <div className="flex items-center gap-3 truncate">
+                                                                        <div className={`w-8 h-8 bg-white dark:bg-white/10 border rounded-lg flex items-center justify-center ${subTextColor} ${'border-slate-100'}`}>
+                                                                            <FileText className="w-4 h-4" />
+                                                                        </div>
+                                                                        <span className={`text-xs font-bold truncate ${textColor}`}>{file.name}</span>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            removeAttachment(index);
+                                                                        }}
+                                                                        className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
 
                                 <div className="mt-12 space-y-4">
                                     <button
@@ -612,12 +594,8 @@ export default function GuestSendLetter() {
 
                 {/* Modern Footer Branding */}
                 <footer className={`h-auto md:h-16 py-6 md:py-0 ${headerBg} border-t px-4 md:px-12 flex flex-col md:flex-row items-center justify-between gap-4 text-[10px] font-black text-slate-400 uppercase tracking-widest`}>
-                    <span>&copy; 2026 PMD Letter Management System</span>
-                    <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-                        <span className="hover:text-blue-600 cursor-pointer">Security Policy</span>
-                        <span className="hover:text-blue-600 cursor-pointer">Encryption Protocol</span>
-                        <span className={`px-3 py-1 rounded ${'bg-slate-50 text-slate-300'}`}>Build 2.0.4-Guest</span>
-                    </div>
+                    <span>&copy; 2026 LMS 2.0</span>
+
                 </footer>
             </div>
         </div>

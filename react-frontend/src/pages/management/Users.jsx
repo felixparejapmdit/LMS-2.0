@@ -46,7 +46,7 @@ export default function Users() {
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 15;
 
-    const roles = ["Superuser", "Admin", "User", "Encoder", "VIP"];
+    const roles = ["Superuser", "Administrator", "System Admin", "User", "Encoder", "VIP"];
 
     const [formData, setFormData] = useState({
         first_name: "",
@@ -307,9 +307,9 @@ export default function Users() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-10 custom-scrollbar">
                     <div className="max-w-[100vw] mx-auto">
-                        <div className="mb-12">
+                        <div className="mb-8">
                             <h2 className={`text-4xl font-black tracking-tight ${textColor}`}>System Users</h2>
                         </div>
 
