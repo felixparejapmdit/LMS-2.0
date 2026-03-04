@@ -49,6 +49,9 @@ const User = sequelize.define('User', {
     theme_preference: {
         type: DataTypes.STRING,
         defaultValue: 'light'
+    },
+    avatar: {
+        type: DataTypes.UUID
     }
 }, {
     tableName: 'directus_users',

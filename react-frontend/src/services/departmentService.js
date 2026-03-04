@@ -1,6 +1,7 @@
 import axios from 'axios';
+import API_BASE from '../config/apiConfig';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + '/departments';
+const API_URL = `${API_BASE}/departments`;
 
 const departmentService = {
     getAll: async () => {

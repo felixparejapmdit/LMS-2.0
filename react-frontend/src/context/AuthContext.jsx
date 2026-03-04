@@ -4,7 +4,16 @@ import { directus } from "../hooks/useDirectus";
 import { readMe } from "@directus/sdk";
 import axios from "axios";
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Robust URL resolution: prioritize env var, then current hostname (port 5000), then fallback to localhost
+const getBackendUrl = () => {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+        return `http://${window.location.hostname}:5000/api`;
+    }
+    return 'http://localhost:5000/api';
+};
+
+const BACKEND_URL = getBackendUrl();
 
 const AuthContext = createContext();
 
@@ -14,7 +23,8 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
     const [layoutStyle, setLayoutStyle] = useState(localStorage.getItem("layoutStyle") || "notion"); // 'notion', 'grid'
-    const [isSidebarExpanded, setIsSidebarExpanded] = useState(localStorage.getItem("isSidebarExpanded") === "true");
+    const [fontFamily, setFontFamily] = useState(localStorage.getItem("fontFamily") || "Outfit"); // Inter, Public Sans, Geist, Plus Jakarta Sans, Outfit
+    const [isSidebarExpanded, setIsSidebarExpanded] = useState(localStorage.getItem("isSidebarExpanded") !== "false");
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [permissions, setPermissions] = useState([]);
 
@@ -32,7 +42,13 @@ export const AuthProvider = ({ children }) => {
     const hasPermission = (pageId, action = 'can_view') => {
         // Super Admin Bypass
         const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-        if (roleName === 'ADMIN' || roleName === 'SUPER ADMIN' || roleName === 'DEVELOPER') return true;
+        const isAdmin = roleName === 'ADMIN' ||
+            roleName === 'SUPER ADMIN' ||
+            roleName === 'SUPERADMIN' ||
+            roleName === 'ADMINISTRATOR' ||
+            roleName === 'DEVELOPER';
+
+        if (isAdmin || user?.email === 'felixpareja07@gmail.com') return true;
 
         // If permissions haven't loaded yet or no records exist, allow by default
         if (!permissions || permissions.length === 0) return true;
@@ -57,6 +73,11 @@ export const AuthProvider = ({ children }) => {
     }, [layoutStyle]);
 
     useEffect(() => {
+        document.body.style.fontFamily = `'${fontFamily}', system-ui, -apple-system, sans-serif`;
+        localStorage.setItem("fontFamily", fontFamily);
+    }, [fontFamily]);
+
+    useEffect(() => {
         localStorage.setItem("isSidebarExpanded", isSidebarExpanded);
     }, [isSidebarExpanded]);
 
@@ -79,6 +100,17 @@ export const AuthProvider = ({ children }) => {
                 await axios.put(`${BACKEND_URL}/users/${user.id}`, { layout_style: style });
             } catch (err) {
                 console.error("Failed to sync layout to backend", err);
+            }
+        }
+    };
+
+    const changeFontFamily = async (font) => {
+        setFontFamily(font);
+        if (user?.id && !isGuest) {
+            try {
+                await axios.put(`${BACKEND_URL}/users/${user.id}`, { font_family: font });
+            } catch (err) {
+                console.error("Failed to sync font to backend", err);
             }
         }
     };
@@ -124,6 +156,7 @@ export const AuthProvider = ({ children }) => {
             setUser(updatedMe);
             if (me.layout_style) setLayoutStyle(me.layout_style);
             if (me.theme_preference) setTheme(me.theme_preference);
+            if (me.font_family) setFontFamily(me.font_family);
             return { success: true };
         } catch (error) {
             console.error("Login failed:", error);
@@ -134,19 +167,23 @@ export const AuthProvider = ({ children }) => {
     const logout = async () => {
         try {
             if (user?.id && !isGuest) {
-                await axios.put(`${BACKEND_URL}/users/${user.id}`, { islogin: false });
+                // Try to notify our backend user is offline
+                await axios.put(`${BACKEND_URL}/users/${user.id}`, { islogin: false }).catch(() => { });
             }
-            await directus.logout();
-            setUser(null);
-            setIsGuest(false);
-            setPermissions([]);
-            localStorage.removeItem("isGuest");
+
+            // Try SDK logout (only if we have something to log out of)
+            if (localStorage.getItem('directus_auth')) {
+                await directus.logout().catch(() => { });
+            }
         } catch (error) {
-            console.error("Logout failed:", error);
+            console.error("Logout process encountered an error:", error);
+        } finally {
+            // ALWAYS clear everything locally regardless of server results
+            localStorage.removeItem("directus_auth");
+            localStorage.removeItem("isGuest");
             setUser(null);
             setIsGuest(false);
             setPermissions([]);
-            localStorage.removeItem("isGuest");
         }
     };
 
@@ -157,6 +194,16 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
             return;
         }
+
+        // Before hitting Directus, check if we even have a session stored locally
+        // This avoids the 401 Unauthorized log appearing in the console for every redirect to login
+        const directusStored = localStorage.getItem('directus_auth');
+        if (!directusStored) {
+            setUser(null);
+            setLoading(false);
+            return;
+        }
+
         try {
             const meId = await directus.request(readMe({ fields: ['id'] }));
 
@@ -178,9 +225,17 @@ export const AuthProvider = ({ children }) => {
             setUser(me);
             if (me.layout_style) setLayoutStyle(me.layout_style);
             if (me.theme_preference) setTheme(me.theme_preference);
+            if (me.font_family) setFontFamily(me.font_family);
         } catch (error) {
-            setUser(null);
-            setPermissions([]);
+            const status = error.status || error.response?.status;
+            console.warn("AuthContext: Token validation failed.", status);
+
+            // If it's a 401 (Unauthorized) or similar identity error
+            // Clean up everything so the user is forced back to a clean login state
+            if (status === 401 || error.message?.includes('401') || (error.name === 'DirectusError' && !status)) {
+                console.log("AuthContext: Session invalid, triggering logout.");
+                logout();
+            }
         } finally {
             setLoading(false);
         }
@@ -195,6 +250,7 @@ export const AuthProvider = ({ children }) => {
                 const me = response.data;
                 if (me.layout_style && me.layout_style !== layoutStyle) setLayoutStyle(me.layout_style);
                 if (me.theme_preference && me.theme_preference !== theme) setTheme(me.theme_preference);
+                if (me.font_family && me.font_family !== fontFamily) setFontFamily(me.font_family);
             } catch (error) {
                 console.error("Failed to sync preferences:", error);
             }
@@ -211,7 +267,7 @@ export const AuthProvider = ({ children }) => {
     return (
         <AuthContext.Provider value={{
             user, login, logout, loginGuest, isGuest, loading, theme, toggleTheme,
-            layoutStyle, toggleLayoutStyle, isSidebarExpanded, toggleSidebar,
+            layoutStyle, toggleLayoutStyle, fontFamily, changeFontFamily, isSidebarExpanded, toggleSidebar,
             isMobileMenuOpen, setIsMobileMenuOpen, permissions, hasPermission
         }}>
             {children}

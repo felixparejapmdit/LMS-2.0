@@ -24,7 +24,7 @@ export default function LettersWithComments() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
-    const [activeTab, setActiveTab] = useState("review"); // "signature" or "review"
+    const [activeTab, setActiveTab] = useState("signature"); // "signature" or "review"
 
     const textColor = 'text-slate-900 dark:text-white';
     const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';

@@ -10,6 +10,7 @@ import {
   FileText,
   User as UserIcon,
   Search,
+  FileUp,
   Moon,
   Sun,
   CalendarClock,
@@ -33,8 +34,10 @@ import {
   Bell,
   MessageSquare,
   ShieldCheck,
-  CloudDownload
+  CloudDownload,
+  UserCircle
 } from "lucide-react";
+import { directusUrl } from "../hooks/useDirectus";
 
 export default function Sidebar() {
   const { user, logout, theme, toggleTheme, layoutStyle, isSidebarExpanded, toggleSidebar, isMobileMenuOpen, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
@@ -81,6 +84,7 @@ export default function Sidebar() {
 
   const navItems = isRegularUser ? [
     { icon: Search, label: "Letter Tracker", path: "/letter-tracker" },
+    { icon: FileUp, label: "Upload PDF Files", path: "/upload-pdf" },
     { icon: Send, label: "Send A Letter", path: "/guest/send-letter" },
   ] : [
     { icon: Home, label: "Home", path: "/" },
@@ -95,6 +99,7 @@ export default function Sidebar() {
     { icon: TableIcon, label: "Master Table", path: "/master-table" },
     { icon: MessageSquare, label: "Letters with Comment", path: "/letters-with-comments" },
     { icon: Search, label: "Letter Tracker", path: "/letter-tracker" },
+    { icon: FileUp, label: "Upload PDF Files", path: "/upload-pdf" },
     {
       icon: Settings,
       label: "Settings",
@@ -163,8 +168,8 @@ export default function Sidebar() {
               </div>
               {(isSidebarExpanded || isMobileMenuOpen) && (
                 <div className="flex flex-col animate-in fade-in slide-in-from-left-2 transition-all">
-                  <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">LMS 2.0</span>
-                  <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em] mt-1 opacity-80">Correspondence</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tighter leading-none">LMS 2.0</span>
+
                 </div>
               )}
             </div>
@@ -195,7 +200,7 @@ export default function Sidebar() {
                 >
                   <item.icon className="w-6 h-6 transition-transform group-hover/item:scale-110 shrink-0" />
                   {(isSidebarExpanded || isMobileMenuOpen) && (
-                    <span className="text-xs font-black uppercase tracking-widest">{item.label}</span>
+                    <span className="text-xs font-black tracking-widest">{item.label}</span>
                   )}
                   {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
                     <ChevronRight className={`w-4 h-4 ml-auto transition-transform duration-300 ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
@@ -217,7 +222,7 @@ export default function Sidebar() {
                         `}
                       >
                         <child.icon className="w-5 h-5 shrink-0" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">{child.label}</span>
+                        <span className="text-[10px] font-black tracking-widest">{child.label}</span>
                       </NavLink>
                     ))}
                   </div>
@@ -232,35 +237,52 @@ export default function Sidebar() {
               className={`w-full flex items-center gap-4 p-3 text-slate-400 dark:text-slate-500 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}`}
             >
               {theme === 'light' ? <Moon className="w-6 h-6 shrink-0" /> : <Sun className="w-6 h-6 shrink-0" />}
-              {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-xs font-black uppercase tracking-widest">{theme === 'light' ? 'Dark' : 'Light'} Mode</span>}
+              {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-xs font-black tracking-widest">{theme === 'light' ? 'Dark' : 'Light'} Mode</span>}
             </button>
 
             {/* Combined Profile & Logout Section - Bottom */}
             <div className="mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
-              <button
-                onClick={handleLogout}
-                title={!isSidebarExpanded && !isMobileMenuOpen ? "Click to Logout" : ""}
-                className={`
-                  w-full flex items-center gap-3 p-2 rounded-2xl transition-all duration-300 group/logout
-                  hover:bg-red-50 dark:hover:bg-red-900/10 border border-transparent hover:border-red-100 dark:hover:border-red-900/20
-                  ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center p-2' : 'justify-start'}
-                `}
-              >
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-500/10 group-hover/logout:bg-red-500 group-hover/logout:shadow-red-500/20 transition-all">
-                  <UserIcon className="w-5 h-5 group-hover/logout:hidden" />
-                  <LogOut className="w-5 h-5 hidden group-hover/logout:block animate-pulse" />
-                </div>
-                {(isSidebarExpanded || isMobileMenuOpen) && (
-                  <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
-                    <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase truncate tracking-tight group-hover/logout:text-red-600 dark:group-hover/logout:text-red-400 text-ellipsis overflow-hidden">
-                      {user?.first_name} {user?.last_name}
-                    </span>
-                    <span className="text-[9px] font-bold text-blue-500 uppercase truncate tracking-widest leading-none mt-1 group-hover/logout:text-red-500/70">
-                      Click to Logout • {user?.roleData?.name || user?.role || 'User'}
-                    </span>
+              <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
+                <button
+                  onClick={() => navigate('/profile')}
+                  title={!isSidebarExpanded && !isMobileMenuOpen ? "View Profile" : ""}
+                  className={`
+                    flex-1 flex items-center gap-3 p-2 rounded-2xl transition-all duration-300 group/prof
+                    hover:bg-blue-50 dark:hover:bg-blue-900/10 border border-transparent hover:border-blue-100 dark:hover:border-blue-900/20
+                    ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center p-2' : 'justify-start'}
+                  `}
+                >
+                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-500/10 transition-all overflow-hidden group-hover/prof:scale-110">
+                    {user?.avatar ? (
+                      <img
+                        src={`${directusUrl}/assets/${user.avatar}?width=100&height=100&fit=cover`}
+                        className="w-full h-full object-cover"
+                        alt="Profile"
+                        onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=0066FF&color=fff'; }}
+                      />
+                    ) : (
+                      <UserCircle className="w-5 h-5" />
+                    )}
                   </div>
-                )}
-              </button>
+                  {(isSidebarExpanded || isMobileMenuOpen) && (
+                    <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
+                      <span className="text-[11px] font-black text-slate-900 dark:text-white truncate tracking-tight group-hover/prof:text-blue-600">
+                        {user?.first_name} {user?.last_name}
+                      </span>
+                      <span className="text-[9px] font-bold text-blue-500 truncate tracking-widest leading-none mt-1">
+                        View Profile
+                      </span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="p-3 text-slate-400 hover:text-red-500 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
         </>
@@ -295,7 +317,7 @@ export default function Sidebar() {
 
           <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto custom-scrollbar">
 
-            {(isSidebarExpanded || isMobileMenuOpen) && <div className="text-[11px] font-bold text-gray-400 px-3 py-2 uppercase tracking-wider">Navigation</div>}
+            {(isSidebarExpanded || isMobileMenuOpen) && <div className="text-[11px] font-bold text-gray-400 px-3 py-2 tracking-wider">Navigation</div>}
             {filteredNavItems.map((item) => (
               <div key={item.label} className="flex flex-col">
                 <NavLink
@@ -359,29 +381,46 @@ export default function Sidebar() {
 
             {/* Combined Profile & Logout Section - Bottom */}
             <div className="mt-2 pt-2 border-t border-gray-100 dark:border-[#222]">
-              <button
-                onClick={handleLogout}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group/logout
-                  hover:bg-red-50 dark:hover:bg-red-900/10
-                  ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : 'justify-start'}
-                `}
-              >
-                <div className="w-7 h-7 bg-orange-500 rounded flex items-center justify-center text-white shrink-0 shadow-sm group-hover/logout:bg-red-500 transition-colors">
-                  <UserIcon className="w-4 h-4 group-hover/logout:hidden" />
-                  <LogOut className="w-4 h-4 hidden group-hover/logout:block" />
-                </div>
-                {(isSidebarExpanded || isMobileMenuOpen) && (
-                  <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
-                    <span className="text-[13px] font-semibold text-gray-700 dark:text-gray-300 truncate leading-tight group-hover/logout:text-red-600">
-                      {user?.first_name} {user?.last_name}
-                    </span>
-                    <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate lowercase mt-0.5 group-hover/logout:text-red-400">
-                      Logout • {user?.roleData?.name || user?.role || 'User'}
-                    </span>
+              <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
+                <button
+                  onClick={() => navigate('/profile')}
+                  className={`
+                    flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group/prof
+                    hover:bg-gray-100 dark:hover:bg-white/5
+                    ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : 'justify-start'}
+                  `}
+                >
+                  <div className="w-7 h-7 bg-orange-500 rounded flex items-center justify-center text-white shrink-0 shadow-sm transition-transform group-hover/prof:scale-110 overflow-hidden">
+                    {user?.avatar ? (
+                      <img
+                        src={`${directusUrl}/assets/${user.avatar}?width=80&height=80&fit=cover`}
+                        className="w-full h-full object-cover"
+                        alt="Profile"
+                        onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=F97316&color=fff'; }}
+                      />
+                    ) : (
+                      <UserCircle className="w-4 h-4" />
+                    )}
                   </div>
-                )}
-              </button>
+                  {(isSidebarExpanded || isMobileMenuOpen) && (
+                    <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
+                      <span className="text-[13px] font-semibold text-gray-700 dark:text-gray-300 truncate leading-tight group-hover/prof:text-orange-600">
+                        {user?.first_name} {user?.last_name}
+                      </span>
+                      <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate lowercase mt-0.5">
+                        View Profile
+                      </span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </>
@@ -406,8 +445,8 @@ export default function Sidebar() {
             </div>
             {(isSidebarExpanded || isMobileMenuOpen) && (
               <div className="flex flex-col animate-in fade-in slide-in-from-left-2 transition-all">
-                <span className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">LMS 2.0</span>
-                <span className="text-[9px] font-black text-orange-500 uppercase tracking-[0.15em] mt-1 opacity-80">Correspondence</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-white tracking-tighter leading-none">LMS 2.0</span>
+
               </div>
             )}
           </div>
@@ -438,7 +477,7 @@ export default function Sidebar() {
               >
                 <item.icon className="w-5 h-5 transition-transform shrink-0" />
                 {(isSidebarExpanded || isMobileMenuOpen) && (
-                  <span className="text-xs font-bold uppercase tracking-wide">
+                  <span className="text-xs font-bold tracking-wide">
                     {item.label}
                   </span>
                 )}
@@ -462,7 +501,7 @@ export default function Sidebar() {
                       `}
                     >
                       <child.icon className="w-4 h-4 shrink-0" />
-                      <span className="text-[10px] font-bold uppercase tracking-wide">{child.label}</span>
+                      <span className="text-[10px] font-bold tracking-wide">{child.label}</span>
                     </NavLink>
                   ))}
                 </div>
@@ -477,34 +516,51 @@ export default function Sidebar() {
             className={`w-full flex items-center gap-3 p-3 text-slate-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-white/5 rounded-xl transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}`}
           >
             {theme === 'light' ? <Moon className="w-5 h-5 shrink-0" /> : <Sun className="w-5 h-5 shrink-0" />}
-            {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-xs font-bold uppercase tracking-wide">{theme === 'light' ? 'Dark' : 'Light'}</span>}
+            {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-xs font-bold tracking-wide">{theme === 'light' ? 'Dark' : 'Light'}</span>}
           </button>
 
           {/* Combined Profile & Logout Section - Bottom */}
           <div className="mt-2 pt-2 border-t border-gray-100 dark:border-[#222]">
-            <button
-              onClick={handleLogout}
-              className={`
-                w-full flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-300 group/logout
-                hover:bg-red-50 dark:hover:bg-red-900/10 border border-transparent hover:border-red-100 dark:hover:border-red-900/20
-                ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center p-2' : 'justify-start'}
-              `}
-            >
-              <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-orange-500/20 group-hover/logout:bg-red-500 transition-all">
-                <UserIcon className="w-5 h-5 group-hover/logout:hidden" />
-                <LogOut className="w-5 h-5 hidden group-hover/logout:block" />
-              </div>
-              {(isSidebarExpanded || isMobileMenuOpen) && (
-                <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
-                  <span className="text-[11px] font-black text-slate-800 dark:text-white uppercase truncate tracking-tight group-hover/logout:text-red-600">
-                    {user?.first_name} {user?.last_name}
-                  </span>
-                  <span className="text-[9px] font-bold text-orange-500 uppercase truncate tracking-wider mt-1 group-hover/logout:text-red-400">
-                    Click to Logout • {user?.roleData?.name || user?.role || 'User'}
-                  </span>
+            <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
+              <button
+                onClick={() => navigate('/profile')}
+                className={`
+                  flex-1 flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-300 group/prof
+                  hover:bg-orange-50 dark:hover:bg-orange-900/10 border border-transparent hover:border-orange-100 dark:hover:border-orange-900/20
+                  ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center p-2' : 'justify-start'}
+                `}
+              >
+                <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-orange-500/20 transition-all group-hover/prof:scale-110 overflow-hidden">
+                  {user?.avatar ? (
+                    <img
+                      src={`${directusUrl}/assets/${user.avatar}?width=100&height=100&fit=cover`}
+                      className="w-full h-full object-cover"
+                      alt="Profile"
+                      onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=F97316&color=fff'; }}
+                    />
+                  ) : (
+                    <UserCircle className="w-5 h-5" />
+                  )}
                 </div>
-              )}
-            </button>
+                {(isSidebarExpanded || isMobileMenuOpen) && (
+                  <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
+                    <span className="text-[11px] font-black text-slate-800 dark:text-white truncate tracking-tight group-hover/prof:text-orange-600">
+                      {user?.first_name} {user?.last_name}
+                    </span>
+                    <span className="text-[9px] font-bold text-orange-500 truncate tracking-wider mt-1">
+                      View Profile
+                    </span>
+                  </div>
+                )}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="p-3 text-slate-400 hover:text-red-500 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </>
@@ -573,38 +629,33 @@ export default function Sidebar() {
 
       {/* BEATIFUL LOGOUT MODAL */}
       {isLogoutModalOpen && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 overflow-hidden">
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300 pointer-events-auto"
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setIsLogoutModalOpen(false)}
           />
-          <div className="relative w-full max-w-sm bg-white dark:bg-[#111] rounded-[2.5rem] border border-gray-100 dark:border-white/10 shadow-2xl p-10 text-center animate-in zoom-in-95 duration-300 pointer-events-auto overflow-hidden">
-            {/* Background design element */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none" />
-
-            <div className="w-20 h-20 rounded-[2rem] bg-red-50 dark:bg-red-900/10 flex items-center justify-center text-red-500 mx-auto mb-8 relative">
-              <LogOut className="w-10 h-10" />
-              <div className="absolute inset-0 rounded-[2rem] border-2 border-red-500/20 animate-ping opacity-20" />
+          <div className="relative w-full max-w-[340px] bg-white dark:bg-[#111] rounded-3xl border border-gray-100 dark:border-white/10 shadow-2xl p-8 text-center animate-in zoom-in-95 duration-300">
+            <div className="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-900/10 flex items-center justify-center text-red-500 mx-auto mb-6">
+              <LogOut className="w-7 h-7" />
             </div>
 
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">Confirm Logout</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed mb-10">
-              Are you sure you want to sign out of your account? Any unsaved changes may be lost.
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Confirm Logout</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mb-8">
+              Are you sure you want to sign out?
             </p>
 
-            <div className="space-y-3">
-              <button
-                onClick={confirmLogout}
-                className="w-full py-5 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-red-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out Now
-              </button>
+            <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setIsLogoutModalOpen(false)}
-                className="w-full py-5 bg-slate-50 dark:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all border border-transparent hover:border-slate-200 dark:hover:border-white/10"
+                className="py-3 bg-slate-50 dark:bg-white/5 text-slate-500 hover:text-slate-700 dark:hover:text-white rounded-xl font-bold text-xs transition-all border border-transparent hover:border-slate-200 dark:hover:border-white/10"
               >
                 Cancel
+              </button>
+              <button
+                onClick={confirmLogout}
+                className="py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs shadow-lg shadow-red-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                Sign Out
               </button>
             </div>
           </div>

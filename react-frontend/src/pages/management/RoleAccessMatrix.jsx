@@ -28,6 +28,7 @@ const PAGES = [
     { id: "master-table", name: "Master Table" },
     { id: "letters-with-comments", name: "Letters with Comment" },
     { id: "letter-tracker", name: "Letter Tracker" },
+    { id: "upload-pdf", name: "Upload PDF Files" },
     { id: "spam", name: "Spam" },
     { id: "endorsements", name: "Endorsements" },
     { id: "settings", name: "App Settings" },

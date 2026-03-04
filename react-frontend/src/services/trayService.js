@@ -1,12 +1,12 @@
-
 import axios from 'axios';
+import API_BASE from '../config/apiConfig';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = `${API_BASE}/trays`;
 
 class TrayService {
     async getAllTrays(deptId = null) {
         try {
-            const url = deptId ? `${API_URL}/trays?department_id=${deptId}` : `${API_URL}/trays`;
+            const url = deptId ? `${API_URL}?department_id=${deptId}` : API_URL;
             const response = await axios.get(url);
             return response.data;
         } catch (error) {
@@ -17,7 +17,7 @@ class TrayService {
 
     async getTrayById(id) {
         try {
-            const response = await axios.get(`${API_URL}/trays/${id}`);
+            const response = await axios.get(`${API_URL}/${id}`);
             return response.data;
         } catch (error) {
             console.error('Error in TrayService.getTrayById:', error);
@@ -27,7 +27,7 @@ class TrayService {
 
     async createTray(trayData) {
         try {
-            const response = await axios.post(`${API_URL}/trays`, trayData);
+            const response = await axios.post(API_URL, trayData);
             return response.data;
         } catch (error) {
             console.error('Error in TrayService.createTray:', error);
@@ -37,7 +37,7 @@ class TrayService {
 
     async updateTray(id, trayData) {
         try {
-            const response = await axios.put(`${API_URL}/trays/${id}`, trayData);
+            const response = await axios.put(`${API_URL}/${id}`, trayData);
             return response.data;
         } catch (error) {
             console.error('Error in TrayService.updateTray:', error);
@@ -47,7 +47,7 @@ class TrayService {
 
     async deleteTray(id) {
         try {
-            const response = await axios.delete(`${API_URL}/trays/${id}`);
+            const response = await axios.delete(`${API_URL}/${id}`);
             return response.data;
         } catch (error) {
             console.error('Error in TrayService.deleteTray:', error);

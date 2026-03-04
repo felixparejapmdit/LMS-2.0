@@ -177,7 +177,7 @@ export default function LetterDetail() {
                   </h3>
                   <div className="space-y-6">
                     <div className="flex flex-col gap-1.5 px-6 py-4 bg-slate-50 dark:bg-white/5 rounded-2xl">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Global Status</span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Letter Status</span>
                       <span className="text-sm font-black text-slate-900 dark:text-white uppercase">{letter.status?.status_name || 'Unknown'}</span>
                     </div>
                     <div className="flex flex-col gap-1.5 px-6 py-4 bg-slate-50 dark:bg-white/5 rounded-2xl border-l-4 border-blue-500">
@@ -277,7 +277,7 @@ export default function LetterDetail() {
 
                 <section>
                   <h3 className="text-sm font-bold text-gray-300 dark:text-gray-600 uppercase mb-4 tracking-widest">Description</h3>
-                  <div className="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 leading-relaxed text-lg font-serif"
+                  <div className="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 leading-relaxed text-lg font-sans"
                     dangerouslySetInnerHTML={{ __html: letter.summary }} />
                 </section>
 
@@ -438,7 +438,7 @@ export default function LetterDetail() {
                       <MessageSquare className="w-3 h-3" />
                       Summary & Description
                     </h4>
-                    <div className="p-8 bg-slate-50 dark:bg-white/5 rounded-[2rem] border border-slate-100 dark:border-[#222] text-gray-700 dark:text-gray-300 leading-relaxed font-serif text-lg"
+                    <div className="p-8 bg-slate-50 dark:bg-white/5 rounded-[2rem] border border-slate-100 dark:border-[#222] text-gray-700 dark:text-gray-300 leading-relaxed font-sans text-lg"
                       dangerouslySetInnerHTML={{ __html: letter.summary }} />
                   </div>
                 </div>

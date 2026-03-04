@@ -481,7 +481,7 @@ export default function Dashboard({ view = "inbox" }) {
             {loading ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <Loader2 className="w-8 h-8 text-gray-200 animate-spin" />
-                <p className="text-sm text-gray-400 font-medium font-serif italic">Fetching blocks...</p>
+                <p className="text-sm text-gray-400 font-medium font-sans italic">Fetching blocks...</p>
               </div>
             ) : filteredAssignments.length === 0 ? (
               <div className="py-20 text-center border border-dashed border-gray-100 dark:border-[#222] rounded-2xl">

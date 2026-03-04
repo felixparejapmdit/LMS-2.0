@@ -27,6 +27,7 @@ import LetterKinds from "./pages/management/LetterKinds";
 import ProcessSteps from "./pages/management/ProcessSteps";
 import Statuses from "./pages/management/Statuses";
 import Attachments from "./pages/management/Attachments";
+import UploadPDFFiles from "./pages/management/UploadPDFFiles";
 
 // Setup
 import SetupWizard from "./pages/setup/SetupWizard";
@@ -34,6 +35,7 @@ import DataImport from "./pages/setup/DataImport";
 
 // User
 import Settings from "./pages/user/Settings";
+import Profile from "./pages/user/Profile";
 
 // Guest
 import GuestSendLetter from "./pages/guest/GuestSendLetter";
@@ -115,10 +117,12 @@ function AppRoutes() {
         <Route path="/master-table" element={<ProtectedRoute><MasterTable /></ProtectedRoute>} />
         <Route path="/letters-with-comments" element={<ProtectedRoute><LettersWithComments /></ProtectedRoute>} />
         <Route path="/letter-tracker" element={<ProtectedRoute><LetterTracker /></ProtectedRoute>} />
+        <Route path="/upload-pdf" element={<ProtectedRoute><UploadPDFFiles /></ProtectedRoute>} />
         <Route path="/spam" element={<ProtectedRoute><Spam /></ProtectedRoute>} />
         <Route path="/endorsements" element={<ProtectedRoute><LetterEndorsement /></ProtectedRoute>} />
         <Route path="/letter/:id" element={<ProtectedRoute><LetterDetail /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

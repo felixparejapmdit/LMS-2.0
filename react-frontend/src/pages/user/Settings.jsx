@@ -12,17 +12,64 @@ import {
     Loader2,
     Lock,
     Mail,
-    Menu
+    Menu,
+    Camera,
+    Upload,
+    UserCircle
 } from "lucide-react";
+import { directus, directusUrl } from "../../hooks/useDirectus";
+import { uploadFiles } from "@directus/sdk";
+import axios from "axios";
+import API_BASE from "../../config/apiConfig";
 
 export default function Settings() {
-    const { user, layoutStyle, toggleLayoutStyle, setIsMobileMenuOpen } = useAuth();
+    const { user, login, layoutStyle, toggleLayoutStyle, fontFamily, changeFontFamily, setIsMobileMenuOpen } = useAuth();
     const [loading, setLoading] = useState(false);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState(user?.avatar ? `${directusUrl}/assets/${user.avatar}` : null);
+    const [formData, setFormData] = useState({
+        first_name: user?.first_name || "",
+        last_name: user?.last_name || "",
+        avatar: user?.avatar || null
+    });
 
     const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
     const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
     const textColor = layoutStyle === 'notion' ? 'text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white';
     const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+
+    const handleFileUpload = async (file) => {
+        if (!file || !file.type.startsWith('image/')) return;
+
+        const localUrl = URL.createObjectURL(file);
+        setPreviewUrl(localUrl);
+        setUploadingPhoto(true);
+
+        try {
+            const form = new FormData();
+            form.append("file", file);
+            const res = await directus.request(uploadFiles(form));
+            setFormData(prev => ({ ...prev, avatar: res.id }));
+        } catch (err) {
+            console.error("Upload failed", err);
+        } finally {
+            setUploadingPhoto(false);
+        }
+    };
+
+    const handleSave = async () => {
+        setLoading(true);
+        try {
+            await axios.put(`${API_BASE}/users/${user.id}`, formData);
+            // Re-fetch or update context user
+            window.location.reload(); // Quickest way to sync all profile pics
+        } catch (err) {
+            console.error("Save failed", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className={`min-h-screen ${pageBg} flex overflow-hidden transition-colors duration-300`}>
@@ -49,63 +96,6 @@ export default function Settings() {
                         </div>
 
                         <div className="space-y-8" key={user?.id}>
-                            {/* Profile Section */}
-                            <section className={`${cardBg} rounded-2xl border p-8 shadow-sm`}>
-                                <div className={`flex items-center gap-2 mb-6 ${textColor}`}>
-                                    <User className="w-5 h-5 text-gray-400" />
-                                    <h3 className="font-bold">Profile Information</h3>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">First Name</label>
-                                        <input
-                                            type="text"
-                                            defaultValue={user?.first_name}
-                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300`}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Last Name</label>
-                                        <input
-                                            type="text"
-                                            defaultValue={user?.last_name}
-                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300`}
-                                        />
-                                    </div>
-                                    <div className="md:col-span-2 space-y-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Email Address</label>
-                                        <div className="relative">
-                                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
-                                            <input
-                                                type="email"
-                                                readOnly
-                                                value={user?.email}
-                                                className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm cursor-not-allowed outline-none bg-gray-100 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-500`}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-
-                            {/* Department Section */}
-                            <section className={`${cardBg} rounded-2xl border p-8 shadow-sm`}>
-                                <div className={`flex items-center gap-2 mb-6 ${textColor}`}>
-                                    <Building2 className="w-5 h-5 text-gray-400" />
-                                    <h3 className="font-bold">Organization</h3>
-                                </div>
-
-                                <div className={`p-4 rounded-xl border flex items-center justify-between bg-orange-50/50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/20`}>
-                                    <div>
-                                        <p className={`text-xs font-bold uppercase text-orange-900 dark:text-orange-400`}>Assigned Department</p>
-                                        <p className={`text-sm font-medium mt-1 text-orange-700 dark:text-orange-300`}>
-                                            {user?.department?.dept_name || user?.dept_id?.dept_name || 'No department assigned'}
-                                        </p>
-                                    </div>
-                                    <Lock className={`w-5 h-5 text-orange-200`} />
-                                </div>
-                            </section>
-
                             {/* Layout Customization */}
                             <section className={`${cardBg} rounded-2xl border p-8 shadow-sm`}>
                                 <div className={`flex items-center gap-2 mb-6 ${textColor}`}>
@@ -136,12 +126,44 @@ export default function Settings() {
                                         <p className="text-[9px] text-gray-500 uppercase font-black">Standard Grid</p>
                                     </button>
                                 </div>
+
+                                {/* Typography Selection */}
+                                <div className="mt-10 mb-6 pt-10 border-t border-gray-100 dark:border-white/5">
+                                    <h4 className={`text-sm font-bold flex items-center gap-2 mb-6 ${textColor}`}>
+                                        <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
+                                        Typography System
+                                    </h4>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {[
+                                            { name: 'Inter', family: 'Inter' },
+                                            { name: 'Public Sans', family: 'Public Sans' },
+                                            { name: 'Geist', family: 'system-ui' },
+                                            { name: 'Plus Jakarta Sans', family: 'Plus Jakarta Sans' },
+                                            { name: 'Outfit', family: 'Outfit' }
+                                        ].map((font) => (
+                                            <button
+                                                key={font.name}
+                                                onClick={() => changeFontFamily(font.name)}
+                                                className={`p-4 rounded-xl border-2 transition-all text-left ${fontFamily === font.name ? 'border-orange-500 bg-orange-50/50' : 'border-gray-100 dark:border-[#333] hover:border-gray-200'}`}
+                                                style={{ fontFamily: font.family }}
+                                            >
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className={`text-sm font-bold ${textColor}`}>{font.name}</span>
+                                                    {fontFamily === font.name && <div className="w-2 h-2 bg-orange-500 rounded-full"></div>}
+                                                </div>
+                                                <p className="text-[10px] text-gray-400">The quick brown fox jumps over the lazy dog</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </section>
 
                             <div className="flex justify-end pt-4 pb-12">
                                 <button
+                                    onClick={handleSave}
                                     disabled={loading}
-                                    className={`flex items-center gap-2 px-8 py-3 text-white text-sm font-bold rounded-xl transition-all shadow-md bg-[#F6A17B] hover:bg-[#e8946e] shadow-orange-100 dark:shadow-none`}
+                                    className={`flex items-center gap-2 px-8 py-3 text-white text-sm font-bold rounded-xl transition-all shadow-md bg-orange-500 hover:bg-orange-600 shadow-orange-100 dark:shadow-none active:scale-95 disabled:opacity-50`}
                                 >
                                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                     SAVE CHANGES

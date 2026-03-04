@@ -14,6 +14,7 @@ const commentRoutes = require('./routes/commentRoutes');
 const personRoutes = require('./routes/personRoutes');
 const endorsementRoutes = require('./routes/endorsementRoutes');
 const rolePermissionRoutes = require('./routes/rolePermissionRoutes');
+const pdfSyncRoutes = require('./routes/pdfSyncRoutes');
 
 const path = require('path');
 
@@ -23,10 +24,17 @@ const serverStartTime = new Date();
 app.use(cors());
 app.use(express.json());
 
+// Request logger to help debug routing
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
 // Serve uploaded files (scanned copies / PDFs)
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Routes
+app.use('/api/pdf-sync', pdfSyncRoutes);
 app.use('/api/trays', trayRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/statuses', statusRoutes);
@@ -49,6 +57,12 @@ app.get('/health', (req, res) => {
         uptime: Math.floor((new Date() - serverStartTime) / 1000), // seconds
         timestamp: new Date()
     });
+});
+
+// Final fallback for 404s to help debugging
+app.use((req, res, next) => {
+    console.error(`404 - NOT FOUND: ${req.method} ${req.url}`);
+    res.status(404).json({ error: "Route not found", path: req.url });
 });
 
 // Error Handling Middleware
