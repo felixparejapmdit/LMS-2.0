@@ -174,7 +174,7 @@ export default function VIPView() {
                 await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments/${editingCommentId}`, {
                     comment_body: marginalNote
                 });
-                alert("Directive updated.");
+                alert("Comment updated.");
                 setEditingCommentId(null);
             } else {
                 await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments`, {
@@ -182,7 +182,7 @@ export default function VIPView() {
                     user_id: user.id,
                     comment_body: marginalNote
                 });
-                alert("Directive submitted and recorded in history.");
+                alert("Comment submitted and recorded in history.");
             }
 
             // Refetch comment history
@@ -192,7 +192,7 @@ export default function VIPView() {
             setMarginalNote("");
         } catch (error) {
             console.error("Error saving comment:", error);
-            alert("Failed to save directive.");
+            alert("Failed to save Comment.");
         } finally {
             setIsSaving(false);
         }
@@ -204,13 +204,13 @@ export default function VIPView() {
     };
 
     const handleDeleteComment = async (commentId) => {
-        if (!window.confirm("Are you sure you want to delete this directive?")) return;
+        if (!window.confirm("Are you sure you want to delete this Comment?")) return;
         try {
             await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments/${commentId}`);
             fetchComments(selectedLetter.id);
         } catch (error) {
             console.error("Error deleting comment:", error);
-            alert("Failed to delete directive.");
+            alert("Failed to delete Comment.");
         }
     };
 
@@ -239,7 +239,7 @@ export default function VIPView() {
                             </h1>
                             <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] mt-1">
                                 <Clock className="w-3 h-3 text-blue-500" />
-                                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} •
+                                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })} •
                                 {currentTime.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
                             </div>
                         </div>
@@ -372,7 +372,7 @@ export default function VIPView() {
                         <div className="w-full flex items-center">
                             <h1 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
                                 <LayoutDashboard className="w-3 h-3 text-blue-600" />
-                                VIP Workflow
+                                VIP View
                             </h1>
                         </div>
                     </header>
@@ -444,7 +444,7 @@ export default function VIPView() {
                                 {/* Comment History Section */}
                                 <div className="space-y-3">
                                     <label className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                                        Executive Directives
+                                        Comment History
                                     </label>
                                     <div className="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                                         {isCommentsLoading ? (
@@ -455,7 +455,7 @@ export default function VIPView() {
                                             <div className="flex flex-col items-center justify-center py-6 px-4 border border-dashed border-slate-200 dark:border-[#333] rounded-xl bg-white dark:bg-transparent">
                                                 <X className="w-6 h-6 text-slate-300 dark:text-[#444] mb-2" />
                                                 <p className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest text-center">
-                                                    No prior directives recorded.
+                                                    No prior Comments recorded.
                                                 </p>
                                             </div>
                                         ) : (
@@ -486,7 +486,7 @@ export default function VIPView() {
                                 <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-[#222]">
                                     <div className="flex justify-between items-center">
                                         <label className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                                            {editingCommentId ? 'Edit Directive' : 'Add New Directive'}
+                                            {editingCommentId ? 'Edit Comment' : 'Add Comment'}
                                         </label>
                                         {editingCommentId && (
                                             <button onClick={cancelEdit} className="text-[9px] font-black text-red-500 uppercase tracking-widest hover:underline">
@@ -507,7 +507,7 @@ export default function VIPView() {
                                         className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[0.85rem] flex items-center justify-center gap-2 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
                                     >
                                         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                        {isSaving ? "Submitting..." : "Submit Directive"}
+                                        {isSaving ? "Submitting..." : "Submit Comment"}
                                     </button>
                                 </div>
                             </div>
