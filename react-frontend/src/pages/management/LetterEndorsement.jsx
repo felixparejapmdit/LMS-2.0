@@ -127,34 +127,38 @@ export default function LetterEndorsement() {
 
     // Theme Variables
     const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
-    const cardBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const cardBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#111] border-[#E5E5E5] dark:border-[#222] shadow-sm' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] shadow-sm';
     const pageBg = layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const headerBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
 
     return (
         <div className={`min-h-screen ${pageBg} flex overflow-hidden`}>
             <Sidebar />
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
                 {/* Header */}
-                <header className={`h-16 ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]'} border-b px-4 md:px-8 flex items-center justify-between z-10`}>
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-400 md:hidden">
-                            <Menu className="w-5 h-5" />
-                        </button>
+                <header className={`h-16 ${headerBg} border-b px-4 md:px-12 flex items-center justify-between sticky top-0 z-30 shrink-0 transition-colors duration-500`}>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
                         <button
                             onClick={() => navigate(-1)}
-                            className={`p-2 rounded-xl transition-colors ${'hover:bg-gray-50 dark:hover:bg-white/5 text-gray-400'}`}
+                            className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors"
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </button>
-                        <div className="flex items-center gap-2">
-                            <Bell className={`w-4 h-4 ${'text-orange-500'}`} />
-                            <h1 className={`text-[10px] font-black uppercase tracking-[0.2em] ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-gray-400'}`}>
-                                Letter Endorsements
-                            </h1>
-                            <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 text-[9px] font-black rounded-full">
-                                {endorsements.length}
-                            </span>
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Management</span>
+                                <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400 text-[8px] font-black rounded-lg">
+                                    {endorsements.length}
+                                </span>
+                            </div>
+                            <h1 className={`text-xl font-black tracking-tighter uppercase font-outfit ${textColor}`}>Endorsements</h1>
                         </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => fetchEndorsements()} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
+                            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                        </button>
                     </div>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300" />

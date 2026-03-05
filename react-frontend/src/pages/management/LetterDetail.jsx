@@ -243,11 +243,11 @@ export default function LetterDetail() {
         <Sidebar />
         <main className="flex-1 flex flex-col h-screen overflow-hidden">
           {/* Header */}
-          <header className="h-20 bg-white dark:bg-[#0D0D0D] border-b border-[#E5E5E5] dark:border-[#222] px-8 flex items-center justify-between z-20">
-            <div className="flex items-center gap-6">
+          <header className="h-16 bg-white dark:bg-[#0D0D0D] border-b border-[#E5E5E5] dark:border-[#222] px-8 flex items-center justify-between sticky top-0 z-30 shrink-0">
+            <div className="flex items-center gap-4">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="p-2 -ml-2 text-gray-400 md:hidden transition-colors"
+                className="lg:hidden p-2.5 bg-slate-100 dark:bg-white/5 rounded-xl text-gray-400 transition-colors"
               >
                 <Menu className="w-5 h-5" />
               </button>
@@ -257,11 +257,12 @@ export default function LetterDetail() {
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <div className="flex flex-col">
-                <h1 className="text-xl font-bold text-[#1A1A1B] dark:text-white tracking-tight">
-                  {letter.lms_id}
-                </h1>
-                <p className="text-[10px] text-[#737373] uppercase tracking-[0.2em] font-medium">Correspondence Details</p>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-[#1A1A1B] dark:text-white" />
+                <div>
+                  <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Correspondence</h1>
+                  <h2 className="text-sm font-black uppercase tracking-tight text-[#1A1A1B] dark:text-white">{letter.lms_id}</h2>
+                </div>
               </div>
             </div>
 
@@ -269,10 +270,10 @@ export default function LetterDetail() {
               <button
                 onClick={handleMarkAsDone}
                 disabled={actionLoading}
-                className="px-6 py-2 bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B] text-xs font-bold rounded-lg transition-all hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2 bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B] text-[10px] font-black uppercase tracking-widest rounded-lg transition-all hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
                 {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                MARK AS COMPLETE
+                Complete Task
               </button>
             </div>
           </header>

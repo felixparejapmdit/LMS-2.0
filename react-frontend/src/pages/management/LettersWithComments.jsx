@@ -12,7 +12,8 @@ import {
     RefreshCw,
     CheckCircle2,
     FileSearch,
-    Eye
+    Eye,
+    Menu
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import axios from "axios";
@@ -26,9 +27,10 @@ export default function LettersWithComments() {
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState("signature"); // "signature" or "review"
 
-    const textColor = 'text-slate-900 dark:text-white';
-    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const pageBg = layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const headerBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200 shadow-sm' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
+    const cardBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#111] border-[#E5E5E5] dark:border-[#222] shadow-sm' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] shadow-sm';
+    const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
 
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
@@ -90,20 +92,17 @@ export default function LettersWithComments() {
         <div className={`min-h-screen ${pageBg} flex font-sans transition-colors duration-300`}>
             <Sidebar />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-                <header className={`h-20 ${cardBg} border-b px-8 flex items-center justify-between sticky top-0 z-30 backdrop-blur-md`}>
+                <header className={`h-16 ${headerBg} border-b px-4 md:px-12 flex items-center justify-between sticky top-0 z-30 shrink-0 transition-colors duration-500`}>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2.5 bg-slate-100 dark:bg-white/5 rounded-xl">
-                            <RefreshCw className="w-5 h-5 text-gray-500" />
-                        </button>
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
                         <div className="flex flex-col">
-
-                            <h1 className={`text-xl font-black uppercase tracking-tighter ${textColor}`}>Letters with Comment</h1>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Management</span>
+                            <h1 className={`text-xl font-black tracking-tighter uppercase font-outfit ${textColor}`}>Directive Archive</h1>
                         </div>
                     </div>
-
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => fetchData(true)} className="p-2.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all">
-                            <RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => fetchData(true)} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
+                            <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
                         </button>
                     </div>
                 </header>
@@ -116,7 +115,7 @@ export default function LettersWithComments() {
                                 <button
                                     onClick={() => setActiveTab("signature")}
                                     className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === "signature"
-                                        ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                                        ? (layoutStyle === 'minimalist' ? "bg-[#1A1A1B] dark:bg-white text-white dark:text-black shadow-lg" : "bg-orange-500 text-white shadow-lg shadow-orange-500/20")
                                         : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                                         }`}
                                 >
@@ -125,7 +124,7 @@ export default function LettersWithComments() {
                                 <button
                                     onClick={() => setActiveTab("review")}
                                     className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === "review"
-                                        ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                                        ? (layoutStyle === 'minimalist' ? "bg-[#1A1A1B] dark:bg-white text-white dark:text-black shadow-lg" : "bg-orange-500 text-white shadow-lg shadow-orange-500/20")
                                         : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                                         }`}
                                 >

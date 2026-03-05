@@ -22,7 +22,8 @@ import {
     TrendingUp,
     ChevronRight,
     User,
-    Users
+    Users,
+    Plus
 } from "lucide-react";
 
 export default function Home() {
@@ -265,18 +266,17 @@ export default function Home() {
         );
     };
 
-    /* ================= LAYOUT WRAPPERS ================= */
-    if (layoutStyle === 'grid') {
+    if (layoutStyle === 'minimalist') {
         return (
-            <div className="min-h-screen bg-slate-50 dark:bg-[#0D0D0D] flex overflow-hidden font-sans">
+            <div className="min-h-screen bg-[#F7F7F7] dark:bg-[#0D0D0D] flex overflow-hidden font-sans">
                 <Sidebar />
                 <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                    <header className="h-16 bg-white dark:bg-[#0D0D0D] border-b border-slate-200 dark:border-[#222] px-4 md:px-12 flex items-center justify-between shadow-sm sticky top-0 z-20">
+                    <header className="h-16 bg-white dark:bg-[#0D0D0D] border-b border-[#E5E5E5] dark:border-[#222] px-4 md:px-12 flex items-center justify-between sticky top-0 z-20 transition-colors duration-500">
                         <div className="flex items-center gap-4">
                             <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Workspace</span>
-                                <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">Overview</h1>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Dashboard</span>
+                                <h1 className="text-xl font-black text-[#1A1A1B] dark:text-white tracking-tighter uppercase font-outfit">Overview</h1>
                             </div>
                         </div>
                         <div className="flex items-center gap-4 hidden md:flex">
@@ -286,30 +286,111 @@ export default function Home() {
                         </div>
                     </header>
                     <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pt-6 md:pt-10 custom-scrollbar">
-                        <div className="w-full">
-                            {renderDashboardContent()}
-                        </div>
-                    </div>
-                </main>
-            </div>
-        );
-    }
-
-
-    if (layoutStyle === 'notion') {
-        return (
-            <div className="min-h-screen bg-white dark:bg-[#191919] flex overflow-hidden">
-                <Sidebar />
-                <main className="flex-1 overflow-y-auto bg-white dark:bg-[#191919]">
-                    <div className="w-full min-h-screen px-4 md:px-12 pt-6 md:pt-10 pb-16 relative">
-                        <button onClick={() => setIsMobileMenuOpen(true)} className="fixed top-6 left-4 p-2 bg-white/80 dark:bg-[#191919]/80 backdrop-blur border rounded-lg text-gray-400 md:hidden z-40"><Menu className="w-5 h-5" /></button>
-                        <div className="group mb-8">
-                            <div className="flex items-center gap-4 text-gray-400 mb-6">
-                                <span className="text-xs font-medium decoration-gray-200 underline-offset-4 flex items-center gap-1"><LayoutDashboard className="w-3 h-3" /> DASHBOARD</span>
+                        <div className="max-w-7xl mx-auto space-y-12">
+                            {/* Metric Cards */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
+                                    <p className="text-[10px] font-black text-[#737373] uppercase tracking-[0.2em] mb-2">Active Letters</p>
+                                    <h3 className="text-3xl font-black text-[#1A1A1B] dark:text-white">{stats.activeTasks}</h3>
+                                </div>
+                                <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
+                                    <p className="text-[10px] font-black text-[#737373] uppercase tracking-[0.2em] mb-2">Processed</p>
+                                    <h3 className="text-3xl font-black text-[#1A1A1B] dark:text-white">{stats.archivedTasks}</h3>
+                                </div>
+                                <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
+                                    <p className="text-[10px] font-black text-[#737373] uppercase tracking-[0.2em] mb-2">Team Size</p>
+                                    <h3 className="text-3xl font-black text-[#1A1A1B] dark:text-white">{stats.totalUsers}</h3>
+                                </div>
+                                <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
+                                    <p className="text-[10px] font-black text-[#737373] uppercase tracking-[0.2em] mb-2">Database Users</p>
+                                    <h3 className="text-3xl font-black text-[#1A1A1B] dark:text-white">{stats.totalPeople}</h3>
+                                </div>
                             </div>
 
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                                <div className="lg:col-span-2 space-y-8">
+                                    <div className="flex items-center justify-between border-b border-[#E5E5E5] dark:border-[#222] pb-4">
+                                        <h2 className="text-xs font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.3em]">Recent Activity</h2>
+                                        <button onClick={() => navigate('/inbox')} className="text-[10px] font-black text-[#737373] hover:text-[#1A1A1B] uppercase tracking-widest transition-colors flex items-center gap-1">
+                                            Full Inbox <ChevronRight className="w-3 h-3" />
+                                        </button>
+                                    </div>
+
+                                    {stats.recentTasks.length === 0 ? (
+                                        <div className="py-20 flex flex-col items-center justify-center bg-white dark:bg-[#111] rounded-3xl border border-[#E5E5E5] dark:border-[#222] border-dashed">
+                                            <p className="text-[10px] font-black text-[#737373] uppercase tracking-widest">No recent entries</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {stats.recentTasks.map(task => (
+                                                <LetterCard
+                                                    key={task.id}
+                                                    id={task.id}
+                                                    letterId={task.id}
+                                                    atgId={task.lms_id}
+                                                    sender={task.sender}
+                                                    summary={task.summary}
+                                                    status={task.status?.status_name || 'Incoming'}
+                                                    step={null}
+                                                    dueDate={task.date_received}
+                                                    layout="minimalist"
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* ATG Section */}
+                                    {stats.atgLetters?.length > 0 && (
+                                        <div className="mt-12 space-y-6">
+                                            <div className="flex items-center justify-between border-b border-[#E5E5E5] dark:border-[#222] pb-4">
+                                                <h2 className="text-xs font-black text-orange-500 uppercase tracking-[0.3em]">ATG Dashboard</h2>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {stats.atgLetters.map(assignment => (
+                                                    <LetterCard
+                                                        key={assignment.id}
+                                                        id={assignment.id}
+                                                        letterId={assignment.letter?.id}
+                                                        atgId={assignment.letter?.lms_id}
+                                                        sender={assignment.letter?.sender}
+                                                        summary={assignment.letter?.summary}
+                                                        status={assignment.status}
+                                                        step={assignment.step?.step_name}
+                                                        dueDate={assignment.due_date || assignment.letter?.date_received}
+                                                        layout="minimalist"
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-8">
+                                    <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
+                                        <h3 className="text-[10px] font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] mb-6">Operations</h3>
+                                        <div className="space-y-4">
+                                            <button onClick={() => navigate('/new-letter')} className="w-full flex items-center justify-between p-4 bg-[#F7F7F7] dark:bg-white/5 rounded-xl hover:bg-[#E5E5E5] dark:hover:bg-white/10 transition-colors group">
+                                                <span className="text-[10px] font-black text-[#737373] group-hover:text-[#1A1A1B] dark:group-hover:text-white uppercase tracking-widest">New Document</span>
+                                                <Plus className="w-4 h-4 text-[#737373]" />
+                                            </button>
+                                            <button onClick={() => navigate('/setup/trays')} className="w-full flex items-center justify-between p-4 bg-[#F7F7F7] dark:bg-white/5 rounded-xl hover:bg-[#E5E5E5] dark:hover:bg-white/10 transition-colors group">
+                                                <span className="text-[10px] font-black text-[#737373] group-hover:text-[#1A1A1B] dark:group-hover:text-white uppercase tracking-widest">Physical Trays</span>
+                                                <Inbox className="w-4 h-4 text-[#737373]" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-[#1A1A1B] p-8 rounded-3xl text-white shadow-xl">
+                                        <p className="text-[9px] font-black uppercase tracking-[0.3em] opacity-50 mb-4">System Status</p>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                                            <span className="text-xl font-black">Online</span>
+                                        </div>
+                                        <p className="text-[10px] font-medium opacity-70">LMS 2.0 Core Node</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        {renderDashboardContent()}
                     </div>
                 </main>
             </div>

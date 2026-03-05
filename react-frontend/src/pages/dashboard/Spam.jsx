@@ -10,11 +10,13 @@ import {
     Loader2,
     Mail,
     User as UserIcon,
-    MessageSquare
+    MessageSquare,
+    Menu,
+    RefreshCw
 } from "lucide-react";
 
 export default function Spam() {
-    const { theme, layoutStyle } = useAuth();
+    const { theme, layoutStyle, setIsMobileMenuOpen } = useAuth();
     const [people, setPeople] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -83,17 +85,27 @@ export default function Spam() {
             p.telegram?.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
-    const pageBg = theme === 'dark' ? 'bg-[#0D0D0D]' : 'bg-slate-50';
-    const textColor = theme === 'dark' ? 'text-white' : 'text-slate-900';
+    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#111] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
 
     return (
         <div className={`min-h-screen ${pageBg} flex overflow-hidden`}>
             <Sidebar />
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                <header className={`h-16 ${'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]'} border-b px-8 flex items-center justify-between z-10 shrink-0`}>
-                    <div className="flex items-center gap-3">
-                        <Users className="w-5 h-5 text-orange-500" />
-                        <h1 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Contact Directory / Spam</h1>
+                <header className={`h-16 ${headerBg} border-b px-4 md:px-12 flex items-center justify-between sticky top-0 z-30 shrink-0 transition-colors duration-500`}>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Contact Directory</span>
+                            <h1 className={`text-xl font-black tracking-tighter uppercase font-outfit ${textColor}`}>Directive Recipients</h1>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => fetchPeople()} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
+                            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                        </button>
                     </div>
                 </header>
 
@@ -108,7 +120,7 @@ export default function Spam() {
                             <input
                                 type="text"
                                 placeholder="Search by name, area or ID..."
-                                className={`w-full pl-12 pr-6 py-4 rounded-[2rem] border outline-none transition-all ${theme === 'dark' ? 'bg-[#111] border-[#222] text-white focus:border-orange-500/50' : 'bg-white border-gray-100 text-slate-900 focus:border-orange-500/50 focus:shadow-xl focus:shadow-orange-500/5 shadow-sm'}`}
+                                className={`w-full pl-12 pr-6 py-4 rounded-[2rem] border outline-none transition-all ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#111] border-[#E5E5E5] dark:border-[#222] text-[#1A1A1B] dark:text-white focus:border-orange-500/50' : 'bg-white border-gray-100 text-slate-900 focus:border-orange-500/50 focus:shadow-xl focus:shadow-orange-500/5 shadow-sm'}`}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -129,7 +141,7 @@ export default function Spam() {
                                 {filteredPeople.map((person) => (
                                     <div
                                         key={person.id}
-                                        className={`p-6 rounded-[2.5rem] border transition-all hover:scale-[1.02] hover:-translate-y-1 ${theme === 'dark' ? 'bg-[#111] border-[#222] hover:border-orange-500/30' : 'bg-white border-gray-100 hover:border-orange-200 shadow-sm hover:shadow-xl hover:shadow-orange-500/5'}`}
+                                        className={`p-6 rounded-[2.5rem] border transition-all hover:scale-[1.02] hover:-translate-y-1 ${cardBg} hover:border-orange-200 dark:hover:border-orange-900/40 shadow-sm hover:shadow-xl hover:shadow-orange-500/5`}
                                     >
                                         <div className="flex items-start justify-between mb-4">
                                             <div className="w-14 h-14 rounded-2xl bg-orange-50 dark:bg-orange-900/10 flex items-center justify-center text-orange-500 mb-4 shadow-sm">
@@ -179,7 +191,7 @@ export default function Spam() {
                         )}
 
                         {/* Add Telegram Info Form Section */}
-                        <div className={`mt-12 p-8 rounded-[2.5rem] border ${theme === 'dark' ? 'bg-[#111] border-[#222]' : 'bg-white border-gray-100 shadow-xl shadow-orange-500/5'}`}>
+                        <div className={`mt-12 p-8 rounded-[2.5rem] border ${cardBg} shadow-xl shadow-orange-500/5`}>
                             <div className="mb-6">
                                 <h3 className={`text-xl font-black uppercase tracking-tight ${textColor} mb-2`}>Add Telegram Info</h3>
                                 <p className="text-sm text-gray-400 font-medium">Register a new contact for direct messaging.</p>
@@ -193,7 +205,7 @@ export default function Spam() {
                                         placeholder="e.g. Doe, John"
                                         value={formName}
                                         onChange={(e) => setFormName(e.target.value)}
-                                        className={`w-full px-6 py-4 rounded-[1.5rem] border outline-none transition-all ${theme === 'dark' ? 'bg-[#1a1a1a] border-[#333] text-white focus:border-orange-500/50' : 'bg-slate-50 border-gray-200 text-slate-900 focus:border-orange-500/50'}`}
+                                        className={`w-full px-6 py-4 rounded-[1.5rem] border outline-none transition-all ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#1a1a1a] border-[#E5E5E5] dark:border-[#333] text-[#1A1A1B] dark:text-white focus:border-orange-500/50' : 'bg-slate-50 border-gray-200 text-slate-900 focus:border-orange-500/50'}`}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -203,7 +215,7 @@ export default function Spam() {
                                         placeholder="e.g. @username or +123456789"
                                         value={formTelegram}
                                         onChange={(e) => setFormTelegram(e.target.value)}
-                                        className={`w-full px-6 py-4 rounded-[1.5rem] border outline-none transition-all ${theme === 'dark' ? 'bg-[#1a1a1a] border-[#333] text-white focus:border-orange-500/50' : 'bg-slate-50 border-gray-200 text-slate-900 focus:border-orange-500/50'}`}
+                                        className={`w-full px-6 py-4 rounded-[1.5rem] border outline-none transition-all ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#1a1a1a] border-[#E5E5E5] dark:border-[#333] text-[#1A1A1B] dark:text-white focus:border-orange-500/50' : 'bg-slate-50 border-gray-200 text-slate-900 focus:border-orange-500/50'}`}
                                     />
                                 </div>
                             </div>
@@ -219,7 +231,7 @@ export default function Spam() {
                                 <button
                                     onClick={handleClearTelegram}
                                     disabled={submitting}
-                                    className={`px-8 py-4 rounded-2xl text-[12px] border font-black uppercase tracking-widest transition-all ${theme === 'dark' ? 'border-[#333] text-gray-400 hover:bg-[#222]' : 'border-gray-200 text-gray-500 hover:bg-slate-50'}`}
+                                    className={`px-8 py-4 rounded-2xl text-[12px] border font-black uppercase tracking-widest transition-all ${layoutStyle === 'minimalist' ? 'border-[#E5E5E5] dark:border-[#333] text-gray-400 hover:bg-gray-50 dark:hover:bg-[#222]' : 'border-gray-200 text-gray-500 hover:bg-slate-50'}`}
                                 >
                                     Clear
                                 </button>

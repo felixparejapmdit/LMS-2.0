@@ -14,7 +14,8 @@ import {
     User as UserIcon,
     Hash,
     ChevronRight,
-    GitMerge
+    GitMerge,
+    Menu
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import { useNavigate } from "react-router-dom";
@@ -31,9 +32,10 @@ export default function LetterTracker() {
     const [isTrackDrawerOpen, setIsTrackDrawerOpen] = useState(false);
 
     // Theme Variables
-    const textColor = 'text-slate-900 dark:text-white';
-    const cardBg = 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-    const pageBg = 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
+    const cardBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#111] border-[#E5E5E5] dark:border-[#222] shadow-sm' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] shadow-sm';
+    const pageBg = layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const headerBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222] shadow-sm';
 
     const fetchLetters = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
@@ -109,16 +111,18 @@ export default function LetterTracker() {
 
             <main className="flex-1 flex flex-col overflow-hidden relative">
                 {/* Header */}
-                <header className={`h-20 flex items-center justify-between px-8 border-b ${'border-gray-100 dark:border-[#222]'}`}>
+                <header className={`h-16 ${headerBg} border-b px-4 md:px-12 flex items-center justify-between sticky top-0 z-30 shrink-0 transition-colors duration-500`}>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-400 md:hidden"><TableIcon className="w-5 h-5" /></button>
-                        <div>
-                            <h1 className={`text-sm font-black uppercase tracking-[0.2em] ${textColor}`}>Digital Archive</h1>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Letter Tracker & Monitoring</p>
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Digital Archive</span>
+                            <h1 className={`text-xl font-black tracking-tighter uppercase font-outfit ${textColor}`}>Document Tracker</h1>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => fetchLetters(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>
+                        <button onClick={() => fetchLetters(true)} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
+                            <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+                        </button>
                     </div>
                 </header>
 
@@ -205,67 +209,69 @@ export default function LetterTracker() {
             </main>
 
             {/* TRACK DRAWER */}
-            {isTrackDrawerOpen && selectedLetter && (
-                <div className="fixed inset-0 z-[100] flex justify-end">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsTrackDrawerOpen(false)} />
-                    <div className={`w-full max-w-md ${cardBg} h-full relative z-10 animate-in slide-in-from-right duration-500 flex flex-col border-l`}>
-                        <div className="p-8 border-b flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/10 flex items-center justify-center text-indigo-500">
-                                    <GitMerge className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Workflow Track</h2>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedLetter.entry_id}</p>
-                                </div>
-                            </div>
-                            <button onClick={() => setIsTrackDrawerOpen(false)} className="p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl text-gray-400"><ChevronRight className="w-6 h-6" /></button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                            <div className="relative pl-8 space-y-12 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-white/5">
-                                {/* Entry Point */}
-                                <div className="relative">
-                                    <div className="absolute -left-9 w-6 h-6 rounded-full bg-orange-500 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
+            {
+                isTrackDrawerOpen && selectedLetter && (
+                    <div className="fixed inset-0 z-[100] flex justify-end">
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsTrackDrawerOpen(false)} />
+                        <div className={`w-full max-w-md ${cardBg} h-full relative z-10 animate-in slide-in-from-right duration-500 flex flex-col border-l`}>
+                            <div className="p-8 border-b flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/10 flex items-center justify-center text-indigo-500">
+                                        <GitMerge className="w-6 h-6" />
+                                    </div>
                                     <div>
-                                        <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Entry Registration</p>
-                                        <h4 className={`text-sm font-bold mt-1 ${textColor}`}>Letter Registered by {selectedLetter.encoder?.first_name || 'Guest'}</h4>
-                                        <p className="text-xs text-gray-500 mt-2 line-clamp-3">{selectedLetter.summary}</p>
-                                        <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{new Date(selectedLetter.date_received).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short', hour12: true })}</p>
+                                        <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Workflow Track</h2>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedLetter.entry_id}</p>
                                     </div>
                                 </div>
+                                <button onClick={() => setIsTrackDrawerOpen(false)} className="p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl text-gray-400"><ChevronRight className="w-6 h-6" /></button>
+                            </div>
 
-                                {selectedLetter.logs?.map((log, i) => {
-                                    const isEndorsement = log.action_type === 'Endorsed';
-                                    return (
-                                        <div key={i} className="relative">
-                                            <div className={`absolute -left-9 w-6 h-6 rounded-full border-4 border-white dark:border-[#141414] shadow-sm z-10 ${isEndorsement ? 'bg-orange-500' : 'bg-indigo-500'}`} />
-                                            <div>
-                                                <p className={`text-[10px] font-black uppercase tracking-widest ${isEndorsement ? 'text-orange-500' : 'text-indigo-500'}`}>
-                                                    {isEndorsement ? 'Endorsement' : log.action_type || 'Update'}
-                                                </p>
-                                                <h4 className={`text-sm font-bold mt-1 ${isEndorsement ? 'text-orange-500' : textColor}`}>{log.log_details || log.action_taken}</h4>
-                                                <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{new Date(log.timestamp || log.log_date).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short', hour12: true })}</p>
-                                            </div>
+                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                                <div className="relative pl-8 space-y-12 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-white/5">
+                                    {/* Entry Point */}
+                                    <div className="relative">
+                                        <div className="absolute -left-9 w-6 h-6 rounded-full bg-orange-500 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
+                                        <div>
+                                            <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Entry Registration</p>
+                                            <h4 className={`text-sm font-bold mt-1 ${textColor}`}>Letter Registered by {selectedLetter.encoder?.first_name || 'Guest'}</h4>
+                                            <p className="text-xs text-gray-500 mt-2 line-clamp-3">{selectedLetter.summary}</p>
+                                            <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{new Date(selectedLetter.date_received).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short', hour12: true })}</p>
                                         </div>
-                                    )
-                                })}
+                                    </div>
 
-                                {/* Final Status */}
-                                <div className="relative pt-4">
-                                    <div className="absolute -left-9 w-6 h-6 rounded-full bg-slate-200 dark:bg-white/10 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
-                                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Current State</p>
-                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-500 text-white`}>
-                                            {selectedLetter.status?.status_name || 'PROCESSING'}
-                                        </span>
+                                    {selectedLetter.logs?.map((log, i) => {
+                                        const isEndorsement = log.action_type === 'Endorsed';
+                                        return (
+                                            <div key={i} className="relative">
+                                                <div className={`absolute -left-9 w-6 h-6 rounded-full border-4 border-white dark:border-[#141414] shadow-sm z-10 ${isEndorsement ? 'bg-orange-500' : 'bg-indigo-500'}`} />
+                                                <div>
+                                                    <p className={`text-[10px] font-black uppercase tracking-widest ${isEndorsement ? 'text-orange-500' : 'text-indigo-500'}`}>
+                                                        {isEndorsement ? 'Endorsement' : log.action_type || 'Update'}
+                                                    </p>
+                                                    <h4 className={`text-sm font-bold mt-1 ${isEndorsement ? 'text-orange-500' : textColor}`}>{log.log_details || log.action_taken}</h4>
+                                                    <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{new Date(log.timestamp || log.log_date).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short', hour12: true })}</p>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+
+                                    {/* Final Status */}
+                                    <div className="relative pt-4">
+                                        <div className="absolute -left-9 w-6 h-6 rounded-full bg-slate-200 dark:bg-white/10 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
+                                        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Current State</p>
+                                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-500 text-white`}>
+                                                {selectedLetter.status?.status_name || 'PROCESSING'}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

@@ -173,6 +173,12 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     }
   };
 
+  // Theme Variables
+  const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
+  const cardBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#111] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+  const pageBg = layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+  const headerBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-slate-200 dark:border-[#222] shadow-sm';
+
   const renderTrayActions = (assignment) => {
     if (view !== 'inbox') return null;
     if (!(activeStepTab === 'review' || activeStepTab === 'signature')) return null;
@@ -215,11 +221,11 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
 
   if (layoutStyle === 'minimalist') {
     return (
-      <div className="min-h-screen bg-[#F9FAFB] dark:bg-[#0D0D0D] flex overflow-hidden font-sans">
+      <div className={`min-h-screen ${pageBg} flex overflow-hidden font-sans`}>
         <Sidebar />
         <main className="flex-1 flex flex-col h-screen overflow-hidden">
           {/* Minimalist Header */}
-          <header className="h-20 bg-white dark:bg-[#0D0D0D] border-b border-[#E5E5E5] dark:border-[#222] px-8 flex items-center justify-between z-20">
+          <header className={`h-20 ${headerBg} px-8 flex items-center justify-between z-20`}>
             <div className="flex items-center gap-6">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
@@ -228,8 +234,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <Menu className="w-5 h-5" />
               </button>
               <div className="flex flex-col">
-                <h1 className="text-xl font-bold text-[#1A1A1B] dark:text-white tracking-tight">
-                  {view === 'inbox' ? 'Department Inbox' : view === 'outbox' ? 'Outbox' : view}
+                <h1 className={`text-xl font-bold ${textColor} tracking-tight`}>
+                  {view === 'inbox' ? 'Inbox' : view === 'outbox' ? 'Outbox' : view}
                 </h1>
                 <p className="text-[10px] text-[#737373] uppercase tracking-[0.2em] font-medium">LMS Workspace</p>
               </div>
@@ -594,9 +600,9 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 {view === 'inbox' && (
                   <div className="flex border-l border-gray-100 dark:border-[#222] pl-4 gap-6">
                     {[
-                      { id: 'review', label: 'Review', count: inboxStats.review },
+                      { id: 'review', label: 'For Review', count: inboxStats.review },
                       { id: 'atg_note', label: 'For ATG Note', count: inboxStats.atg_note },
-                      { id: 'signature', label: 'Signature', count: inboxStats.signature },
+                      { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                       { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
                       { id: 'pending', label: 'Pending', count: inboxStats.pending },
                       { id: 'hold', label: 'On Hold', count: inboxStats.hold }

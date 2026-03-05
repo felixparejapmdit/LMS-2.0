@@ -84,7 +84,13 @@ export default function Settings() {
                         >
                             <Menu className="w-5 h-5" />
                         </button>
-                        <h1 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Workspace / Settings</h1>
+                        <div className="flex items-center gap-2">
+                            <Palette className={`w-4 h-4 ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-blue-500'}`} />
+                            <div>
+                                <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Workspace</h1>
+                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Settings</h2>
+                            </div>
+                        </div>
                     </div>
                 </header>
 

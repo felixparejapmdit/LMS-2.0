@@ -47,9 +47,10 @@ export default function RoleAccessMatrix() {
     const [isInstructionOpen, setIsInstructionOpen] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
 
-    const textColor = 'text-slate-900 dark:text-white';
-    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#111] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
 
     const fetchInitialData = async () => {
         try {
@@ -180,14 +181,17 @@ export default function RoleAccessMatrix() {
         <div className={`min-h-screen ${pageBg} flex font-sans transition-colors duration-300`}>
             <Sidebar />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-                <header className={`h-20 ${cardBg} border-b px-8 flex items-center justify-between sticky top-0 z-30 backdrop-blur-md`}>
+                <header className={`h-16 ${headerBg} border-b px-8 flex items-center justify-between sticky top-0 z-30 shrink-0`}>
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2.5 bg-slate-100 dark:bg-white/5 rounded-xl">
                             <ShieldCheck className="w-5 h-5 text-gray-500" />
                         </button>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">Security Protocol</span>
-                            <h1 className={`text-xl font-black uppercase tracking-tighter ${textColor}`}>Access Matrix</h1>
+                        <div className="flex items-center gap-2">
+                            <ShieldCheck className={`w-4 h-4 ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-blue-500'}`} />
+                            <div>
+                                <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Management</h1>
+                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Access Matrix</h2>
+                            </div>
                         </div>
                     </div>
 

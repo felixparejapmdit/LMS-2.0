@@ -264,48 +264,47 @@ export default function GuestSendLetter() {
 
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Top Header / Status Bar */}
-                <header className={`h-auto md:h-24 py-4 md:py-0 ${headerBg} border-b px-4 md:px-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm sticky top-0 z-50`}>
-                    <div className="flex items-center gap-4 md:gap-6">
+                <header className={`h-16 ${headerBg} border-b px-8 flex items-center justify-between sticky top-0 z-50 shrink-0`}>
+                    <div className="flex items-center gap-4">
                         {isLoggedIn && (
                             <button
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className={`lg:hidden p-2 rounded-xl border ${'border-slate-100 text-slate-600'}`}
+                                className="lg:hidden p-2.5 bg-slate-100 dark:bg-white/5 rounded-xl text-gray-400"
                             >
                                 <Menu className="w-5 h-5" />
                             </button>
                         )}
-                        <div className="flex flex-col">
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${subTextColor}`}>Letter Management</span>
-                            <div className="flex items-center gap-2">
-                                <Hash className="w-4 h-4 text-slate-300" />
-                                <h1 className={`text-xl font-black tracking-tighter ${textColor}`}>{referenceNo}</h1>
+                        <div className="flex items-center gap-2">
+                            <FileText className={`w-4 h-4 ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-blue-500'}`} />
+                            <div>
+                                <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Correspondence</h1>
+                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>{referenceNo}</h2>
                             </div>
-                        </div>
-                        <div className={`h-8 w-[1px] ${'bg-slate-100'}`}></div>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Entry Date</span>
-                            <span className={`text-sm font-bold ${textColor}`}>{today}</span>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-6">
+                        <div className="hidden md:flex flex-col items-end">
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Entry Date</span>
+                            <span className={`text-xs font-black ${textColor}`}>{today}</span>
+                        </div>
                         {!isLoggedIn && (
-                            <>
-                                <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${'bg-orange-600/10 text-orange-600 border border-orange-600/20'}`}>
+                            <div className="flex items-center gap-4">
+                                <div className="px-3 py-1 bg-orange-500/10 text-orange-500 text-[10px] font-black uppercase tracking-widest rounded-lg border border-orange-500/20">
                                     Guest Mode
                                 </div>
                                 <button
                                     onClick={() => {
-                                        if (window.confirm("Are you sure you want to exit guest mode? Your unsaved progress will be lost.")) {
+                                        if (window.confirm("Are you sure you want to exit guest mode?")) {
                                             logout();
                                             navigate("/login");
                                         }
                                     }}
-                                    className={`text-xs font-bold text-slate-400 hover:text-red-500 transition-colors uppercase tracking-widest flex items-center gap-2`}
+                                    className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors"
                                 >
                                     Exit
                                 </button>
-                            </>
+                            </div>
                         )}
                     </div>
                 </header>
