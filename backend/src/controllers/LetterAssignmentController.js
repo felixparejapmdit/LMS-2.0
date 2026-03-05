@@ -1,5 +1,15 @@
 const { LetterAssignment, Letter, ProcessStep, Department, Status, Tray, LetterKind, Comment, Endorsement } = require('../models/associations');
 const { Op } = require('sequelize');
+const ALL_LETTER_ROLES = new Set([
+    'ADMIN',
+    'ADMINISTRATOR',
+    'SUPERUSER',
+    'SUPER USER',
+    'SYSTEM ADMIN',
+    'SYSTEMADMIN',
+    'SUPER ADMIN',
+    'SUPERADMIN'
+]);
 
 class LetterAssignmentController {
     static async getAll(req, res) {
@@ -11,18 +21,13 @@ class LetterAssignmentController {
 
             // Role-based filtering for USER role
             if (normalizedRole === 'USER' && user_id) {
-                const { full_name } = req.query;
-                const deptFilter = department_id && department_id !== 'null' ? { department_id: department_id } : { department_id: null };
-                where[Op.or] = [
-                    { '$letter.encoder_id$': user_id },
-                    {
-                        [Op.and]: [
-                            deptFilter,
-                            { '$letter.endorsements.endorsed_to$': full_name ? full_name : 'NoEndorsementMatch' }
-                        ]
-                    }
-                ];
-            } else if (department_id && department_id !== 'null' && department_id !== 'undefined' && req.query.outbox !== 'true') {
+                const hasValidDepartment = department_id && department_id !== 'null' && department_id !== 'undefined' && department_id !== '';
+                const visibilityClauses = [{ '$letter.encoder_id$': user_id }];
+                if (hasValidDepartment) {
+                    visibilityClauses.push({ department_id: department_id });
+                }
+                where[Op.or] = visibilityClauses;
+            } else if (!ALL_LETTER_ROLES.has(normalizedRole) && department_id && department_id !== 'null' && department_id !== 'undefined' && req.query.outbox !== 'true') {
                 // Default department filtering for non-USER or when explicitly requested
                 where[Op.or] = [
                     { department_id: department_id },

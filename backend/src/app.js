@@ -21,15 +21,18 @@ const path = require('path');
 
 const app = express();
 const serverStartTime = new Date();
+const shouldLogRequests = process.env.REQUEST_LOGS === 'true' || process.env.NODE_ENV !== 'production';
 
 app.use(cors());
 app.use(express.json());
 
 // Request logger to help debug routing
-app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    next();
-});
+if (shouldLogRequests) {
+    app.use((req, res, next) => {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+        next();
+    });
+}
 
 // Serve uploaded files (scanned copies / PDFs)
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
@@ -63,7 +66,9 @@ app.get('/health', (req, res) => {
 
 // Final fallback for 404s to help debugging
 app.use((req, res, next) => {
-    console.error(`404 - NOT FOUND: ${req.method} ${req.url}`);
+    if (shouldLogRequests) {
+        console.error(`404 - NOT FOUND: ${req.method} ${req.url}`);
+    }
     res.status(404).json({ error: "Route not found", path: req.url });
 });
 

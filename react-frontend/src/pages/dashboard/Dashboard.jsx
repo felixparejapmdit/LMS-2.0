@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import LetterCard from "../../components/LetterCard";
 import { directus } from "../../hooks/useDirectus";
@@ -25,24 +25,19 @@ import {
   CalendarDays,
   Zap,
   Menu,
-  CheckCircle,
   UserCheck,
   PenTool
 } from "lucide-react";
-import processStepService from "../../services/processStepService";
 import letterService from "../../services/letterService";
 import trayService from "../../services/trayService";
 
 export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
-  const navigate = useNavigate();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeStepTab, setActiveStepTab] = useState("review"); // named_filter
   const [inboxStats, setInboxStats] = useState({ review: 0, signature: 0, vem: 0, pending: 0, hold: 0 });
-  const [actionLoading, setActionLoading] = useState(null);
-  const [steps, setSteps] = useState([]);
   const [trays, setTrays] = useState([]);
   const [selectedTray, setSelectedTray] = useState(null); // Filter for ATG Note
 
@@ -93,16 +88,6 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     }
   };
 
-  const fetchSteps = async () => {
-    try {
-      const deptId = forcedDeptId ?? (user?.dept_id?.id ?? user?.dept_id ?? null);
-      const data = await processStepService.getAll(deptId);
-      setSteps(data);
-    } catch (error) {
-      console.error("Error fetching steps:", error);
-    }
-  };
-
   const fetchTrays = async () => {
     try {
       const deptId = forcedDeptId ?? (user?.dept_id?.id ?? user?.dept_id ?? null);
@@ -119,7 +104,6 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         setActiveStepTab('review');
       }
       fetchAssignments();
-      fetchSteps();
       fetchTrays();
       if (view === 'inbox') fetchInboxStats();
       setSelectedTray(null); // Reset filter on tab change
@@ -145,33 +129,6 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const filteredAssignments = selectedTray
     ? assignments.filter(a => a.letter?.tray_id === selectedTray)
     : assignments;
-
-  const handleStepAction = async (assignmentId, nextStepName) => {
-    if (assignmentId.toString().startsWith('mock-')) {
-      alert("This record is unassigned. Please assign it to a department/user first.");
-      return;
-    }
-    setActionLoading(assignmentId);
-    try {
-      const nextStep = steps.find(s => s.step_name.toLowerCase().includes(nextStepName.toLowerCase()));
-      if (!nextStep) {
-        alert(`Step "${nextStepName}" not found in your DNA configuration.`);
-        throw new Error(`Step ${nextStepName} not found`);
-      }
-
-      // Update via backend
-      await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${assignmentId}`, {
-        step_id: nextStep.id
-      });
-
-      fetchAssignments();
-      fetchInboxStats();
-    } catch (err) {
-      console.error("Step action failed:", err);
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   // Theme Variables
   const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
@@ -225,7 +182,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         <Sidebar />
         <main className="flex-1 flex flex-col h-screen overflow-hidden">
           {/* Minimalist Header */}
-          <header className={`h-20 ${headerBg} px-8 flex items-center justify-between z-20`}>
+          <header className={`h-20 ${headerBg} px-4 md:px-6 lg:px-8 flex items-center justify-between z-20`}>
             <div className="flex items-center gap-6">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
@@ -243,7 +200,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
 
             <div className="flex items-center gap-6">
               {view === 'inbox' && (
-                <div className="flex items-center gap-1 border border-[#E5E5E5] dark:border-[#222] p-1 rounded-lg bg-gray-50/50 dark:bg-white/5 no-scrollbar overflow-x-auto max-w-[400px]">
+                <div className="flex items-center gap-1 border border-[#E5E5E5] p-1 rounded-lg bg-gray-50/50 no-scrollbar overflow-x-auto">
                   {[
                     { id: 'review', label: 'For Review', count: inboxStats.review },
                     { id: 'atg_note', label: 'For ATG Note', count: inboxStats.atg_note },
@@ -255,10 +212,10 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                     <button
                       key={tab.id}
                       onClick={() => setActiveStepTab(tab.id)}
-                      className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === tab.id ? 'bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B]' : 'text-[#737373] hover:text-[#1A1A1B] dark:hover:text-white'}`}
+                      className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === tab.id ? 'bg-[#1A1A1B] text-white' : 'text-[#737373] hover:text-[#1A1A1B]'}`}
                     >
                       {tab.label}
-                      <span className={`px-1.5 py-0.5 rounded-md text-[8px] ${activeStepTab === tab.id ? 'bg-white/10 text-white' : 'bg-gray-100 dark:bg-white/10 text-gray-400'}`}>
+                      <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black ${activeStepTab === tab.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
                         {tab.count}
                       </span>
                     </button>
@@ -275,31 +232,36 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto px-8 py-10 custom-scrollbar">
-            <div className="max-w-6xl">
-              <div className="mb-10 flex items-end justify-between">
+          <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 lg:py-10 custom-scrollbar">
+            <div className="w-full">
+              <div className="mb-8 md:mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h2 className="text-3xl font-bold text-[#1A1A1B] dark:text-white tracking-tight mb-2">{activeTabLabel}</h2>
                   <p className="text-sm text-[#737373]">Viewing {assignments.length} assignments currently on hold or in progress.</p>
                 </div>
 
                 {view === 'inbox' && activeStepTab === 'atg_note' && (
-                  <div className="flex items-center gap-1 p-1 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-lg shadow-sm">
+                  <div className="flex items-center gap-1 p-1 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-lg shadow-sm overflow-x-auto no-scrollbar">
                     <button
                       onClick={() => setSelectedTray(null)}
-                      className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all ${!selectedTray ? 'bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B]' : 'text-[#737373] hover:text-[#1A1A1B]'}`}
+                      className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 ${!selectedTray ? 'bg-[#1A1A1B] text-white' : 'text-[#737373] hover:text-[#1A1A1B]'}`}
                     >
                       All
+                      <span className={`text-[8px] font-black px-1 py-0.5 rounded ${!selectedTray ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>{assignments.length}</span>
                     </button>
-                    {trays.map(t => (
-                      <button
-                        key={t.id}
-                        onClick={() => setSelectedTray(t.id)}
-                        className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all ${selectedTray === t.id ? 'bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B]' : 'text-[#737373] hover:text-[#1A1A1B]'}`}
-                      >
-                        {t.tray_no}
-                      </button>
-                    ))}
+                    {trays.map(t => {
+                      const trayCount = assignments.filter(a => a.letter?.tray_id === t.id).length;
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => setSelectedTray(t.id)}
+                          className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 ${selectedTray === t.id ? 'bg-[#1A1A1B] text-white' : 'text-[#737373] hover:text-[#1A1A1B]'}`}
+                        >
+                          {t.tray_no}
+                          <span className={`text-[8px] font-black px-1 py-0.5 rounded ${selectedTray === t.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>{trayCount}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -318,7 +280,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <div className="space-y-4">
                   {filteredAssignments.map((assignment) => (
                     assignment.letter && (
-                      <div key={assignment.id} className="relative group">
+                      <div key={assignment.id}>
                         <LetterCard
                           id={assignment.id}
                           letterId={assignment.letter.id}
@@ -333,17 +295,6 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                           layout="minimalist"
                           actions={renderTrayActions(assignment)}
                         />
-                        {view === 'inbox' && (
-                          <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={(e) => { e.preventDefault(); handleStepAction(assignment.id, 'Signature'); }}
-                              className="w-8 h-8 bg-black dark:bg-white text-white dark:text-black rounded-lg flex items-center justify-center shadow-lg transition-transform hover:scale-110"
-                              title="Approve"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
                       </div>
                     )
                   ))}
@@ -394,7 +345,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Sync</span>
               </button>
               {view === 'inbox' && (
-                <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-xl border border-slate-200 dark:border-[#222] overflow-x-auto no-scrollbar">
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto no-scrollbar flex-shrink-0">
                   {[
                     { id: 'review', label: 'For Review', count: inboxStats.review },
                     { id: 'atg_note', label: 'For ATG Note', count: inboxStats.atg_note },
@@ -406,10 +357,10 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                     <button
                       key={tab.id}
                       onClick={() => setActiveStepTab(tab.id)}
-                      className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === tab.id ? 'bg-white dark:bg-[#333] text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                      className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === tab.id ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                     >
                       <span className="inline-block">{tab.label}</span>
-                      <span className={`px-1.5 py-0.5 rounded-md text-[8px] ${activeStepTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 dark:bg-white/10 text-slate-500'}`}>
+                      <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black ${activeStepTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>
                         {tab.count}
                       </span>
                     </button>
@@ -478,7 +429,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                   ) : (<div className="space-y-6">
                     {filteredAssignments.map((assignment) => (
                       assignment.letter && (
-                        <div key={assignment.id} className="relative group">
+                        <div key={assignment.id}>
                           <LetterCard
                             id={assignment.id}
                             letterId={assignment.letter.id}
@@ -492,24 +443,6 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                             layout="grid"
                             actions={renderTrayActions(assignment)}
                           />
-                          {view === 'inbox' && (
-                            <div className={`absolute top-1/2 -translate-y-1/2 -right-12 flex flex-col gap-2 transition-opacity z-10 ${(activeStepTab === 'review' || activeStepTab === 'signature') ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                              <button
-                                onClick={(e) => { e.preventDefault(); handleStepAction(assignment.id, 'Signature'); }}
-                                className="p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 shadow-xl shadow-emerald-500/20 hover:scale-110 transition-all font-black text-[10px]"
-                                title="Approved Signature"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={(e) => { e.preventDefault(); handleStepAction(assignment.id, 'Review'); }}
-                                className="p-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 shadow-xl shadow-blue-500/20 hover:scale-110 transition-all"
-                                title="Approved Review"
-                              >
-                                <UserCheck className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )}
                         </div>
                       )
                     ))}
@@ -636,7 +569,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
             ) : (<div className="space-y-4">
               {filteredAssignments.map((assignment) => (
                 assignment.letter && (
-                  <div key={assignment.id} className="relative group">
+                  <div key={assignment.id}>
                     <LetterCard
                       id={assignment.id}
                       letterId={assignment.letter.id}
@@ -651,24 +584,6 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                       layout="notion"
                       actions={renderTrayActions(assignment)}
                     />
-                    {view === 'inbox' && (
-                      <div className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-opacity ${(activeStepTab === 'review' || activeStepTab === 'signature') ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                        <button
-                          onClick={(e) => { e.preventDefault(); handleStepAction(assignment.id, 'Signature'); }}
-                          className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                          title="Approved Signature"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.preventDefault(); handleStepAction(assignment.id, 'Review'); }}
-                          className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="Approved Review"
-                        >
-                          <UserCheck className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )
               ))}
@@ -681,7 +596,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] dark:bg-[#0D0D0D] flex overflow-hidden">
+    <div className="flex h-screen bg-[#F9FAFB] overflow-hidden">
       <Sidebar />
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -694,13 +609,13 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <h1 className="text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-widest truncate max-w-[150px] md:max-w-none">Workspace / {view === 'archive' ? 'Archive' : 'Inbox'}</h1>
+            <h1 className="text-[10px] md:text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest truncate max-w-[150px] md:max-w-none">Workspace / {view === 'archive' ? 'Archive' : 'Inbox'}</h1>
             <div className="h-4 w-[1px] bg-gray-200 dark:bg-[#333] hidden md:block"></div>
-            <p className="text-sm font-medium text-gray-900 hidden md:block">{assignments.length} {view === 'archive' ? 'Processed' : 'Pending'}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-200 hidden md:block">{assignments.length} {view === 'archive' ? 'Processed' : 'Pending'}</p>
           </div>
 
           {view === 'inbox' && (
-            <div className="flex bg-gray-50 dark:bg-white/5 p-1 rounded-xl border border-gray-100 dark:border-[#222] overflow-x-auto no-scrollbar">
+            <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100 overflow-x-auto no-scrollbar flex-shrink-0">
               {[
                 { id: 'review', label: 'For Review', count: inboxStats.review },
                 { id: 'atg_note', label: 'For ATG Note', count: inboxStats.atg_note },
@@ -712,10 +627,10 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <button
                   key={tab.id}
                   onClick={() => setActiveStepTab(tab.id)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === tab.id ? 'bg-white dark:bg-[#222] text-orange-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === tab.id ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                 >
                   {tab.label}
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${activeStepTab === tab.id ? 'bg-orange-50 text-orange-600' : 'bg-gray-100 dark:bg-white/10 text-gray-500'}`}>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${activeStepTab === tab.id ? 'bg-orange-50 text-orange-600' : 'bg-gray-100 text-gray-500'}`}>
                     {tab.count}
                   </span>
                 </button>
@@ -782,15 +697,15 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <p className="text-sm text-gray-500 font-medium">Synchronizing with Directus...</p>
               </div>
             ) : filteredAssignments.length === 0 ? (
-              <div className="py-32 text-center bg-white border border-gray-100 rounded-3xl shadow-sm">
-                <Inbox className="w-16 h-16 text-gray-100 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-gray-300 uppercase tracking-widest">Inbox Zero</h3>
-                <p className="text-gray-400 mt-1">No pending letters for your department.</p>
+              <div className="py-32 text-center bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#222] rounded-3xl shadow-sm">
+                <Inbox className="w-16 h-16 text-gray-100 dark:text-gray-700 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-gray-300 dark:text-gray-600 uppercase tracking-widest">Inbox Zero</h3>
+                <p className="text-gray-400 dark:text-gray-600 mt-1">No pending letters for your department.</p>
               </div>
             ) : (<div className="grid grid-cols-1 gap-4">
               {filteredAssignments.map((assignment) => (
                 assignment.letter && (
-                  <div className="relative group" key={assignment.id}>
+                  <div key={assignment.id}>
                     <LetterCard
                       id={assignment.id}
                       letterId={assignment.letter.id}
@@ -805,25 +720,6 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                       layout={layoutStyle}
                       actions={renderTrayActions(assignment)}
                     />
-
-                    {view === 'inbox' && (
-                      <div className={`absolute top-1/2 -translate-y-1/2 right-4 flex items-center gap-2 transition-opacity p-2 ${(activeStepTab === 'review' || activeStepTab === 'signature') ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                        <button
-                          onClick={(e) => { e.preventDefault(); handleStepAction(assignment.id, 'Signature'); }}
-                          className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 shadow-lg"
-                          title="Approved Signature"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.preventDefault(); handleStepAction(assignment.id, 'Review'); }}
-                          className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 shadow-lg"
-                          title="Approved Review"
-                        >
-                          <UserCheck className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )
               ))}

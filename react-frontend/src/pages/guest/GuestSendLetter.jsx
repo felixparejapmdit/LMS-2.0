@@ -24,7 +24,7 @@ import axios from "axios";
 import SuccessModal from "../../components/SuccessModal";
 
 export default function GuestSendLetter() {
-    const { user, logout, layoutStyle, isMobileMenuOpen, setIsMobileMenuOpen } = useAuth();
+    const { user, logout, layoutStyle, isMobileMenuOpen, setIsMobileMenuOpen, isGuest } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -40,6 +40,7 @@ export default function GuestSendLetter() {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeSenderIndex, setActiveSenderIndex] = useState(null); // numeric for senders, 'encoder' for encoder
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [isExitModalOpen, setIsExitModalOpen] = useState(false);
     const fileInputRef = useRef(null);
     const suggestionRef = useRef(null);
     const today = new Date().toLocaleDateString('en-US', {
@@ -137,6 +138,7 @@ export default function GuestSendLetter() {
                 const formDataUpload = new FormData();
                 formDataUpload.append('file', attachments[0]);
                 formDataUpload.append('no_record', 'true');
+                formDataUpload.append('purpose', 'scanned_copy');
 
                 const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/upload`, formDataUpload, {
                     headers: { 'Content-Type': 'multipart/form-data' }
@@ -255,7 +257,8 @@ export default function GuestSendLetter() {
     const subTextColor = 'text-blue-600';
     const inputBg = 'bg-slate-50 dark:bg-white/5 border-slate-50 dark:border-[#333] text-slate-800 dark:text-white';
 
-    const isLoggedIn = !!user;
+    // isLoggedIn means a real authenticated user (not a guest)
+    const isLoggedIn = !!user?.id && !isGuest;
     const isRegularUser = user?.roleData?.name === 'USER' || user?.role === 'USER';
 
     return (
@@ -294,12 +297,7 @@ export default function GuestSendLetter() {
                                     Guest Mode
                                 </div>
                                 <button
-                                    onClick={() => {
-                                        if (window.confirm("Are you sure you want to exit guest mode?")) {
-                                            logout();
-                                            navigate("/login");
-                                        }
-                                    }}
+                                    onClick={() => setIsExitModalOpen(true)}
                                     className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors"
                                 >
                                     Exit
@@ -601,12 +599,33 @@ export default function GuestSendLetter() {
 
             <SuccessModal
                 isOpen={isSuccessModalOpen}
-                onClose={() => {
+                isGuest={!user?.id || user?.isGuest}
+                onClose={async () => {
                     setIsSuccessModalOpen(false);
                     handleClear();
-                    navigate("/letter-tracker");
+                    // Refresh the next reference number
+                    try {
+                        const preview = await letterService.getPreviewIds();
+                        if (preview?.lms_id) setReferenceNo(preview.lms_id);
+                    } catch { }
                 }}
                 referenceNo={referenceNo}
+            />
+
+            {/* Exit Confirmation Modal */}
+            <SuccessModal
+                variant="confirm"
+                isOpen={isExitModalOpen}
+                onClose={() => setIsExitModalOpen(false)}
+                title="Exit Guest Mode?"
+                message="Your unsaved letter will be discarded. You will be returned to the login page."
+                confirmLabel="Exit"
+                cancelLabel="Stay"
+                onConfirm={() => {
+                    setIsExitModalOpen(false);
+                    logout();
+                    navigate('/login');
+                }}
             />
         </div>
     );

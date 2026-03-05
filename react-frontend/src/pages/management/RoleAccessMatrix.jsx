@@ -19,10 +19,13 @@ import {
     Check,
     HelpCircle,
     Info,
-    FileCode
+    FileCode,
+    Search
 } from "lucide-react";
 import rolePermissionService from "../../services/rolePermissionService";
 import systemPageService from "../../services/systemPageService";
+import { BASE_SYSTEM_PAGES, humanizePageId } from "../../utils/pageAccess";
+import { getFieldPresetForPage } from "../../utils/fieldPresets";
 
 
 const ACTIONS = [
@@ -33,6 +36,17 @@ const ACTIONS = [
     { id: "can_special", label: "Special", icon: Zap },
     { id: "field_permissions", label: "Fields", icon: Settings }
 ];
+
+const mergeFieldPermissions = (pageId, existing = {}) => {
+    const defaults = getFieldPresetForPage(pageId);
+    const projected = {};
+    Object.keys(defaults).forEach((key) => {
+        projected[key] = Object.prototype.hasOwnProperty.call(existing || {}, key)
+            ? existing[key]
+            : true;
+    });
+    return projected;
+};
 
 export default function RoleAccessMatrix() {
     const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
@@ -46,6 +60,7 @@ export default function RoleAccessMatrix() {
     const [fieldModal, setFieldModal] = useState({ isOpen: false, pageId: null, fields: "" });
     const [isInstructionOpen, setIsInstructionOpen] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
+    const [searchTerm, setSearchTerm] = useState("");
 
     const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
     const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
@@ -54,12 +69,28 @@ export default function RoleAccessMatrix() {
 
     const fetchInitialData = async () => {
         try {
+            await systemPageService.syncPages(BASE_SYSTEM_PAGES).catch(() => { });
             const [rolesData, pagesData] = await Promise.all([
                 rolePermissionService.getRolesWithPermissions(),
                 systemPageService.getAll()
             ]);
             setRoles(rolesData);
-            const sortedPages = (pagesData || []).sort((a, b) => a.page_name.localeCompare(b.page_name));
+
+            const pageMap = new Map();
+            (pagesData || []).forEach((page) => pageMap.set(page.page_id, page));
+
+            // Backfill pages found in role permissions but not yet in system_pages
+            (rolesData || []).forEach((role) => {
+                (role.permissions || []).forEach((perm) => {
+                    if (!perm?.page_name || pageMap.has(perm.page_name)) return;
+                    pageMap.set(perm.page_name, {
+                        page_id: perm.page_name,
+                        page_name: humanizePageId(perm.page_name)
+                    });
+                });
+            });
+
+            const sortedPages = Array.from(pageMap.values()).sort((a, b) => a.page_name.localeCompare(b.page_name));
             setPages(sortedPages);
             if (rolesData.length > 0) {
                 setSelectedRoleId(rolesData[0].id);
@@ -73,18 +104,22 @@ export default function RoleAccessMatrix() {
         setLoading(true);
         try {
             const data = await rolePermissionService.getPermissionsByRole(roleId);
+            const normalizePageId = (value = "") => value.toString().toLowerCase().replace(/[^a-z0-9]/g, "");
 
             // Initialize matrix with default false values for all pages from DB
             const initialMatrix = {};
             pages.forEach(page => {
-                const existing = data.find(p => p.page_name === page.page_id);
+                const existing = data.find((p) =>
+                    p.page_name === page.page_id ||
+                    normalizePageId(p.page_name) === normalizePageId(page.page_id)
+                );
                 initialMatrix[page.page_id] = {
                     can_view: existing?.can_view || false,
                     can_create: existing?.can_create || false,
                     can_edit: existing?.can_edit || false,
                     can_delete: existing?.can_delete || false,
                     can_special: existing?.can_special || false,
-                    field_permissions: existing?.field_permissions || {}
+                    field_permissions: mergeFieldPermissions(page.page_id, existing?.field_permissions)
                 };
             });
             setMatrix(initialMatrix);
@@ -147,7 +182,8 @@ export default function RoleAccessMatrix() {
                 can_create: value,
                 can_edit: value,
                 can_delete: value,
-                can_special: value
+                can_special: value,
+                field_permissions: mergeFieldPermissions(pageId, prev[pageId]?.field_permissions)
             }
         }));
     };
@@ -162,7 +198,17 @@ export default function RoleAccessMatrix() {
         return 'Other Modules';
     };
 
-    const categorizedPages = pages.reduce((acc, page) => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const filteredPages = pages.filter((page) => {
+        if (!normalizedSearch) return true;
+        return (
+            page.page_name?.toLowerCase().includes(normalizedSearch) ||
+            page.page_id?.toLowerCase().includes(normalizedSearch) ||
+            getPageCategory(page.page_id).toLowerCase().includes(normalizedSearch)
+        );
+    });
+
+    const categorizedPages = filteredPages.reduce((acc, page) => {
         const cat = getPageCategory(page.page_id);
         if (!acc[cat]) acc[cat] = [];
         acc[cat].push(page);
@@ -232,19 +278,32 @@ export default function RoleAccessMatrix() {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-3">
-                                {roles.map(role => (
-                                    <button
-                                        key={role.id}
-                                        onClick={() => setSelectedRoleId(role.id)}
-                                        className={`px-6 py-4 rounded-3xl border transition-all text-xs font-black uppercase tracking-widest ${selectedRoleId === role.id
-                                            ? "bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-500/20"
-                                            : "bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-white/10 text-gray-400 hover:border-blue-500/50"
-                                            }`}
-                                    >
-                                        {role.name}
-                                    </button>
-                                ))}
+                            <div className="w-full md:w-auto flex flex-col gap-4">
+                                <div className="relative min-w-[280px]">
+                                    <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                                    <input
+                                        type="text"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        placeholder="Search page name, key, or category..."
+                                        className="w-full pl-11 pr-4 py-3 rounded-2xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-white/10 text-sm font-medium text-slate-700 dark:text-slate-200 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500/20"
+                                    />
+                                </div>
+
+                                <div className="flex items-center gap-3 flex-wrap justify-start md:justify-end">
+                                    {roles.map(role => (
+                                        <button
+                                            key={role.id}
+                                            onClick={() => setSelectedRoleId(role.id)}
+                                            className={`px-6 py-4 rounded-3xl border transition-all text-xs font-black uppercase tracking-widest ${selectedRoleId === role.id
+                                                ? "bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-500/20"
+                                                : "bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-white/10 text-gray-400 hover:border-blue-500/50"
+                                                }`}
+                                        >
+                                            {role.name}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
@@ -273,6 +332,12 @@ export default function RoleAccessMatrix() {
                                                 <td colSpan={ACTIONS.length + 3} className="p-32 text-center text-gray-400">
                                                     <Loader2 className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-6 opacity-20" />
                                                     <p className="text-xs font-black uppercase tracking-widest opacity-40">Decrypting Permissions...</p>
+                                                </td>
+                                            </tr>
+                                        ) : CATEGORY_ORDER.filter(cat => categorizedPages[cat]).length === 0 ? (
+                                            <tr>
+                                                <td colSpan={ACTIONS.length + 3} className="p-20 text-center text-gray-400">
+                                                    <p className="text-xs font-black uppercase tracking-widest opacity-60">No pages match your search.</p>
                                                 </td>
                                             </tr>
                                         ) : CATEGORY_ORDER.filter(cat => categorizedPages[cat]).map(category => (
@@ -306,7 +371,7 @@ export default function RoleAccessMatrix() {
                                                                 {action.id === 'field_permissions' ? (
                                                                     <button
                                                                         onClick={() => {
-                                                                            const currentFields = matrix[page.page_id]?.field_permissions || {};
+                                                                            const currentFields = mergeFieldPermissions(page.page_id, matrix[page.page_id]?.field_permissions || {});
                                                                             setFieldModal({
                                                                                 isOpen: true,
                                                                                 pageId: page.page_id,
@@ -395,7 +460,7 @@ export default function RoleAccessMatrix() {
                                             ...prev,
                                             [fieldModal.pageId]: {
                                                 ...prev[fieldModal.pageId],
-                                                field_permissions: parsed
+                                                field_permissions: mergeFieldPermissions(fieldModal.pageId, parsed)
                                             }
                                         }));
                                         setFieldModal({ isOpen: false, pageId: null, fields: "" });

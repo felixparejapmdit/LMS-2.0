@@ -109,29 +109,7 @@ export default function Settings() {
                                     <h3 className="font-bold">Layout System</h3>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    <button
-                                        onClick={() => toggleLayoutStyle('notion')}
-                                        className={`p-4 rounded-xl border-2 transition-all text-left ${layoutStyle === 'notion' ? 'border-orange-500 bg-orange-50/50' : 'border-gray-100 dark:border-[#333] hover:border-gray-200'}`}
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className={`text-xs font-bold uppercase tracking-widest ${textColor}`}>Notion</span>
-                                            {layoutStyle === 'notion' && <div className="w-2 h-2 bg-orange-500 rounded-full"></div>}
-                                        </div>
-                                        <p className="text-[9px] text-gray-500 uppercase font-black">Canvas System</p>
-                                    </button>
-
-                                    <button
-                                        onClick={() => toggleLayoutStyle('grid')}
-                                        className={`p-4 rounded-xl border-2 transition-all text-left ${layoutStyle === 'grid' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 dark:border-[#333] hover:border-gray-200'}`}
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className={`text-xs font-bold uppercase tracking-widest ${textColor}`}>3-Col Grid</span>
-                                            {layoutStyle === 'grid' && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
-                                        </div>
-                                        <p className="text-[9px] text-gray-500 uppercase font-black">Standard Grid</p>
-                                    </button>
-
+                                <div className="grid grid-cols-1 gap-4">
                                     <button
                                         onClick={() => {
                                             toggleLayoutStyle('minimalist');
@@ -143,7 +121,7 @@ export default function Settings() {
                                             <span className={`text-xs font-bold uppercase tracking-widest ${textColor}`}>Minimalist</span>
                                             {layoutStyle === 'minimalist' && <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>}
                                         </div>
-                                        <p className="text-[9px] text-gray-500 uppercase font-black">Professional White</p>
+                                        <p className="text-[9px] text-gray-500 uppercase font-black">Active Layout (Notion and 3-Col Grid disabled)</p>
                                     </button>
                                 </div>
 

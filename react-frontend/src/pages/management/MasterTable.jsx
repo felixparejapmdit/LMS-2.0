@@ -299,16 +299,28 @@ export default function MasterTable() {
             // 2. Update/Add Assignment for the new step if it changed
             if (updatedLetter.currentStepId) {
                 if (updatedLetter.assignments && updatedLetter.assignments.length > 0) {
-                    const latest = updatedLetter.assignments.sort((a, b) => b.id - a.id)[0];
+                    const latest = [...updatedLetter.assignments].sort((a, b) => b.id - a.id)[0];
                     await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${latest.id}`, {
                         step_id: updatedLetter.currentStepId
                     });
                 } else {
+                    const selectedStep = steps.find(s => Number(s.id) === Number(updatedLetter.currentStepId));
+                    const stepDepartmentId =
+                        selectedStep?.dept_id?.id ??
+                        selectedStep?.dept_id ??
+                        null;
+                    const preservedDepartmentId =
+                        [...(updatedLetter.assignments || [])].sort((a, b) => b.id - a.id)[0]?.department_id?.id ??
+                        [...(updatedLetter.assignments || [])].sort((a, b) => b.id - a.id)[0]?.department_id ??
+                        null;
+                    const fallbackUserDeptId = user?.dept_id?.id || user?.dept_id || null;
+                    const finalDepartmentId = stepDepartmentId || preservedDepartmentId || fallbackUserDeptId;
+
                     // If no assignment exists, create one!
                     await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments`, {
                         letter_id: updatedLetter.id,
                         step_id: updatedLetter.currentStepId,
-                        department_id: user?.dept_id?.id || user?.dept_id || null,
+                        department_id: finalDepartmentId,
                         assigned_by: user?.id,
                         status: 'Pending',
                         status_id: 8

@@ -381,6 +381,28 @@ export default function UploadPDFFiles() {
                                                         title={f.name}
                                                     />
                                                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                                                    <div className="absolute top-4 left-4 flex items-center gap-2">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedPreview(f);
+                                                            }}
+                                                            className="p-2 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-blue-500 transition-all opacity-0 group-hover:opacity-100"
+                                                            title="Preview PDF"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                        </button>
+                                                        <a
+                                                            href={f.previewUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="p-2 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-blue-500 transition-all opacity-0 group-hover:opacity-100"
+                                                            title="Open in new tab"
+                                                        >
+                                                            <ExternalLink className="w-4 h-4" />
+                                                        </a>
+                                                    </div>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); removeFile(f.id); }}
                                                         className="absolute top-4 right-4 p-2 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-red-500 transition-all opacity-0 group-hover:opacity-100"

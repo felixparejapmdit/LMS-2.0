@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 // Auth
@@ -43,10 +43,22 @@ import GuestSendLetter from "./pages/guest/GuestSendLetter";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
+import systemPageService from "./services/systemPageService";
+import { getPageKeyFromPath, humanizePageId } from "./utils/pageAccess";
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading, hasPermission } = useAuth();
   const location = useLocation();
+  const pageKey = getPageKeyFromPath(location.pathname);
+
+  useEffect(() => {
+    if (!user || !pageKey) return;
+    systemPageService.ensurePage({
+      page_id: pageKey,
+      page_name: humanizePageId(pageKey),
+      description: `Auto-discovered from route: ${location.pathname}`
+    }).catch(() => { });
+  }, [user, pageKey, location.pathname]);
 
   if (loading) {
     return (
@@ -63,26 +75,14 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-
-  // RBAC Check
-  const getPageKey = (path) => {
-    if (path === "/" || path === "/dashboard") return "home";
-    if (path === "/guest/send-letter") return "guest-send-letter";
-    if (path.startsWith("/setup/")) return path.split("/").pop();
-    if (path.startsWith("/letter/")) return "letter-detail"; // Map dynamic letter IDs to the detail permission
-    if (path.startsWith("/departments/") && path.endsWith("/letters")) return "department-letters";
-    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
-    // Handle any other specific dynamic mappings here
-    return cleanPath;
-  };
-
-  const pageKey = getPageKey(location.pathname);
   if (hasPermission && !hasPermission(pageKey, 'can_view')) {
     console.warn(`Access Denied for ${pageKey}`);
-    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    if (roleName === 'VIP') return <Navigate to="/vip-view" replace />;
-    if (roleName === 'USER') return <Navigate to="/letter-tracker" replace />;
-    return <Navigate to="/letter-tracker" replace />;
+    const fallbackCandidates = ["/", "/dashboard", "/letter-tracker", "/inbox", "/vip-view", "/guest/send-letter"];
+    const fallback = fallbackCandidates.find((path) => hasPermission(getPageKeyFromPath(path), 'can_view'));
+    if (!fallback || fallback === location.pathname) {
+      return <Navigate to="/login" replace />;
+    }
+    return <Navigate to={fallback} replace />;
   }
 
   return children;
@@ -93,7 +93,6 @@ function AppRoutes() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/guest/send-letter" element={<GuestSendLetter />} />
 
         {/* Protected Routes */}
         <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
@@ -118,6 +117,7 @@ function AppRoutes() {
         <Route path="/letters-with-comments" element={<ProtectedRoute><LettersWithComments /></ProtectedRoute>} />
         <Route path="/letter-tracker" element={<ProtectedRoute><LetterTracker /></ProtectedRoute>} />
         <Route path="/upload-pdf" element={<ProtectedRoute><UploadPDFFiles /></ProtectedRoute>} />
+        <Route path="/guest/send-letter" element={<ProtectedRoute><GuestSendLetter /></ProtectedRoute>} />
         <Route path="/spam" element={<ProtectedRoute><Spam /></ProtectedRoute>} />
         <Route path="/endorsements" element={<ProtectedRoute><LetterEndorsement /></ProtectedRoute>} />
         <Route path="/letter/:id" element={<ProtectedRoute><LetterDetail /></ProtectedRoute>} />

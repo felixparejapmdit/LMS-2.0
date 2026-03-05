@@ -31,7 +31,6 @@ export default function LetterDetail() {
   const { user, layoutStyle, setIsMobileMenuOpen, isSidebarExpanded } = useAuth();
   const [letter, setLetter] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
 
   // Helper: build browser-accessible URL from a stored file path (Windows absolute OR relative)
   const buildFileUrl = (rawPath) => {
@@ -59,31 +58,6 @@ export default function LetterDetail() {
   useEffect(() => {
     fetchData();
   }, [id]);
-
-  const handleMarkAsDone = async () => {
-    setActionLoading(true);
-    try {
-      // Find the pending assignment for this user's dept
-      const deptId = user.dept_id?.id || user.dept_id;
-      const assignment = letter.assignments?.find(a =>
-        (a.department_id === deptId || a.department?.id === deptId) && a.status !== 'Done'
-      );
-
-      if (assignment) {
-        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${assignment.id}`, {
-          status: "Done",
-          completed_at: new Date()
-        });
-
-        fetchData();
-        alert("Task marked as complete.");
-      }
-    } catch (error) {
-      console.error("Mark as done failed:", error);
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-[#080808] dark:bg-[#0D0D0D]">
@@ -133,8 +107,8 @@ export default function LetterDetail() {
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 custom-scrollbar">
-            <div className="w-full max-w-full grid grid-cols-1 xl:grid-cols-4 gap-6 md:gap-10">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 custom-scrollbar">
+            <div className="w-full grid grid-cols-1 xl:grid-cols-4 gap-6 md:gap-8 lg:gap-10">
 
               {/* Main Content (3 Columns) */}
               <div className="xl:col-span-3 space-y-8 md:space-y-10">
@@ -243,7 +217,7 @@ export default function LetterDetail() {
         <Sidebar />
         <main className="flex-1 flex flex-col h-screen overflow-hidden">
           {/* Header */}
-          <header className="h-16 bg-white dark:bg-[#0D0D0D] border-b border-[#E5E5E5] dark:border-[#222] px-8 flex items-center justify-between sticky top-0 z-30 shrink-0">
+          <header className="h-16 bg-white dark:bg-[#0D0D0D] border-b border-[#E5E5E5] dark:border-[#222] px-4 md:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 shrink-0">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
@@ -267,20 +241,12 @@ export default function LetterDetail() {
             </div>
 
             <div className="flex items-center gap-4">
-              <button
-                onClick={handleMarkAsDone}
-                disabled={actionLoading}
-                className="px-6 py-2 bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B] text-[10px] font-black uppercase tracking-widest rounded-lg transition-all hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-              >
-                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                Complete Task
-              </button>
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto px-8 py-10 custom-scrollbar">
-            <div className="max-w-5xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 lg:py-10 custom-scrollbar">
+            <div className="w-full">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
                 <div className="lg:col-span-2 space-y-10">
                   <section>
                     <div className="flex items-center gap-4 mb-6">
@@ -382,7 +348,7 @@ export default function LetterDetail() {
       <div className="min-h-screen bg-white dark:bg-[#191919] flex overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto">
-          <div className="max-w-[1000px] mx-auto px-4 md:px-12 pt-6 md:pt-10 pb-16 md:pb-32 relative">
+          <div className="w-full px-4 md:px-6 lg:px-8 pt-6 md:pt-10 pb-16 md:pb-24 relative">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
               className="fixed top-6 left-4 p-2 bg-white/80 dark:bg-[#191919]/80 backdrop-blur shadow-sm border border-gray-100 dark:border-[#333] rounded-lg text-gray-400 md:hidden z-40"
@@ -401,7 +367,7 @@ export default function LetterDetail() {
               {letter.sender}
             </h1>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-10">
               <div className="md:col-span-3 space-y-12">
                 {/* Document Canvas */}
                 <div className="aspect-[3/4] bg-gray-50 dark:bg-white/5 rounded-sm border border-gray-100 dark:border-[#222] shadow-2xl flex items-center justify-center relative overflow-hidden group">
@@ -473,18 +439,6 @@ export default function LetterDetail() {
                     </div>
                   </div>
                 </div>
-
-                <div className="pt-6 border-t border-gray-100 dark:border-[#222]">
-                  <button
-                    onClick={handleMarkAsDone}
-                    disabled={actionLoading}
-                    className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-black rounded px-4 text-xs font-bold hover:bg-black dark:hover:bg-gray-100 transition-all flex items-center justify-center gap-2"
-                  >
-                    {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                    COMPLETE TASK
-                  </button>
-                  <p className="text-[9px] text-gray-400 mt-2 text-center uppercase tracking-widest font-bold">Action as {user?.department?.dept_name || user?.dept_id?.dept_name || 'Department'}</p>
-                </div>
               </div>
             </div>
           </div>
@@ -494,12 +448,12 @@ export default function LetterDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-[#0D0D0D] flex overflow-hidden">
+    <div className="flex h-screen bg-neutral-50 overflow-hidden">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 flex flex-col overflow-hidden">
         {/* Modern Header */}
-        <header className={`fixed top-0 right-0 left-0 ${isSidebarExpanded ? 'md:left-64' : 'md:left-20'} h-16 bg-white dark:bg-[#0D0D0D] border-b border-gray-100 dark:border-[#222] px-4 md:px-8 flex items-center justify-between z-10 transition-all duration-300`}>
+        <header className="h-16 bg-white border-b border-gray-100 px-4 md:px-8 flex items-center justify-between z-10 shrink-0">
           <div className="flex items-center gap-2 md:gap-4">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
@@ -509,34 +463,26 @@ export default function LetterDetail() {
             </button>
             <button
               onClick={() => navigate(-1)}
-              className="p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-full transition-all group"
+              className="p-2 hover:bg-gray-50 rounded-full transition-all group"
             >
               <ChevronLeft className="w-5 h-5 text-gray-400 group-hover:text-orange-500" />
             </button>
             <div>
-              <h1 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-tight">{letter.lms_id}</h1>
+              <h1 className="text-sm font-bold text-gray-900 uppercase tracking-tight">{letter.lms_id}</h1>
               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-none">Letter Details</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-[#333] text-gray-600 dark:text-gray-400 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all">
+            <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all">
               <Paperclip className="w-4 h-4" />
               ATTACHMENT
-            </button>
-            <button
-              onClick={handleMarkAsDone}
-              disabled={actionLoading}
-              className="flex items-center gap-2 px-6 py-2 bg-[#F6A17B] hover:bg-[#e8946e] text-white text-xs font-black rounded-xl transition-all shadow-md shadow-orange-100/50"
-            >
-              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              MARK AS DONE
             </button>
           </div>
         </header>
 
-        <div className="p-4 md:p-8 pt-20 md:pt-24">
-          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+          <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
 
             {/* Main Content Card */}
             <div className="lg:col-span-2 space-y-8">

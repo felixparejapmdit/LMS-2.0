@@ -5,23 +5,20 @@ const { Op } = require('sequelize');
 class LetterController {
     static async getAll(req, res) {
         try {
-            const { user_id, role, department_id, full_name } = req.query;
+            const { user_id, role, department_id } = req.query;
             const where = {};
 
             const normalizedRole = role ? role.toString().toUpperCase() : '';
 
             if (normalizedRole === 'USER' && user_id) {
-                // USER can only see letters encoded by them 
-                // OR assigned to their department AND endorsed to them specifically
-                where[Op.or] = [
-                    { encoder_id: user_id },
-                    {
-                        [Op.and]: [
-                            { '$assignments.department_id$': department_id && department_id !== 'null' ? department_id : null },
-                            { '$endorsements.endorsed_to$': full_name ? full_name : 'NoEndorsementMatch' }
-                        ]
-                    }
-                ];
+                const hasValidDepartment = department_id && department_id !== 'null' && department_id !== 'undefined' && department_id !== '';
+                const visibilityClauses = [{ encoder_id: user_id }];
+                if (hasValidDepartment) {
+                    visibilityClauses.push({ '$assignments.department_id$': department_id });
+                }
+
+                // USER can only see their own letters or letters assigned to their department.
+                where[Op.or] = visibilityClauses;
             }
 
             const results = await Letter.findAll({

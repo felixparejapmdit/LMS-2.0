@@ -40,6 +40,8 @@ import {
   Users
 } from "lucide-react";
 import { directusUrl } from "../hooks/useDirectus";
+import systemPageService from "../services/systemPageService";
+import { getPageKeyFromPath, humanizePageId } from "../utils/pageAccess";
 
 export default function Sidebar() {
   const { user, logout, theme, toggleTheme, layoutStyle, isSidebarExpanded, toggleSidebar, isMobileMenuOpen, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
@@ -60,7 +62,18 @@ export default function Sidebar() {
     if (!user) return;
     const fetchCount = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements/count`);
+        const roleName = user?.roleData?.name || user?.role || '';
+        const deptId = user?.dept_id?.id || user?.dept_id || '';
+        const fullName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
+        const isUserRole = roleName.toString().toUpperCase() === 'USER';
+        const params = new URLSearchParams({
+          user_id: user.id || '',
+          department_id: deptId || '',
+          role: roleName || '',
+          full_name: fullName,
+          ...(isUserRole ? { mine: 'true' } : {})
+        });
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements/count?${params.toString()}`);
         const data = await res.json();
         setNotificationCount(data.count || 0);
       } catch { }
@@ -69,6 +82,12 @@ export default function Sidebar() {
     const interval = setInterval(fetchCount, 30000);
     return () => clearInterval(interval);
   }, [user]);
+
+  const handleNotificationClick = () => {
+    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
+    const isUserRole = roleName === 'USER';
+    navigate(isUserRole ? '/endorsements?mine=1' : '/endorsements');
+  };
 
   const handleLogout = () => {
     setIsLogoutModalOpen(true);
@@ -128,20 +147,35 @@ export default function Sidebar() {
     ] : []),
   ];
 
-  // Helper to get permission key from path
-  const getPageKey = (path) => {
-    if (path === "/" || path === "/dashboard") return "home";
-    if (path === "/guest/send-letter") return "guest-send-letter";
-    if (path.startsWith("/setup/")) return path.split("/").pop();
-    if (path.startsWith("/letter/")) return "letter-detail";
-    return path.replace("/", "");
-  };
+  useEffect(() => {
+    if (!user) return;
+    const flatPages = [];
+    const collectPages = (items) => {
+      items.forEach((item) => {
+        if (item.path && item.path !== "#") {
+          const pageId = getPageKeyFromPath(item.path);
+          if (pageId) {
+            flatPages.push({
+              page_id: pageId,
+              page_name: item.label || humanizePageId(pageId),
+              description: `Auto-discovered from sidebar path: ${item.path}`
+            });
+          }
+        }
+        if (Array.isArray(item.children) && item.children.length > 0) {
+          collectPages(item.children);
+        }
+      });
+    };
+    collectPages(navItems);
+    systemPageService.syncPages(flatPages).catch(() => { });
+  }, [user]);
 
   const filteredNavItems = navItems.filter(item => {
-    const key = getPageKey(item.path);
+    const key = getPageKeyFromPath(item.path);
     if (item.children) {
       item.children = item.children
-        .filter(child => hasPermission(getPageKey(child.path)))
+        .filter(child => hasPermission(getPageKeyFromPath(child.path)))
         .sort((a, b) => a.label.localeCompare(b.label)); // Sort children alphabetically
       return item.children.length > 0;
     }
@@ -153,23 +187,22 @@ export default function Sidebar() {
     if (layoutStyle === 'grid') {
       return (
         <>
-          <div className={`h-20 flex items-center border-b border-slate-50 dark:border-[#222] shrink-0 relative overflow-visible transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-between px-5'}`}>
+          <div className={`h-20 flex items-center border-b border-slate-100 shrink-0 relative overflow-visible transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-between px-5'}`}>
             <div className="flex items-center gap-3 overflow-visible z-50">
               <div
-                onClick={() => navigate('/endorsements')}
-                className="w-11 h-11 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200 dark:shadow-blue-600/20 shrink-0 group/bell cursor-pointer relative transition-all hover:scale-105 active:scale-95"
+                onClick={handleNotificationClick}
+                className="w-11 h-11 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200 shrink-0 group/bell cursor-pointer relative transition-all hover:scale-105 active:scale-95"
               >
                 <Bell className="w-5 h-5 transition-transform group-hover/bell:rotate-12" />
                 {notificationCount > 0 && (
-                  <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 border-2 border-white dark:border-[#111] rounded-full flex items-center justify-center text-[8px] font-black animate-bounce shadow-sm">
+                  <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 border-2 border-white rounded-full flex items-center justify-center text-[8px] font-black animate-bounce shadow-sm">
                     {notificationCount > 9 ? '9+' : notificationCount}
                   </div>
                 )}
               </div>
               {(isSidebarExpanded || isMobileMenuOpen) && (
                 <div className="flex flex-col animate-in fade-in slide-in-from-left-2 transition-all">
-                  <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tighter leading-none">LMS 2.0</span>
-
+                  <span className="text-sm font-bold text-slate-900 tracking-tighter leading-none">LMS 2.0</span>
                 </div>
               )}
             </div>
@@ -193,8 +226,8 @@ export default function Sidebar() {
                   className={({ isActive }) => `
                   flex items-center gap-4 p-3 rounded-2xl transition-all duration-300 group/item relative
                   ${isActive && !item.children && item.path !== "#"
-                      ? "bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 shadow-sm"
-                      : "text-slate-400 dark:text-slate-500 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-white/5"}
+                      ? "bg-slate-700 text-white shadow-sm"
+                      : "text-slate-500 hover:text-white hover:bg-slate-700"}
                   ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
                 `}
                 >
@@ -217,8 +250,8 @@ export default function Sidebar() {
                         className={({ isActive }) => `
                         flex items-center gap-3 p-2 rounded-xl transition-all duration-300
                         ${isActive
-                            ? "bg-blue-50/50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400"
-                            : "text-slate-400 dark:text-slate-500 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-white/5"}
+                            ? "bg-slate-700 text-white"
+                            : "text-slate-400 hover:text-white hover:bg-slate-700"}
                         `}
                       >
                         <child.icon className="w-5 h-5 shrink-0" />
@@ -231,58 +264,48 @@ export default function Sidebar() {
             ))}
           </nav>
 
-          <div className="p-3 border-t border-slate-50 dark:border-[#222] space-y-2 shrink-0">
-            <button
-              onClick={toggleTheme}
-              className={`w-full flex items-center gap-4 p-3 text-slate-400 dark:text-slate-500 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}`}
-            >
-              {theme === 'light' ? <Moon className="w-6 h-6 shrink-0" /> : <Sun className="w-6 h-6 shrink-0" />}
-              {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-xs font-black tracking-widest">{theme === 'light' ? 'Dark' : 'Light'} Mode</span>}
-            </button>
-
+          <div className="p-3 border-t border-slate-100 shrink-0">
             {/* Combined Profile & Logout Section - Bottom */}
-            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
-              <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
-                <button
-                  onClick={() => navigate('/profile')}
-                  title={!isSidebarExpanded && !isMobileMenuOpen ? "View Profile" : ""}
-                  className={`
+            <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
+              <button
+                onClick={() => navigate('/profile')}
+                title={!isSidebarExpanded && !isMobileMenuOpen ? "View Profile" : ""}
+                className={`
                     flex-1 flex items-center gap-3 p-2 rounded-2xl transition-all duration-300 group/prof
-                    hover:bg-blue-50 dark:hover:bg-blue-900/10 border border-transparent hover:border-blue-100 dark:hover:border-blue-900/20
+                    hover:bg-slate-200 border border-transparent
                     ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center p-2' : 'justify-start'}
                   `}
-                >
-                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-500/10 transition-all overflow-hidden group-hover/prof:scale-110">
-                    {user?.avatar ? (
-                      <img
-                        src={`${directusUrl}/assets/${user.avatar}?width=100&height=100&fit=cover`}
-                        className="w-full h-full object-cover"
-                        alt="Profile"
-                        onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=0066FF&color=fff'; }}
-                      />
-                    ) : (
-                      <UserCircle className="w-5 h-5" />
-                    )}
-                  </div>
-                  {(isSidebarExpanded || isMobileMenuOpen) && (
-                    <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
-                      <span className="text-[11px] font-black text-slate-900 dark:text-white truncate tracking-tight group-hover/prof:text-blue-600">
-                        {user?.first_name} {user?.last_name}
-                      </span>
-                      <span className="text-[9px] font-bold text-blue-500 truncate tracking-widest leading-none mt-1">
-                        View Profile
-                      </span>
-                    </div>
+              >
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-500/10 transition-all overflow-hidden group-hover/prof:scale-110">
+                  {user?.avatar ? (
+                    <img
+                      src={`${directusUrl}/assets/${user.avatar}?width=100&height=100&fit=cover`}
+                      className="w-full h-full object-cover"
+                      alt="Profile"
+                      onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=0066FF&color=fff'; }}
+                    />
+                  ) : (
+                    <UserCircle className="w-5 h-5" />
                   )}
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="p-3 text-slate-400 hover:text-red-500 transition-colors"
-                  title="Logout"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
-              </div>
+                </div>
+                {(isSidebarExpanded || isMobileMenuOpen) && (
+                  <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
+                    <span className="text-[11px] font-black text-slate-900 truncate tracking-tight group-hover/prof:text-blue-600">
+                      {user?.first_name} {user?.last_name}
+                    </span>
+                    <span className="text-[9px] font-bold text-blue-500 truncate tracking-widest leading-none mt-1">
+                      View Profile
+                    </span>
+                  </div>
+                )}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="p-3 text-slate-400 hover:text-red-500 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </>
@@ -296,7 +319,7 @@ export default function Sidebar() {
           <div className={`p-4 mb-4 flex items-center shrink-0 overflow-visible transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-between'}`}>
             <div className="flex items-center gap-3 overflow-visible z-50">
               <div
-                onClick={() => navigate('/endorsements')}
+                onClick={handleNotificationClick}
                 className="w-7 h-7 bg-orange-500 rounded flex items-center justify-center text-white shrink-0 group/bell cursor-pointer relative transition-all hover:scale-110 active:scale-95 shadow-sm"
               >
                 <Bell className="w-4 h-4 transition-transform group-hover/bell:rotate-12" />
@@ -334,8 +357,8 @@ export default function Sidebar() {
                   className={({ isActive }) => `
                   flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all duration-200 relative
                   ${isActive && !item.children && item.path !== "#"
-                      ? "bg-gray-200/60 dark:bg-white/10 text-gray-900 dark:text-white font-semibold"
-                      : "text-gray-500 dark:text-gray-400 hover:bg-gray-200/40 dark:hover:bg-white/5"}
+                      ? "bg-gray-200 text-gray-900 font-semibold"
+                      : "text-gray-500 hover:bg-gray-200/70"}
                   ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                 `}
                 >
@@ -347,7 +370,7 @@ export default function Sidebar() {
                 </NavLink>
 
                 {item.children && expandedMenus[item.label] && (isSidebarExpanded || isMobileMenuOpen) && (
-                  <div className="pl-6 mt-0.5 space-y-0.5 relative before:absolute before:left-[17px] before:top-0 before:bottom-0 before:w-px before:bg-gray-200 dark:before:bg-gray-800">
+                  <div className="pl-6 mt-0.5 space-y-0.5 relative before:absolute before:left-[17px] before:top-0 before:bottom-0 before:w-px before:bg-gray-200">
                     {item.children.map(child => (
                       <NavLink
                         key={child.path}
@@ -356,8 +379,8 @@ export default function Sidebar() {
                         className={({ isActive }) => `
                         flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all duration-200 relative
                         ${isActive
-                            ? "bg-gray-200/40 dark:bg-white/10 text-gray-900 dark:text-white font-semibold"
-                            : "text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5"}
+                            ? "bg-gray-200 text-gray-900 font-semibold"
+                            : "text-gray-400 hover:bg-gray-200/70"}
                         `}
                       >
                         <child.icon className="w-3.5 h-3.5 shrink-0" />
@@ -370,57 +393,47 @@ export default function Sidebar() {
             ))}
           </nav>
 
-          <div className="p-3 border-t border-gray-100 dark:border-[#222] space-y-2 shrink-0">
-            <button
-              onClick={toggleTheme}
-              className={`w-full flex items-center gap-3 px-3 py-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-200/40 dark:hover:bg-white/5 rounded-lg transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}`}
-            >
-              {theme === 'light' ? <Moon className="w-4 h-4 shrink-0" /> : <Sun className="w-4 h-4 shrink-0" />}
-              {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-sm font-medium">{theme === 'light' ? 'Dark' : 'Light'} Mode</span>}
-            </button>
-
+          <div className="p-3 border-t border-gray-100 shrink-0">
             {/* Combined Profile & Logout Section - Bottom */}
-            <div className="mt-2 pt-2 border-t border-gray-100 dark:border-[#222]">
-              <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
-                <button
-                  onClick={() => navigate('/profile')}
-                  className={`
+            <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
+              <button
+                onClick={() => navigate('/profile')}
+                className={`
                     flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group/prof
                     hover:bg-gray-100 dark:hover:bg-white/5
                     ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : 'justify-start'}
                   `}
-                >
-                  <div className="w-7 h-7 bg-orange-500 rounded flex items-center justify-center text-white shrink-0 shadow-sm transition-transform group-hover/prof:scale-110 overflow-hidden">
-                    {user?.avatar ? (
-                      <img
-                        src={`${directusUrl}/assets/${user.avatar}?width=80&height=80&fit=cover`}
-                        className="w-full h-full object-cover"
-                        alt="Profile"
-                        onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=F97316&color=fff'; }}
-                      />
-                    ) : (
-                      <UserCircle className="w-4 h-4" />
-                    )}
-                  </div>
-                  {(isSidebarExpanded || isMobileMenuOpen) && (
-                    <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
-                      <span className="text-[13px] font-semibold text-gray-700 dark:text-gray-300 truncate leading-tight group-hover/prof:text-orange-600">
-                        {user?.first_name} {user?.last_name}
-                      </span>
-                      <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate lowercase mt-0.5">
-                        View Profile
-                      </span>
-                    </div>
+              >
+                <div className="w-7 h-7 bg-orange-500 rounded flex items-center justify-center text-white shrink-0 shadow-sm transition-transform group-hover/prof:scale-110 overflow-hidden">
+                  {user?.avatar ? (
+                    <img
+                      src={`${directusUrl}/assets/${user.avatar}?width=80&height=80&fit=cover`}
+                      className="w-full h-full object-cover"
+                      alt="Profile"
+                      onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=F97316&color=fff'; }}
+                    />
+                  ) : (
+                    <UserCircle className="w-4 h-4" />
                   )}
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                  title="Logout"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
+                </div>
+                {(isSidebarExpanded || isMobileMenuOpen) && (
+                  <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
+                    <span className="text-[13px] font-semibold text-gray-700 dark:text-gray-300 truncate leading-tight group-hover/prof:text-orange-600">
+                      {user?.first_name} {user?.last_name}
+                    </span>
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate lowercase mt-0.5">
+                      View Profile
+                    </span>
+                  </div>
+                )}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </>
@@ -436,6 +449,18 @@ export default function Sidebar() {
               <div className="w-8 h-8 bg-[#1A1A1B] dark:bg-white rounded-lg flex items-center justify-center text-white dark:text-[#1A1A1B] shadow-sm">
                 <FileText className="w-4 h-4" />
               </div>
+              <button
+                onClick={handleNotificationClick}
+                className="w-8 h-8 rounded-lg border border-[#E5E5E5] dark:border-[#333] flex items-center justify-center text-[#1A1A1B] dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all relative"
+                title="Open my endorsements"
+              >
+                <Bell className="w-4 h-4" />
+                {notificationCount > 0 && (
+                  <div className="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-red-500 text-white rounded-full text-[7px] font-black flex items-center justify-center">
+                    {notificationCount > 9 ? '9+' : notificationCount}
+                  </div>
+                )}
+              </button>
               {(isSidebarExpanded || isMobileMenuOpen) && (
                 <span className="text-sm font-bold text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em]">LMS 2.0</span>
               )}
@@ -456,8 +481,8 @@ export default function Sidebar() {
                   className={({ isActive }) => `
                     flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200
                     ${isActive && !item.children && item.path !== "#"
-                      ? "bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B] font-medium"
-                      : "text-[#737373] hover:text-[#1A1A1B] dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5"}
+                      ? "bg-slate-700 text-white font-medium"
+                      : "text-[#737373] hover:text-white hover:bg-slate-700"}
                     ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                   `}
                 >
@@ -469,14 +494,14 @@ export default function Sidebar() {
                 </NavLink>
 
                 {item.children && expandedMenus[item.label] && (isSidebarExpanded || isMobileMenuOpen) && (
-                  <div className="ml-6 border-l border-[#E5E5E5] dark:border-[#222] mt-1 space-y-1">
+                  <div className="ml-6 border-l border-[#E5E5E5] mt-1 space-y-1">
                     {item.children.map(child => (
                       <NavLink
                         key={child.path}
                         to={child.path}
                         className={({ isActive }) => `
-                          flex items-center gap-3 px-4 py-1.5 text-xs transition-colors
-                          ${isActive ? "text-[#1A1A1B] dark:text-white font-bold" : "text-[#A3A3A3] hover:text-[#1A1A1B] dark:hover:text-white"}
+                          flex items-center gap-3 px-4 py-1.5 text-xs transition-colors rounded-md
+                          ${isActive ? "text-[#1A1A1B] font-bold" : "text-[#A3A3A3] hover:text-[#1A1A1B] hover:bg-gray-200"}
                         `}
                       >
                         <child.icon className="w-3.5 h-3.5 shrink-0" />
@@ -489,14 +514,7 @@ export default function Sidebar() {
             ))}
           </nav>
 
-          <div className="p-4 border-t border-[#E5E5E5] dark:border-[#222] space-y-2">
-            <button
-              onClick={toggleTheme}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-[#737373] hover:text-[#1A1A1B] dark:hover:text-white transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}`}
-            >
-              {theme === 'light' ? <Moon className="w-4 h-4 shrink-0" /> : <Sun className="w-4 h-4 shrink-0" />}
-              {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-sm font-medium">{theme === 'light' ? 'Dark' : 'Light'}</span>}
-            </button>
+          <div className="p-4 border-t border-[#E5E5E5] shrink-0">
 
             <div className={`flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-white/5 border border-[#E5E5E5] dark:border-[#222] ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
               <button
@@ -530,7 +548,7 @@ export default function Sidebar() {
         <div className={`h-16 flex items-center border-b border-gray-100 dark:border-[#222] shrink-0 transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : 'justify-between px-8'}`}>
           <div className="flex items-center gap-3 overflow-visible z-50">
             <div
-              onClick={() => navigate('/endorsements')}
+              onClick={handleNotificationClick}
               className="w-10 h-10 bg-orange-50 dark:bg-orange-900/10 rounded-xl flex items-center justify-center group/bell cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-all shrink-0 relative"
             >
               <Bell className="text-orange-600 w-5 h-5 transition-transform group-hover/bell:rotate-12" />
@@ -550,7 +568,6 @@ export default function Sidebar() {
         </div>
 
         <nav className="flex-1 px-2 py-6 space-y-2 overflow-y-auto custom-scrollbar">
-
           {filteredNavItems.map((item) => (
             <div key={item.label} className="flex flex-col">
               <NavLink
@@ -559,16 +576,14 @@ export default function Sidebar() {
                   if (item.children) {
                     e.preventDefault();
                     toggleSubmenu(item.label);
-                  } else {
-                    // setIsMobileMenuOpen(false);
                   }
                 }}
                 title={!isSidebarExpanded ? item.label : ""}
                 className={({ isActive }) => `
                 flex items-center gap-3 p-3 rounded-xl transition-all duration-200 relative
                 ${isActive && !item.children && item.path !== "#"
-                    ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600 border border-orange-100 dark:border-orange-900/20 shadow-sm"
-                    : "text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-white/5"}
+                    ? "bg-orange-100 text-orange-600 border border-orange-200 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"}
                 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
               `}
               >
@@ -593,8 +608,8 @@ export default function Sidebar() {
                       className={({ isActive }) => `
                       flex items-center gap-3 p-2 rounded-xl transition-all duration-200
                       ${isActive
-                          ? "bg-orange-50/50 dark:bg-orange-900/10 text-orange-600"
-                          : "text-slate-400 hover:text-slate-500 hover:bg-slate-50 dark:hover:bg-white/5"}
+                          ? "bg-orange-100 text-orange-600"
+                          : "text-slate-400 hover:text-slate-600 hover:bg-slate-200"}
                       `}
                     >
                       <child.icon className="w-4 h-4 shrink-0" />
@@ -607,23 +622,15 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        <div className="p-2 border-t border-gray-100 dark:border-[#222] space-y-2 shrink-0">
-          <button
-            onClick={toggleTheme}
-            className={`w-full flex items-center gap-3 p-3 text-slate-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-white/5 rounded-xl transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}`}
-          >
-            {theme === 'light' ? <Moon className="w-5 h-5 shrink-0" /> : <Sun className="w-5 h-5 shrink-0" />}
-            {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-xs font-bold tracking-wide">{theme === 'light' ? 'Dark' : 'Light'}</span>}
-          </button>
-
+        <div className="p-2 border-t border-gray-100 shrink-0">
           {/* Combined Profile & Logout Section - Bottom */}
-          <div className="mt-2 pt-2 border-t border-gray-100 dark:border-[#222]">
+          <div className="pt-2">
             <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
               <button
                 onClick={() => navigate('/profile')}
                 className={`
                   flex-1 flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-300 group/prof
-                  hover:bg-orange-50 dark:hover:bg-orange-900/10 border border-transparent hover:border-orange-100 dark:hover:border-orange-900/20
+                  hover:bg-slate-200 border border-transparent
                   ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center p-2' : 'justify-start'}
                 `}
               >
@@ -641,7 +648,7 @@ export default function Sidebar() {
                 </div>
                 {(isSidebarExpanded || isMobileMenuOpen) && (
                   <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
-                    <span className="text-[11px] font-black text-slate-800 dark:text-white truncate tracking-tight group-hover/prof:text-orange-600">
+                    <span className="text-[11px] font-black text-slate-800 truncate tracking-tight group-hover/prof:text-orange-600">
                       {user?.first_name} {user?.last_name}
                     </span>
                     <span className="text-[9px] font-bold text-orange-500 truncate tracking-wider mt-1">
@@ -672,9 +679,9 @@ export default function Sidebar() {
 
   const getSidebarBg = () => {
     switch (layoutStyle) {
-      case 'notion': return "bg-[#FBFBFA] dark:bg-[#141414] border-gray-100 dark:border-[#222]";
-      case 'minimalist': return "bg-[#F7F7F7] dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]";
-      default: return "bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]";
+      case 'notion': return "bg-[#FBFBFA] border-gray-100";
+      case 'minimalist': return "bg-[#F7F7F7] border-[#E5E5E5]";
+      default: return "bg-white border-gray-100";
     }
   };
 
@@ -701,9 +708,9 @@ export default function Sidebar() {
           <button
             onClick={toggleSidebar}
             className={`
-              hidden md:flex absolute -right-3 top-20 w-6 h-6 bg-white dark:bg-[#0D0D0D] 
-              border border-slate-200 dark:border-[#333] rounded-full 
-              items-center justify-center text-slate-400 hover:text-blue-600 
+              hidden md:flex absolute -right-3 top-20 w-6 h-6 bg-white
+              border border-slate-200 rounded-full
+              items-center justify-center text-slate-400 hover:text-blue-600
               shadow-sm z-50 transition-all transform
               ${!isSidebarExpanded ? 'rotate-180 opacity-0 group-hover:opacity-100' : ''}
             `}
@@ -732,20 +739,20 @@ export default function Sidebar() {
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setIsLogoutModalOpen(false)}
           />
-          <div className="relative w-full max-w-[340px] bg-white dark:bg-[#111] rounded-3xl border border-gray-100 dark:border-white/10 shadow-2xl p-8 text-center animate-in zoom-in-95 duration-300">
-            <div className="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-900/10 flex items-center justify-center text-red-500 mx-auto mb-6">
+          <div className="relative w-full max-w-[340px] bg-white rounded-3xl border border-gray-100 shadow-2xl p-8 text-center animate-in zoom-in-95 duration-300">
+            <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center text-red-500 mx-auto mb-6">
               <LogOut className="w-7 h-7" />
             </div>
 
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Confirm Logout</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mb-8">
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">Confirm Logout</h3>
+            <p className="text-xs text-gray-500 leading-relaxed mb-8">
               Are you sure you want to sign out?
             </p>
 
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setIsLogoutModalOpen(false)}
-                className="py-3 bg-slate-50 dark:bg-white/5 text-slate-500 hover:text-slate-700 dark:hover:text-white rounded-xl font-bold text-xs transition-all border border-transparent hover:border-slate-200 dark:hover:border-white/10"
+                className="py-3 bg-slate-100 text-slate-500 hover:text-slate-700 rounded-xl font-bold text-xs transition-all border border-transparent hover:border-slate-200"
               >
                 Cancel
               </button>

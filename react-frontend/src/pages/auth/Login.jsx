@@ -8,7 +8,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, loginGuest, layoutStyle } = useAuth();
+  const { login, loginGuest } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -32,15 +32,12 @@ export default function Login() {
     setLoading(false);
   };
 
-  // Layout-specific styling mapping
-  const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50 text-slate-900' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
-  const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-  const accentColor = layoutStyle === 'grid' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#F6A17B] hover:bg-[#e8946e]';
+  // Minimalist-only styling
+  const pageBg = 'bg-[#F7F7F7] dark:bg-[#0D0D0D]';
+  const accentColor = 'bg-[#1A1A1B] dark:bg-white hover:bg-black dark:hover:bg-gray-200';
   const textColor = 'text-slate-900 dark:text-white';
   const inputBg = 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-[#333] text-slate-900 dark:text-white';
-  const ringColor = layoutStyle === 'grid' ? 'focus:ring-blue-500' : 'focus:ring-orange-500';
-
-  const frameBorder = 'border-slate-200 dark:border-white/10';
+  const ringColor = 'focus:ring-orange-500';
 
   return (
     <div className={`flex min-h-screen ${pageBg} transition-colors duration-500 font-sans`}>
@@ -125,10 +122,10 @@ export default function Login() {
                   loginGuest();
                   navigate("/guest/send-letter");
                 }}
-                className={`w-full py-4 bg-transparent border-2 border-slate-100 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-200 rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3`}
+                className={`w-full py-4 bg-transparent border-2 border-slate-100 dark:border-white/10 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-200 dark:hover:border-white/20 rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3`}
               >
                 <User className="w-4 h-4" />
-                Login as Guest
+                Continue as Guest
               </button>
             </form>
           </div>

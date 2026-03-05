@@ -30,13 +30,14 @@ export default function VIPView() {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedLetter, setSelectedLetter] = useState(null);
-    const [marginalNote, setMarginalNote] = useState("");
+    const [newCommentText, setNewCommentText] = useState("");
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
     const [comments, setComments] = useState([]);
     const [isCommentsLoading, setIsCommentsLoading] = useState(false);
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
     const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editingCommentBody, setEditingCommentBody] = useState("");
 
     // PDF States
     const [pdfUrl, setPdfUrl] = useState(null);
@@ -121,8 +122,9 @@ export default function VIPView() {
     const openLetter = (letter, index) => {
         setSelectedLetter(letter);
         setCurrentIndex(index);
-        setMarginalNote(""); // Clear input when opening
+        setNewCommentText("");
         setEditingCommentId(null);
+        setEditingCommentBody("");
         setIsModalOpen(true);
         fetchComments(letter.id);
         loadPdfForLetter(letter);
@@ -166,30 +168,19 @@ export default function VIPView() {
         }
     };
 
-    const handleSendAction = async () => {
-        if (!selectedLetter || !marginalNote.trim()) return;
+    const handleAddComment = async () => {
+        if (!selectedLetter || !newCommentText.trim()) return;
         setIsSaving(true);
         try {
-            if (editingCommentId) {
-                await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments/${editingCommentId}`, {
-                    comment_body: marginalNote
-                });
-                alert("Comment updated.");
-                setEditingCommentId(null);
-            } else {
-                await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments`, {
-                    letter_id: selectedLetter.id,
-                    user_id: user.id,
-                    comment_body: marginalNote
-                });
-                alert("Comment submitted and recorded in history.");
-            }
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments`, {
+                letter_id: selectedLetter.id,
+                user_id: user.id,
+                comment_body: newCommentText
+            });
+            alert("Comment submitted and recorded in history.");
 
-            // Refetch comment history
             await fetchComments(selectedLetter.id);
-
-            // Clear the input
-            setMarginalNote("");
+            setNewCommentText("");
         } catch (error) {
             console.error("Error saving comment:", error);
             alert("Failed to save Comment.");
@@ -200,7 +191,25 @@ export default function VIPView() {
 
     const handleEditComment = (comment) => {
         setEditingCommentId(comment.id);
-        setMarginalNote(comment.comment_body);
+        setEditingCommentBody(comment.comment_body || "");
+    };
+
+    const handleUpdateComment = async (commentId) => {
+        if (!editingCommentBody.trim()) return;
+        setIsSaving(true);
+        try {
+            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments/${commentId}`, {
+                comment_body: editingCommentBody
+            });
+            await fetchComments(selectedLetter.id);
+            setEditingCommentId(null);
+            setEditingCommentBody("");
+        } catch (error) {
+            console.error("Error updating comment:", error);
+            alert("Failed to update Comment.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleDeleteComment = async (commentId) => {
@@ -216,7 +225,7 @@ export default function VIPView() {
 
     const cancelEdit = () => {
         setEditingCommentId(null);
-        setMarginalNote("");
+        setEditingCommentBody("");
     };
 
     const textColor = 'text-slate-900 dark:text-white';
@@ -479,13 +488,14 @@ export default function VIPView() {
                                                             <textarea
                                                                 rows="3"
                                                                 className="w-full p-2 rounded-lg bg-gray-50 dark:bg-black/20 border border-blue-200 dark:border-blue-900/30 text-xs font-medium outline-none focus:ring-1 focus:ring-blue-500 transition-all resize-none text-slate-900 dark:text-slate-200"
-                                                                value={marginalNote}
-                                                                onChange={(e) => setMarginalNote(e.target.value)}
+                                                                value={editingCommentBody}
+                                                                onChange={(e) => setEditingCommentBody(e.target.value)}
                                                                 autoFocus
                                                             />
                                                             <div className="flex gap-2">
                                                                 <button
-                                                                    onClick={handleSendAction}
+                                                                    onClick={() => handleUpdateComment(comment.id)}
+                                                                    disabled={isSaving || !editingCommentBody.trim()}
                                                                     className="px-3 py-1 bg-blue-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest transition-all"
                                                                 >
                                                                     Save
@@ -512,24 +522,19 @@ export default function VIPView() {
                                 <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-[#222]">
                                     <div className="flex justify-between items-center">
                                         <label className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                                            {editingCommentId ? 'Edit Comment' : 'Add Comment'}
+                                            Add Comment
                                         </label>
-                                        {editingCommentId && (
-                                            <button onClick={cancelEdit} className="text-[9px] font-black text-red-500 uppercase tracking-widest hover:underline">
-                                                Cancel Edit
-                                            </button>
-                                        )}
                                     </div>
                                     <textarea
                                         rows="5"
                                         placeholder="Enter marginal notes here..."
                                         className="w-full p-4 rounded-xl bg-white dark:bg-[#111] border border-slate-200 dark:border-[#333] text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none text-slate-900 dark:text-slate-200"
-                                        value={marginalNote}
-                                        onChange={(e) => setMarginalNote(e.target.value)}
+                                        value={newCommentText}
+                                        onChange={(e) => setNewCommentText(e.target.value)}
                                     />
                                     <button
-                                        onClick={handleSendAction}
-                                        disabled={isSaving || !marginalNote.trim()}
+                                        onClick={handleAddComment}
+                                        disabled={isSaving || !newCommentText.trim()}
                                         className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[0.85rem] flex items-center justify-center gap-2 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
                                     >
                                         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

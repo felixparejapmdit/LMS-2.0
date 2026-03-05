@@ -207,6 +207,7 @@ export default function NewLetter() {
                 const formDataUpload = new FormData();
                 formDataUpload.append('file', fileToUpload);
                 formDataUpload.append('no_record', 'true');
+                formDataUpload.append('purpose', 'scanned_copy');
                 formDataUpload.append('description', `Scanned copy for ${formData.sender}`);
 
                 const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/upload`, formDataUpload, {

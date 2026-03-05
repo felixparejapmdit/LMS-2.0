@@ -1,136 +1,132 @@
-# 📄 LMS 2.0 — Letter Management System
+# LMS 2.0 - Letter Management System
 
-> **"The Silicon Backbone for Official Correspondence"**
->
-> A state-of-the-art, full-stack ecosystem designed to digitize, route, track, and archive official letters with precision and military-grade accountability.
+> "The Silicon Backbone for Official Correspondence"
 
----
-
-## 🚀 Project Overview
-
-LMS 2.0 is an advanced correspondence management platform built to replace traditional paper-based workflows. It provides a centralized, secure repository for all official letters, automating the routing process while providing real-time visibility through a comprehensive audit trail.
+LMS 2.0 is a full-stack correspondence platform for registering, routing, endorsing, tracking, and archiving official letters.
 
 ---
 
-## 🎯 Strategic Objectives
+## Project Overview
 
-- **Digital Transformation** — Move from physical filing to a high-speed, searchable digital archive.
-- **Workflow Automation** — Route tasks dynamically between departments (For Review ➔ For Signature ➔ For Action).
-- **Absolute Accountability** — Maintain a transparent "Universal Audit Trail" for every document interaction.
-- **Precision Filing (Trays)** — Map digital letters to physical storage locations (Trays) for hybrid management.
-- **Granular Security** — Enforce strict Role-Based Access Control (RBAC) via the project's internal Access Matrix.
+Core goals:
 
----
-
-## 🧬 Core DNA (Project Architecture)
-
-The system is built on a **Modular Object-Oriented Engine**, ensuring scalability and clean separation of concerns.
-
-### 1. The Workflow Engine
-The heart of LMS 2.0 is the **Process Step Matrix**. It dynamically routes correspondence based on:
-- **Sequential Triggers:** Automatic assignment progression (e.g., from Department 1 to Department 2).
-- **Dynamic Statuses:** Real-time visibility through statuses like `Pending`, `Endorsed`, `On Hold`, and `Filed`.
-
-### 2. The Universal Audit Trail (Logs)
-Every interaction is captured in the `letter_logs` system, providing a history of:
-- **Actions:** Created, Assigned, Endorsed, Commented, Completed.
-- **Participants:** Dedicated tracking of the user and department involved.
-- **Marginal Notes:** High-level executive instructions recorded alongside the document.
-
-### 3. The Access Matrix
-Centralized control over system permissions:
-- **Permission Guards:** UI elements (buttons, menus) are conditionally rendered based on user "DNA".
-- **Intelligent Routing:** Users are funneled to specific dashboards (Staff, VIP, or Guest) based on their role.
+- Digital transformation of paper-based workflows.
+- Workflow automation across departments and process steps.
+- Full auditability through logs and comments.
+- Hybrid physical and digital tracking through trays and attachments.
+- Role-based access control through the Access Matrix.
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 | Layer | Technology |
 |---|---|
-| **Frontend UI** | **React 18** (Vite) + **Tailwind CSS** |
-| **Icons & Visuals** | **Lucide React** (Premium Aesthetics) |
-| **Logic Server** | **Node.js** + **Express.js** (OOP Implementation) |
-| **ORM / Data** | **Sequelize** (Relational Data Mapping) |
-| **Identity / Auth** | **Directus** (Headless CMS Gateway) |
-| **Infrastructure** | **Docker** + **Docker Compose** |
-| **Database** | **SQLite** (Dev) / **MariaDB / PostgreSQL** (Prod) |
+| Frontend | React 18 (Vite), Tailwind CSS |
+| Backend | Node.js, Express.js |
+| ORM | Sequelize |
+| Auth/Identity | Directus |
+| Infrastructure | Docker, Docker Compose |
+| Database | SQLite (dev), MariaDB/PostgreSQL (prod-ready) |
 
 ---
 
-## 📊 Database Models
+## Database Models
 
-The schema is designed to support complex many-to-many relationships and historical tracking:
+The backend currently uses these Sequelize models and tables:
 
-- **`Letter`**: The core document entity (LMS ID, Entry ID, Sender, Summary).
-- **`LetterAssignment`**: Tracks active routing (Letter ➔ Department ➔ Step).
-- **`LetterLog`**: The immutable audit trail for all changes.
-- **`Endorsement`**: Specific assignments directed to individuals within a department.
-- **`Comment`**: Threaded discussion for collaborative document review.
-- **`Tray`**: Represents physical filing units for document archiving.
-- **`ProcessStep`**: Defines the workflow stages specific to each department.
-- **`Status`**: Global lifecycle states for the entire system.
+| Model | Collection/Table |
+|---|---|
+| `Letter` | `letters` |
+| `LetterAssignment` | `letter_assignments` |
+| `LetterLog` | `letter_logs` |
+| `Comment` | `comments` |
+| `Endorsement` | `endorsements` |
+| `LinkLetter` | `link_letters` |
+| `Tray` | `ref_trays` |
+| `Status` | `ref_statuses` |
+| `LetterKind` | `ref_letter_kinds` |
+| `ProcessStep` | `ref_process_steps` |
+| `Department` | `ref_departments` |
+| `Attachment` | `ref_attachments` |
+| `User` | `directus_users` |
+| `Role` | `directus_roles` |
+| `RolePermission` | `role_permissions` |
+| `SystemPage` | `system_pages` |
+| `Person` | `person` |
+
+### Collection Relationships
+
+- `letters` (`Letter`): belongs to `ref_letter_kinds` (`kind`), `ref_statuses` (`global_status`), `directus_users` (`encoder_id`), `ref_attachments` (`attachment_id`), `ref_trays` (`tray_id`); has many `letter_assignments`, `letter_logs`, `comments`, `endorsements`; has many `link_letters` through `main_letter_id`.
+- `letter_assignments` (`LetterAssignment`): belongs to `letters` (`letter_id`), `ref_departments` (`department_id`), `ref_process_steps` (`step_id`), `ref_statuses` (`status_id`), `directus_users` (`assigned_by`).
+- `letter_logs` (`LetterLog`): belongs to `letters` (`letter_id`) and `directus_users` (`user_id`).
+- `comments` (`Comment`): belongs to `letters` (`letter_id`) and `directus_users` (`user_id`).
+- `endorsements` (`Endorsement`): belongs to `letters` (`letter_id`) and `directus_users` (`endorsed_by`).
+- `link_letters` (`LinkLetter`): belongs to `letters` twice: `main_letter_id` (`mainLetter`) and `attached_letter_id` (`attachedLetter`).
+- `ref_trays` (`Tray`): belongs to `ref_departments` (`dept_id`); has many `letters`.
+- `ref_process_steps` (`ProcessStep`): belongs to `ref_departments` (`dept_id`); has many `letter_assignments`.
+- `ref_statuses` (`Status`): belongs to `ref_departments` (`dept_id`).
+- `ref_letter_kinds` (`LetterKind`): belongs to `ref_departments` (`dept_id`).
+- `ref_departments` (`Department`): has many `directus_users` (`dept_id`) and is referenced by `letter_assignments`.
+- `directus_users` (`User`): belongs to `ref_departments` (`dept_id`) and `directus_roles` (`role`); referenced by `letters`, `letter_assignments`, `letter_logs`, `comments`, `endorsements`.
+- `directus_roles` (`Role`): has many `role_permissions`.
+- `role_permissions` (`RolePermission`): belongs to `directus_roles` (`role_id`); stores per-page permissions (`can_view`, `can_create`, `can_edit`, `can_delete`, `can_special`, `field_permissions`).
+- `system_pages` (`SystemPage`): catalog of permissionable page keys used by Access Matrix.
+- `ref_attachments` (`Attachment`): referenced by `letters.attachment_id`; stores physical/reference attachment metadata.
+- `person` (`Person`): currently standalone at ORM level; used as sender/endorsement name directory.
 
 ---
 
-## ⚡ Deployment & Setup
+## Deployment and Setup
 
 ### Prerequisites
-- **Node.js** v18+
-- **Docker Desktop** (must be running)
-- **Git**
+
+- Node.js v18+
+- Docker Desktop
+- Git
 
 ### Installation Steps
 
-1. **Clone the Hub**
-   ```bash
-   git clone https://github.com/felixparejapmdit/LMS-2.0.git
-   cd LMS-2.0
-   ```
+1. Clone repository:
+```bash
+git clone https://github.com/felixparejapmdit/LMS-2.0.git
+cd LMS-2.0
+```
 
-2. **Sync Dependencies**
-   From the root folder, install all required modules:
-   ```bash
-   npm run install-all
-   ```
+2. Install dependencies:
+```bash
+npm run install-all
+```
 
-3. **Initialize Infrastructure**
-   Start the Directus engine and database services:
-   ```bash
-   docker compose up -d
-   ```
+3. Start infrastructure:
+```bash
+docker compose up -d
+```
 
-4. **Ignite the Engines**
-   Start both the Backend API and Frontend App:
-   ```bash
-   npm run dev
-   ```
-
----
-
-## 📁 System Blueprint
-
-```text
-LMS 2.0/
-├── backend/                    # The Logic Engine
-│   ├── src/
-│   │   ├── controllers/        # Request handlers (OOP)
-│   │   ├── models/             # Database Schemas & Associations
-│   │   ├── routes/             # REST Endpoints
-│   │   └── config/             # DB & Environment Logic
-├── react-frontend/             # The User Experience
-│   ├── src/
-│   │   ├── components/         # Atomic UI Components
-│   │   ├── pages/              # Domain-specific Views
-│   │   ├── services/           # API Communication Layers
-│   │   └── context/            # Auth & Theme Storage
-├── directus/                   # Identity Gateway
-└── docker-compose.yml          # Container Orchestration
+4. Start frontend and backend:
+```bash
+npm run dev
 ```
 
 ---
 
-## 📌 Project Status
-> 🟢 **Ready for Action** | Core Engine: Stable | UI: Premium Polished.
+## Project Structure
 
-*Developed with ❤️ by Felix Pareja · PMD-ITT Projects · 2026*
+```text
+LMS 2.0/
+|-- backend/
+|   |-- src/
+|   |   |-- controllers/
+|   |   |-- models/
+|   |   |-- routes/
+|   |   `-- config/
+|-- react-frontend/
+|   |-- src/
+|   |   |-- components/
+|   |   |-- pages/
+|   |   |-- services/
+|   |   `-- context/
+|-- directus/
+`-- docker-compose.yml
+```
+

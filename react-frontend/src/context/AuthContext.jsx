@@ -14,6 +14,7 @@ const getBackendUrl = () => {
 };
 
 const BACKEND_URL = getBackendUrl();
+const normalizeLayoutStyle = (style) => (style === "minimalist" ? "minimalist" : "minimalist");
 
 const AuthContext = createContext();
 
@@ -22,7 +23,7 @@ export const AuthProvider = ({ children }) => {
     const [isGuest, setIsGuest] = useState(localStorage.getItem("isGuest") === "true");
     const [loading, setLoading] = useState(true);
     const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
-    const [layoutStyle, setLayoutStyle] = useState(localStorage.getItem("layoutStyle") || "notion"); // 'notion', 'grid', 'minimalist'
+    const [layoutStyle, setLayoutStyle] = useState(normalizeLayoutStyle(localStorage.getItem("layoutStyle") || "minimalist"));
     const [fontFamily, setFontFamily] = useState(localStorage.getItem("fontFamily") || "Outfit"); // Inter, Public Sans, Geist, Plus Jakarta Sans, Outfit
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(localStorage.getItem("isSidebarExpanded") !== "false");
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -40,20 +41,18 @@ export const AuthProvider = ({ children }) => {
     };
 
     const hasPermission = (pageId, action = 'can_view') => {
-        // Super Admin Bypass
-        const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-        const isAdmin = roleName === 'ADMIN' ||
-            roleName === 'SUPER ADMIN' ||
-            roleName === 'SUPERADMIN' ||
-            roleName === 'ADMINISTRATOR' ||
-            roleName === 'DEVELOPER';
+        if (isGuest) {
+            return pageId === 'guest-send-letter';
+        }
 
-        if (isAdmin || user?.email === 'felixpareja07@gmail.com') return true;
+        // Deny-by-default once authenticated if no permission records are present.
+        if (!permissions || permissions.length === 0) return false;
 
-        // If permissions haven't loaded yet or no records exist at all, allow by default (initial setup phase)
-        if (!permissions || permissions.length === 0) return true;
-
-        const perm = permissions.find(p => p.page_name === pageId);
+        const normalizePageId = (value = "") => value.toString().toLowerCase().replace(/[^a-z0-9]/g, "");
+        const perm = permissions.find(p =>
+            p.page_name === pageId ||
+            normalizePageId(p.page_name) === normalizePageId(pageId)
+        );
         // If we have permissions records but NONE for this specific page, deny by default (secure)
         if (!perm) return false;
         return !!perm[action];
@@ -69,7 +68,12 @@ export const AuthProvider = ({ children }) => {
     }, [theme]);
 
     useEffect(() => {
-        localStorage.setItem("layoutStyle", layoutStyle);
+        const normalized = normalizeLayoutStyle(layoutStyle);
+        if (normalized !== layoutStyle) {
+            setLayoutStyle(normalized);
+            return;
+        }
+        localStorage.setItem("layoutStyle", normalized);
     }, [layoutStyle]);
 
     useEffect(() => {
@@ -94,10 +98,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     const toggleLayoutStyle = async (style) => {
-        setLayoutStyle(style);
+        const normalized = normalizeLayoutStyle(style);
+        setLayoutStyle(normalized);
         if (user?.id && !isGuest) {
             try {
-                await axios.put(`${BACKEND_URL}/users/${user.id}`, { layout_style: style });
+                await axios.put(`${BACKEND_URL}/users/${user.id}`, { layout_style: normalized });
             } catch (err) {
                 console.error("Failed to sync layout to backend", err);
             }
@@ -154,7 +159,7 @@ export const AuthProvider = ({ children }) => {
             const updatedMe = { ...me, islogin: true };
 
             setUser(updatedMe);
-            if (me.layout_style) setLayoutStyle(me.layout_style);
+            if (me.layout_style) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
             if (me.theme_preference) setTheme(me.theme_preference);
             if (me.font_family) setFontFamily(me.font_family);
             return { success: true, user: updatedMe };
@@ -223,7 +228,7 @@ export const AuthProvider = ({ children }) => {
             }
 
             setUser(me);
-            if (me.layout_style) setLayoutStyle(me.layout_style);
+            if (me.layout_style) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
             if (me.theme_preference) setTheme(me.theme_preference);
             if (me.font_family) setFontFamily(me.font_family);
         } catch (error) {
@@ -248,7 +253,9 @@ export const AuthProvider = ({ children }) => {
             try {
                 const response = await axios.get(`${BACKEND_URL}/users/${user.id}`);
                 const me = response.data;
-                if (me.layout_style && me.layout_style !== layoutStyle) setLayoutStyle(me.layout_style);
+                if (me.layout_style && normalizeLayoutStyle(me.layout_style) !== layoutStyle) {
+                    setLayoutStyle(normalizeLayoutStyle(me.layout_style));
+                }
                 if (me.theme_preference && me.theme_preference !== theme) setTheme(me.theme_preference);
                 if (me.font_family && me.font_family !== fontFamily) setFontFamily(me.font_family);
             } catch (error) {

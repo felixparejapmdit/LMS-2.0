@@ -1,7 +1,16 @@
 const { Letter, LetterKind, LetterAssignment } = require('../models/associations');
 const Endorsement = require('../models/Endorsement');
-const sequelize = require('../config/db');
 const { Op } = require('sequelize');
+const ALL_LETTER_ROLES = new Set([
+    'ADMIN',
+    'ADMINISTRATOR',
+    'SUPERUSER',
+    'SUPER USER',
+    'SYSTEM ADMIN',
+    'SYSTEMADMIN',
+    'SUPER ADMIN',
+    'SUPERADMIN'
+]);
 
 // CREATE the table if it doesn't exist
 (async () => {
@@ -12,40 +21,57 @@ const { Op } = require('sequelize');
     }
 })();
 
+const buildQueryOptions = (query = {}) => {
+    const { user_id, department_id, role, mine, full_name } = query;
+    const where = {};
+    const letterWhere = {};
+
+    const normalizedRole = role ? role.toString().toUpperCase() : '';
+    const mineOnly = `${mine}`.toLowerCase() === 'true';
+    const normalizedFullName = (full_name || '').trim();
+
+    if (mineOnly) {
+        where.endorsed_to = { [Op.like]: normalizedFullName || '__NO_MATCH__' };
+    }
+
+    // USER sees endorsements specifically addressed to them only.
+    if (normalizedRole === 'USER') {
+        where.endorsed_to = { [Op.like]: normalizedFullName || '__NO_MATCH__' };
+    } else if (!ALL_LETTER_ROLES.has(normalizedRole)) {
+        // For non-admin roles (except USER), keep visibility scoped to own/dept.
+        if (user_id) {
+            letterWhere[Op.or] = [
+                { encoder_id: user_id },
+                { '$assignments.department_id$': department_id }
+            ];
+        }
+    }
+
+    const include = [
+        {
+            model: Letter,
+            as: 'letter',
+            where: Object.keys(letterWhere).length > 0 ? letterWhere : null,
+            attributes: ['id', 'lms_id', 'sender', 'summary', 'encoder_id'],
+            include: [
+                { model: LetterKind, as: 'letterKind', attributes: ['kind_name'] },
+                { model: LetterAssignment, as: 'assignments', attributes: ['department_id'], required: false }
+            ]
+        }
+    ];
+
+    return { where, include };
+};
+
 class EndorsementController {
     // GET all endorsements (with letter info)
     static async getAll(req, res) {
         try {
-            const { user_id, department_id, role } = req.query;
-            const where = {};
-            const letterWhere = {};
-
-            const normalizedRole = role ? role.toString().toUpperCase() : '';
-
-            // Role-based filtering for USER role
-            if (normalizedRole === 'USER' && user_id) {
-                letterWhere[Op.or] = [
-                    { encoder_id: user_id },
-                    { '$assignments.department_id$': department_id }
-                ];
-            }
-
-            const enrichInclude = [
-                {
-                    model: Letter,
-                    as: 'letter',
-                    where: Object.keys(letterWhere).length > 0 ? letterWhere : null,
-                    attributes: ['id', 'lms_id', 'sender', 'summary', 'encoder_id'],
-                    include: [
-                        { model: LetterKind, as: 'letterKind', attributes: ['kind_name'] },
-                        { model: LetterAssignment, as: 'assignments', attributes: ['department_id'], required: false }
-                    ]
-                }
-            ];
+            const { where, include } = buildQueryOptions(req.query);
 
             const endorsements = await Endorsement.findAll({
                 where,
-                include: enrichInclude,
+                include,
                 order: [['endorsed_at', 'DESC']]
             });
 
@@ -85,7 +111,13 @@ class EndorsementController {
     // COUNT (for notification badge)
     static async count(req, res) {
         try {
-            const count = await Endorsement.count();
+            const { where, include } = buildQueryOptions(req.query);
+            const count = await Endorsement.count({
+                where,
+                include,
+                distinct: true,
+                col: 'id'
+            });
             res.json({ count });
         } catch (error) {
             res.status(500).json({ error: error.message });

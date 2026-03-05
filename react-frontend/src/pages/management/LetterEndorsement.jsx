@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
 import axios from "axios";
@@ -22,6 +22,7 @@ import {
 
 export default function LetterEndorsement() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
     const [endorsements, setEndorsements] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -34,12 +35,16 @@ export default function LetterEndorsement() {
         try {
             const roleName = user?.roleData?.name || user?.role || '';
             const deptId = user?.dept_id?.id || user?.dept_id || '';
+            const mineOnly = searchParams.get('mine') === '1';
+            const fullName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
 
             const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements`, {
                 params: {
                     user_id: user.id,
                     department_id: deptId,
-                    role: roleName
+                    role: roleName,
+                    mine: mineOnly ? 'true' : 'false',
+                    full_name: fullName
                 }
             });
             setEndorsements(Array.isArray(res.data) ? res.data : []);
@@ -52,7 +57,7 @@ export default function LetterEndorsement() {
 
     useEffect(() => {
         fetchEndorsements();
-    }, []);
+    }, [user?.id, searchParams.toString()]);
 
     const handleDelete = async (id) => {
         if (!window.confirm("Remove this endorsement record?")) return;

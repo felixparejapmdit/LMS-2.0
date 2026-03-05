@@ -11,17 +11,8 @@ import { useAuth } from "../context/AuthContext";
  * if (canField('users', 'salary_field')) { ... }
  */
 export const useAccess = () => {
-    const { user, permissions } = useAuth();
-
-    // Check if user is an Administrator (Super Admin bypass)
-    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    const isSuperAdmin =
-        roleName === 'ADMIN' ||
-        roleName === 'SUPER ADMIN' ||
-        roleName === 'SUPERADMIN' ||
-        roleName === 'ADMINISTRATOR' ||
-        roleName === 'DEVELOPER' ||
-        user?.email === 'felixpareja07@gmail.com';
+    const { permissions } = useAuth();
+    const normalizePageId = (value = "") => value.toString().toLowerCase().replace(/[^a-z0-9]/g, "");
 
     /**
      * Check if the user has a specific action permission for a page
@@ -29,10 +20,12 @@ export const useAccess = () => {
      * @param {string} action - The action type (can_view, can_create, can_edit, can_delete, can_special)
      */
     const can = (pageName, action = 'can_view') => {
-        if (isSuperAdmin) return true;
         if (!permissions || permissions.length === 0) return false;
 
-        const perm = permissions.find(p => p.page_name === pageName);
+        const perm = permissions.find(p =>
+            p.page_name === pageName ||
+            normalizePageId(p.page_name) === normalizePageId(pageName)
+        );
         if (!perm) return false;
 
         return !!perm[action];
@@ -44,10 +37,12 @@ export const useAccess = () => {
      * @param {string} fieldId - The unique ID of the field/component
      */
     const canField = (pageName, fieldId) => {
-        if (isSuperAdmin) return true;
         if (!permissions || permissions.length === 0) return false;
 
-        const perm = permissions.find(p => p.page_name === pageName);
+        const perm = permissions.find(p =>
+            p.page_name === pageName ||
+            normalizePageId(p.page_name) === normalizePageId(pageName)
+        );
         if (!perm || !perm.field_permissions) return true; // Default to TRUE if no field restrictions exist
 
         // If explicitly restricted (set to false)
@@ -59,8 +54,8 @@ export const useAccess = () => {
     return {
         can,
         canField,
-        isSuperAdmin,
-        role: roleName
+        isSuperAdmin: false,
+        role: null
     };
 };
 

@@ -100,8 +100,11 @@ export default function LetterTracker() {
     };
 
     const handleViewPDF = (letter) => {
-        const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
-        const url = `${baseUrl}${letter.scanned_copy}`;
+        if (!letter.scanned_copy && !letter.attachment_id) return;
+        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const url = letter.scanned_copy
+            ? `${apiBase}/attachments/view-path?path=${btoa(letter.scanned_copy)}`
+            : `${apiBase}/attachments/view/${letter.attachment_id}`;
         window.open(url, '_blank');
     };
 
@@ -194,7 +197,7 @@ export default function LetterTracker() {
                                                     <button onClick={() => handleTrackOpen(letter)} className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all transform hover:scale-110 mx-auto border border-indigo-100 dark:border-indigo-900/20 shadow-sm"><Activity className="w-4 h-4" /></button>
                                                 </td>
                                                 <td className="p-5 text-center px-0">
-                                                    {letter.scanned_copy ? (
+                                                    {(letter.scanned_copy || letter.attachment_id) ? (
                                                         <button onClick={() => handleViewPDF(letter)} className="p-2.5 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all transform hover:scale-110 mx-auto border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-4 h-4" /></button>
                                                     ) : <span className="text-gray-200">-</span>}
                                                 </td>

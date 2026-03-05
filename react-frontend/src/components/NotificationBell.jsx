@@ -14,7 +14,18 @@ export default function NotificationBell() {
         if (!user) return;
         const fetchCount = async () => {
             try {
-                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements/count`);
+                const roleName = user?.roleData?.name || user?.role || '';
+                const deptId = user?.dept_id?.id || user?.dept_id || '';
+                const fullName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
+                const isUserRole = roleName.toString().toUpperCase() === 'USER';
+                const params = new URLSearchParams({
+                    user_id: user.id || '',
+                    department_id: deptId || '',
+                    role: roleName || '',
+                    full_name: fullName,
+                    ...(isUserRole ? { mine: 'true' } : {})
+                });
+                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements/count?${params.toString()}`);
                 const data = await res.json();
                 setCount(data.count || 0);
             } catch { }
@@ -33,7 +44,11 @@ export default function NotificationBell() {
     return (
         <div className="fixed top-24 right-6 z-[99999] pointer-events-none sticky-notification">
             <button
-                onClick={() => navigate('/endorsements')}
+                onClick={() => {
+                    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
+                    const isUserRole = roleName === 'USER';
+                    navigate(isUserRole ? '/endorsements?mine=1' : '/endorsements');
+                }}
                 className="pointer-events-auto flex items-center justify-center p-3.5 bg-white dark:bg-[#111] border-2 border-orange-500 shadow-[0_0_25px_-5px_rgba(249,115,22,0.5)] rounded-2xl transition-all hover:scale-110 active:scale-95 group text-gray-500 hover:text-orange-500 hover:border-orange-600 focus:outline-none"
                 title="Letter Endorsements"
             >

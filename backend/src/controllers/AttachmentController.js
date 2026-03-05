@@ -23,7 +23,7 @@ class AttachmentController {
         try {
             if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-            const { combine_with, existing_path, no_record } = req.body;
+            const { combine_with, existing_path, no_record, purpose } = req.body;
             let finalFilePath = req.file.path;
             let finalFileName = req.file.originalname;
 
@@ -81,7 +81,14 @@ class AttachmentController {
                 }
             }
 
-            if (no_record === 'true') {
+            const noRecordFlag = typeof no_record === 'string' ? no_record.toLowerCase() : no_record;
+            const shouldSkipRecord =
+                noRecordFlag === true ||
+                noRecordFlag === 'true' ||
+                noRecordFlag === '1' ||
+                purpose === 'scanned_copy';
+
+            if (shouldSkipRecord) {
                 return res.json({
                     file_name: finalFileName,
                     file_path: finalFilePath
