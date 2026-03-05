@@ -157,16 +157,16 @@ class StatsController {
                 // Others must be Pending
                 if (a.status === 'Pending') {
                     if (stepName === reviewName) {
-                        if (!hasTray && letterStatus === 'Incoming') counts.review++;
+                        if (!hasTray && letterStatus !== 'Filed' && letterStatus !== 'Done') counts.review++;
                     } else if (stepName === signatureName) {
-                        if (!hasTray && letterStatus === 'Incoming') counts.signature++;
+                        if (!hasTray && letterStatus !== 'Filed' && letterStatus !== 'Done') counts.signature++;
                     } else if (stepName.includes('VEM') || hasVem) {
                         counts.vem++;
                     }
                 }
 
-                // ATG Note: Assigned Tray and the status is not "Filed"
-                if (hasTray && letterStatus !== 'Filed') {
+                // ATG Note: Assigned Tray strictly > 0 and not "Filed"/"Done"
+                if (letterStatus !== 'Filed' && letterStatus !== 'Done' && hasTray) {
                     counts.atg_note++;
                 }
             });      // Removed old pending count logic from assignments loop

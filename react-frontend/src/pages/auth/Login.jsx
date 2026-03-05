@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, Loader2, MailQuestion, User, ShieldCheck, ArrowRight } from "lucide-react";
+import { Mail, Lock, Loader2, MailQuestion, User, FileStack, ArrowRight } from "lucide-react";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -50,7 +50,7 @@ export default function Login() {
           {/* Brand Header */}
           <div className="flex flex-col items-center text-center space-y-4">
             <div className={`inline-flex p-3 ${accentColor} rounded-2xl shadow-2xl shadow-blue-500/20 transform -rotate-3 hover:rotate-0 transition-transform duration-500`}>
-              <ShieldCheck className="text-white w-8 h-8" />
+              <FileStack className="text-white w-8 h-8" />
             </div>
             <div>
               <h1 className={`text-4xl font-black tracking-tighter uppercase ${textColor}`}>

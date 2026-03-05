@@ -1,16 +1,6 @@
-const sequelize = require('./src/config/db');
+const sqlite3 = require('sqlite3');
+const db = new sqlite3.Database('../directus/database/data.db');
 
-async function checkAssignments() {
-    try {
-        const [results] = await sequelize.query("SELECT id, letter_id, step_id, status FROM letter_assignments");
-        console.log('--- ASSIGNMENTS ---');
-        results.forEach(row => console.log(JSON.stringify(row)));
-
-    } catch (error) {
-        console.error('Error:', error);
-    } finally {
-        process.exit();
-    }
-}
-
-checkAssignments();
+db.all('SELECT * FROM letter_assignments', [], (err, rows) => {
+    console.log(JSON.stringify(rows, null, 2));
+});

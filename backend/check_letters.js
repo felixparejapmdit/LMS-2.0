@@ -1,16 +1,6 @@
-const sequelize = require('./src/config/db');
+const sqlite3 = require('sqlite3');
+const db = new sqlite3.Database('../directus/database/data.db');
 
-async function checkLetters() {
-    try {
-        const [results] = await sequelize.query("SELECT id, lms_id, tray_id, global_status FROM letters");
-        console.log('--- LETTERS ---');
-        results.forEach(row => console.log(JSON.stringify(row)));
-
-    } catch (error) {
-        console.error('Error:', error);
-    } finally {
-        process.exit();
-    }
-}
-
-checkLetters();
+db.all('SELECT id, global_status, tray_id FROM letters WHERE id IN (24, 25, 27)', [], (err, rows) => {
+    console.log(JSON.stringify(rows, null, 2));
+});

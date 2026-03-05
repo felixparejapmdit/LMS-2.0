@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
     const [isGuest, setIsGuest] = useState(localStorage.getItem("isGuest") === "true");
     const [loading, setLoading] = useState(true);
     const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
-    const [layoutStyle, setLayoutStyle] = useState(localStorage.getItem("layoutStyle") || "notion"); // 'notion', 'grid'
+    const [layoutStyle, setLayoutStyle] = useState(localStorage.getItem("layoutStyle") || "notion"); // 'notion', 'grid', 'minimalist'
     const [fontFamily, setFontFamily] = useState(localStorage.getItem("fontFamily") || "Outfit"); // Inter, Public Sans, Geist, Plus Jakarta Sans, Outfit
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(localStorage.getItem("isSidebarExpanded") !== "false");
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

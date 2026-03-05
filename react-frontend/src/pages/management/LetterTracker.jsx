@@ -83,9 +83,18 @@ export default function LetterTracker() {
         );
     });
 
-    const handleTrackOpen = (letter) => {
-        setSelectedLetter(letter);
-        setIsTrackDrawerOpen(true);
+    const handleTrackOpen = async (letter) => {
+        try {
+            // Fetch full letter with logs when opening track
+            const fullLetter = await letterService.getById(letter.id);
+            setSelectedLetter(fullLetter);
+            setIsTrackDrawerOpen(true);
+        } catch (error) {
+            console.error("Failed to fetch full tracking details:", error);
+            // Fallback to what we have if fetch fails
+            setSelectedLetter(letter);
+            setIsTrackDrawerOpen(true);
+        }
     };
 
     const handleViewPDF = (letter) => {
@@ -163,7 +172,7 @@ export default function LetterTracker() {
                                                 <td className="p-5 whitespace-nowrap">
                                                     <div className="flex flex-col">
                                                         <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{new Date(letter.date_received).toLocaleDateString()}</span>
-                                                        <span className="text-[10px] text-orange-500 font-black">{new Date(letter.date_received).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                        <span className="text-[10px] text-orange-500 font-black">{new Date(letter.date_received).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                                                     </div>
                                                 </td>
                                                 <td className="p-5 text-xs font-black text-slate-700 dark:text-slate-200 uppercase truncate max-w-[150px]">
@@ -222,21 +231,25 @@ export default function LetterTracker() {
                                         <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Entry Registration</p>
                                         <h4 className={`text-sm font-bold mt-1 ${textColor}`}>Letter Registered by {selectedLetter.encoder?.first_name || 'Guest'}</h4>
                                         <p className="text-xs text-gray-500 mt-2 line-clamp-3">{selectedLetter.summary}</p>
-                                        <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{new Date(selectedLetter.date_received).toLocaleString()}</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{new Date(selectedLetter.date_received).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short', hour12: true })}</p>
                                     </div>
                                 </div>
 
-                                {/* Dynamic Logs */}
-                                {selectedLetter.logs?.map((log, i) => (
-                                    <div key={i} className="relative">
-                                        <div className="absolute -left-9 w-6 h-6 rounded-full bg-indigo-500 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
-                                        <div>
-                                            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Update</p>
-                                            <h4 className={`text-sm font-bold mt-1 ${textColor}`}>{log.action_taken}</h4>
-                                            <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{new Date(log.created_at).toLocaleString()}</p>
+                                {selectedLetter.logs?.map((log, i) => {
+                                    const isEndorsement = log.action_type === 'Endorsed';
+                                    return (
+                                        <div key={i} className="relative">
+                                            <div className={`absolute -left-9 w-6 h-6 rounded-full border-4 border-white dark:border-[#141414] shadow-sm z-10 ${isEndorsement ? 'bg-orange-500' : 'bg-indigo-500'}`} />
+                                            <div>
+                                                <p className={`text-[10px] font-black uppercase tracking-widest ${isEndorsement ? 'text-orange-500' : 'text-indigo-500'}`}>
+                                                    {isEndorsement ? 'Endorsement' : log.action_type || 'Update'}
+                                                </p>
+                                                <h4 className={`text-sm font-bold mt-1 ${isEndorsement ? 'text-orange-500' : textColor}`}>{log.log_details || log.action_taken}</h4>
+                                                <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{new Date(log.timestamp || log.log_date).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short', hour12: true })}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
 
                                 {/* Final Status */}
                                 <div className="relative pt-4">

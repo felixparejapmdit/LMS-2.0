@@ -1,6 +1,7 @@
-const { Letter, LetterKind } = require('../models/associations');
+const { Letter, LetterKind, LetterAssignment } = require('../models/associations');
 const Endorsement = require('../models/Endorsement');
 const sequelize = require('../config/db');
+const { Op } = require('sequelize');
 
 // CREATE the table if it doesn't exist
 (async () => {
@@ -15,21 +16,42 @@ class EndorsementController {
     // GET all endorsements (with letter info)
     static async getAll(req, res) {
         try {
+            const { user_id, department_id, role } = req.query;
+            const where = {};
+            const letterWhere = {};
+
+            const normalizedRole = role ? role.toString().toUpperCase() : '';
+
+            // Role-based filtering for USER role
+            if (normalizedRole === 'USER' && user_id) {
+                letterWhere[Op.or] = [
+                    { encoder_id: user_id },
+                    { '$assignments.department_id$': department_id }
+                ];
+            }
+
+            const enrichInclude = [
+                {
+                    model: Letter,
+                    as: 'letter',
+                    where: Object.keys(letterWhere).length > 0 ? letterWhere : null,
+                    attributes: ['id', 'lms_id', 'sender', 'summary', 'encoder_id'],
+                    include: [
+                        { model: LetterKind, as: 'letterKind', attributes: ['kind_name'] },
+                        { model: LetterAssignment, as: 'assignments', attributes: ['department_id'], required: false }
+                    ]
+                }
+            ];
+
             const endorsements = await Endorsement.findAll({
+                where,
+                include: enrichInclude,
                 order: [['endorsed_at', 'DESC']]
             });
 
-            // Enrich with letter data
-            const enriched = await Promise.all(endorsements.map(async (e) => {
-                const letter = await Letter.findByPk(e.letter_id, {
-                    attributes: ['id', 'lms_id', 'sender', 'summary'],
-                    include: [{ model: LetterKind, as: 'letterKind', attributes: ['kind_name'] }]
-                });
-                return { ...e.dataValues, letter: letter?.dataValues || null };
-            }));
-
-            res.json(enriched);
+            res.json(endorsements);
         } catch (error) {
+            console.error('Endorsement.getAll error:', error);
             res.status(500).json({ error: error.message });
         }
     }

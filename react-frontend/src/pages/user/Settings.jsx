@@ -34,10 +34,10 @@ export default function Settings() {
         avatar: user?.avatar || null
     });
 
-    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
-    const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
-    const textColor = layoutStyle === 'notion' ? 'text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white';
-    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F9FAFB] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
+    const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-gray-900 dark:text-white';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
 
     const handleFileUpload = async (file) => {
         if (!file || !file.type.startsWith('image/')) return;
@@ -124,6 +124,20 @@ export default function Settings() {
                                             {layoutStyle === 'grid' && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
                                         </div>
                                         <p className="text-[9px] text-gray-500 uppercase font-black">Standard Grid</p>
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            toggleLayoutStyle('minimalist');
+                                            changeFontFamily('Inter');
+                                        }}
+                                        className={`p-4 rounded-xl border-2 transition-all text-left ${layoutStyle === 'minimalist' ? 'border-emerald-500 bg-emerald-50/50' : 'border-gray-100 dark:border-[#333] hover:border-gray-200'}`}
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className={`text-xs font-bold uppercase tracking-widest ${textColor}`}>Minimalist</span>
+                                            {layoutStyle === 'minimalist' && <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>}
+                                        </div>
+                                        <p className="text-[9px] text-gray-500 uppercase font-black">Professional White</p>
                                     </button>
                                 </div>
 

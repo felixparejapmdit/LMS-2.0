@@ -463,7 +463,7 @@ export default function VIPView() {
                                                 <div key={comment.id} className="p-3.5 rounded-xl bg-white dark:bg-[#1A1A1A] border border-slate-100 dark:border-[#333] shadow-sm space-y-2 group/comment">
                                                     <div className="flex justify-between items-center">
                                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                                                            {new Date(comment.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                                            {new Date(comment.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short', hour12: true })}
                                                         </span>
                                                         <div className="opacity-0 group-hover/comment:opacity-100 flex items-center gap-1 transition-opacity">
                                                             <button onClick={() => handleEditComment(comment)} className="p-1 text-slate-400 hover:text-blue-500 rounded transition-colors" title="Edit">
@@ -474,9 +474,35 @@ export default function VIPView() {
                                                             </button>
                                                         </div>
                                                     </div>
-                                                    <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-snug whitespace-pre-wrap">
-                                                        {comment.comment_body}
-                                                    </p>
+                                                    {editingCommentId === comment.id ? (
+                                                        <div className="space-y-2">
+                                                            <textarea
+                                                                rows="3"
+                                                                className="w-full p-2 rounded-lg bg-gray-50 dark:bg-black/20 border border-blue-200 dark:border-blue-900/30 text-xs font-medium outline-none focus:ring-1 focus:ring-blue-500 transition-all resize-none text-slate-900 dark:text-slate-200"
+                                                                value={marginalNote}
+                                                                onChange={(e) => setMarginalNote(e.target.value)}
+                                                                autoFocus
+                                                            />
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={handleSendAction}
+                                                                    className="px-3 py-1 bg-blue-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest transition-all"
+                                                                >
+                                                                    Save
+                                                                </button>
+                                                                <button
+                                                                    onClick={cancelEdit}
+                                                                    className="px-3 py-1 bg-slate-100 dark:bg-white/5 text-slate-500 rounded-md text-[9px] font-black uppercase tracking-widest transition-all"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-snug whitespace-pre-wrap">
+                                                            {comment.comment_body}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             ))
                                         )}

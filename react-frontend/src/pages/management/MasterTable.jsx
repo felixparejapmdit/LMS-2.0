@@ -45,8 +45,8 @@ export default function MasterTable() {
     const navigate = useNavigate();
 
     // Theme Variables (derived locally)
-    const textColor = 'text-slate-900 dark:text-white';
-    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
     const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
 
     const [letters, setLetters] = useState([]);
@@ -344,9 +344,16 @@ export default function MasterTable() {
         }
     };
 
-    const handleTrackOpen = (letter) => {
-        setTrackingLetter(letter);
-        setIsTrackDrawerOpen(true);
+    const handleTrackOpen = async (letter) => {
+        try {
+            const fullLetter = await letterService.getById(letter.id);
+            setTrackingLetter(fullLetter);
+            setIsTrackDrawerOpen(true);
+        } catch (error) {
+            console.error("Failed to fetch logs", error);
+            setTrackingLetter(letter);
+            setIsTrackDrawerOpen(true);
+        }
     };
 
     const handleViewPDF = (letter) => {
@@ -390,11 +397,11 @@ export default function MasterTable() {
             <Sidebar />
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
                 {/* Header */}
-                <header className={`h-16 ${'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]'} border-b px-4 md:px-8 flex items-center justify-between z-10`}>
+                <header className={`h-16 ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]'} border-b px-4 md:px-8 flex items-center justify-between z-10`}>
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-400 md:hidden transition-colors"><Menu className="w-5 h-5" /></button>
                         <div className="flex items-center gap-2">
-                            <TableIcon className="w-4 h-4 text-orange-500" />
+                            <TableIcon className={`w-4 h-4 ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-orange-500'}`} />
                             <h1 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Master / Correspondence Table</h1>
                         </div>
                     </div>
@@ -427,7 +434,7 @@ export default function MasterTable() {
                                     placeholder="Find letters, senders, summaries..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
+                                    className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-white/5 border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
                                 />
                             </div>
                         </div>
@@ -468,7 +475,7 @@ export default function MasterTable() {
                         )}
 
                         {/* Table Container */}
-                        <div className={`rounded-[2.5rem] border overflow-hidden shadow-sm ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
+                        <div className={`rounded-[2.5rem] border overflow-hidden shadow-sm ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-black/20 border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
                             <div className="overflow-x-auto custom-scrollbar">
                                 <table className="w-full text-left border-collapse min-w-[1200px]">
                                     <thead>
@@ -540,7 +547,7 @@ export default function MasterTable() {
                                                 <td className="p-5 whitespace-nowrap text-[10px] font-bold text-gray-500 dark:text-gray-400">
                                                     <div className="flex flex-col">
                                                         <span>{new Date(letter.date_received || letter.createdAt).toLocaleDateString()}</span>
-                                                        <span className="text-orange-500">{new Date(letter.date_received || letter.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                        <span className="text-orange-500">{new Date(letter.date_received || letter.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                                                     </div>
                                                 </td>
                                                 <td className="p-5 text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">
@@ -674,7 +681,7 @@ export default function MasterTable() {
                                         </div>
                                         <div className="text-right">
                                             <p className={`text-xs font-black text-orange-500 uppercase`}>
-                                                {new Date(selectedLetter.date_received).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                                                {new Date(selectedLetter.date_received).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true })}
                                             </p>
                                         </div>
                                     </div>
@@ -1051,6 +1058,34 @@ export default function MasterTable() {
                                                 </div>
                                             );
                                         })}
+                                    </div>
+                                )}
+
+                                {/* NEW: Audit Logs Section */}
+                                {trackingLetter?.logs && trackingLetter.logs.length > 0 && (
+                                    <div className="pt-8 border-t border-gray-100 dark:border-[#222]">
+                                        <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-6 flex items-center gap-2">
+                                            <Activity className="w-3 h-3" /> Audit Logs & Activity
+                                        </h3>
+                                        <div className="space-y-6">
+                                            {trackingLetter.logs.map((log, i) => (
+                                                <div key={i} className="relative pl-6 border-l-2 border-slate-100 dark:border-white/5 pb-2">
+                                                    <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-indigo-500" />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                                            {log.action_type || 'Update'}
+                                                        </span>
+                                                        <p className={`text-xs font-bold mt-1 ${textColor}`}>
+                                                            {log.log_details || log.action_taken}
+                                                        </p>
+                                                        <p className="text-[9px] font-medium text-gray-400 mt-1">
+                                                            {new Date(log.timestamp || log.log_date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short', hour12: true })}
+                                                            {log.user && ` • ${log.user.first_name}`}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>

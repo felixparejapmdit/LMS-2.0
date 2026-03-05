@@ -33,7 +33,7 @@ import processStepService from "../../services/processStepService";
 import letterService from "../../services/letterService";
 import trayService from "../../services/trayService";
 
-export default function Dashboard({ view = "inbox" }) {
+export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
   const navigate = useNavigate();
   const [assignments, setAssignments] = useState([]);
@@ -61,6 +61,8 @@ export default function Dashboard({ view = "inbox" }) {
     setLoading(true);
     setAssignments([]); // Clear stale data before fetching new tab content
     try {
+      const deptId = forcedDeptId ?? (user?.dept_id?.id ?? user?.dept_id ?? null);
+      const roleName = user?.roleData?.role_name || user?.role || '';
       const fullName = `${user?.first_name} ${user?.last_name}`.trim();
       let url = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments?department_id=${deptId}&user_id=${user?.id}&role=${roleName}&full_name=${encodeURIComponent(fullName)}`;
 
@@ -83,7 +85,7 @@ export default function Dashboard({ view = "inbox" }) {
 
   const fetchInboxStats = async () => {
     try {
-      const deptId = user?.dept_id?.id ?? user?.dept_id ?? null;
+      const deptId = forcedDeptId ?? (user?.dept_id?.id ?? user?.dept_id ?? null);
       const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/stats/inbox?department_id=${deptId}`);
       setInboxStats(res.data);
     } catch (error) {
@@ -93,7 +95,7 @@ export default function Dashboard({ view = "inbox" }) {
 
   const fetchSteps = async () => {
     try {
-      const deptId = user?.dept_id?.id ?? user?.dept_id ?? null;
+      const deptId = forcedDeptId ?? (user?.dept_id?.id ?? user?.dept_id ?? null);
       const data = await processStepService.getAll(deptId);
       setSteps(data);
     } catch (error) {
@@ -103,7 +105,7 @@ export default function Dashboard({ view = "inbox" }) {
 
   const fetchTrays = async () => {
     try {
-      const deptId = user?.dept_id?.id ?? user?.dept_id ?? null;
+      const deptId = forcedDeptId ?? (user?.dept_id?.id ?? user?.dept_id ?? null);
       const data = await trayService.getAllTrays(deptId);
       setTrays(data);
     } catch (error) {
@@ -210,6 +212,143 @@ export default function Dashboard({ view = "inbox" }) {
       </div>
     );
   };
+
+  if (layoutStyle === 'minimalist') {
+    return (
+      <div className="min-h-screen bg-[#F9FAFB] dark:bg-[#0D0D0D] flex overflow-hidden font-sans">
+        <Sidebar />
+        <main className="flex-1 flex flex-col h-screen overflow-hidden">
+          {/* Minimalist Header */}
+          <header className="h-20 bg-white dark:bg-[#0D0D0D] border-b border-[#E5E5E5] dark:border-[#222] px-8 flex items-center justify-between z-20">
+            <div className="flex items-center gap-6">
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="p-2 -ml-2 text-gray-400 md:hidden transition-colors"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <div className="flex flex-col">
+                <h1 className="text-xl font-bold text-[#1A1A1B] dark:text-white tracking-tight">
+                  {view === 'inbox' ? 'Department Inbox' : view === 'outbox' ? 'Outbox' : view}
+                </h1>
+                <p className="text-[10px] text-[#737373] uppercase tracking-[0.2em] font-medium">LMS Workspace</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-6">
+              {view === 'inbox' && (
+                <div className="flex items-center gap-1 border border-[#E5E5E5] dark:border-[#222] p-1 rounded-lg bg-gray-50/50 dark:bg-white/5 no-scrollbar overflow-x-auto max-w-[400px]">
+                  {[
+                    { id: 'review', label: 'For Review', count: inboxStats.review },
+                    { id: 'atg_note', label: 'For ATG Note', count: inboxStats.atg_note },
+                    { id: 'signature', label: 'For Signature', count: inboxStats.signature },
+                    { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
+                    { id: 'pending', label: 'Pending', count: inboxStats.pending },
+                    { id: 'hold', label: 'On Hold', count: inboxStats.hold }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveStepTab(tab.id)}
+                      className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === tab.id ? 'bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B]' : 'text-[#737373] hover:text-[#1A1A1B] dark:hover:text-white'}`}
+                    >
+                      {tab.label}
+                      <span className={`px-1.5 py-0.5 rounded-md text-[8px] ${activeStepTab === tab.id ? 'bg-white/10 text-white' : 'bg-gray-100 dark:bg-white/10 text-gray-400'}`}>
+                        {tab.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => fetchAssignments(true)}
+                className="p-2 text-[#737373] hover:text-[#1A1A1B] dark:hover:text-white transition-colors"
+                title="Sync Data"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto px-8 py-10 custom-scrollbar">
+            <div className="max-w-6xl">
+              <div className="mb-10 flex items-end justify-between">
+                <div>
+                  <h2 className="text-3xl font-bold text-[#1A1A1B] dark:text-white tracking-tight mb-2">{activeTabLabel}</h2>
+                  <p className="text-sm text-[#737373]">Viewing {assignments.length} assignments currently on hold or in progress.</p>
+                </div>
+
+                {view === 'inbox' && activeStepTab === 'atg_note' && (
+                  <div className="flex items-center gap-1 p-1 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-lg shadow-sm">
+                    <button
+                      onClick={() => setSelectedTray(null)}
+                      className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all ${!selectedTray ? 'bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B]' : 'text-[#737373] hover:text-[#1A1A1B]'}`}
+                    >
+                      All
+                    </button>
+                    {trays.map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => setSelectedTray(t.id)}
+                        className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all ${selectedTray === t.id ? 'bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B]' : 'text-[#737373] hover:text-[#1A1A1B]'}`}
+                      >
+                        {t.tray_no}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {loading ? (
+                <div className="py-32 flex flex-col items-center justify-center border border-[#E5E5E5] dark:border-[#222] bg-white dark:bg-[#141414] rounded-2xl">
+                  <Loader2 className="w-8 h-8 text-[#1A1A1B] dark:text-white animate-spin mb-4" />
+                  <span className="text-xs font-bold text-[#737373] uppercase tracking-widest">Fetching Content...</span>
+                </div>
+              ) : filteredAssignments.length === 0 ? (
+                <div className="py-32 flex flex-col items-center justify-center border border-dashed border-[#E5E5E5] dark:border-[#222] bg-white dark:bg-[#141414] rounded-2xl">
+                  <Inbox className="w-10 h-10 text-[#E5E5E5] mb-4" />
+                  <span className="text-xs font-bold text-[#A3A3A3] uppercase tracking-widest">Inbox Zero</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredAssignments.map((assignment) => (
+                    assignment.letter && (
+                      <div key={assignment.id} className="relative group">
+                        <LetterCard
+                          id={assignment.id}
+                          letterId={assignment.letter.id}
+                          atgId={assignment.letter.lms_id}
+                          sender={assignment.letter.sender}
+                          summary={assignment.letter.summary}
+                          status={assignment.status}
+                          step={assignment.step?.step_name}
+                          dueDate={assignment.due_date || assignment.letter.date_received}
+                          attachment={assignment.letter.attachment}
+                          tray={assignment.letter.tray}
+                          layout="minimalist"
+                          actions={renderTrayActions(assignment)}
+                        />
+                        {view === 'inbox' && (
+                          <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => { e.preventDefault(); handleStepAction(assignment.id, 'Signature'); }}
+                              className="w-8 h-8 bg-black dark:bg-white text-white dark:text-black rounded-lg flex items-center justify-center shadow-lg transition-transform hover:scale-110"
+                              title="Approve"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (layoutStyle === 'grid') {
     return (

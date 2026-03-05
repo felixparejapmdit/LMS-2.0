@@ -35,7 +35,9 @@ import {
   MessageSquare,
   ShieldCheck,
   CloudDownload,
-  UserCircle
+  UserCircle,
+  LayoutDashboard,
+  Users
 } from "lucide-react";
 import { directusUrl } from "../hooks/useDirectus";
 
@@ -102,16 +104,16 @@ export default function Sidebar() {
       path: "#",
       children: [
         { icon: Settings, label: "Access Matrix", path: "/setup/role-matrix" },
-        { icon: Settings, label: "App Settings", path: "/settings" },
-        { icon: Settings, label: "Attachments", path: "/setup/attachments" },
-        { icon: Settings, label: "Contacts", path: "/setup/persons" },
-        { icon: Settings, label: "Data Import", path: "/setup/data-import" },
-        { icon: Settings, label: "Departments", path: "/setup/departments" },
-        { icon: Settings, label: "Kinds", path: "/setup/letter-kinds" },
-        { icon: Settings, label: "Statuses", path: "/setup/statuses" },
-        { icon: Settings, label: "Steps", path: "/setup/process-steps" },
-        { icon: Settings, label: "Trays", path: "/setup/trays" },
-        { icon: Settings, label: "Users", path: "/setup/users" },
+        { icon: LayoutDashboard, label: "App Settings", path: "/settings" },
+        { icon: Paperclip, label: "Attachments", path: "/setup/attachments" },
+        { icon: UserIcon, label: "Contacts", path: "/setup/persons" },
+        { icon: CloudDownload, label: "Data Import", path: "/setup/data-import" },
+        { icon: Building2, label: "Departments", path: "/setup/departments" },
+        { icon: Tags, label: "Kinds", path: "/setup/letter-kinds" },
+        { icon: Activity, label: "Statuses", path: "/setup/statuses" },
+        { icon: GitMerge, label: "Steps", path: "/setup/process-steps" },
+        { icon: Box, label: "Trays", path: "/setup/trays" },
+        { icon: Users, label: "Users", path: "/setup/users" },
       ]
     },
     ...(isSuperAdmin ? [
@@ -425,6 +427,103 @@ export default function Sidebar() {
       );
     }
 
+    // Minimalist Professional (Clean, Airy, High-Contrast)
+    if (layoutStyle === 'minimalist') {
+      return (
+        <>
+          <div className="h-20 flex items-center px-6 border-b border-[#E5E5E5] dark:border-[#222] shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-[#1A1A1B] dark:bg-white rounded-lg flex items-center justify-center text-white dark:text-[#1A1A1B] shadow-sm">
+                <FileText className="w-4 h-4" />
+              </div>
+              {(isSidebarExpanded || isMobileMenuOpen) && (
+                <span className="text-sm font-bold text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em]">LMS 2.0</span>
+              )}
+            </div>
+          </div>
+
+          <nav className="flex-1 px-4 py-8 space-y-1 overflow-y-auto no-scrollbar">
+            {filteredNavItems.map((item) => (
+              <div key={item.label} className="flex flex-col">
+                <NavLink
+                  to={item.path}
+                  onClick={(e) => {
+                    if (item.children) {
+                      e.preventDefault();
+                      toggleSubmenu(item.label);
+                    }
+                  }}
+                  className={({ isActive }) => `
+                    flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200
+                    ${isActive && !item.children && item.path !== "#"
+                      ? "bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B] font-medium"
+                      : "text-[#737373] hover:text-[#1A1A1B] dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5"}
+                    ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
+                  `}
+                >
+                  <item.icon className={`w-4 h-4 shrink-0 transition-colors`} />
+                  {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-sm">{item.label}</span>}
+                  {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
+                    <ChevronRight className={`w-3 h-3 ml-auto transition-transform ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
+                  )}
+                </NavLink>
+
+                {item.children && expandedMenus[item.label] && (isSidebarExpanded || isMobileMenuOpen) && (
+                  <div className="ml-6 border-l border-[#E5E5E5] dark:border-[#222] mt-1 space-y-1">
+                    {item.children.map(child => (
+                      <NavLink
+                        key={child.path}
+                        to={child.path}
+                        className={({ isActive }) => `
+                          flex items-center gap-3 px-4 py-1.5 text-xs transition-colors
+                          ${isActive ? "text-[#1A1A1B] dark:text-white font-bold" : "text-[#A3A3A3] hover:text-[#1A1A1B] dark:hover:text-white"}
+                        `}
+                      >
+                        <child.icon className="w-3.5 h-3.5 shrink-0" />
+                        <span>{child.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </nav>
+
+          <div className="p-4 border-t border-[#E5E5E5] dark:border-[#222] space-y-2">
+            <button
+              onClick={toggleTheme}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-[#737373] hover:text-[#1A1A1B] dark:hover:text-white transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}`}
+            >
+              {theme === 'light' ? <Moon className="w-4 h-4 shrink-0" /> : <Sun className="w-4 h-4 shrink-0" />}
+              {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-sm font-medium">{theme === 'light' ? 'Dark' : 'Light'}</span>}
+            </button>
+
+            <div className={`flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-white/5 border border-[#E5E5E5] dark:border-[#222] ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
+              <button
+                onClick={() => navigate('/profile')}
+                className="flex-1 flex items-center gap-3 min-w-0"
+              >
+                <div className="w-8 h-8 rounded bg-[#F1F1F1] dark:bg-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                  {user?.avatar ? (
+                    <img src={`${directusUrl}/assets/${user.avatar}`} className="w-full h-full object-cover" alt="" />
+                  ) : <UserCircle className="w-4 h-4 text-[#A3A3A3]" />}
+                </div>
+                {(isSidebarExpanded || isMobileMenuOpen) && (
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className="text-xs font-bold text-[#1A1A1B] dark:text-white truncate leading-tight">{user?.first_name}</span>
+                    <span className="text-[10px] text-[#A3A3A3] truncate">Account</span>
+                  </div>
+                )}
+              </button>
+              <button onClick={handleLogout} className="p-2 text-[#A3A3A3] hover:text-red-500 transition-colors">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </>
+      );
+    }
+
     // Default (Modern)
     return (
       <>
@@ -574,6 +673,7 @@ export default function Sidebar() {
   const getSidebarBg = () => {
     switch (layoutStyle) {
       case 'notion': return "bg-[#FBFBFA] dark:bg-[#141414] border-gray-100 dark:border-[#222]";
+      case 'minimalist': return "bg-[#F7F7F7] dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]";
       default: return "bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]";
     }
   };

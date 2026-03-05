@@ -46,28 +46,28 @@ class LetterAssignmentController {
                 const incId = incomingStatus?.id || 1;
 
                 if (named_filter === 'review') {
-                    // For Review: Incoming Status (global_status), For Review(No tray assigned)
+                    // For Review: Not Done/Filed, For Review(No tray assigned)
                     const step = await ProcessStep.findByPk(2);
                     where[Op.and] = [
-                        { '$letter.global_status$': incId },
+                        { '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] } },
                         { '$step.step_name$': step?.step_name || 'For Review' },
                         { '$letter.tray_id$': { [Op.or]: [null, 0] } }
                     ];
                 } else if (named_filter === 'signature') {
-                    // For Signature: Incoming Status (global_status), For Signature(No tray assigned)
+                    // For Signature: Not Done/Filed, For Signature(No tray assigned)
                     const step = await ProcessStep.findByPk(1);
                     where[Op.and] = [
-                        { '$letter.global_status$': incId },
+                        { '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] } },
                         { '$step.step_name$': step?.step_name || 'For Signature' },
                         { '$letter.tray_id$': { [Op.or]: [null, 0] } }
                     ];
                 } else if (named_filter === 'atg_note') {
-                    // FOR ATG NOTE: Any Status(except Filed), Tray assigned
+                    // FOR ATG NOTE: Any Status(except Filed/Done), Tray strictly > 0
                     where['$letter.tray_id$'] = { [Op.gt]: 0 };
                     if (!where[Op.and]) where[Op.and] = [];
                     where[Op.and].push({
                         [Op.or]: [
-                            { '$letter.status.status_name$': { [Op.ne]: 'Filed' } },
+                            { '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] } },
                             { '$letter.status.status_name$': null }
                         ]
                     });
@@ -138,7 +138,8 @@ class LetterAssignmentController {
                         { '$letter.status.status_name$': 'ATG Note' }
                     ]
                 });
-            } else if (req.query.exclude_vip === 'true') {
+            } else if (req.query.exclude_vip === 'true' && named_filter !== 'atg_note') {
+                // Only exclude VIPs from general tabs, allow in ATG Note if specifically requested there
                 if (!where[Op.not]) where[Op.not] = {};
                 where[Op.not] = {
                     [Op.and]: [

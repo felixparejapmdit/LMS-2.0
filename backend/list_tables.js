@@ -1,12 +1,7 @@
-const db = require('./src/config/db.js');
-async function listTables() {
-    try {
-        const [results] = await db.query("SELECT name FROM sqlite_master WHERE type='table'");
-        console.log(results.map(r => r.name));
-    } catch (err) {
-        console.error(err);
-    } finally {
-        process.exit(0);
-    }
-}
-listTables();
+const sqlite3 = require('sqlite3');
+const db = new sqlite3.Database('../directus/database/data.db');
+
+db.all("SELECT name FROM sqlite_master WHERE type='table'", [], (err, rows) => {
+    if (err) console.error(err);
+    else console.log(JSON.stringify(rows.map(r => r.name), null, 2));
+});

@@ -1,39 +1,46 @@
-# LMS 2.0 — Letter Management System
+# 📄 LMS 2.0 — Letter Management System
 
-> A full-stack correspondence management platform for digitizing, routing, tracking, and archiving official letters across departments.
+> **"The Silicon Backbone for Official Correspondence"**
+>
+> A state-of-the-art, full-stack ecosystem designed to digitize, route, track, and archive official letters with precision and military-grade accountability.
 
 ---
 
 ## 🚀 Project Overview
 
-LMS 2.0 is an internal correspondence management system designed to replace paper-based letter handling with a fully digital workflow. It supports multi-role access, letter routing, department-level inbox management, and real-time tracking.
+LMS 2.0 is an advanced correspondence management platform built to replace traditional paper-based workflows. It provides a centralized, secure repository for all official letters, automating the routing process while providing real-time visibility through a comprehensive audit trail.
 
 ---
 
-## 🎯 Project Objectives
+## 🎯 Strategic Objectives
 
-- **Centralized Repository** — Single source of truth for all official correspondence
-- **Workflow Automation** — Digital routing of letter tasks across departments
-- **Accountability & Tracking** — Real-time visibility of letter location, owner, and duration
-- **Data Integrity** — Protection of files and metadata from accidental loss
-- **Role-Based Access Control** — Granular permissions per role, per page, per action
+- **Digital Transformation** — Move from physical filing to a high-speed, searchable digital archive.
+- **Workflow Automation** — Route tasks dynamically between departments (For Review ➔ For Signature ➔ For Action).
+- **Absolute Accountability** — Maintain a transparent "Universal Audit Trail" for every document interaction.
+- **Precision Filing (Trays)** — Map digital letters to physical storage locations (Trays) for hybrid management.
+- **Granular Security** — Enforce strict Role-Based Access Control (RBAC) via the project's internal Access Matrix.
 
 ---
 
-## ✨ Key Features
+## 🧬 Core DNA (Project Architecture)
 
-| Feature | Description |
-|---|---|
-| 📥 Unified Inbox | Per-user inbox filtered by department |
-| 🔀 Routing Engine | Flexible routing by department and process step |
-| 📄 Document Management | PDF/Image upload, preview, and tracking |
-| 🧾 Audit Trail | Live action history for every letter |
-| 🗃️ Tray Management | Physical filing location reference |
-| 🔔 Endorsement Hub | Notification-driven letter endorsement system |
-| 👁️ VIP View | Special dashboard for designated VIP roles |
-| 🔐 Access Matrix | Admin-controlled RBAC with per-page, per-action permissions |
-| 📊 Analytics Dashboard | Real-time stats on active, done, and ATG-flagged letters |
-| 📬 Letter Tracker | Public tracking page for external senders |
+The system is built on a **Modular Object-Oriented Engine**, ensuring scalability and clean separation of concerns.
+
+### 1. The Workflow Engine
+The heart of LMS 2.0 is the **Process Step Matrix**. It dynamically routes correspondence based on:
+- **Sequential Triggers:** Automatic assignment progression (e.g., from Department 1 to Department 2).
+- **Dynamic Statuses:** Real-time visibility through statuses like `Pending`, `Endorsed`, `On Hold`, and `Filed`.
+
+### 2. The Universal Audit Trail (Logs)
+Every interaction is captured in the `letter_logs` system, providing a history of:
+- **Actions:** Created, Assigned, Endorsed, Commented, Completed.
+- **Participants:** Dedicated tracking of the user and department involved.
+- **Marginal Notes:** High-level executive instructions recorded alongside the document.
+
+### 3. The Access Matrix
+Centralized control over system permissions:
+- **Permission Guards:** UI elements (buttons, menus) are conditionally rendered based on user "DNA".
+- **Intelligent Routing:** Users are funneled to specific dashboards (Staff, VIP, or Guest) based on their role.
 
 ---
 
@@ -41,128 +48,89 @@ LMS 2.0 is an internal correspondence management system designed to replace pape
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | React 18 + Vite + Tailwind CSS |
-| **UI Components** | Lucide React (icons), custom component library |
-| **Backend API** | Node.js + Express.js |
-| **ORM** | Sequelize (SQLite in dev) |
-| **CMS / Auth Core** | Directus (Headless CMS) |
-| **Database** | SQLite (local) / MariaDB / PostgreSQL (production) |
-| **Containerization** | Docker + Docker Compose |
+| **Frontend UI** | **React 18** (Vite) + **Tailwind CSS** |
+| **Icons & Visuals** | **Lucide React** (Premium Aesthetics) |
+| **Logic Server** | **Node.js** + **Express.js** (OOP Implementation) |
+| **ORM / Data** | **Sequelize** (Relational Data Mapping) |
+| **Identity / Auth** | **Directus** (Headless CMS Gateway) |
+| **Infrastructure** | **Docker** + **Docker Compose** |
+| **Database** | **SQLite** (Dev) / **MariaDB / PostgreSQL** (Prod) |
 
 ---
 
-## 📁 Folder Structure
+## 📊 Database Models
 
-```text
-LMS 2.0/
-├── backend/                    # Express API server
-│   ├── src/
-│   │   ├── config/             # Database connection (Sequelize)
-│   │   ├── controllers/        # Request handlers (OOP style)
-│   │   ├── models/             # Sequelize models & associations
-│   │   └── routes/             # API route definitions
-│   └── package.json
-├── react-frontend/             # Vite + React SPA
-│   ├── src/
-│   │   ├── components/         # Reusable UI components (Sidebar, LetterCard…)
-│   │   ├── context/            # AuthContext (RBAC, theme, layout)
-│   │   ├── hooks/              # Directus SDK hook
-│   │   ├── pages/              # Page components by section
-│   │   │   ├── auth/           # Login page
-│   │   │   ├── dashboard/      # Home, Dashboard, VIPView, Spam
-│   │   │   ├── guest/          # Public letter tracker & send form
-│   │   │   ├── management/     # MasterTable, Letters, Endorsements, RBAC…
-│   │   │   ├── setup/          # SetupWizard
-│   │   │   └── user/           # Settings page
-│   │   └── services/           # Axios API service modules
-│   └── package.json
-├── directus/                   # Directus volumes, config, schema
-├── docker-compose.yml          # Full infrastructure definition
-├── package.json                # Root scripts (install-all, dev)
-└── README.md
-```
+The schema is designed to support complex many-to-many relationships and historical tracking:
+
+- **`Letter`**: The core document entity (LMS ID, Entry ID, Sender, Summary).
+- **`LetterAssignment`**: Tracks active routing (Letter ➔ Department ➔ Step).
+- **`LetterLog`**: The immutable audit trail for all changes.
+- **`Endorsement`**: Specific assignments directed to individuals within a department.
+- **`Comment`**: Threaded discussion for collaborative document review.
+- **`Tray`**: Represents physical filing units for document archiving.
+- **`ProcessStep`**: Defines the workflow stages specific to each department.
+- **`Status`**: Global lifecycle states for the entire system.
 
 ---
 
-## ⚡ Getting Started
+## ⚡ Deployment & Setup
 
 ### Prerequisites
 - **Node.js** v18+
 - **Docker Desktop** (must be running)
 - **Git**
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/felixparejapmdit/LMS-2.0.git
-cd "LMS-2.0"
-```
+### Installation Steps
 
-### 2. Install All Dependencies
-From the root folder, install both backend and frontend dependencies:
-```bash
-npm run install-all
-```
+1. **Clone the Hub**
+   ```bash
+   git clone https://github.com/felixparejapmdit/LMS-2.0.git
+   cd LMS-2.0
+   ```
 
-### 3. Start Docker Services (Database + Directus)
-```bash
-docker compose up -d
-```
+2. **Sync Dependencies**
+   From the root folder, install all required modules:
+   ```bash
+   npm run install-all
+   ```
 
-### 4. Start Backend & Frontend (Dev Mode)
-```bash
-npm run dev
-```
+3. **Initialize Infrastructure**
+   Start the Directus engine and database services:
+   ```bash
+   docker compose up -d
+   ```
 
----
-
-## 🌐 Accessing the Application
-
-| Service | URL |
-|---|---|
-| **Frontend App** | http://localhost:5173 |
-| **Backend API** | http://localhost:5000 |
-| **Directus Admin** | http://localhost:8055 |
-| **API Health Check** | http://localhost:5000/health |
+4. **Ignite the Engines**
+   Start both the Backend API and Frontend App:
+   ```bash
+   npm run dev
+   ```
 
 ---
 
-## 👤 Default Credentials
+## 📁 System Blueprint
 
-> ⚠️ Change these immediately in a production environment.
-
-**Directus Admin:**
-- Email: `admin@example.com`
-- Password: `password`
-
----
-
-## 🔐 Role System
-
-| Role | Access Level |
-|---|---|
-| **Admin / Super Admin** | Full access — bypasses all permission checks |
-| **Developer** | Full access + Developer DNA menu |
-| **VIP** | Dedicated VIP View dashboard |
-| **User** | Letter Tracker & Send Letter only |
-| **Standard Staff** | Department inbox, master table, based on Access Matrix |
-
----
-
-## 🔄 Common Git Workflow
-
-```bash
-# After making changes:
-git add .
-git commit -m "describe your change"
-git push
+```text
+LMS 2.0/
+├── backend/                    # The Logic Engine
+│   ├── src/
+│   │   ├── controllers/        # Request handlers (OOP)
+│   │   ├── models/             # Database Schemas & Associations
+│   │   ├── routes/             # REST Endpoints
+│   │   └── config/             # DB & Environment Logic
+├── react-frontend/             # The User Experience
+│   ├── src/
+│   │   ├── components/         # Atomic UI Components
+│   │   ├── pages/              # Domain-specific Views
+│   │   ├── services/           # API Communication Layers
+│   │   └── context/            # Auth & Theme Storage
+├── directus/                   # Identity Gateway
+└── docker-compose.yml          # Container Orchestration
 ```
 
 ---
 
 ## 📌 Project Status
+> 🟢 **Ready for Action** | Core Engine: Stable | UI: Premium Polished.
 
-> 🟢 **Active Development** — Core features complete, refinements ongoing.
-
----
-
-*Developed by Felix Pareja · PMD-ITT Projects · 2026*
+*Developed with ❤️ by Felix Pareja · PMD-ITT Projects · 2026*

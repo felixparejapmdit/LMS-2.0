@@ -15,16 +15,35 @@ const LetterLog = sequelize.define('LetterLog', {
         type: DataTypes.UUID,
         allowNull: true
     },
-    action_taken: {
+    action_type: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: false,
+        defaultValue: 'System'
     },
-    log_date: {
+    department_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    log_details: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+        defaultValue: 'Legacy record'
+    },
+    timestamp: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
     },
+    action_taken: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    log_date: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
     metadata: {
-        type: DataTypes.JSON
+        type: DataTypes.JSON,
+        allowNull: true
     }
 }, {
     tableName: 'letter_logs',

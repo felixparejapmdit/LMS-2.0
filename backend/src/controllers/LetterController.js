@@ -214,8 +214,10 @@ class LetterController {
             const stepName = (targetStepId) ? (await ProcessStep.findByPk(targetStepId, { transaction }))?.step_name || 'Workflow Step' : 'initial step';
             await LetterLog.create({
                 letter_id: letter.id,
-                user_id: encoder_id,
-                action_taken: `Letter created and initially assigned to ${stepName}.`
+                user_id: encoder_id || null,
+                action_type: 'Created',
+                department_id: assigned_dept || null,
+                log_details: `Letter created and initially assigned to ${stepName}.`
             }, { transaction });
 
             await transaction.commit();

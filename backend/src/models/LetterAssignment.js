@@ -48,7 +48,88 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
     }
 }, {
     tableName: 'letter_assignments',
-    timestamps: false
+    timestamps: false,
+    hooks: {
+        afterCreate: async (assignment, options) => {
+            const LetterLog = sequelize.models.LetterLog;
+            const Department = sequelize.models.Department;
+            const ProcessStep = sequelize.models.ProcessStep;
+
+            if (!LetterLog || !Department || !ProcessStep) return;
+
+            let deptName = 'Unknown Department';
+            let stepName = 'Unknown Step';
+
+            if (assignment.department_id) {
+                const dept = await Department.findByPk(assignment.department_id, { transaction: options.transaction });
+                if (dept) deptName = dept.dept_name;
+            }
+            if (assignment.step_id) {
+                const step = await ProcessStep.findByPk(assignment.step_id, { transaction: options.transaction });
+                if (step) stepName = step.step_name;
+            }
+
+            try {
+                await LetterLog.create({
+                    letter_id: assignment.letter_id,
+                    user_id: assignment.assigned_by || null,
+                    action_type: 'Assigned',
+                    department_id: assignment.department_id,
+                    log_details: `Letter assigned to ${deptName} (Step: ${stepName}).`
+                }, { transaction: options.transaction });
+            } catch (err) {
+                console.error("Hook afterCreate LetterLog error:", err);
+            }
+        },
+        afterUpdate: async (assignment, options) => {
+            const LetterLog = sequelize.models.LetterLog;
+            const Department = sequelize.models.Department;
+            const ProcessStep = sequelize.models.ProcessStep;
+
+            if (!LetterLog || !Department || !ProcessStep) return;
+
+            // Log if assignment logic parameters strictly change
+            if (assignment.changed('status') || assignment.changed('status_id') || assignment.changed('endorsed') || assignment.changed('department_id') || assignment.changed('step_id')) {
+                let deptName = 'Unknown Department';
+                let stepName = 'Unknown Step';
+
+                if (assignment.department_id) {
+                    const dept = await Department.findByPk(assignment.department_id, { transaction: options.transaction });
+                    if (dept) deptName = dept.dept_name;
+                }
+                if (assignment.step_id) {
+                    const step = await ProcessStep.findByPk(assignment.step_id, { transaction: options.transaction });
+                    if (step) stepName = step.step_name;
+                }
+
+                let actionType = 'Assigned';
+                let logDetails = `Letter assignment parameter updated in ${deptName} (Step: ${stepName}).`;
+
+                if (assignment.changed('endorsed') && assignment.endorsed === 'Yes') {
+                    actionType = 'Endorsed';
+                    logDetails = `Letter effectively endorsed by ${deptName} (Step: ${stepName}).`;
+                } else if (assignment.changed('status') && assignment.status === 'Done') {
+                    actionType = 'Completed';
+                    logDetails = `Step ${stepName} completed by ${deptName}.`;
+                } else if (assignment.changed('department_id') || assignment.changed('step_id')) {
+                    actionType = 'Assigned';
+                    logDetails = `Letter routed to ${deptName} (Step: ${stepName}).`;
+                }
+
+                try {
+                    await LetterLog.create({
+                        letter_id: assignment.letter_id,
+                        user_id: assignment.assigned_by || null,
+                        action_type: actionType,
+                        department_id: assignment.department_id,
+                        log_details: logDetails
+                    }, { transaction: options.transaction });
+                } catch (err) {
+                    console.error("Hook afterUpdate LetterLog error:", err);
+                }
+            }
+        }
+    }
 });
 
 module.exports = LetterAssignment;

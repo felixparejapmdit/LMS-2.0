@@ -69,11 +69,18 @@ app.use((req, res, next) => {
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
-    console.error('SERVER ERROR:', err.stack);
+    // Only log full stack trace if LOG_LEVEL is implicitly debug
+    if (process.env.LOG_LEVEL === 'debug') {
+        console.error('SERVER ERROR [DEBUG]:', err.stack);
+    } else {
+        console.error(`SERVER ERROR: ${err.message} at ${req.method} ${req.url}`);
+    }
+
+    // Always yield a clean, sanitized standard structure to the frontend.
     res.status(500).json({
         error: 'System Error',
-        message: err.message,
-        path: req.path
+        message: 'Something went wrong, but don\'t worry—we\'re on it.',
+        details: process.env.LOG_LEVEL === 'debug' ? err.message : undefined
     });
 });
 

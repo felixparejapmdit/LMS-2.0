@@ -20,14 +20,15 @@ import {
   Tag,
   History,
   Send,
-  Menu
+  Menu,
+  Star
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 export default function LetterDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+  const { user, layoutStyle, setIsMobileMenuOpen, isSidebarExpanded } = useAuth();
   const [letter, setLetter] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -236,6 +237,145 @@ export default function LetterDetail() {
   }
 
 
+  if (layoutStyle === 'minimalist') {
+    return (
+      <div className="min-h-screen bg-[#F9FAFB] dark:bg-[#0D0D0D] flex overflow-hidden font-sans">
+        <Sidebar />
+        <main className="flex-1 flex flex-col h-screen overflow-hidden">
+          {/* Header */}
+          <header className="h-20 bg-white dark:bg-[#0D0D0D] border-b border-[#E5E5E5] dark:border-[#222] px-8 flex items-center justify-between z-20">
+            <div className="flex items-center gap-6">
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="p-2 -ml-2 text-gray-400 md:hidden transition-colors"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => navigate(-1)}
+                className="p-2 text-gray-400 hover:text-[#1A1A1B] dark:hover:text-white transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="flex flex-col">
+                <h1 className="text-xl font-bold text-[#1A1A1B] dark:text-white tracking-tight">
+                  {letter.lms_id}
+                </h1>
+                <p className="text-[10px] text-[#737373] uppercase tracking-[0.2em] font-medium">Correspondence Details</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleMarkAsDone}
+                disabled={actionLoading}
+                className="px-6 py-2 bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B] text-xs font-bold rounded-lg transition-all hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+              >
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                MARK AS COMPLETE
+              </button>
+            </div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto px-8 py-10 custom-scrollbar">
+            <div className="max-w-5xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                <div className="lg:col-span-2 space-y-10">
+                  <section>
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="w-12 h-12 bg-gray-50 dark:bg-white/5 rounded-2xl flex items-center justify-center text-gray-400">
+                        <UserIcon className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h2 className="text-sm font-bold text-[#737373] uppercase tracking-widest">Sender / Entity</h2>
+                        <p className="text-2xl font-bold text-[#1A1A1B] dark:text-white tracking-tight">{letter.sender}</p>
+                      </div>
+                    </div>
+
+                    <div className="p-8 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-3xl shadow-sm">
+                      <h3 className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-[0.2em] mb-4">Letter Summary</h3>
+                      <div className="prose dark:prose-invert max-w-none text-[#1A1A1B] dark:text-gray-300 leading-relaxed font-sans text-lg"
+                        dangerouslySetInnerHTML={{ __html: letter.summary }} />
+                    </div>
+                  </section>
+
+                  <section className="space-y-6">
+                    <h3 className="text-sm font-bold text-[#1A1A1B] dark:text-white uppercase tracking-widest flex items-center gap-2">
+                      <History className="w-4 h-4" /> Activity Log
+                    </h3>
+                    <div className="space-y-4">
+                      {letter.assignments?.map((a, idx) => (
+                        <div key={idx} className="p-4 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-2xl flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-2 h-2 rounded-full ${a.status === 'Done' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                            <div>
+                              <p className="text-xs font-bold text-[#1A1A1B] dark:text-white uppercase">{a.step?.step_name || 'Processing'}</p>
+                              <p className="text-[10px] text-[#737373]">{a.department?.dept_name}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] font-bold text-[#A3A3A3] uppercase">
+                              {a.completed_at ? new Date(a.completed_at).toLocaleDateString() : 'In Progress'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+
+                <div className="space-y-8">
+                  <section className="p-6 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-3xl shadow-sm">
+                    <h3 className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-6">Metadata</h3>
+                    <div className="space-y-6">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] text-[#A3A3A3] font-bold uppercase tracking-tighter">Current Status</span>
+                        <span className="text-xs font-bold text-[#1A1A1B] dark:text-white uppercase">{letter.status?.status_name || 'Active'}</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] text-[#A3A3A3] font-bold uppercase tracking-tighter">Physical Archive</span>
+                        <span className="text-xs font-bold text-[#1A1A1B] dark:text-white uppercase flex items-center gap-1.5 cursor-help" title="Location in physical storage">
+                          <MapPin className="w-3 h-3" />
+                          {letter.tray?.tray_no || 'Pending Filing'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] text-[#A3A3A3] font-bold uppercase tracking-tighter">Classification</span>
+                        <span className="text-xs font-bold text-[#1A1A1B] dark:text-white uppercase">{letter.letterKind?.kind_name || 'Standard'}</span>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="p-6 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-3xl shadow-sm">
+                    <h3 className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-6">Digital Copy</h3>
+                    {(() => {
+                      const filePath = letter.scanned_copy || letter.attachment?.file_path;
+                      const fileUrl = buildFileUrl(filePath);
+                      return fileUrl ? (
+                        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-transparent hover:border-gray-200 transition-all group">
+                          <div className="w-10 h-10 bg-[#1A1A1B] text-white rounded-lg flex items-center justify-center">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-[#1A1A1B] dark:text-white truncate">Scanned Letter</p>
+                            <p className="text-[9px] text-[#737373] uppercase tracking-widest mt-0.5">PDF Document</p>
+                          </div>
+                        </a>
+                      ) : (
+                        <div className="py-4 text-center border border-dashed border-gray-100 rounded-2xl">
+                          <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">No Electronic Copy</p>
+                        </div>
+                      );
+                    })()}
+                  </section>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
   if (layoutStyle === 'notion') {
     return (
       <div className="min-h-screen bg-white dark:bg-[#191919] flex overflow-hidden">
@@ -412,7 +552,7 @@ export default function LetterDetail() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-gray-500 uppercase font-black tracking-widest">Received Date</p>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">{new Date(letter.date_received).toLocaleString()}</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{new Date(letter.date_received).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short', hour12: true })}</p>
                   </div>
                 </div>
 
@@ -470,15 +610,20 @@ export default function LetterDetail() {
                       </div>
                     </div>
                   ))}
-                  {letter.logs?.map((l, idx) => (
-                    <div key={`log-${idx}`} className="relative pl-12 opacity-60">
-                      <div className="absolute left-1.5 top-2 w-5 h-5 rounded-full bg-gray-200 dark:bg-[#333] flex items-center justify-center z-10">
-                        <Zap className="w-3 h-3 text-gray-400" />
+                  {letter.logs?.map((l, idx) => {
+                    const isEndorsement = l.action_type === 'Endorsed';
+                    return (
+                      <div key={`log-${idx}`} className={`relative pl-12 ${isEndorsement ? 'opacity-100' : 'opacity-60'}`}>
+                        <div className={`absolute left-1.5 top-2 w-5 h-5 rounded-full flex items-center justify-center z-10 ${isEndorsement ? 'bg-orange-500 shadow-xl shadow-orange-500/20' : 'bg-gray-200 dark:bg-[#333]'}`}>
+                          {isEndorsement ? <Star className="w-3 h-3 text-white" /> : <Zap className="w-3 h-3 text-gray-400" />}
+                        </div>
+                        <p className={`text-[10px] font-bold capitalize ${isEndorsement ? 'text-orange-500 uppercase tracking-widest' : 'text-gray-600 dark:text-gray-400'}`}>
+                          {l.log_details || l.action_taken}
+                        </p>
+                        <p className="text-[8px] text-gray-400 uppercase font-black">{new Date(l.timestamp || l.log_date).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short', hour12: true })}</p>
                       </div>
-                      <p className="text-[10px] font-bold text-gray-600 dark:text-gray-400 capitalize">{l.action_taken}</p>
-                      <p className="text-[8px] text-gray-400 uppercase font-black">{new Date(l.log_date).toLocaleString()}</p>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </section>
             </div>

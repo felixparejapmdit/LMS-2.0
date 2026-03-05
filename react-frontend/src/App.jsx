@@ -23,6 +23,7 @@ import Trays from "./pages/management/Trays";
 import Users from "./pages/management/Users";
 import Persons from "./pages/management/Persons";
 import Departments from "./pages/management/Departments";
+import DepartmentLetters from "./pages/management/DepartmentLetters";
 import LetterKinds from "./pages/management/LetterKinds";
 import ProcessSteps from "./pages/management/ProcessSteps";
 import Statuses from "./pages/management/Statuses";
@@ -41,6 +42,7 @@ import Profile from "./pages/user/Profile";
 import GuestSendLetter from "./pages/guest/GuestSendLetter";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading, hasPermission } = useAuth();
@@ -68,6 +70,7 @@ const ProtectedRoute = ({ children }) => {
     if (path === "/guest/send-letter") return "guest-send-letter";
     if (path.startsWith("/setup/")) return path.split("/").pop();
     if (path.startsWith("/letter/")) return "letter-detail"; // Map dynamic letter IDs to the detail permission
+    if (path.startsWith("/departments/") && path.endsWith("/letters")) return "department-letters";
     const cleanPath = path.startsWith("/") ? path.slice(1) : path;
     // Handle any other specific dynamic mappings here
     return cleanPath;
@@ -104,6 +107,7 @@ function AppRoutes() {
         <Route path="/setup/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
         <Route path="/setup/persons" element={<ProtectedRoute><Persons /></ProtectedRoute>} />
         <Route path="/setup/departments" element={<ProtectedRoute><Departments /></ProtectedRoute>} />
+        <Route path="/departments/:deptId/letters" element={<ProtectedRoute><DepartmentLetters /></ProtectedRoute>} />
         <Route path="/setup/letter-kinds" element={<ProtectedRoute><LetterKinds /></ProtectedRoute>} />
         <Route path="/setup/process-steps" element={<ProtectedRoute><ProcessSteps /></ProtectedRoute>} />
         <Route path="/setup/statuses" element={<ProtectedRoute><Statuses /></ProtectedRoute>} />
@@ -128,8 +132,10 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

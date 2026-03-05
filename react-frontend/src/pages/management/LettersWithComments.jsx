@@ -200,7 +200,7 @@ export default function LettersWithComments() {
                                                         </div>
                                                         <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                                             <Clock className="w-3.5 h-3.5" />
-                                                            {new Date(letter.date_received || letter.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            {new Date(letter.date_received || letter.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
                                                         </div>
                                                     </div>
                                                 </td>

@@ -96,6 +96,61 @@ export default function LetterCard({
     );
   }
 
+  if (layout === 'minimalist') {
+    return (
+      <Link
+        to={`/letter/${letterId}`}
+        className="block bg-white dark:bg-[#0D0D0D] p-5 rounded-2xl border border-[#E5E5E5] dark:border-[#222] hover:border-gray-300 dark:hover:border-gray-700 transition-all group relative overflow-hidden"
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex gap-4">
+            <div className="w-10 h-10 bg-gray-50 dark:bg-white/5 rounded-xl flex items-center justify-center text-gray-400 group-hover:text-[#1A1A1B] dark:group-hover:text-white transition-colors">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-bold text-[#1A1A1B] dark:text-white truncate max-w-[250px]">
+                  {sender || "Unknown Sender"}
+                </h3>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 bg-gray-100 dark:bg-white/5 text-[#737373] rounded uppercase tracking-wider border border-transparent group-hover:border-gray-200 transition-all">
+                  {atgId || 'REF-N/A'}
+                </span>
+                {actions}
+              </div>
+              <div
+                className="text-xs text-[#737373] line-clamp-1 italic"
+                dangerouslySetInnerHTML={{ __html: summary?.substring(0, 120) + '...' }}
+              />
+              <div className="flex items-center gap-4 pt-1.5 grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3 h-3 text-[#A3A3A3]" />
+                  <span className="text-[10px] font-medium text-[#737373]">
+                    {formattedDate}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-3 h-3 text-[#A3A3A3]" />
+                  <span className="text-[10px] font-medium text-[#737373]">
+                    {tray?.tray_no || 'Pending'}
+                  </span>
+                </div>
+                {attachment && (
+                  <div className="flex items-center gap-1.5">
+                    <Paperclip className="w-3 h-3 text-[#A3A3A3]" />
+                    <span className="text-[10px] font-medium text-[#737373]">{attachment.attachment_name}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="p-1.5 rounded-lg border border-transparent group-hover:border-gray-100 dark:group-hover:border-white/5 transition-all self-center">
+            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-[#1A1A1B] dark:group-hover:text-white" />
+          </div>
+        </div>
+      </Link>
+    );
+  }
+
   if (layout === 'notion') {
     return (
       <Link

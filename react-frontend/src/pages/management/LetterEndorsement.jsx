@@ -29,9 +29,19 @@ export default function LetterEndorsement() {
     const printRef = useRef(null);
 
     const fetchEndorsements = async () => {
+        if (!user) return;
         setLoading(true);
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements`);
+            const roleName = user?.roleData?.name || user?.role || '';
+            const deptId = user?.dept_id?.id || user?.dept_id || '';
+
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements`, {
+                params: {
+                    user_id: user.id,
+                    department_id: deptId,
+                    role: roleName
+                }
+            });
             setEndorsements(Array.isArray(res.data) ? res.data : []);
         } catch (e) {
             console.error("Failed to fetch endorsements:", e);
@@ -91,7 +101,7 @@ export default function LetterEndorsement() {
                     <div class="label">Endorsed To</div>
                     <div class="value">${endorsement.endorsed_to}</div>
                     <div class="label">Endorsed On</div>
-                    <div class="value">${new Date(endorsement.endorsed_at).toLocaleString()}</div>
+                    <div class="value">${new Date(endorsement.endorsed_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short', hour12: true })}</div>
                     ${endorsement.notes ? `<div class="label">Notes</div><div class="value" style="white-space:pre-wrap;font-weight:normal;">${endorsement.notes}</div>` : ""}
                 </div>
                 <script>window.onload = () => { window.print(); window.close(); }</script>
@@ -115,12 +125,17 @@ export default function LetterEndorsement() {
         return acc;
     }, {});
 
+    // Theme Variables
+    const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
+    const cardBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const pageBg = layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+
     return (
-        <div className={`min-h-screen ${'bg-[#F9FAFB] dark:bg-[#0D0D0D]'} flex overflow-hidden`}>
+        <div className={`min-h-screen ${pageBg} flex overflow-hidden`}>
             <Sidebar />
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
                 {/* Header */}
-                <header className={`h-16 ${'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]'} border-b px-4 md:px-8 flex items-center justify-between z-10`}>
+                <header className={`h-16 ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]'} border-b px-4 md:px-8 flex items-center justify-between z-10`}>
                     <div className="flex items-center gap-3">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-400 md:hidden">
                             <Menu className="w-5 h-5" />
@@ -133,7 +148,7 @@ export default function LetterEndorsement() {
                         </button>
                         <div className="flex items-center gap-2">
                             <Bell className={`w-4 h-4 ${'text-orange-500'}`} />
-                            <h1 className={`text-xs font-bold uppercase tracking-widest ${'text-gray-400'}`}>
+                            <h1 className={`text-[10px] font-black uppercase tracking-[0.2em] ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-gray-400'}`}>
                                 Letter Endorsements
                             </h1>
                             <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 text-[9px] font-black rounded-full">
