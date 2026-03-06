@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   Inbox,
@@ -46,6 +46,9 @@ import { getPageKeyFromPath, humanizePageId } from "../utils/pageAccess";
 export default function Sidebar() {
   const { user, logout, theme, toggleTheme, layoutStyle, isSidebarExpanded, toggleSidebar, isMobileMenuOpen, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navScrollRef = useRef(null);
+  const NAV_SCROLL_KEY = "sidebar_nav_scroll";
   const [expandedMenus, setExpandedMenus] = useState(() => {
     const saved = localStorage.getItem('sidebar_expanded_menus');
     return saved ? JSON.parse(saved) : {};
@@ -96,6 +99,7 @@ export default function Sidebar() {
   const confirmLogout = () => {
     logout();
     setIsLogoutModalOpen(false);
+    navigate("/login", { replace: true });
   };
 
   const toggleSubmenu = (label) => {
@@ -148,6 +152,13 @@ export default function Sidebar() {
   ];
 
   useEffect(() => {
+    const parent = navItems.find(item => item.children?.some(child => child.path === location.pathname));
+    if (parent && !expandedMenus[parent.label]) {
+      setExpandedMenus(prev => ({ ...prev, [parent.label]: true }));
+    }
+  }, [location.pathname, expandedMenus]);
+
+  useEffect(() => {
     if (!user) return;
     const flatPages = [];
     const collectPages = (items) => {
@@ -171,17 +182,47 @@ export default function Sidebar() {
     systemPageService.syncPages(flatPages).catch(() => { });
   }, [user]);
 
-  const filteredNavItems = navItems.filter(item => {
-    const key = getPageKeyFromPath(item.path);
-    if (item.children) {
-      item.children = item.children
-        .filter(child => hasPermission(getPageKeyFromPath(child.path)))
-        .sort((a, b) => a.label.localeCompare(b.label)); // Sort children alphabetically
-      return item.children.length > 0;
+  const filteredNavItems = navItems
+    .map(item => {
+      if (item.children) {
+        const children = item.children
+          .filter(child => hasPermission(getPageKeyFromPath(child.path)))
+          .sort((a, b) => a.label.localeCompare(b.label)); // Sort children alphabetically
+        if (children.length === 0) return null;
+        return { ...item, children };
+      }
+      if (item.path === "#") return item;
+      const key = getPageKeyFromPath(item.path);
+      return hasPermission(key) ? item : null;
+    })
+    .filter(Boolean);
+
+  const handleNavScroll = () => {
+    const el = navScrollRef.current;
+    if (!el) return;
+    sessionStorage.setItem(NAV_SCROLL_KEY, String(el.scrollTop));
+  };
+
+  useEffect(() => {
+    const el = navScrollRef.current;
+    if (!el) return;
+    const saved = sessionStorage.getItem(NAV_SCROLL_KEY);
+    if (saved !== null) {
+      const parsed = parseInt(saved, 10);
+      if (!Number.isNaN(parsed)) {
+        el.scrollTop = parsed;
+      }
     }
-    if (item.path === "#") return true;
-    return hasPermission(key);
-  });
+  }, [layoutStyle, isSidebarExpanded, isMobileMenuOpen]);
+
+  useEffect(() => {
+    const el = navScrollRef.current;
+    if (!el) return;
+    const active = el.querySelector('a[aria-current="page"]');
+    if (active?.scrollIntoView) {
+      active.scrollIntoView({ block: "nearest" });
+    }
+  }, [location.pathname, layoutStyle]);
 
   const renderSidebarContent = () => {
     if (layoutStyle === 'grid') {
@@ -208,7 +249,11 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto custom-scrollbar">
+          <nav
+            ref={navScrollRef}
+            onScroll={handleNavScroll}
+            className="flex-1 px-3 py-6 space-y-2 overflow-y-auto custom-scrollbar"
+          >
 
             {filteredNavItems.map((item) => (
               <div key={item.label} className="flex flex-col">
@@ -338,7 +383,11 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto custom-scrollbar">
+          <nav
+            ref={navScrollRef}
+            onScroll={handleNavScroll}
+            className="flex-1 px-3 space-y-0.5 overflow-y-auto custom-scrollbar"
+          >
 
             {(isSidebarExpanded || isMobileMenuOpen) && <div className="text-[11px] font-bold text-gray-400 px-3 py-2 tracking-wider">Navigation</div>}
             {filteredNavItems.map((item) => (
@@ -444,14 +493,14 @@ export default function Sidebar() {
     if (layoutStyle === 'minimalist') {
       return (
         <>
-          <div className="h-20 flex items-center px-6 border-b border-[#E5E5E5] dark:border-[#222] shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-[#1A1A1B] dark:bg-white rounded-lg flex items-center justify-center text-white dark:text-[#1A1A1B] shadow-sm">
+          <div className={`h-20 flex items-center border-b border-[#E5E5E5] dark:border-[#222] shrink-0 transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0 flex-col gap-2 py-4 h-auto' : 'px-6'}`}>
+            <div className={`flex items-center ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col gap-2' : 'gap-3'}`}>
+              <div className="w-8 h-8 shrink-0 bg-[#1A1A1B] dark:bg-white rounded-lg flex items-center justify-center text-white dark:text-[#1A1A1B] shadow-sm">
                 <FileText className="w-4 h-4" />
               </div>
               <button
                 onClick={handleNotificationClick}
-                className="w-8 h-8 rounded-lg border border-[#E5E5E5] dark:border-[#333] flex items-center justify-center text-[#1A1A1B] dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all relative"
+                className="w-8 h-8 shrink-0 rounded-lg border border-[#E5E5E5] dark:border-[#333] flex items-center justify-center text-[#1A1A1B] dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all relative"
                 title="Open my endorsements"
               >
                 <Bell className="w-4 h-4" />
@@ -462,12 +511,16 @@ export default function Sidebar() {
                 )}
               </button>
               {(isSidebarExpanded || isMobileMenuOpen) && (
-                <span className="text-sm font-bold text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em]">LMS 2.0</span>
+                <span className="text-sm font-bold text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] truncate">LMS 2.0</span>
               )}
             </div>
           </div>
 
-          <nav className="flex-1 px-4 py-8 space-y-1 overflow-y-auto no-scrollbar">
+          <nav
+            ref={navScrollRef}
+            onScroll={handleNavScroll}
+            className="flex-1 px-4 py-8 space-y-1 overflow-y-auto no-scrollbar"
+          >
             {filteredNavItems.map((item) => (
               <div key={item.label} className="flex flex-col">
                 <NavLink
@@ -567,7 +620,11 @@ export default function Sidebar() {
           </div>
         </div>
 
-        <nav className="flex-1 px-2 py-6 space-y-2 overflow-y-auto custom-scrollbar">
+        <nav
+          ref={navScrollRef}
+          onScroll={handleNavScroll}
+          className="flex-1 px-2 py-6 space-y-2 overflow-y-auto custom-scrollbar"
+        >
           {filteredNavItems.map((item) => (
             <div key={item.label} className="flex flex-col">
               <NavLink

@@ -54,6 +54,7 @@ LinkLetter.belongsTo(Letter, { foreignKey: 'attached_letter_id', as: 'attachedLe
 User.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 Department.hasMany(User, { foreignKey: 'dept_id', as: 'members' });
 User.belongsTo(Role, { foreignKey: 'role', as: 'roleData' });
+Role.hasMany(User, { foreignKey: 'role', as: 'users' });
 Role.hasMany(RolePermission, { foreignKey: 'role_id', as: 'permissions' });
 RolePermission.belongsTo(Role, { foreignKey: 'role_id' });
 

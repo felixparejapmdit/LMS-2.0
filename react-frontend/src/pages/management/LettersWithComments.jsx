@@ -103,7 +103,7 @@ export default function LettersWithComments() {
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Management</span>
-                            <h1 className={`text-xl font-black tracking-tighter uppercase font-outfit ${textColor}`}>Directive Archive</h1>
+                            <h1 className={`text-xl font-black tracking-tighter uppercase font-outfit ${textColor}`}>Letters with Comments</h1>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">

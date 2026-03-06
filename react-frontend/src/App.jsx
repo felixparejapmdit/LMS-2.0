@@ -47,7 +47,7 @@ import systemPageService from "./services/systemPageService";
 import { getPageKeyFromPath, humanizePageId } from "./utils/pageAccess";
 
 const ProtectedRoute = ({ children }) => {
-  const { user, loading, hasPermission } = useAuth();
+  const { user, loading, hasPermission, permissionsLoaded, isGuest } = useAuth();
   const location = useLocation();
   const pageKey = getPageKeyFromPath(location.pathname);
 
@@ -60,7 +60,7 @@ const ProtectedRoute = ({ children }) => {
     }).catch(() => { });
   }, [user, pageKey, location.pathname]);
 
-  if (loading) {
+  if (loading || (user && !isGuest && !permissionsLoaded)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0d0d0d]">
         <div className="flex flex-col items-center gap-4">

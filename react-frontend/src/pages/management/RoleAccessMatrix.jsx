@@ -20,7 +20,8 @@ import {
     HelpCircle,
     Info,
     FileCode,
-    Search
+    Search,
+    Menu
 } from "lucide-react";
 import rolePermissionService from "../../services/rolePermissionService";
 import systemPageService from "../../services/systemPageService";
@@ -233,20 +234,15 @@ export default function RoleAccessMatrix() {
     ];
 
     return (
-        <div className={`min-h-screen ${pageBg} flex font-sans transition-colors duration-300`}>
+        <div className={`h-screen ${pageBg} flex font-sans transition-colors duration-300 overflow-hidden`}>
             <Sidebar />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
                 <header className={`h-16 ${headerBg} border-b px-8 flex items-center justify-between sticky top-0 z-30 shrink-0`}>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2.5 bg-slate-100 dark:bg-white/5 rounded-xl">
-                            <ShieldCheck className="w-5 h-5 text-gray-500" />
-                        </button>
-                        <div className="flex items-center gap-2">
-                            <ShieldCheck className={`w-4 h-4 ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-blue-500'}`} />
-                            <div>
-                                <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Management</h1>
-                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Access Matrix</h2>
-                            </div>
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Management</span>
+                            <h1 className={`text-xl font-black tracking-tighter uppercase font-outfit ${textColor}`}>Access Matrix</h1>
                         </div>
                     </div>
 
@@ -275,51 +271,42 @@ export default function RoleAccessMatrix() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 custom-scrollbar">
-                    <div className="max-w-[100vw] mx-auto space-y-8 px-4 md:px-8">
+                <div className="flex-1 overflow-y-auto p-8 lg:p-12 custom-scrollbar">
+                    <div className="w-full space-y-6">
                         {/* Selector */}
-                        <div className={`p-8 rounded-[2.5rem] border shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 ${cardBg}`}>
-                            <div className="flex items-center gap-6">
-                                <div className="w-16 h-16 rounded-[2rem] bg-slate-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 flex items-center justify-center text-blue-500">
-                                    <Lock className="w-6 h-6" />
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                            {canRoleSelector && (
+                                <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-white/5 rounded-2xl w-fit flex-wrap">
+                                    {roles.map(role => (
+                                        <button
+                                            key={role.id}
+                                            onClick={() => setSelectedRoleId(role.id)}
+                                            className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${selectedRoleId === role.id
+                                                ? "bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm"
+                                                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/5"
+                                                }`}
+                                        >
+                                            {role.name}
+                                            <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold ${selectedRoleId === role.id ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' : 'bg-slate-200 dark:bg-white/10 text-slate-500'}`}>
+                                                {role.user_count || 0}
+                                            </span>
+                                        </button>
+                                    ))}
                                 </div>
-                                <div>
-                                    <h2 className={`text-2xl font-black uppercase tracking-tight ${textColor}`}>Role Selection</h2>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium italic">Assign granular permissions to systemic roles.</p>
+                            )}
+
+                            {canSearch && (
+                                <div className="relative group min-w-[350px]">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search page name, key, or category..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-blue-500/20 outline-none ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
+                                    />
                                 </div>
-                            </div>
-
-                            <div className="w-full md:w-auto flex flex-col gap-4">
-                                {canSearch && (
-                                    <div className="relative min-w-[280px]">
-                                        <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                                        <input
-                                            type="text"
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            placeholder="Search page name, key, or category..."
-                                            className="w-full pl-11 pr-4 py-3 rounded-2xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-white/10 text-sm font-medium text-slate-700 dark:text-slate-200 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500/20"
-                                        />
-                                    </div>
-                                )}
-
-                                {canRoleSelector && (
-                                    <div className="flex items-center gap-3 flex-wrap justify-start md:justify-end">
-                                        {roles.map(role => (
-                                            <button
-                                                key={role.id}
-                                                onClick={() => setSelectedRoleId(role.id)}
-                                                className={`px-6 py-4 rounded-3xl border transition-all text-xs font-black uppercase tracking-widest ${selectedRoleId === role.id
-                                                    ? "bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-500/20"
-                                                    : "bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-white/10 text-gray-400 hover:border-blue-500/50"
-                                                    }`}
-                                            >
-                                                {role.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                            )}
                         </div>
 
                         {/* Matrix Grid */}
@@ -327,18 +314,18 @@ export default function RoleAccessMatrix() {
                             <div className="overflow-x-auto custom-scrollbar">
                                 <table className="w-full text-left border-collapse min-w-[1000px]">
                                     <thead>
-                                        <tr className={`border-b ${'border-gray-50 dark:border-[#222] bg-gray-50/50 dark:bg-white/5'}`}>
-                                            <th className="p-8 w-16 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">#</th>
-                                            <th className="p-8 w-[300px] text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Functional Area (Page)</th>
+                                        <tr className="border-b border-gray-100 dark:border-[#222]">
+                                            <th className="p-6 w-16 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">#</th>
+                                            <th className="p-6 w-[300px] text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Functional Area (Page)</th>
                                             {ACTIONS.map(action => (
-                                                <th key={action.id} className="p-8 text-center text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                                                <th key={action.id} className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
                                                     <div className="flex flex-col items-center gap-2">
                                                         <action.icon className="w-4 h-4 text-blue-500" />
                                                         {action.label}
                                                     </div>
                                                 </th>
                                             ))}
-                                            <th className="p-8 text-right text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Direct Action</th>
+                                            <th className="p-6 text-right text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Direct Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50 dark:divide-[#222]">
@@ -367,10 +354,10 @@ export default function RoleAccessMatrix() {
                                                 </tr>
                                                 {categorizedPages[category].map((page, index) => (
                                                     <tr key={page.page_id} className="hover:bg-slate-50/50 dark:hover:bg-white/2 transition-colors">
-                                                        <td className="p-8 text-[11px] font-black text-gray-400 font-mono">
+                                                        <td className="p-6 text-[11px] font-black text-gray-400 font-mono">
                                                             {(index + 1).toString().padStart(2, '0')}
                                                         </td>
-                                                        <td className="p-8">
+                                                        <td className="p-6">
                                                             <div className="flex items-center gap-4">
                                                                 <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/10 flex items-center justify-center text-blue-600">
                                                                     <Layout className="w-5 h-5" />
@@ -382,7 +369,7 @@ export default function RoleAccessMatrix() {
                                                             </div>
                                                         </td>
                                                         {ACTIONS.map(action => (
-                                                            <td key={action.id} className="p-8 text-center">
+                                                            <td key={action.id} className="p-6 text-center">
                                                                 {action.id === 'field_permissions' ? (
                                                                     <button
                                                                         disabled={!canEditField}

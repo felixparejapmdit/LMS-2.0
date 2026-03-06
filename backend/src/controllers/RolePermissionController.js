@@ -1,4 +1,4 @@
-const { RolePermission, Role, SystemPage } = require('../models/associations');
+const { RolePermission, Role, SystemPage, User } = require('../models/associations');
 const sequelize = require('../config/db');
 const PAGE_FIELD_PRESETS = {
     'home': ['refresh_button', 'quick_new_letter_button', 'quick_trays_button'],
@@ -147,10 +147,23 @@ class RolePermissionController {
     static async getRolesWithPermissions(req, res) {
         try {
             const roles = await Role.findAll({
+                attributes: {
+                    include: [
+                        [
+                            sequelize.literal(`(
+                                SELECT COUNT(*)
+                                FROM directus_users as users
+                                WHERE users.role = Role.id
+                            )`),
+                            'user_count'
+                        ]
+                    ]
+                },
                 include: [{ model: RolePermission, as: 'permissions' }]
             });
             res.json(roles);
         } catch (error) {
+            console.error("Failed to fetch roles with permissions and counts:", error);
             res.status(500).json({ error: error.message });
         }
     }

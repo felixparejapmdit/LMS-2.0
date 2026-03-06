@@ -379,7 +379,7 @@ export default function Home() {
 
                                 <div className="space-y-8">
                                     <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                        <h3 className="text-[10px] font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] mb-6">Operations</h3>
+                                        <h3 className="text-[10px] font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] mb-6">Quick Actions</h3>
                                         <div className="space-y-4">
                                             {canQuickNewLetter && (
                                                 <button onClick={() => navigate('/new-letter')} className="w-full flex items-center justify-between p-4 bg-[#F7F7F7] dark:bg-white/5 rounded-xl hover:bg-[#E5E5E5] dark:hover:bg-white/10 transition-colors group">
@@ -394,15 +394,6 @@ export default function Home() {
                                                 </button>
                                             )}
                                         </div>
-                                    </div>
-
-                                    <div className="bg-[#1A1A1B] p-8 rounded-3xl text-white shadow-xl">
-                                        <p className="text-[9px] font-black uppercase tracking-[0.3em] opacity-50 mb-4">System Status</p>
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                                            <span className="text-xl font-black">Online</span>
-                                        </div>
-                                        <p className="text-[10px] font-medium opacity-70">LMS 2.0 Core Node</p>
                                     </div>
                                 </div>
                             </div>

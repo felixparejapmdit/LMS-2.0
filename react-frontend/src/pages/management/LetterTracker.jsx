@@ -127,7 +127,7 @@ export default function LetterTracker() {
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Digital Archive</span>
-                            <h1 className={`text-xl font-black tracking-tighter uppercase font-outfit ${textColor}`}>Document Tracker</h1>
+                            <h1 className={`text-xl font-black tracking-tighter uppercase font-outfit ${textColor}`}>Letter Tracker</h1>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">

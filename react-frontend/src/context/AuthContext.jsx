@@ -15,6 +15,29 @@ const getBackendUrl = () => {
 
 const BACKEND_URL = getBackendUrl();
 const normalizeLayoutStyle = (style) => (style === "minimalist" ? "minimalist" : "minimalist");
+const AUTH_USER_KEY = "auth_user";
+const AUTH_PERMS_KEY = "auth_permissions";
+
+const readCachedJson = (key, fallback = null) => {
+    try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+    } catch {
+        return fallback;
+    }
+};
+
+const writeCachedJson = (key, value) => {
+    try {
+        if (value === null || value === undefined) {
+            localStorage.removeItem(key);
+        } else {
+            localStorage.setItem(key, JSON.stringify(value));
+        }
+    } catch {
+        // Ignore storage errors
+    }
+};
 
 const AuthContext = createContext();
 
@@ -28,15 +51,23 @@ export const AuthProvider = ({ children }) => {
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(localStorage.getItem("isSidebarExpanded") !== "false");
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [permissions, setPermissions] = useState([]);
+    const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
     const fetchUserPermissions = async (roleId) => {
-        if (!roleId) return;
+        if (!roleId) return [];
         try {
             const res = await axios.get(`${BACKEND_URL}/role-permissions/role/${roleId}`);
-            setPermissions(res.data);
+            const perms = res.data || [];
+            setPermissions(perms);
+            writeCachedJson(AUTH_PERMS_KEY, perms);
+            setPermissionsLoaded(true);
+            return perms;
         } catch (error) {
             console.error("Failed to fetch permissions:", error);
             setPermissions([]);
+            writeCachedJson(AUTH_PERMS_KEY, null);
+            setPermissionsLoaded(true);
+            return [];
         }
     };
 
@@ -129,6 +160,9 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem("isGuest", "true");
         setUser({ first_name: "Guest", last_name: "User", email: "guest@example.com", isGuest: true });
         setPermissions([]);
+        setPermissionsLoaded(true);
+        writeCachedJson(AUTH_USER_KEY, null);
+        writeCachedJson(AUTH_PERMS_KEY, null);
     };
 
     const login = async (username, password) => {
@@ -142,26 +176,27 @@ export const AuthProvider = ({ children }) => {
 
             if (!userFetch) throw new Error("User not found in local database");
 
-            await directus.login(userFetch.email, password);
-            const meId = await directus.request(readMe({ fields: ['id'] }));
+            // Authenticate and fetch permissions in parallel to reduce login latency
+            const [, perms] = await Promise.all([
+                directus.login(userFetch.email, password),
+                fetchUserPermissions(userFetch.role)
+            ]);
 
-            // Bypass Directus field permissions by fetching full details from our backend
-            const response = await axios.get(`${BACKEND_URL}/users/${meId.id}`);
-            const me = response.data;
+            const updatedMe = { ...userFetch, islogin: true };
 
-            console.log("AuthContext: User data fetched from backend:", me);
+            // Fire-and-forget: mark user online without blocking UI transition
+            axios.put(`${BACKEND_URL}/users/${userFetch.id}`, { islogin: true }).catch(() => { });
 
-            // Fetch Permissions for this user's role
-            await fetchUserPermissions(me.role);
-
-            // Set user online
-            await axios.put(`${BACKEND_URL}/users/${me.id}`, { islogin: true });
-            const updatedMe = { ...me, islogin: true };
-
+            setIsGuest(false);
+            localStorage.removeItem("isGuest");
             setUser(updatedMe);
-            if (me.layout_style) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
-            if (me.theme_preference) setTheme(me.theme_preference);
-            if (me.font_family) setFontFamily(me.font_family);
+            writeCachedJson(AUTH_USER_KEY, updatedMe);
+            if (Array.isArray(perms)) {
+                writeCachedJson(AUTH_PERMS_KEY, perms);
+            }
+            if (userFetch.layout_style) setLayoutStyle(normalizeLayoutStyle(userFetch.layout_style));
+            if (userFetch.theme_preference) setTheme(userFetch.theme_preference);
+            if (userFetch.font_family) setFontFamily(userFetch.font_family);
             return { success: true, user: updatedMe };
         } catch (error) {
             console.error("Login failed:", error);
@@ -170,10 +205,22 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
+        const userId = user?.id;
+        const wasGuest = isGuest;
+
+        // Clear local state immediately for fast transitions
+        setUser(null);
+        setIsGuest(false);
+        setPermissions([]);
+        setPermissionsLoaded(false);
+        localStorage.removeItem("isGuest");
+        writeCachedJson(AUTH_USER_KEY, null);
+        writeCachedJson(AUTH_PERMS_KEY, null);
+
         try {
-            if (user?.id && !isGuest) {
-                // Try to notify our backend user is offline
-                await axios.put(`${BACKEND_URL}/users/${user.id}`, { islogin: false }).catch(() => { });
+            if (userId && !wasGuest) {
+                // Notify backend user is offline (non-blocking)
+                axios.put(`${BACKEND_URL}/users/${userId}`, { islogin: false }).catch(() => { });
             }
 
             // Try SDK logout (only if we have something to log out of)
@@ -183,12 +230,7 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
             console.error("Logout process encountered an error:", error);
         } finally {
-            // ALWAYS clear everything locally regardless of server results
             localStorage.removeItem("directus_auth");
-            localStorage.removeItem("isGuest");
-            setUser(null);
-            setIsGuest(false);
-            setPermissions([]);
         }
     };
 
@@ -206,7 +248,23 @@ export const AuthProvider = ({ children }) => {
         if (!directusStored) {
             setUser(null);
             setLoading(false);
+            setPermissions([]);
+            setPermissionsLoaded(false);
+            writeCachedJson(AUTH_USER_KEY, null);
+            writeCachedJson(AUTH_PERMS_KEY, null);
             return;
+        }
+
+        const cachedUser = readCachedJson(AUTH_USER_KEY, null);
+        const cachedPermsRaw = localStorage.getItem(AUTH_PERMS_KEY);
+        const cachedPerms = cachedPermsRaw ? readCachedJson(AUTH_PERMS_KEY, []) : null;
+        const hasCachedUser = !!cachedUser;
+
+        if (hasCachedUser) {
+            setUser(cachedUser);
+            setPermissions(Array.isArray(cachedPerms) ? cachedPerms : []);
+            setPermissionsLoaded(cachedPermsRaw !== null);
+            setLoading(false);
         }
 
         try {
@@ -219,15 +277,20 @@ export const AuthProvider = ({ children }) => {
             console.log("AuthContext: checkAuth successful (via backend):", me);
 
             // Fetch Permissions
-            await fetchUserPermissions(me.role);
+            const perms = await fetchUserPermissions(me.role);
 
             // Ensure islogin is true if they are successfully authed
             if (!me.islogin) {
-                await axios.put(`${BACKEND_URL}/users/${me.id}`, { islogin: true });
+                // Fire-and-forget to avoid blocking transition
+                axios.put(`${BACKEND_URL}/users/${me.id}`, { islogin: true }).catch(() => { });
                 me.islogin = true;
             }
 
             setUser(me);
+            writeCachedJson(AUTH_USER_KEY, me);
+            if (Array.isArray(perms)) {
+                writeCachedJson(AUTH_PERMS_KEY, perms);
+            }
             if (me.layout_style) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
             if (me.theme_preference) setTheme(me.theme_preference);
             if (me.font_family) setFontFamily(me.font_family);
@@ -242,7 +305,7 @@ export const AuthProvider = ({ children }) => {
                 logout();
             }
         } finally {
-            setLoading(false);
+            if (!hasCachedUser) setLoading(false);
         }
     };
 
@@ -275,7 +338,7 @@ export const AuthProvider = ({ children }) => {
         <AuthContext.Provider value={{
             user, login, logout, loginGuest, isGuest, loading, theme, toggleTheme,
             layoutStyle, toggleLayoutStyle, fontFamily, changeFontFamily, isSidebarExpanded, toggleSidebar,
-            isMobileMenuOpen, setIsMobileMenuOpen, permissions, hasPermission
+            isMobileMenuOpen, setIsMobileMenuOpen, permissions, hasPermission, permissionsLoaded
         }}>
             {children}
         </AuthContext.Provider>
