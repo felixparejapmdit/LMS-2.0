@@ -11,6 +11,11 @@ async function startServer() {
         await sequelize.authenticate();
         console.log('Database connected successfully.');
 
+        // Improve sqlite concurrency behavior when shared with Directus.
+        await sequelize.query('PRAGMA busy_timeout = 10000');
+        await sequelize.query('PRAGMA journal_mode = WAL');
+        await sequelize.query('PRAGMA synchronous = NORMAL');
+
         // Sync models
         await sequelize.sync();
 

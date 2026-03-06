@@ -11,6 +11,13 @@ const sequelize = new Sequelize({
     dialect: 'sqlite',
     storage,
     logging: false,
+    pool: {
+        // Keep a single sqlite writer connection to reduce lock contention.
+        max: 1,
+        min: 0,
+        idle: 10000,
+        acquire: 60000
+    },
     dialectOptions: {
         // Simple mode for cross-platform compatibility
         mode: 2,
