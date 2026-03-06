@@ -19,10 +19,7 @@ services:
       CORS_CREDENTIALS: "true"
       CORS_METHODS: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
       CORS_ALLOWED_HEADERS: "Content-Type,Authorization"
-      PUBLIC_URL: "${VITE_DIRECTUS_URL:-http://localhost:8055}"
-      # WAL can be unstable on Windows host mounts via Docker. 
-      # On Proxmox (Linux), set DB_SQLITE_JOURNAL_MODE=WAL in your environment for speed.
-      DB_SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-DELETE}"
+      PUBLIC_URL: "${VITE_DIRECTUS_URL:-http://172.18.162.169:8055}"
     restart: unless-stopped
 
   backend:
@@ -46,7 +43,6 @@ services:
       context: ./react-frontend
       dockerfile: Dockerfile
       args:
-        # These are used DURING the docker build process.
         VITE_API_URL: "${VITE_API_URL:-http://localhost:5000/api}"
         VITE_DIRECTUS_URL: "${VITE_DIRECTUS_URL:-http://localhost:8055}"
     ports:
