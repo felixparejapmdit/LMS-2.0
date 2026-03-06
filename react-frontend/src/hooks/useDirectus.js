@@ -32,3 +32,23 @@ export const directus = createDirectus(directusUrl)
         }
     }))
     .with(rest());
+
+export const getAssetUrl = (assetId, queryParams = "") => {
+    if (!assetId) return null;
+    let url = `${directusUrl}/assets/${assetId}`;
+    try {
+        const authData = localStorage.getItem("directus_auth");
+        if (authData) {
+            const { access_token } = JSON.parse(authData);
+            if (access_token) {
+                // If there's already a query string (e.g. ?width=200), append with &
+                const seperator = queryParams.includes('?') || url.includes('?') ? '&' : '?';
+                url += `${queryParams}${seperator}access_token=${access_token}`;
+                return url;
+            }
+        }
+    } catch (e) {
+        // Fallback to anonymous access if parsing fails
+    }
+    return url + queryParams;
+};

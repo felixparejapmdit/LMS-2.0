@@ -20,7 +20,7 @@ import {
     XCircle,
     Menu
 } from "lucide-react";
-import { directus, directusUrl } from "../../hooks/useDirectus";
+import { directus, directusUrl, getAssetUrl } from "../../hooks/useDirectus";
 import { uploadFiles } from "@directus/sdk";
 import axios from "axios";
 import API_BASE from "../../config/apiConfig";
@@ -32,7 +32,7 @@ export default function Profile() {
     const [loading, setLoading] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
-    const [previewUrl, setPreviewUrl] = useState(user?.avatar ? `${directusUrl}/assets/${user.avatar}` : null);
+    const [previewUrl, setPreviewUrl] = useState(user?.avatar ? getAssetUrl(user.avatar) : null);
 
     // Profile Data State
     const [profileData, setProfileData] = useState({

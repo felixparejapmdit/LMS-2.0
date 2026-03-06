@@ -39,7 +39,7 @@ import {
   LayoutDashboard,
   Users
 } from "lucide-react";
-import { directusUrl } from "../hooks/useDirectus";
+import { directusUrl, getAssetUrl } from "../hooks/useDirectus";
 import systemPageService from "../services/systemPageService";
 import { getPageKeyFromPath, humanizePageId } from "../utils/pageAccess";
 
@@ -279,7 +279,7 @@ export default function Sidebar() {
                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-500/10 transition-all overflow-hidden group-hover/prof:scale-110">
                   {user?.avatar ? (
                     <img
-                      src={`${directusUrl}/assets/${user.avatar}?width=100&height=100&fit=cover`}
+                      src={getAssetUrl(user.avatar, "?width=100&height=100&fit=cover")}
                       className="w-full h-full object-cover"
                       alt="Profile"
                       onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=0066FF&color=fff'; }}
@@ -407,7 +407,7 @@ export default function Sidebar() {
                 <div className="w-7 h-7 bg-orange-500 rounded flex items-center justify-center text-white shrink-0 shadow-sm transition-transform group-hover/prof:scale-110 overflow-hidden">
                   {user?.avatar ? (
                     <img
-                      src={`${directusUrl}/assets/${user.avatar}?width=80&height=80&fit=cover`}
+                      src={getAssetUrl(user.avatar, "?width=80&height=80&fit=cover")}
                       className="w-full h-full object-cover"
                       alt="Profile"
                       onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=F97316&color=fff'; }}
@@ -523,7 +523,7 @@ export default function Sidebar() {
               >
                 <div className="w-8 h-8 rounded bg-[#F1F1F1] dark:bg-white/10 flex items-center justify-center shrink-0 overflow-hidden">
                   {user?.avatar ? (
-                    <img src={`${directusUrl}/assets/${user.avatar}`} className="w-full h-full object-cover" alt="" />
+                    <img src={getAssetUrl(user.avatar)} className="w-full h-full object-cover" alt="" />
                   ) : <UserCircle className="w-4 h-4 text-[#A3A3A3]" />}
                 </div>
                 {(isSidebarExpanded || isMobileMenuOpen) && (
@@ -637,7 +637,7 @@ export default function Sidebar() {
                 <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-orange-500/20 transition-all group-hover/prof:scale-110 overflow-hidden">
                   {user?.avatar ? (
                     <img
-                      src={`${directusUrl}/assets/${user.avatar}?width=100&height=100&fit=cover`}
+                      src={getAssetUrl(user.avatar, "?width=100&height=100&fit=cover")}
                       className="w-full h-full object-cover"
                       alt="Profile"
                       onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=F97316&color=fff'; }}

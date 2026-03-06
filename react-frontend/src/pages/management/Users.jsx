@@ -21,7 +21,7 @@ import {
     Camera,
     Upload
 } from "lucide-react";
-import { directus, directusUrl } from "../../hooks/useDirectus";
+import { directus, directusUrl, getAssetUrl } from "../../hooks/useDirectus";
 import useAccess from "../../hooks/useAccess";
 import { uploadFiles } from "@directus/sdk";
 import userService from "../../services/userService";
@@ -218,7 +218,7 @@ export default function Users() {
             dept_id: user.dept_id || "",
             avatar: user.avatar || null
         });
-        setPreviewUrl(user.avatar ? `${directusUrl}/assets/${user.avatar}` : null);
+        setPreviewUrl(user.avatar ? getAssetUrl(user.avatar) : null);
         setIsModalOpen(true);
         setIsMenuOpen(null);
     };
@@ -278,7 +278,7 @@ export default function Users() {
                     <div className={`relative ${viewMode === 'grid' ? 'w-full aspect-square' : 'w-16 h-16'} rounded-[2rem] bg-slate-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 flex items-center justify-center overflow-hidden transition-all group-hover:scale-105`}>
                         {userItem.avatar ? (
                             <img
-                                src={`${directusUrl}/assets/${userItem.avatar}?width=200&height=200&fit=cover`}
+                                src={getAssetUrl(userItem.avatar, "?width=200&height=200&fit=cover")}
                                 alt="Profile"
                                 className="w-full h-full object-cover"
                                 onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + userItem.first_name + '+' + userItem.last_name + '&background=random'; }}

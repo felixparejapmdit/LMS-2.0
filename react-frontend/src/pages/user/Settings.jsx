@@ -17,7 +17,7 @@ import {
     Upload,
     UserCircle
 } from "lucide-react";
-import { directus, directusUrl } from "../../hooks/useDirectus";
+import { directus, directusUrl, getAssetUrl } from "../../hooks/useDirectus";
 import { uploadFiles } from "@directus/sdk";
 import axios from "axios";
 import API_BASE from "../../config/apiConfig";
@@ -29,7 +29,7 @@ export default function Settings() {
     const [loading, setLoading] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
-    const [previewUrl, setPreviewUrl] = useState(user?.avatar ? `${directusUrl}/assets/${user.avatar}` : null);
+    const [previewUrl, setPreviewUrl] = useState(user?.avatar ? getAssetUrl(user.avatar) : null);
     const [formData, setFormData] = useState({
         first_name: user?.first_name || "",
         last_name: user?.last_name || "",
