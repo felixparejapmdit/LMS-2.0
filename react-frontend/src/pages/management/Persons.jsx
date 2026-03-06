@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
+import useAccess from "../../hooks/useAccess";
 import {
     Users as UsersIcon,
     Plus,
@@ -20,10 +21,18 @@ import {
 import axios from "axios";
 
 export default function Persons() {
+    const access = useAccess();
     const context = useAuth();
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
     const { layoutStyle, setIsMobileMenuOpen } = context;
+    const canField = access?.canField || (() => true);
+    const canAdd = canField("persons", "add_button");
+    const canEdit = canField("persons", "edit_button");
+    const canDelete = canField("persons", "delete_button");
+    const canSave = canField("persons", "save_button");
+    const canRefresh = canField("persons", "refresh_button");
+    const canViewToggle = canField("persons", "view_toggle");
     const [persons, setPersons] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -100,6 +109,7 @@ export default function Persons() {
     };
 
     const openCreateModal = () => {
+        if (!canAdd) return;
         setModalMode("create");
         setFormData({ name: "", name_id: "", area: "", telegram: "" });
         setSelectedPerson(null);
@@ -107,6 +117,7 @@ export default function Persons() {
     };
 
     const openEditModal = (person) => {
+        if (!canEdit) return;
         setModalMode("edit");
         setFormData({
             name: person.name || "",
@@ -152,8 +163,8 @@ export default function Persons() {
                                 </button>
                                 {isMenuOpen === person.id && (
                                     <div className="absolute right-0 top-full mt-2 w-32 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl z-20 py-1">
-                                        <button onClick={() => openEditModal(person)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit</button>
-                                        <button onClick={() => handleDelete(person.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Delete</button>
+                                        {canEdit && <button onClick={() => openEditModal(person)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit</button>}
+                                        {canDelete && <button onClick={() => handleDelete(person.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Delete</button>}
                                     </div>
                                 )}
                             </div>
@@ -176,8 +187,8 @@ export default function Persons() {
                             <p className="text-sm font-bold text-gray-500">{person.telegram || 'User'}</p>
                         </div>
                         <div className="flex items-center gap-1">
-                            <button onClick={(e) => { e.stopPropagation(); openEditModal(person); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-orange-500"><Edit2 className="w-4 h-4" /></button>
-                            <button onClick={(e) => { e.stopPropagation(); handleDelete(person.id); }} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                            {canEdit && <button onClick={(e) => { e.stopPropagation(); openEditModal(person); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-orange-500"><Edit2 className="w-4 h-4" /></button>}
+                            {canDelete && <button onClick={(e) => { e.stopPropagation(); handleDelete(person.id); }} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>}
                         </div>
                     </div>
                 )}
@@ -203,8 +214,8 @@ export default function Persons() {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>
-                        <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-orange-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> Add Contact</button>
+                        {canRefresh && <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>}
+                        {canAdd && <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-orange-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> Add Contact</button>}
                     </div>
                 </header>
 
@@ -215,10 +226,12 @@ export default function Persons() {
                                 <h2 className={`text-3xl font-bold ${textColor}`}>Directory / Contacts</h2>
                                 <p className="text-gray-500 mt-2">Manage external senders, contact IDs, and Telegram integrations.</p>
                             </div>
-                            <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm font-sans">
-                                <button onClick={() => setViewMode("grid")} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-4 h-4" /></button>
-                                <button onClick={() => setViewMode("list")} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-4 h-4" /></button>
-                            </div>
+                            {canViewToggle && (
+                                <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm font-sans">
+                                    <button onClick={() => setViewMode("grid")} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-4 h-4" /></button>
+                                    <button onClick={() => setViewMode("list")} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-4 h-4" /></button>
+                                </div>
+                            )}
                         </div>
 
                         {loading ? (
@@ -266,7 +279,7 @@ export default function Persons() {
                                     <input type="text" value={formData.telegram} onChange={e => setFormData({ ...formData, telegram: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30 focus:border-blue-500 text-sm font-bold text-blue-600 dark:text-blue-400" placeholder="@username or ID" />
                                 </div>
                                 <div className="pt-4">
-                                    <button disabled={submitting} className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Contact Info"}</button>
+                                    {canSave && <button disabled={submitting} className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Contact Info"}</button>}
                                 </div>
                             </form>
                         </div>

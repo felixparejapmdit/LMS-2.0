@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
+import useAccess from "../../hooks/useAccess";
 import {
     Loader2,
     Search,
@@ -20,12 +21,17 @@ import axios from "axios";
 
 export default function LettersWithComments() {
     const { user, layoutStyle, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
+    const { canField } = useAccess();
 
     const [letters, setLetters] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState("signature"); // "signature" or "review"
+    const canSearch = canField("letters-with-comments", "search");
+    const canPdf = canField("letters-with-comments", "pdf_button");
+    const canTabFilter = canField("letters-with-comments", "tab_filter");
+    const canRefresh = canField("letters-with-comments", "refresh_button");
 
     const pageBg = layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
     const headerBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200 shadow-sm' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
@@ -72,7 +78,7 @@ export default function LettersWithComments() {
             ? step.includes("signature")
             : step.includes("review");
 
-        const matchesSearch =
+        const matchesSearch = !canSearch ||
             l.lms_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             l.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             l.summary?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -101,9 +107,9 @@ export default function LettersWithComments() {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => fetchData(true)} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
+                        {canRefresh && <button onClick={() => fetchData(true)} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
                             <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
-                        </button>
+                        </button>}
                     </div>
                 </header>
 
@@ -111,7 +117,7 @@ export default function LettersWithComments() {
                     <div className="w-full space-y-6">
                         {/* Tabs & Search */}
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                            <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-white/5 rounded-2xl w-fit">
+                            {canTabFilter && <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-white/5 rounded-2xl w-fit">
                                 <button
                                     onClick={() => setActiveTab("signature")}
                                     className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === "signature"
@@ -130,18 +136,20 @@ export default function LettersWithComments() {
                                 >
                                     For Review
                                 </button>
-                            </div>
+                            </div>}
 
-                            <div className="relative group min-w-[350px]">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Filter commented records..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
-                                />
-                            </div>
+                            {canSearch && (
+                                <div className="relative group min-w-[350px]">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Filter commented records..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {/* List View Table */}
@@ -174,7 +182,7 @@ export default function LettersWithComments() {
                                         ) : filteredLetters.map((letter) => (
                                             <tr key={letter.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
                                                 <td className="p-6 text-center">
-                                                    {(letter.scanned_copy || letter.attachment_id) ? (
+                                                    {canPdf && (letter.scanned_copy || letter.attachment_id) ? (
                                                         <button
                                                             onClick={() => handleViewPDF(letter)}
                                                             className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all mx-auto shadow-sm"

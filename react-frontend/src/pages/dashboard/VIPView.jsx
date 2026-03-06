@@ -18,9 +18,11 @@ import {
     Edit2,
     Trash2
 } from "lucide-react";
+import useAccess from "../../hooks/useAccess";
 
 export default function VIPView() {
     const { user, logout, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const access = useAccess();
     const navigate = useNavigate();
 
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -38,6 +40,14 @@ export default function VIPView() {
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
     const [editingCommentId, setEditingCommentId] = useState(null);
     const [editingCommentBody, setEditingCommentBody] = useState("");
+    const canField = access?.canField || (() => true);
+    const canStepSelector = canField("vip-view", "step_selector");
+    const canPdfButton = canField("vip-view", "pdf_button");
+    const canCommentBox = canField("vip-view", "comment_box");
+    const canSubmit = canField("vip-view", "submit_button");
+    const canEdit = canField("vip-view", "edit_button");
+    const canDelete = canField("vip-view", "delete_button");
+    const canLogout = canField("vip-view", "logout_button");
 
     // PDF States
     const [pdfUrl, setPdfUrl] = useState(null);
@@ -262,48 +272,52 @@ export default function VIPView() {
                                 <span className="text-[9px] font-black uppercase tracking-widest">VIP Executive Access</span>
                             </div>
                         </div>
-                        <button
-                            onClick={handleLogout}
-                            className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-500/30 transition-all group shrink-0"
-                            title="Sign Out"
-                        >
-                            <LogOut className="w-5 h-5 transform group-hover:translate-x-0.5 transition-transform" />
-                        </button>
+                        {canLogout && (
+                            <button
+                                onClick={handleLogout}
+                                className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-500/30 transition-all group shrink-0"
+                                title="Sign Out"
+                            >
+                                <LogOut className="w-5 h-5 transform group-hover:translate-x-0.5 transition-transform" />
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* Horizontal Steps Selection */}
-            <div className="overflow-x-auto pb-2 custom-scrollbar -mx-2 px-2">
-                <div className="flex items-center gap-3 min-w-max">
-                    {steps.map(step => (
-                        <button
-                            key={step.id}
-                            onClick={() => {
-                                setSelectedStepId(step.id);
-                                fetchSteps(); // Refresh counts on click
-                            }}
-                            className={`px-5 py-3.5 rounded-[1.25rem] border transition-all flex items-center gap-3 ${selectedStepId === step.id
-                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 border-transparent text-white shadow-lg shadow-blue-500/20'
-                                : 'bg-white dark:bg-[#111] border-slate-200 dark:border-[#333] text-slate-500 hover:border-blue-500/30 hover:text-blue-600 dark:hover:text-blue-400'
-                                }`}
-                        >
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${selectedStepId === step.id ? 'bg-white/20' : 'bg-slate-100 dark:bg-white/5 text-slate-400'
-                                }`}>
-                                <CheckCircle2 className="w-4 h-4" />
-                            </div>
-                            <div className="flex flex-col items-start">
-                                <span className="text-[11px] font-black uppercase tracking-wider">{step.step_name}</span>
-                                {step.count !== undefined && (
-                                    <span className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${selectedStepId === step.id ? 'text-blue-100' : 'text-slate-400'}`}>
-                                        {step.count} {step.count === 1 ? 'Doc' : 'Docs'}
-                                    </span>
-                                )}
-                            </div>
-                        </button>
-                    ))}
+            {canStepSelector && (
+                <div className="overflow-x-auto pb-2 custom-scrollbar -mx-2 px-2">
+                    <div className="flex items-center gap-3 min-w-max">
+                        {steps.map(step => (
+                            <button
+                                key={step.id}
+                                onClick={() => {
+                                    setSelectedStepId(step.id);
+                                    fetchSteps(); // Refresh counts on click
+                                }}
+                                className={`px-5 py-3.5 rounded-[1.25rem] border transition-all flex items-center gap-3 ${selectedStepId === step.id
+                                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 border-transparent text-white shadow-lg shadow-blue-500/20'
+                                    : 'bg-white dark:bg-[#111] border-slate-200 dark:border-[#333] text-slate-500 hover:border-blue-500/30 hover:text-blue-600 dark:hover:text-blue-400'
+                                    }`}
+                            >
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${selectedStepId === step.id ? 'bg-white/20' : 'bg-slate-100 dark:bg-white/5 text-slate-400'
+                                    }`}>
+                                    <CheckCircle2 className="w-4 h-4" />
+                                </div>
+                                <div className="flex flex-col items-start">
+                                    <span className="text-[11px] font-black uppercase tracking-wider">{step.step_name}</span>
+                                    {step.count !== undefined && (
+                                        <span className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${selectedStepId === step.id ? 'text-blue-100' : 'text-slate-400'}`}>
+                                            {step.count} {step.count === 1 ? 'Doc' : 'Docs'}
+                                        </span>
+                                    )}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Letters Table */}
             <div className={`rounded-3xl border overflow-hidden ${cardBg}`}>
@@ -339,7 +353,7 @@ export default function VIPView() {
                                     <tr key={letter.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors group">
                                         <td className="px-5 py-4 text-xs font-black text-slate-400">{idx + 1}</td>
                                         <td className="px-5 py-4 text-center">
-                                            {(letter.attachment_id || letter.scanned_copy) ? (
+                                            {canPdfButton && (letter.attachment_id || letter.scanned_copy) ? (
                                                 <button
                                                     onClick={() => openLetter(letter, idx)}
                                                     className="w-10 h-10 mx-auto rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-all transform group-hover:scale-105 group-hover:shadow-md group-hover:shadow-blue-500/20"
@@ -474,16 +488,18 @@ export default function VIPView() {
                                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                                                             {new Date(comment.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short', hour12: true })}
                                                         </span>
-                                                        <div className="opacity-0 group-hover/comment:opacity-100 flex items-center gap-1 transition-opacity">
-                                                            <button onClick={() => handleEditComment(comment)} className="p-1 text-slate-400 hover:text-blue-500 rounded transition-colors" title="Edit">
-                                                                <Edit2 className="w-3.5 h-3.5" />
-                                                            </button>
-                                                            <button onClick={() => handleDeleteComment(comment.id)} className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors" title="Delete">
-                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                            </button>
-                                                        </div>
+                                                        {(canEdit || canDelete) && (
+                                                            <div className="opacity-0 group-hover/comment:opacity-100 flex items-center gap-1 transition-opacity">
+                                                                {canEdit && <button onClick={() => handleEditComment(comment)} className="p-1 text-slate-400 hover:text-blue-500 rounded transition-colors" title="Edit">
+                                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                                </button>}
+                                                                {canDelete && <button onClick={() => handleDeleteComment(comment.id)} className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors" title="Delete">
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    {editingCommentId === comment.id ? (
+                                                    {canEdit && editingCommentId === comment.id ? (
                                                         <div className="space-y-2">
                                                             <textarea
                                                                 rows="3"
@@ -521,25 +537,31 @@ export default function VIPView() {
 
                                 <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-[#222]">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                                            Add Comment
-                                        </label>
+                                        {canCommentBox && (
+                                            <label className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                Add Comment
+                                            </label>
+                                        )}
                                     </div>
-                                    <textarea
-                                        rows="5"
-                                        placeholder="Enter marginal notes here..."
-                                        className="w-full p-4 rounded-xl bg-white dark:bg-[#111] border border-slate-200 dark:border-[#333] text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none text-slate-900 dark:text-slate-200"
-                                        value={newCommentText}
-                                        onChange={(e) => setNewCommentText(e.target.value)}
-                                    />
-                                    <button
-                                        onClick={handleAddComment}
-                                        disabled={isSaving || !newCommentText.trim()}
-                                        className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[0.85rem] flex items-center justify-center gap-2 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
-                                    >
-                                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                        {isSaving ? "Submitting..." : "Submit Comment"}
-                                    </button>
+                                    {canCommentBox && (
+                                        <textarea
+                                            rows="5"
+                                            placeholder="Enter marginal notes here..."
+                                            className="w-full p-4 rounded-xl bg-white dark:bg-[#111] border border-slate-200 dark:border-[#333] text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none text-slate-900 dark:text-slate-200"
+                                            value={newCommentText}
+                                            onChange={(e) => setNewCommentText(e.target.value)}
+                                        />
+                                    )}
+                                    {canSubmit && (
+                                        <button
+                                            onClick={handleAddComment}
+                                            disabled={isSaving || !newCommentText.trim()}
+                                            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[0.85rem] flex items-center justify-center gap-2 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+                                        >
+                                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                            {isSaving ? "Submitting..." : "Submit Comment"}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 

@@ -19,7 +19,7 @@ services:
       CORS_CREDENTIALS: "true"
       CORS_METHODS: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
       CORS_ALLOWED_HEADERS: "Content-Type,Authorization"
-      PUBLIC_URL: "http://172.18.162.169:8055"
+      PUBLIC_URL: "${VITE_DIRECTUS_URL:-http://172.18.162.169:8055}"
     restart: unless-stopped
 
   backend:
@@ -43,8 +43,8 @@ services:
       context: ./react-frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://172.18.162.169:5000/api
-        VITE_DIRECTUS_URL: http://172.18.162.169:8055
+        VITE_API_URL: "${VITE_API_URL:-http://localhost:5000/api}"
+        VITE_DIRECTUS_URL: "${VITE_DIRECTUS_URL:-http://localhost:8055}"
     ports:
       - "80:80"
     depends_on:

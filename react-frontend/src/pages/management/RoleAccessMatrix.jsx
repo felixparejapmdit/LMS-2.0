@@ -26,6 +26,7 @@ import rolePermissionService from "../../services/rolePermissionService";
 import systemPageService from "../../services/systemPageService";
 import { BASE_SYSTEM_PAGES, humanizePageId } from "../../utils/pageAccess";
 import { getFieldPresetForPage } from "../../utils/fieldPresets";
+import useAccess from "../../hooks/useAccess";
 
 
 const ACTIONS = [
@@ -50,6 +51,7 @@ const mergeFieldPermissions = (pageId, existing = {}) => {
 
 export default function RoleAccessMatrix() {
     const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const access = useAccess();
 
     const [roles, setRoles] = useState([]);
     const [pages, setPages] = useState([]);
@@ -61,6 +63,13 @@ export default function RoleAccessMatrix() {
     const [isInstructionOpen, setIsInstructionOpen] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
     const [searchTerm, setSearchTerm] = useState("");
+    const canField = access?.canField || (() => true);
+    const canSearch = canField("role-matrix", "search");
+    const canSave = canField("role-matrix", "save_button");
+    const canEditField = canField("role-matrix", "edit_field");
+    const canAllowAll = canField("role-matrix", "allow_all_button");
+    const canRestrict = canField("role-matrix", "restrict_button");
+    const canRoleSelector = canField("role-matrix", "role_selector");
 
     const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
     const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
@@ -253,14 +262,16 @@ export default function RoleAccessMatrix() {
                         >
                             <HelpCircle className="w-5 h-5" />
                         </button>
-                        <button
-                            disabled={saving}
-                            onClick={handleSave}
-                            className={`px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-blue-500/20 active:scale-95 disabled:opacity-50`}
-                        >
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                            {saving ? "Deploying..." : "Save Matrix"}
-                        </button>
+                        {canSave && (
+                            <button
+                                disabled={saving}
+                                onClick={handleSave}
+                                className={`px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-blue-500/20 active:scale-95 disabled:opacity-50`}
+                            >
+                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                {saving ? "Deploying..." : "Save Matrix"}
+                            </button>
+                        )}
                     </div>
                 </header>
 
@@ -279,31 +290,35 @@ export default function RoleAccessMatrix() {
                             </div>
 
                             <div className="w-full md:w-auto flex flex-col gap-4">
-                                <div className="relative min-w-[280px]">
-                                    <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                                    <input
-                                        type="text"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        placeholder="Search page name, key, or category..."
-                                        className="w-full pl-11 pr-4 py-3 rounded-2xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-white/10 text-sm font-medium text-slate-700 dark:text-slate-200 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500/20"
-                                    />
-                                </div>
+                                {canSearch && (
+                                    <div className="relative min-w-[280px]">
+                                        <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                                        <input
+                                            type="text"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            placeholder="Search page name, key, or category..."
+                                            className="w-full pl-11 pr-4 py-3 rounded-2xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-white/10 text-sm font-medium text-slate-700 dark:text-slate-200 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500/20"
+                                        />
+                                    </div>
+                                )}
 
-                                <div className="flex items-center gap-3 flex-wrap justify-start md:justify-end">
-                                    {roles.map(role => (
-                                        <button
-                                            key={role.id}
-                                            onClick={() => setSelectedRoleId(role.id)}
-                                            className={`px-6 py-4 rounded-3xl border transition-all text-xs font-black uppercase tracking-widest ${selectedRoleId === role.id
-                                                ? "bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-500/20"
-                                                : "bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-white/10 text-gray-400 hover:border-blue-500/50"
-                                                }`}
-                                        >
-                                            {role.name}
-                                        </button>
-                                    ))}
-                                </div>
+                                {canRoleSelector && (
+                                    <div className="flex items-center gap-3 flex-wrap justify-start md:justify-end">
+                                        {roles.map(role => (
+                                            <button
+                                                key={role.id}
+                                                onClick={() => setSelectedRoleId(role.id)}
+                                                className={`px-6 py-4 rounded-3xl border transition-all text-xs font-black uppercase tracking-widest ${selectedRoleId === role.id
+                                                    ? "bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-500/20"
+                                                    : "bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-white/10 text-gray-400 hover:border-blue-500/50"
+                                                    }`}
+                                            >
+                                                {role.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -370,6 +385,7 @@ export default function RoleAccessMatrix() {
                                                             <td key={action.id} className="p-8 text-center">
                                                                 {action.id === 'field_permissions' ? (
                                                                     <button
+                                                                        disabled={!canEditField}
                                                                         onClick={() => {
                                                                             const currentFields = mergeFieldPermissions(page.page_id, matrix[page.page_id]?.field_permissions || {});
                                                                             setFieldModal({
@@ -381,7 +397,7 @@ export default function RoleAccessMatrix() {
                                                                         className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center transition-all ${Object.keys(matrix[page.page_id]?.field_permissions || {}).length > 0
                                                                             ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
                                                                             : "bg-slate-100 dark:bg-white/5 text-gray-300 dark:text-gray-700 hover:text-blue-500"
-                                                                            }`}
+                                                                            } ${!canEditField ? 'opacity-40 pointer-events-none' : ''}`}
                                                                     >
                                                                         <Settings className="w-5 h-5" />
                                                                     </button>
@@ -400,18 +416,22 @@ export default function RoleAccessMatrix() {
                                                         ))}
                                                         <td className="p-8">
                                                             <div className="flex justify-end gap-2">
-                                                                <button
-                                                                    onClick={() => handleToggleAll(page.page_id, true)}
-                                                                    className="px-4 py-2 rounded-xl bg-green-500/10 text-green-500 text-[9px] font-black uppercase tracking-widest hover:bg-green-500 hover:text-white transition-all shadow-sm active:scale-95"
-                                                                >
-                                                                    Allow All
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleToggleAll(page.page_id, false)}
-                                                                    className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-white transition-all shadow-sm active:scale-95"
-                                                                >
-                                                                    Restrict
-                                                                </button>
+                                                                {canAllowAll && (
+                                                                    <button
+                                                                        onClick={() => handleToggleAll(page.page_id, true)}
+                                                                        className="px-4 py-2 rounded-xl bg-green-500/10 text-green-500 text-[9px] font-black uppercase tracking-widest hover:bg-green-500 hover:text-white transition-all shadow-sm active:scale-95"
+                                                                    >
+                                                                        Allow All
+                                                                    </button>
+                                                                )}
+                                                                {canRestrict && (
+                                                                    <button
+                                                                        onClick={() => handleToggleAll(page.page_id, false)}
+                                                                        className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-white transition-all shadow-sm active:scale-95"
+                                                                    >
+                                                                        Restrict
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </td>
                                                     </tr>

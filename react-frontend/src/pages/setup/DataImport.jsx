@@ -14,12 +14,17 @@ import {
 import axios from "axios";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
+import useAccess from "../../hooks/useAccess";
 
 export default function DataImport() {
     const { layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const access = useAccess();
     const [loading, setLoading] = useState({ persons: false, users: false });
     const [results, setResults] = useState({ persons: null, users: null });
     const [error, setError] = useState({ persons: null, users: null });
+    const canField = access?.canField || (() => true);
+    const canPersonsImport = canField("data-import", "persons_import_button");
+    const canUsersImport = canField("data-import", "users_import_button");
 
     const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -95,16 +100,18 @@ export default function DataImport() {
                                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Synchronizes names, IDs, areas, and Telegram IDs to the central contacts database.</p>
                                 </div>
 
-                                <div className="pt-4">
-                                    <button
-                                        onClick={() => handleImport('persons')}
-                                        disabled={loading.persons}
-                                        className="w-full py-4 rounded-2xl bg-orange-500 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:bg-orange-600 active:scale-[0.98] transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50"
-                                    >
-                                        {loading.persons ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                                        {loading.persons ? "Syncing..." : "Start Import"}
-                                    </button>
-                                </div>
+                                {canPersonsImport && (
+                                    <div className="pt-4">
+                                        <button
+                                            onClick={() => handleImport('persons')}
+                                            disabled={loading.persons}
+                                            className="w-full py-4 rounded-2xl bg-orange-500 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:bg-orange-600 active:scale-[0.98] transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50"
+                                        >
+                                            {loading.persons ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                            {loading.persons ? "Syncing..." : "Start Import"}
+                                        </button>
+                                    </div>
+                                )}
 
                                 {results.persons && (
                                     <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 animate-in fade-in slide-in-from-bottom-2">
@@ -153,16 +160,18 @@ export default function DataImport() {
                                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Migrates system user accounts. Handles first/last name splitting and security hashing.</p>
                                 </div>
 
-                                <div className="pt-4">
-                                    <button
-                                        onClick={() => handleImport('users')}
-                                        disabled={loading.users}
-                                        className="w-full py-4 rounded-2xl bg-indigo-500 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:bg-indigo-600 active:scale-[0.98] transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
-                                    >
-                                        {loading.users ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                                        {loading.users ? "Migrating..." : "Start Migration"}
-                                    </button>
-                                </div>
+                                {canUsersImport && (
+                                    <div className="pt-4">
+                                        <button
+                                            onClick={() => handleImport('users')}
+                                            disabled={loading.users}
+                                            className="w-full py-4 rounded-2xl bg-indigo-500 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:bg-indigo-600 active:scale-[0.98] transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                                        >
+                                            {loading.users ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                            {loading.users ? "Migrating..." : "Start Migration"}
+                                        </button>
+                                    </div>
+                                )}
 
                                 {results.users && (
                                     <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 animate-in fade-in slide-in-from-bottom-2">

@@ -21,9 +21,11 @@ import { directus, directusUrl } from "../../hooks/useDirectus";
 import { uploadFiles } from "@directus/sdk";
 import axios from "axios";
 import API_BASE from "../../config/apiConfig";
+import useAccess from "../../hooks/useAccess";
 
 export default function Settings() {
     const { user, login, layoutStyle, toggleLayoutStyle, fontFamily, changeFontFamily, setIsMobileMenuOpen } = useAuth();
+    const access = useAccess();
     const [loading, setLoading] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -33,6 +35,10 @@ export default function Settings() {
         last_name: user?.last_name || "",
         avatar: user?.avatar || null
     });
+    const canField = access?.canField || (() => true);
+    const canSave = canField("settings", "save_button");
+    const canLayoutSelector = canField("settings", "layout_selector");
+    const canFontSelector = canField("settings", "font_selector");
 
     const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F9FAFB] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
     const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
@@ -109,24 +115,26 @@ export default function Settings() {
                                     <h3 className="font-bold">Layout System</h3>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-4">
-                                    <button
-                                        onClick={() => {
-                                            toggleLayoutStyle('minimalist');
-                                            changeFontFamily('Inter');
-                                        }}
-                                        className={`p-4 rounded-xl border-2 transition-all text-left ${layoutStyle === 'minimalist' ? 'border-emerald-500 bg-emerald-50/50' : 'border-gray-100 dark:border-[#333] hover:border-gray-200'}`}
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className={`text-xs font-bold uppercase tracking-widest ${textColor}`}>Minimalist</span>
-                                            {layoutStyle === 'minimalist' && <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>}
-                                        </div>
-                                        <p className="text-[9px] text-gray-500 uppercase font-black">Active Layout (Notion and 3-Col Grid disabled)</p>
-                                    </button>
-                                </div>
+                                {canLayoutSelector && (
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <button
+                                            onClick={() => {
+                                                toggleLayoutStyle('minimalist');
+                                                changeFontFamily('Inter');
+                                            }}
+                                            className={`p-4 rounded-xl border-2 transition-all text-left ${layoutStyle === 'minimalist' ? 'border-emerald-500 bg-emerald-50/50' : 'border-gray-100 dark:border-[#333] hover:border-gray-200'}`}
+                                        >
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className={`text-xs font-bold uppercase tracking-widest ${textColor}`}>Minimalist</span>
+                                                {layoutStyle === 'minimalist' && <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>}
+                                            </div>
+                                            <p className="text-[9px] text-gray-500 uppercase font-black">Active Layout (Notion and 3-Col Grid disabled)</p>
+                                        </button>
+                                    </div>
+                                )}
 
                                 {/* Typography Selection */}
-                                <div className="mt-10 mb-6 pt-10 border-t border-gray-100 dark:border-white/5">
+                                {canFontSelector && <div className="mt-10 mb-6 pt-10 border-t border-gray-100 dark:border-white/5">
                                     <h4 className={`text-sm font-bold flex items-center gap-2 mb-6 ${textColor}`}>
                                         <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
                                         Typography System
@@ -154,19 +162,21 @@ export default function Settings() {
                                             </button>
                                         ))}
                                     </div>
-                                </div>
+                                </div>}
                             </section>
 
-                            <div className="flex justify-end pt-4 pb-12">
-                                <button
-                                    onClick={handleSave}
-                                    disabled={loading}
-                                    className={`flex items-center gap-2 px-8 py-3 text-white text-sm font-bold rounded-xl transition-all shadow-md bg-orange-500 hover:bg-orange-600 shadow-orange-100 dark:shadow-none active:scale-95 disabled:opacity-50`}
-                                >
-                                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                    SAVE CHANGES
-                                </button>
-                            </div>
+                            {canSave && (
+                                <div className="flex justify-end pt-4 pb-12">
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={loading}
+                                        className={`flex items-center gap-2 px-8 py-3 text-white text-sm font-bold rounded-xl transition-all shadow-md bg-orange-500 hover:bg-orange-600 shadow-orange-100 dark:shadow-none active:scale-95 disabled:opacity-50`}
+                                    >
+                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                        SAVE CHANGES
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

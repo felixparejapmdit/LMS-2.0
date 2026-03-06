@@ -24,13 +24,18 @@ import {
   Star
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import useAccess from "../../hooks/useAccess";
 
 export default function LetterDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, layoutStyle, setIsMobileMenuOpen, isSidebarExpanded } = useAuth();
+  const access = useAccess();
   const [letter, setLetter] = useState(null);
   const [loading, setLoading] = useState(true);
+  const canField = access?.canField || (() => true);
+  const canPdf = canField("letter-detail", "pdf_button");
+  const canBack = canField("letter-detail", "back_button");
 
   // Helper: build browser-accessible URL from a stored file path (Windows absolute OR relative)
   const buildFileUrl = (rawPath) => {
@@ -94,12 +99,14 @@ export default function LetterDetail() {
               >
                 <Menu className="w-6 h-6" />
               </button>
-              <button
-                onClick={() => navigate(-1)}
-                className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-[#333] rounded-xl text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-white/10 hover:border-blue-100 transition-all shadow-sm"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
+              {canBack && (
+                <button
+                  onClick={() => navigate(-1)}
+                  className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-[#333] rounded-xl text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-white/10 hover:border-blue-100 transition-all shadow-sm"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+              )}
               <div className="flex flex-col">
                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Detail View</span>
                 <h1 className="text-sm md:text-xl font-black text-slate-900 dark:text-white tracking-tighter uppercase truncate max-w-[120px] md:max-w-none">{letter.lms_id}</h1>
@@ -178,7 +185,7 @@ export default function LetterDetail() {
                     const filePath = letter.scanned_copy || letter.attachment?.file_path;
                     const fileUrl = buildFileUrl(filePath);
                     const fileName = getFilename(filePath);
-                    return fileUrl ? (
+                    return canPdf && fileUrl ? (
                       <a
                         href={fileUrl}
                         target="_blank"
@@ -225,12 +232,14 @@ export default function LetterDetail() {
               >
                 <Menu className="w-5 h-5" />
               </button>
-              <button
-                onClick={() => navigate(-1)}
-                className="p-2 text-gray-400 hover:text-[#1A1A1B] dark:hover:text-white transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
+              {canBack && (
+                <button
+                  onClick={() => navigate(-1)}
+                  className="p-2 text-gray-400 hover:text-[#1A1A1B] dark:hover:text-white transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+              )}
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-[#1A1A1B] dark:text-white" />
                 <div>
@@ -318,7 +327,7 @@ export default function LetterDetail() {
                     {(() => {
                       const filePath = letter.scanned_copy || letter.attachment?.file_path;
                       const fileUrl = buildFileUrl(filePath);
-                      return fileUrl ? (
+                      return canPdf && fileUrl ? (
                         <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-transparent hover:border-gray-200 transition-all group">
                           <div className="w-10 h-10 bg-[#1A1A1B] text-white rounded-lg flex items-center justify-center">
                             <FileText className="w-5 h-5" />
@@ -356,9 +365,11 @@ export default function LetterDetail() {
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-4 text-gray-400 mb-8 lowercase text-xs font-semibold">
-              <button onClick={() => navigate(-1)} className="hover:text-gray-900 dark:hover:text-white flex items-center gap-1 transition-colors">
-                <ChevronLeft className="w-3 h-3" /> back
-              </button>
+              {canBack && (
+                <button onClick={() => navigate(-1)} className="hover:text-gray-900 dark:hover:text-white flex items-center gap-1 transition-colors">
+                  <ChevronLeft className="w-3 h-3" /> back
+                </button>
+              )}
               <span>/</span>
               <span className="text-gray-900 dark:text-gray-200">{letter.lms_id}</span>
             </div>
@@ -375,11 +386,13 @@ export default function LetterDetail() {
                     <FileText className="w-16 h-16 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
                     <p className="text-xs font-bold text-gray-300 dark:text-gray-600 uppercase tracking-widest">Digital preview canvas</p>
                   </div>
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-2 bg-white dark:bg-black rounded border border-gray-100 dark:border-[#333] shadow-sm">
-                      <ExternalLink className="w-4 h-4 text-gray-400" />
-                    </button>
-                  </div>
+                  {canPdf && (
+                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button className="p-2 bg-white dark:bg-black rounded border border-gray-100 dark:border-[#333] shadow-sm">
+                        <ExternalLink className="w-4 h-4 text-gray-400" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <section>
@@ -394,7 +407,7 @@ export default function LetterDetail() {
                     const filePath = letter.scanned_copy || letter.attachment?.file_path;
                     const fileUrl = buildFileUrl(filePath);
                     const fileName = getFilename(filePath);
-                    return fileUrl ? (
+                    return canPdf && fileUrl ? (
                       <a
                         href={fileUrl}
                         target="_blank"
@@ -461,12 +474,14 @@ export default function LetterDetail() {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-gray-50 rounded-full transition-all group"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-400 group-hover:text-orange-500" />
-            </button>
+            {canBack && (
+              <button
+                onClick={() => navigate(-1)}
+                className="p-2 hover:bg-gray-50 rounded-full transition-all group"
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-400 group-hover:text-orange-500" />
+              </button>
+            )}
             <div>
               <h1 className="text-sm font-bold text-gray-900 uppercase tracking-tight">{letter.lms_id}</h1>
               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-none">Letter Details</p>
@@ -474,10 +489,12 @@ export default function LetterDetail() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all">
-              <Paperclip className="w-4 h-4" />
-              ATTACHMENT
-            </button>
+            {canPdf && (
+              <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all">
+                <Paperclip className="w-4 h-4" />
+                ATTACHMENT
+              </button>
+            )}
           </div>
         </header>
 
@@ -610,7 +627,7 @@ export default function LetterDetail() {
                   const filePath = letter.scanned_copy || letter.attachment?.file_path;
                   const fileUrl = buildFileUrl(filePath);
                   const fileName = getFilename(filePath);
-                  return fileUrl ? (
+                  return canPdf && fileUrl ? (
                     <a href={fileUrl} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-2xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors group"
                     >

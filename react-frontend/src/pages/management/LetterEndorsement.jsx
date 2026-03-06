@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
+import useAccess from "../../hooks/useAccess";
 import axios from "axios";
 import {
     ArrowLeft,
@@ -24,10 +25,16 @@ export default function LetterEndorsement() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const { canField } = useAccess();
     const [endorsements, setEndorsements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const printRef = useRef(null);
+    const canSearch = canField("endorsements", "search");
+    const canPrint = canField("endorsements", "print_button");
+    const canDelete = canField("endorsements", "delete_button");
+    const canView = canField("endorsements", "view_button");
+    const canRefresh = canField("endorsements", "refresh_button");
 
     const fetchEndorsements = async () => {
         if (!user) return;
@@ -116,11 +123,14 @@ export default function LetterEndorsement() {
         printWindow.document.close();
     };
 
-    const filtered = endorsements.filter(e =>
-        e.endorsed_to?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        e.letter?.lms_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        e.letter?.sender?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filtered = endorsements.filter(e => {
+        if (!canSearch) return true;
+        return (
+            e.endorsed_to?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            e.letter?.lms_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            e.letter?.sender?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    });
 
     // Group by endorsed_to name
     const grouped = filtered.reduce((acc, e) => {
@@ -161,20 +171,22 @@ export default function LetterEndorsement() {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => fetchEndorsements()} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
+                        {canRefresh && <button onClick={() => fetchEndorsements()} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
                             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                        </button>
+                        </button>}
                     </div>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300" />
-                        <input
-                            type="text"
-                            placeholder="Search endorsements..."
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            className={`pl-9 pr-4 py-2 text-xs rounded-xl border outline-none w-56 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-200'}`}
-                        />
-                    </div>
+                    {canSearch && (
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300" />
+                            <input
+                                type="text"
+                                placeholder="Search endorsements..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className={`pl-9 pr-4 py-2 text-xs rounded-xl border outline-none w-56 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-200'}`}
+                            />
+                        </div>
+                    )}
                 </header>
 
                 {/* Content */}
@@ -244,27 +256,33 @@ export default function LetterEndorsement() {
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <div className="flex items-center justify-end gap-2">
-                                                                <button
-                                                                    onClick={() => handlePrint(e)}
-                                                                    className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/10 text-blue-600 hover:bg-blue-500 hover:text-white border border-blue-100 dark:border-blue-900/20 transition-all shadow-sm"
-                                                                    title="Print"
-                                                                >
-                                                                    <Printer className="w-3.5 h-3.5" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => navigate(`/letter/${e.letter_id}`)}
-                                                                    className="p-2 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-100 dark:border-white/10 transition-all"
-                                                                    title="View Letter"
-                                                                >
-                                                                    <FileText className="w-3.5 h-3.5" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDelete(e.id)}
-                                                                    className="p-2 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 dark:border-red-900/20 transition-all"
-                                                                    title="Delete"
-                                                                >
-                                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                                </button>
+                                                                {canPrint && (
+                                                                    <button
+                                                                        onClick={() => handlePrint(e)}
+                                                                        className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/10 text-blue-600 hover:bg-blue-500 hover:text-white border border-blue-100 dark:border-blue-900/20 transition-all shadow-sm"
+                                                                        title="Print"
+                                                                    >
+                                                                        <Printer className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                )}
+                                                                {canView && (
+                                                                    <button
+                                                                        onClick={() => navigate(`/letter/${e.letter_id}`)}
+                                                                        className="p-2 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-100 dark:border-white/10 transition-all"
+                                                                        title="View Letter"
+                                                                    >
+                                                                        <FileText className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                )}
+                                                                {canDelete && (
+                                                                    <button
+                                                                        onClick={() => handleDelete(e.id)}
+                                                                        className="p-2 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 dark:border-red-900/20 transition-all"
+                                                                        title="Delete"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </td>
                                                     </tr>

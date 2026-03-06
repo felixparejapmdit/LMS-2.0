@@ -23,8 +23,10 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import trayService from "../../services/trayService";
+import useAccess from "../../hooks/useAccess";
 
 export default function Trays() {
+    const access = useAccess();
     const context = useAuth();
     const navigate = useNavigate();
 
@@ -34,6 +36,14 @@ export default function Trays() {
     }
 
     const { user, layoutStyle, setIsMobileMenuOpen } = context;
+    const canField = access?.canField || (() => true);
+    const canAdd = canField("trays", "add_button");
+    const canEdit = canField("trays", "edit_button");
+    const canDelete = canField("trays", "delete_button");
+    const canSave = canField("trays", "save_button");
+    const canRefresh = canField("trays", "refresh_button");
+    const canViewToggle = canField("trays", "view_toggle");
+    const canNavigate = canField("trays", "navigate_button");
     const [trays, setTrays] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -114,6 +124,7 @@ export default function Trays() {
     };
 
     const openCreateModal = () => {
+        if (!canAdd) return;
         setModalMode("create");
         setFormData({ tray_no: "", description: "", capacity: 100 });
         setSelectedTray(null);
@@ -121,6 +132,7 @@ export default function Trays() {
     };
 
     const openEditModal = (tray) => {
+        if (!canEdit) return;
         setModalMode("edit");
         setFormData({
             tray_no: tray.tray_no,
@@ -157,19 +169,23 @@ export default function Trays() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => fetchTrays(true)}
-                            className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"
-                        >
-                            <RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
-                        </button>
-                        <button
-                            onClick={openCreateModal}
-                            className="hidden md:flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-orange-500/20 uppercase tracking-widest"
-                        >
-                            <Plus className="w-3 h-3" />
-                            Add Tray
-                        </button>
+                        {canRefresh && (
+                            <button
+                                onClick={() => fetchTrays(true)}
+                                className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"
+                            >
+                                <RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
+                            </button>
+                        )}
+                        {canAdd && (
+                            <button
+                                onClick={openCreateModal}
+                                className="hidden md:flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-orange-500/20 uppercase tracking-widest"
+                            >
+                                <Plus className="w-3 h-3" />
+                                Add Tray
+                            </button>
+                        )}
                     </div>
                 </header>
 
@@ -181,20 +197,22 @@ export default function Trays() {
                                 <p className="text-gray-500 mt-2">Organize and monitor physical storage bins for correspondence.</p>
                             </div>
 
-                            <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm font-sans">
-                                <button
-                                    onClick={() => setViewMode("grid")}
-                                    className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}
-                                >
-                                    <LayoutGrid className="w-4 h-4" />
-                                </button>
-                                <button
-                                    onClick={() => setViewMode("list")}
-                                    className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}
-                                >
-                                    <List className="w-4 h-4" />
-                                </button>
-                            </div>
+                            {canViewToggle && (
+                                <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm font-sans">
+                                    <button
+                                        onClick={() => setViewMode("grid")}
+                                        className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                                    >
+                                        <LayoutGrid className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode("list")}
+                                        className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                                    >
+                                        <List className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {loading ? (
@@ -241,20 +259,20 @@ export default function Trays() {
 
                                                             {isMenuOpen === tray.id && (
                                                                 <div className="absolute right-0 top-full mt-2 w-32 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl z-20 py-1">
-                                                                    <button
+                                                                    {canEdit && <button
                                                                         onClick={() => openEditModal(tray)}
                                                                         className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"
                                                                     >
                                                                         <Edit2 className="w-3 h-3" />
                                                                         Edit
-                                                                    </button>
-                                                                    <button
+                                                                    </button>}
+                                                                    {canDelete && <button
                                                                         onClick={() => handleDelete(tray.id)}
                                                                         className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"
                                                                     >
                                                                         <Trash2 className="w-3 h-3" />
                                                                         Delete
-                                                                    </button>
+                                                                    </button>}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -279,7 +297,7 @@ export default function Trays() {
                                                                 <FileText className="w-3 h-3 text-gray-400" />
                                                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{count} Files</span>
                                                             </div>
-                                                            <button
+                                                            {canNavigate && <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     navigate(`/inbox?tray=${tray.tray_no}`);
@@ -288,7 +306,7 @@ export default function Trays() {
                                                             >
                                                                 Check
                                                                 <ChevronRight className="w-3 h-3" />
-                                                            </button>
+                                                            </button>}
                                                         </div>
                                                     </div>
                                                 )}
@@ -304,26 +322,26 @@ export default function Trays() {
                                                     </div>
 
                                                     <div className="flex items-center gap-1">
-                                                        <button
+                                                        {canEdit && <button
                                                             onClick={(e) => { e.stopPropagation(); openEditModal(tray); }}
                                                             className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-blue-500"
                                                             title="Edit"
                                                         >
                                                             <Edit2 className="w-4 h-4" />
-                                                        </button>
-                                                        <button
+                                                        </button>}
+                                                        {canDelete && <button
                                                             onClick={(e) => { e.stopPropagation(); handleDelete(tray.id); }}
                                                             className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all text-gray-400 hover:text-red-500"
                                                             title="Delete"
                                                         >
                                                             <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                        <button
+                                                        </button>}
+                                                        {canNavigate && <button
                                                             onClick={(e) => { e.stopPropagation(); navigate(`/inbox?tray=${tray.tray_no}`); }}
                                                             className="p-2 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl transition-all text-gray-300 hover:text-orange-500"
                                                         >
                                                             <ChevronRight className="w-5 h-5" />
-                                                        </button>
+                                                        </button>}
                                                     </div>
                                                 </div>
                                             )}
@@ -331,7 +349,7 @@ export default function Trays() {
                                     );
                                 })}
 
-                                <button
+                                {canAdd && <button
                                     onClick={openCreateModal}
                                     className={`border-2 border-dashed border-slate-200 dark:border-[#333] ${viewMode === 'grid' ? 'p-8 rounded-[2.5rem] flex flex-col items-center justify-center gap-4' : 'p-4 rounded-2xl flex items-center justify-center gap-4'} hover:border-orange-500 dark:hover:border-orange-500 hover:bg-orange-50/50 dark:hover:bg-orange-900/5 transition-all group shadow-sm`}
                                 >
@@ -339,7 +357,7 @@ export default function Trays() {
                                         <Plus className="w-6 h-6" />
                                     </div>
                                     <span className="text-xs font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest group-hover:text-orange-500">+ Define New Tray</span>
-                                </button>
+                                </button>}
                             </div>
                         )}
                     </div>
@@ -405,7 +423,7 @@ export default function Trays() {
                                 </div>
 
                                 <div className="pt-4">
-                                    <button
+                                    {canSave && <button
                                         disabled={submitting}
                                         className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl shadow-orange-500/20 flex items-center justify-center gap-2 group"
                                     >
@@ -415,7 +433,7 @@ export default function Trays() {
                                             <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
                                         )}
                                         {modalMode === 'create' ? 'Define Tray' : 'Update Tray Instance'}
-                                    </button>
+                                    </button>}
                                 </div>
                             </form>
                         </div>

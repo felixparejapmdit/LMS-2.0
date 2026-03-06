@@ -19,6 +19,7 @@ import { useAuth } from "../../context/AuthContext";
 import departmentService from "../../services/departmentService";
 import processStepService from "../../services/processStepService";
 import letterKindService from "../../services/letterKindService";
+import useAccess from "../../hooks/useAccess";
 
 const StepIcon = ({ icon: Icon, active, completed }) => (
     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 scale-animation ${active ? 'bg-blue-600 text-white shadow-xl shadow-blue-500/20' :
@@ -31,6 +32,7 @@ const StepIcon = ({ icon: Icon, active, completed }) => (
 
 export default function SetupWizard() {
     const { user, isSuperAdmin } = useAuth();
+    const access = useAccess();
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -47,6 +49,15 @@ export default function SetupWizard() {
         { kind_name: "Memorandum", description: "Internal policies" },
         { kind_name: "Letter", description: "General correspondence" }
     ]);
+    const canField = access?.canField || (() => true);
+    const canDepartmentField = canField("setup", "department_field");
+    const canDeptCodeField = canField("setup", "dept_code_field");
+    const canTemplateSelector = canField("setup", "template_selector");
+    const canAdd = canField("setup", "add_button");
+    const canDelete = canField("setup", "delete_button");
+    const canSubmit = canField("setup", "submit_button");
+    const canNext = canField("setup", "next_button");
+    const canBack = canField("setup", "back_button");
 
     const totalSteps = 5;
 
@@ -115,28 +126,34 @@ export default function SetupWizard() {
                                 <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Tip: Use a name that doesn't exist yet (e.g. "Public Affairs")</span>
                             </div>
                         </div>
-                        <div className="space-y-4">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Department Name</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 p-5 rounded-3xl text-slate-800 dark:text-white font-bold outline-none focus:border-blue-500 transition-all shadow-sm"
-                                    placeholder="e.g. Strategic Planning Division"
-                                    value={deptData.dept_name}
-                                    onChange={e => setDeptData({ ...deptData, dept_name: e.target.value })}
-                                />
+                        {(canDepartmentField || canDeptCodeField) && (
+                            <div className="space-y-4">
+                                {canDepartmentField && (
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Department Name</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 p-5 rounded-3xl text-slate-800 dark:text-white font-bold outline-none focus:border-blue-500 transition-all shadow-sm"
+                                            placeholder="e.g. Strategic Planning Division"
+                                            value={deptData.dept_name}
+                                            onChange={e => setDeptData({ ...deptData, dept_name: e.target.value })}
+                                        />
+                                    </div>
+                                )}
+                                {canDeptCodeField && (
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dept Code</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 p-5 rounded-3xl text-slate-800 dark:text-white font-bold outline-none focus:border-blue-500 transition-all shadow-sm uppercase"
+                                            placeholder="e.g. SPD-2026"
+                                            value={deptData.dept_code}
+                                            onChange={e => setDeptData({ ...deptData, dept_code: e.target.value })}
+                                        />
+                                    </div>
+                                )}
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dept Code</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 p-5 rounded-3xl text-slate-800 dark:text-white font-bold outline-none focus:border-blue-500 transition-all shadow-sm uppercase"
-                                    placeholder="e.g. SPD-2026"
-                                    value={deptData.dept_code}
-                                    onChange={e => setDeptData({ ...deptData, dept_code: e.target.value })}
-                                />
-                            </div>
-                        </div>
+                        )}
                     </div>
                 );
             case 3:
@@ -146,7 +163,7 @@ export default function SetupWizard() {
                             <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Choose DNA Blueprint</h2>
                             <p className="text-slate-400 font-medium">Select a workflow template to pre-configure your dashboard.</p>
                         </div>
-                        <div className="grid grid-cols-1 gap-4">
+                        {canTemplateSelector && <div className="grid grid-cols-1 gap-4">
                             {[
                                 { id: "Standard", title: "Standard Office", desc: "Best for general intake and approval flows.", icon: Layout },
                                 { id: "Logistics", title: "Inventory & Logistics", desc: "Focused on distribution and tracking.", icon: Box },
@@ -167,7 +184,7 @@ export default function SetupWizard() {
                                     </div>
                                 </button>
                             ))}
-                        </div>
+                        </div>}
                     </div>
                 );
             case 4:
@@ -187,10 +204,10 @@ export default function SetupWizard() {
                                             <p className="text-[9px] font-bold text-slate-400 uppercase">{s.description}</p>
                                         </div>
                                     </div>
-                                    <button onClick={() => setProcessSteps(processSteps.filter((_, idx) => idx !== i))} className="text-red-500 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"><ChevronLeft className="w-4 h-4 rotate-45" /></button>
+                                    {canDelete && <button onClick={() => setProcessSteps(processSteps.filter((_, idx) => idx !== i))} className="text-red-500 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"><ChevronLeft className="w-4 h-4 rotate-45" /></button>}
                                 </div>
                             ))}
-                            <button className="w-full py-4 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-blue-500 hover:text-blue-500 transition-all">+ Add custom process step</button>
+                            {canAdd && <button className="w-full py-4 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-blue-500 hover:text-blue-500 transition-all">+ Add custom process step</button>}
                         </div>
                     </div>
                 );
@@ -266,22 +283,26 @@ export default function SetupWizard() {
                     {/* Navigation Buttons */}
                     {step < 6 && (
                         <div className="flex items-center justify-between mt-12 gap-4 pt-8 border-t border-slate-50 dark:border-white/5">
-                            <button
-                                onClick={handleBack}
-                                disabled={step === 1 || loading}
-                                className={`flex items-center gap-2 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${step === 1 ? 'opacity-0' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'
-                                    }`}
-                            >
-                                <ChevronLeft className="w-4 h-4" /> Back
-                            </button>
-                            <button
-                                onClick={step === totalSteps ? handleSubmit : handleNext}
-                                disabled={loading || (step === 2 && (!deptData.dept_name || !deptData.dept_code))}
-                                className="group flex items-center gap-3 px-10 py-5 bg-slate-900 dark:bg-white text-white dark:text-black rounded-3xl font-black uppercase text-[10px] tracking-widest transition-all hover:scale-105 active:scale-95 shadow-xl shadow-slate-200 dark:shadow-none min-w-[140px] justify-center"
-                            >
-                                {loading ? 'Building...' : step === totalSteps ? 'Launch DNA' : 'Next Step'}
-                                {!loading && <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />}
-                            </button>
+                            {canBack ? (
+                                <button
+                                    onClick={handleBack}
+                                    disabled={step === 1 || loading}
+                                    className={`flex items-center gap-2 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${step === 1 ? 'opacity-0' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'
+                                        }`}
+                                >
+                                    <ChevronLeft className="w-4 h-4" /> Back
+                                </button>
+                            ) : <div />}
+                            {((step === totalSteps && canSubmit) || (step !== totalSteps && canNext)) && (
+                                <button
+                                    onClick={step === totalSteps ? handleSubmit : handleNext}
+                                    disabled={loading || (step === 2 && (!deptData.dept_name || !deptData.dept_code))}
+                                    className="group flex items-center gap-3 px-10 py-5 bg-slate-900 dark:bg-white text-white dark:text-black rounded-3xl font-black uppercase text-[10px] tracking-widest transition-all hover:scale-105 active:scale-95 shadow-xl shadow-slate-200 dark:shadow-none min-w-[140px] justify-center"
+                                >
+                                    {loading ? 'Building...' : step === totalSteps ? 'Launch DNA' : 'Next Step'}
+                                    {!loading && <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />}
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>

@@ -30,9 +30,11 @@ import {
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import trayService from "../../services/trayService";
+import useAccess from "../../hooks/useAccess";
 
 export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+  const access = useAccess();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,6 +42,12 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const [inboxStats, setInboxStats] = useState({ review: 0, signature: 0, vem: 0, pending: 0, hold: 0 });
   const [trays, setTrays] = useState([]);
   const [selectedTray, setSelectedTray] = useState(null); // Filter for ATG Note
+  const canField = access?.canField || (() => true);
+  const pageId = forcedDeptId ? "department-letters" : (view === "outbox" ? "outbox" : "inbox");
+  const canSearch = canField(pageId, "search");
+  const canRefresh = canField(pageId, "refresh_button");
+  const canTabFilter = canField(pageId, "tab_filter");
+  const canTraySelector = canField(pageId, "tray_selector");
 
   const tabLabels = {
     review: 'For Review',
@@ -126,7 +134,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     }
   };
 
-  const filteredAssignments = selectedTray
+  const filteredAssignments = canTraySelector && selectedTray
     ? assignments.filter(a => a.letter?.tray_id === selectedTray)
     : assignments;
 
@@ -137,6 +145,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const headerBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-slate-200 dark:border-[#222] shadow-sm';
 
   const renderTrayActions = (assignment) => {
+    if (!canTraySelector) return null;
     if (view !== 'inbox') return null;
     if (!(activeStepTab === 'review' || activeStepTab === 'signature')) return null;
 
@@ -199,7 +208,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
             </div>
 
             <div className="flex items-center gap-6">
-              {view === 'inbox' && (
+              {view === 'inbox' && canTabFilter && (
                 <div className="flex items-center gap-1 border border-[#E5E5E5] p-1 rounded-lg bg-gray-50/50 no-scrollbar overflow-x-auto">
                   {[
                     { id: 'review', label: 'For Review', count: inboxStats.review },
@@ -222,13 +231,15 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                   ))}
                 </div>
               )}
-              <button
-                onClick={() => fetchAssignments(true)}
-                className="p-2 text-[#737373] hover:text-[#1A1A1B] dark:hover:text-white transition-colors"
-                title="Sync Data"
-              >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              </button>
+              {canRefresh && (
+                <button
+                  onClick={() => fetchAssignments(true)}
+                  className="p-2 text-[#737373] hover:text-[#1A1A1B] dark:hover:text-white transition-colors"
+                  title="Sync Data"
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                </button>
+              )}
             </div>
           </header>
 
@@ -240,7 +251,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                   <p className="text-sm text-[#737373]">Viewing {assignments.length} assignments currently on hold or in progress.</p>
                 </div>
 
-                {view === 'inbox' && activeStepTab === 'atg_note' && (
+                {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
                   <div className="flex items-center gap-1 p-1 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-lg shadow-sm overflow-x-auto no-scrollbar">
                     <button
                       onClick={() => setSelectedTray(null)}
@@ -328,23 +339,27 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
               </div>
             </div>
             <div className="flex items-center gap-2 md:gap-4 ml-auto">
-              <div className="relative group hidden sm:block">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 dark:text-slate-600" />
-                <input
-                  type="text"
-                  placeholder="Search records..."
-                  className="bg-slate-50 dark:bg-white/5 border-2 border-slate-50 dark:border-transparent rounded-2xl pl-12 pr-6 py-2.5 text-sm w-40 lg:w-80 focus:border-blue-500 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-white/10 transition-all outline-none font-bold text-slate-700 dark:text-slate-200"
-                />
-              </div>
-              <button
-                onClick={() => fetchAssignments(true)}
-                className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400 dark:text-slate-600 hover:text-blue-500 dark:hover:text-blue-400 flex items-center gap-2"
-                title="Refresh Cache"
-              >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Sync</span>
-              </button>
-              {view === 'inbox' && (
+              {canSearch && (
+                <div className="relative group hidden sm:block">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 dark:text-slate-600" />
+                  <input
+                    type="text"
+                    placeholder="Search records..."
+                    className="bg-slate-50 dark:bg-white/5 border-2 border-slate-50 dark:border-transparent rounded-2xl pl-12 pr-6 py-2.5 text-sm w-40 lg:w-80 focus:border-blue-500 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-white/10 transition-all outline-none font-bold text-slate-700 dark:text-slate-200"
+                  />
+                </div>
+              )}
+              {canRefresh && (
+                <button
+                  onClick={() => fetchAssignments(true)}
+                  className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400 dark:text-slate-600 hover:text-blue-500 dark:hover:text-blue-400 flex items-center gap-2"
+                  title="Refresh Cache"
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Sync</span>
+                </button>
+              )}
+              {view === 'inbox' && canTabFilter && (
                 <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto no-scrollbar flex-shrink-0">
                   {[
                     { id: 'review', label: 'For Review', count: inboxStats.review },
@@ -388,7 +403,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                           <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">Total: {assignments.length} items</p>
                         </div>
 
-                        {view === 'inbox' && activeStepTab === 'atg_note' && (
+                        {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
                           <div className="flex items-center gap-2 ml-4 border-l border-slate-200 dark:border-[#222] pl-6 overflow-x-auto no-scrollbar py-1">
                             <button
                               onClick={() => setSelectedTray(null)}
@@ -478,9 +493,11 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <span className="text-xs font-medium decoration-gray-200 underline-offset-4 flex items-center gap-1">
                   <Inbox className="w-3 h-3" /> {view.toUpperCase()}
                 </span>
-                <button onClick={() => fetchAssignments(true)} className="hover:text-gray-600">
-                  <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
-                </button>
+                {canRefresh && (
+                  <button onClick={() => fetchAssignments(true)} className="hover:text-gray-600">
+                    <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center gap-6 mb-4">
@@ -491,7 +508,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                         view === 'outgoing' ? 'Sent correspondence' : 'Outbox'}
                 </h1>
 
-                {view === 'inbox' && activeStepTab === 'atg_note' && (
+                {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
                   <div className="flex items-center gap-2 bg-gray-50 dark:bg-white/5 p-1 rounded-2xl border border-gray-100 dark:border-[#333] mb-4">
                     <button
                       onClick={() => setSelectedTray(null)}
@@ -527,10 +544,12 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <button className="text-xs font-semibold text-gray-400 hover:text-gray-900 flex items-center gap-1 transition-colors">
                   <Filter className="w-3 h-3" /> Filter
                 </button>
-                <button className="text-xs font-semibold text-gray-400 hover:text-gray-900 flex items-center gap-1 transition-colors">
-                  <Search className="w-3 h-3" /> Search
-                </button>
-                {view === 'inbox' && (
+                {canSearch && (
+                  <button className="text-xs font-semibold text-gray-400 hover:text-gray-900 flex items-center gap-1 transition-colors">
+                    <Search className="w-3 h-3" /> Search
+                  </button>
+                )}
+                {view === 'inbox' && canTabFilter && (
                   <div className="flex border-l border-gray-100 dark:border-[#222] pl-4 gap-6">
                     {[
                       { id: 'review', label: 'For Review', count: inboxStats.review },
@@ -614,7 +633,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
             <p className="text-sm font-medium text-gray-900 dark:text-gray-200 hidden md:block">{assignments.length} {view === 'archive' ? 'Processed' : 'Pending'}</p>
           </div>
 
-          {view === 'inbox' && (
+          {view === 'inbox' && canTabFilter && (
             <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100 overflow-x-auto no-scrollbar flex-shrink-0">
               {[
                 { id: 'review', label: 'For Review', count: inboxStats.review },
@@ -639,13 +658,16 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
           )}
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => fetchAssignments(true)}
-              className="px-4 py-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-all flex items-center gap-2 border border-gray-100 dark:border-[#333]"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span className="text-xs font-bold uppercase tracking-widest hidden md:inline">Fetch Assignments</span>
-            </button>          </div>
+            {canRefresh && (
+              <button
+                onClick={() => fetchAssignments(true)}
+                className="px-4 py-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-all flex items-center gap-2 border border-gray-100 dark:border-[#333]"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span className="text-xs font-bold uppercase tracking-widest hidden md:inline">Fetch Assignments</span>
+              </button>
+            )}
+          </div>
         </header>
 
         {/* Content Area */}
@@ -660,7 +682,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                         view === 'outgoing' ? 'Outgoing Letters' : 'Outbox'}
                 </h2>
 
-                {view === 'inbox' && activeStepTab === 'atg_note' && (
+                {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
                   <div className="flex items-center gap-2 bg-gray-50 dark:bg-white/5 p-1 rounded-2xl border border-gray-100 dark:border-[#333]">
                     <button
                       onClick={() => setSelectedTray(null)}

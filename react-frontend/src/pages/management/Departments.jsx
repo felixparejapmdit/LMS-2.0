@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import useAccess from "../../hooks/useAccess";
 import LetterListMini from "./LetterListMini";
 import {
     Building2,
@@ -23,10 +24,18 @@ import {
 import departmentService from "../../services/departmentService";
 
 export default function Departments() {
+    const access = useAccess();
     const context = useAuth();
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
     const { layoutStyle, setIsMobileMenuOpen } = context;
+    const canField = access?.canField || (() => true);
+    const canAdd = canField("departments", "add_button");
+    const canEdit = canField("departments", "edit_button");
+    const canDelete = canField("departments", "delete_button");
+    const canSave = canField("departments", "save_button");
+    const canRefresh = canField("departments", "refresh_button");
+    const canViewToggle = canField("departments", "view_toggle");
     const navigate = useNavigate();
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -98,6 +107,7 @@ export default function Departments() {
     };
 
     const openCreateModal = () => {
+        if (!canAdd) return;
         setModalMode("create");
         setFormData({ dept_name: "", dept_code: "" });
         setSelectedDept(null);
@@ -105,6 +115,7 @@ export default function Departments() {
     };
 
     const openEditModal = (item) => {
+        if (!canEdit) return;
         setModalMode("edit");
         setFormData({
             dept_name: item.dept_name || "",
@@ -161,8 +172,8 @@ export default function Departments() {
                             {isMenuOpen === item.id && (
                                 <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl z-20 py-1" onClick={e => e.stopPropagation()}>
                                     <button onClick={() => navigate(`/departments/${item.id}/letters`)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 active:scale-95 transition-all"><Building2 className="w-3 h-3" /> Dedicated Workspace</button>
-                                    <button onClick={() => openEditModal(item)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit Entry</button>
-                                    <button onClick={() => handleDelete(item.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Remove Unit</button>
+                                    {canEdit && <button onClick={() => openEditModal(item)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit Entry</button>}
+                                    {canDelete && <button onClick={() => handleDelete(item.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Remove Unit</button>}
                                 </div>
                             )}
                         </div>
@@ -196,8 +207,8 @@ export default function Departments() {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>
-                        <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-emerald-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> Add Dept</button>
+                        {canRefresh && <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>}
+                        {canAdd && <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-emerald-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> Add Dept</button>}
                     </div>
                 </header>
 
@@ -207,10 +218,12 @@ export default function Departments() {
                             <div>
                                 <h2 className={`text-3xl font-bold ${textColor}`}>Departments</h2>
                             </div>
-                            <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222]">
-                                <button onClick={() => setViewMode("grid")} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-emerald-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-4 h-4" /></button>
-                                <button onClick={() => setViewMode("list")} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-emerald-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-4 h-4" /></button>
-                            </div>
+                            {canViewToggle && (
+                                <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222]">
+                                    <button onClick={() => setViewMode("grid")} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-emerald-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-4 h-4" /></button>
+                                    <button onClick={() => setViewMode("list")} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-emerald-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-4 h-4" /></button>
+                                </div>
+                            )}
                         </div>
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-40 gap-4"><Loader2 className="w-10 h-10 text-emerald-500 animate-spin" /></div>
@@ -278,7 +291,7 @@ export default function Departments() {
                                         <input type="text" required value={formData.dept_code} onChange={e => setFormData({ ...formData, dept_code: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" />
                                     </div>
                                     <div className="pt-4">
-                                        <button disabled={submitting} className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Department"}</button>
+                                        {canSave && <button disabled={submitting} className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Department"}</button>}
                                     </div>
                                 </form>
                             </div>

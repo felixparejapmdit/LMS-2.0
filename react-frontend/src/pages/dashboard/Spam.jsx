@@ -14,9 +14,11 @@ import {
     Menu,
     RefreshCw
 } from "lucide-react";
+import useAccess from "../../hooks/useAccess";
 
 export default function Spam() {
     const { theme, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const access = useAccess();
     const [people, setPeople] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -24,6 +26,12 @@ export default function Spam() {
     const [formName, setFormName] = useState("");
     const [formTelegram, setFormTelegram] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const canField = access?.canField || (() => true);
+    const canSearch = canField("spam", "search");
+    const canSubmit = canField("spam", "submit_button");
+    const canClear = canField("spam", "clear_button");
+    const canSave = canField("spam", "save_button");
+    const canRefresh = canField("spam", "refresh_button");
 
     useEffect(() => {
         fetchPeople();
@@ -103,9 +111,9 @@ export default function Spam() {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => fetchPeople()} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
+                        {canRefresh && <button onClick={() => fetchPeople()} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
                             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                        </button>
+                        </button>}
                     </div>
                 </header>
 
@@ -115,7 +123,7 @@ export default function Spam() {
                             <h2 className={`text-4xl font-black uppercase tracking-tighter ${textColor} mb-2`}>SPAM</h2>
                         </div>
 
-                        <div className="relative group max-w-md">
+                        {canSearch && <div className="relative group max-w-md">
                             <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-orange-500 transition-colors" />
                             <input
                                 type="text"
@@ -124,7 +132,7 @@ export default function Spam() {
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
-                        </div>
+                        </div>}
 
                         {loading ? (
                             <div className="flex flex-col items-center justify-center pt-20">
@@ -174,7 +182,7 @@ export default function Spam() {
                                             </div>
                                         </div>
 
-                                        {person.telegram && (
+                                        {canSubmit && person.telegram && (
                                             <a
                                                 href={`https://t.me/${person.telegram.replace('@', '')}?text=${encodeURIComponent('This message is from LMS 2.0')}`}
                                                 target="_blank"
@@ -221,20 +229,20 @@ export default function Spam() {
                             </div>
 
                             <div className="flex items-center gap-4">
-                                <button
+                                {canSave && <button
                                     onClick={handleSaveTelegram}
                                     disabled={submitting}
                                     className="px-8 py-4 rounded-2xl bg-orange-500 text-white text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50"
                                 >
                                     {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
-                                </button>
-                                <button
+                                </button>}
+                                {canClear && <button
                                     onClick={handleClearTelegram}
                                     disabled={submitting}
                                     className={`px-8 py-4 rounded-2xl text-[12px] border font-black uppercase tracking-widest transition-all ${layoutStyle === 'minimalist' ? 'border-[#E5E5E5] dark:border-[#333] text-gray-400 hover:bg-gray-50 dark:hover:bg-[#222]' : 'border-gray-200 text-gray-500 hover:bg-slate-50'}`}
                                 >
                                     Clear
-                                </button>
+                                </button>}
                             </div>
                         </div>
                     </div>

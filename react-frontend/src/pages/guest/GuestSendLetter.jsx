@@ -22,9 +22,11 @@ import attachmentService from "../../services/attachmentService";
 import letterService from "../../services/letterService";
 import axios from "axios";
 import SuccessModal from "../../components/SuccessModal";
+import useAccess from "../../hooks/useAccess";
 
 export default function GuestSendLetter() {
     const { user, logout, layoutStyle, isMobileMenuOpen, setIsMobileMenuOpen, isGuest } = useAuth();
+    const access = useAccess();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -43,6 +45,14 @@ export default function GuestSendLetter() {
     const [isExitModalOpen, setIsExitModalOpen] = useState(false);
     const fileInputRef = useRef(null);
     const suggestionRef = useRef(null);
+    const canField = access?.canField || (() => true);
+    const canSenderField = canField("guest-send-letter", "sender_field");
+    const canEncoderField = canField("guest-send-letter", "encoder_field");
+    const canSummaryField = canField("guest-send-letter", "summary_field");
+    const canAttachmentSelector = canField("guest-send-letter", "attachment_selector");
+    const canAttachmentUpload = canField("guest-send-letter", "attachment_upload");
+    const canSubmit = canField("guest-send-letter", "submit_button");
+    const canClear = canField("guest-send-letter", "clear_button");
     const today = new Date().toLocaleDateString('en-US', {
         month: 'long',
         day: 'numeric',
@@ -320,7 +330,7 @@ export default function GuestSendLetter() {
 
                                 <div className="grid grid-cols-1 gap-8">
                                     {/* Sender */}
-                                    <div className="space-y-3">
+                                    {canSenderField && <div className="space-y-3">
                                         <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 <User className={`w-3 h-3 ${subTextColor}`} /> Sender Name(LASTNAME, FIRSTNAME)
@@ -390,10 +400,10 @@ export default function GuestSendLetter() {
                                             <Plus className="w-4 h-4" />
                                             <span className="text-[10px] font-black uppercase tracking-widest">Add another sender</span>
                                         </button>
-                                    </div>
+                                    </div>}
 
                                     {/* Regarding */}
-                                    <div className="space-y-3">
+                                    {canSummaryField && <div className="space-y-3">
                                         <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center justify-between gap-2">
                                             <div className="flex items-center gap-2">
                                                 <MessageSquare className={`w-3 h-3 ${subTextColor}`} /> Regarding (Re:)
@@ -407,14 +417,14 @@ export default function GuestSendLetter() {
                                             onChange={(e) => setFormData({ ...formData, regarding: e.target.value })}
                                             className={`w-full px-6 py-4 ${inputBg} border-2 rounded-2xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-lg font-medium outline-none resize-none`}
                                         />
-                                    </div>
+                                    </div>}
 
                                     <div className="space-y-10">
                                         {/* Requested Date */}
                                         {/* This section is removed as per instruction */}
 
                                         {/* Encoder */}
-                                        <div className="space-y-4 pt-4 border-t border-slate-50 dark:border-white/5">
+                                        {canEncoderField && <div className="space-y-4 pt-4 border-t border-slate-50 dark:border-white/5">
                                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
                                                     <User className={`w-3 h-3 ${subTextColor}`} /> Encoder Name (LASTNAME, FIRSTNAME)
@@ -464,7 +474,7 @@ export default function GuestSendLetter() {
                                                 )}
                                             </div>
                                             {/* Letter Kind - This section is removed as per instruction */}
-                                        </div>
+                                        </div>}
                                     </div>
                                 </div>
                             </section>
@@ -486,7 +496,7 @@ export default function GuestSendLetter() {
                                     return (
                                         <div className="space-y-8">
                                             {/* Physical Attachment Selection - Moved Above Upload */}
-                                            <div className="space-y-3 pt-0 border-t border-slate-50 dark:border-white/5">
+                                            {canAttachmentSelector && <div className="space-y-3 pt-0 border-t border-slate-50 dark:border-white/5">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                                     Physical Attachment / Reference
                                                 </label>
@@ -502,10 +512,10 @@ export default function GuestSendLetter() {
                                                         </option>
                                                     ))}
                                                 </select>
-                                            </div>
+                                            </div>}
 
                                             {/* Digital Upload - Disabled if not Letter/Photo */}
-                                            <div className={`space-y-6 transition-all duration-300 ${!isLetterOrPhoto ? 'opacity-60 grayscale-[0.5] pointer-events-none select-none' : ''}`}>
+                                            {canAttachmentUpload && <div className={`space-y-6 transition-all duration-300 ${!isLetterOrPhoto ? 'opacity-60 grayscale-[0.5] pointer-events-none select-none' : ''}`}>
                                                 <div className="flex items-center justify-between">
                                                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scanned Letter Upload</h4>
                                                     {!isLetterOrPhoto && (
@@ -565,24 +575,28 @@ export default function GuestSendLetter() {
                                                         </div>
                                                     </div>
                                                 )}
-                                            </div>
+                                            </div>}
                                         </div>
                                     );
                                 })()}
 
                                 <div className="mt-12 space-y-4">
-                                    <button
-                                        onClick={handleSend}
-                                        className={`w-full py-5 ${accentColor} text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98] ${'shadow-orange-100'}`}
-                                    >
-                                        <Send className="w-4 h-4" /> Send Letter
-                                    </button>
-                                    <button
-                                        onClick={handleClear}
-                                        className={`w-full py-5 bg-transparent border-2 font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all ${'border-slate-100 dark:border-[#333] text-slate-400 hover:border-red-100 dark:hover:border-red-900/20 hover:text-red-500'}`}
-                                    >
-                                        <Trash2 className="w-4 h-4" /> Clear All Fields
-                                    </button>
+                                    {canSubmit && (
+                                        <button
+                                            onClick={handleSend}
+                                            className={`w-full py-5 ${accentColor} text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98] ${'shadow-orange-100'}`}
+                                        >
+                                            <Send className="w-4 h-4" /> Send Letter
+                                        </button>
+                                    )}
+                                    {canClear && (
+                                        <button
+                                            onClick={handleClear}
+                                            className={`w-full py-5 bg-transparent border-2 font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all ${'border-slate-100 dark:border-[#333] text-slate-400 hover:border-red-100 dark:hover:border-red-900/20 hover:text-red-500'}`}
+                                        >
+                                            <Trash2 className="w-4 h-4" /> Clear All Fields
+                                        </button>
+                                    )}
                                 </div>
                             </section>
                         </div>

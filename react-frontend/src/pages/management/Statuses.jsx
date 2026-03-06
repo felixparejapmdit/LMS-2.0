@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
+import useAccess from "../../hooks/useAccess";
 import {
     Activity,
     Plus,
@@ -17,10 +18,18 @@ import {
 import statusService from "../../services/statusService";
 
 export default function Statuses() {
+    const access = useAccess();
     const context = useAuth();
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
     const { layoutStyle, setIsMobileMenuOpen } = context;
+    const canField = access?.canField || (() => true);
+    const canAdd = canField("statuses", "add_button");
+    const canEdit = canField("statuses", "edit_button");
+    const canDelete = canField("statuses", "delete_button");
+    const canSave = canField("statuses", "save_button");
+    const canRefresh = canField("statuses", "refresh_button");
+    const canViewToggle = canField("statuses", "view_toggle");
     const [statuses, setStatuses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -86,6 +95,7 @@ export default function Statuses() {
     };
 
     const openCreateModal = () => {
+        if (!canAdd) return;
         setModalMode("create");
         setFormData({ status_name: "" });
         setSelectedStatus(null);
@@ -93,6 +103,7 @@ export default function Statuses() {
     };
 
     const openEditModal = (item) => {
+        if (!canEdit) return;
         setModalMode("edit");
         setFormData({
             status_name: item.status_name || "",
@@ -122,8 +133,8 @@ export default function Statuses() {
                             </button>
                             {isMenuOpen === item.id && (
                                 <div className="absolute right-0 top-full mt-2 w-32 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl z-20 py-1">
-                                    <button onClick={() => openEditModal(item)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit</button>
-                                    <button onClick={() => handleDelete(item.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Delete</button>
+                                    {canEdit && <button onClick={() => openEditModal(item)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit</button>}
+                                    {canDelete && <button onClick={() => handleDelete(item.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Delete</button>}
                                 </div>
                             )}
                         </div>
@@ -133,8 +144,8 @@ export default function Statuses() {
             {viewMode === 'list' && (
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
-                        <button onClick={(e) => { e.stopPropagation(); openEditModal(item); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-sky-500"><Edit2 className="w-4 h-4" /></button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                        {canEdit && <button onClick={(e) => { e.stopPropagation(); openEditModal(item); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-sky-500"><Edit2 className="w-4 h-4" /></button>}
+                        {canDelete && <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>}
                     </div>
                 </div>
             )}
@@ -159,8 +170,8 @@ export default function Statuses() {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>
-                        <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-sky-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> Add Status</button>
+                        {canRefresh && <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>}
+                        {canAdd && <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-sky-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> Add Status</button>}
                     </div>
                 </header>
 
@@ -170,10 +181,12 @@ export default function Statuses() {
                             <div>
                                 <h2 className={`text-3xl font-bold ${textColor}`}>Reference Statuses</h2>
                             </div>
-                            <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222]">
-                                <button onClick={() => setViewMode("grid")} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-sky-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-4 h-4" /></button>
-                                <button onClick={() => setViewMode("list")} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-sky-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-4 h-4" /></button>
-                            </div>
+                            {canViewToggle && (
+                                <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222]">
+                                    <button onClick={() => setViewMode("grid")} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-sky-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-4 h-4" /></button>
+                                    <button onClick={() => setViewMode("list")} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-sky-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-4 h-4" /></button>
+                                </div>
+                            )}
                         </div>
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-40 gap-4"><Loader2 className="w-10 h-10 text-sky-500 animate-spin" /></div>
@@ -202,7 +215,7 @@ export default function Statuses() {
                                     <input type="text" required value={formData.status_name} onChange={e => setFormData({ ...formData, status_name: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" />
                                 </div>
                                 <div className="pt-4">
-                                    <button disabled={submitting} className="w-full py-4 bg-sky-600 hover:bg-sky-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Status"}</button>
+                                    {canSave && <button disabled={submitting} className="w-full py-4 bg-sky-600 hover:bg-sky-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Status"}</button>}
                                 </div>
                             </form>
                         </div>

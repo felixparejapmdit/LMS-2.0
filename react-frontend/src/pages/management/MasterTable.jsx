@@ -4,6 +4,7 @@ import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
 import { directus } from "../../hooks/useDirectus";
 import PermissionGuard from "../../components/PermissionGuard";
+import useAccess from "../../hooks/useAccess";
 import {
     Table as TableIcon,
     Plus,
@@ -42,6 +43,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function MasterTable() {
     const { user, layoutStyle, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
+    const { canField } = useAccess();
     const navigate = useNavigate();
 
     // Theme Variables (derived locally)
@@ -76,6 +78,18 @@ export default function MasterTable() {
     const [isCombining, setIsCombining] = useState(false);
     const [newFile, setNewFile] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
+    const canSearch = canField("master-table", "search");
+    const canEdit = canField("master-table", "edit_button");
+    const canDelete = canField("master-table", "delete_button");
+    const canStatusDropdown = canField("master-table", "status_dropdown");
+    const canDepartmentSelector = canField("master-table", "department_selector");
+    const canStepSelector = canField("master-table", "step_selector");
+    const canPdf = canField("master-table", "pdf_button");
+    const canSave = canField("master-table", "save_button");
+    const canAttachmentUpload = canField("master-table", "attachment_upload");
+    const canEndorse = canField("master-table", "endorse_button");
+    const canTrack = canField("master-table", "track_button");
+    const canRefresh = canField("master-table", "refresh_button");
 
     const handleFileSelect = (file) => {
         if (!file) return;
@@ -389,6 +403,8 @@ export default function MasterTable() {
             if (!isOwner && !isInDept) return false;
         }
 
+        if (!canSearch) return true;
+
         return (l.lms_id?.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (l.sender?.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (l.summary?.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -423,7 +439,7 @@ export default function MasterTable() {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        {selectedIds.length > 0 && (
+                        {canDelete && selectedIds.length > 0 && (
                             <button
                                 onClick={handleBulkDelete}
                                 className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
@@ -432,7 +448,7 @@ export default function MasterTable() {
                                 Delete ({selectedIds.length})
                             </button>
                         )}
-                        <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>
+                        {canRefresh && <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>}
                     </div>
                 </header>
 
@@ -444,20 +460,22 @@ export default function MasterTable() {
                                 <h2 className={`text-2xl font-black uppercase tracking-tight ${textColor}`}>Master Records</h2>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Manage and track all registered correspondence from a single view.</p>
                             </div>
-                            <div className="relative group min-w-[300px]">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Find letters, senders, summaries..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-white/5 border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
-                                />
-                            </div>
+                            {canSearch && (
+                                <div className="relative group min-w-[300px]">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Find letters, senders, summaries..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-white/5 border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {/* Bulk Status Actions Bar */}
-                        {selectedIds.length > 0 && (
+                        {selectedIds.length > 0 && canStatusDropdown && (
                             <div className={`p-4 rounded-3xl border flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300 ${'bg-orange-50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/20'}`}>
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-white dark:bg-white/10 rounded-full flex items-center justify-center text-orange-500 shadow-sm border border-orange-100 dark:border-orange-900/20">
@@ -536,14 +554,16 @@ export default function MasterTable() {
                                                     </button>
                                                 </td>
                                                 <td className="p-5 text-center px-0">
-                                                    <PermissionGuard page="master-table" action="can_edit">
-                                                        <button
-                                                            onClick={() => handleEdit(letter)}
-                                                            className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-900/10 text-orange-500 hover:bg-orange-500 hover:text-white transition-all transform hover:scale-105 mx-auto"
-                                                        >
-                                                            <Edit className="w-4 h-4" />
-                                                        </button>
-                                                    </PermissionGuard>
+                                                    {canEdit && (
+                                                        <PermissionGuard page="master-table" action="can_edit">
+                                                            <button
+                                                                onClick={() => handleEdit(letter)}
+                                                                className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-900/10 text-orange-500 hover:bg-orange-500 hover:text-white transition-all transform hover:scale-105 mx-auto"
+                                                            >
+                                                                <Edit className="w-4 h-4" />
+                                                            </button>
+                                                        </PermissionGuard>
+                                                    )}
                                                 </td>
                                                 <td className="p-5 whitespace-nowrap">
                                                     <span className={`text-[10px] font-black px-2.5 py-1 rounded bg-slate-100 dark:bg-white/10 ${textColor}`}>
@@ -576,17 +596,19 @@ export default function MasterTable() {
                                                     </p>
                                                 </td>
                                                 <td className="p-5 text-center">
-                                                    <PermissionGuard page="master-table" action="can_special">
-                                                        <button
-                                                            onClick={() => handleTrackOpen(letter)}
-                                                            className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all transform hover:scale-105 mx-auto"
-                                                        >
-                                                            <Activity className="w-4 h-4" />
-                                                        </button>
-                                                    </PermissionGuard>
+                                                    {canTrack && (
+                                                        <PermissionGuard page="master-table" action="can_special">
+                                                            <button
+                                                                onClick={() => handleTrackOpen(letter)}
+                                                                className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all transform hover:scale-105 mx-auto"
+                                                            >
+                                                                <Activity className="w-4 h-4" />
+                                                            </button>
+                                                        </PermissionGuard>
+                                                    )}
                                                 </td>
                                                 <td className="p-5 text-center">
-                                                    {(letter.attachment_id || letter.scanned_copy) ? (
+                                                    {canPdf && (letter.attachment_id || letter.scanned_copy) ? (
                                                         <button
                                                             onClick={() => handleViewPDF(letter)}
                                                             className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all mx-auto"
@@ -649,7 +671,7 @@ export default function MasterTable() {
 
 
                                     {/* Workflow Step Selection (Radio Buttons) */}
-                                    <div className="space-y-4">
+                                    {canStepSelector && <div className="space-y-4">
                                         <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                                             <GitMerge className="w-3 h-3" /> Update Process Step
                                         </label>
@@ -681,7 +703,7 @@ export default function MasterTable() {
                                                 );
                                             })}
                                         </div>
-                                    </div>
+                                    </div>}
 
                                     {/* Date & Time Received Display */}
                                     <div className="pt-6 border-t border-dashed border-gray-200 dark:border-white/10 flex items-center justify-between">
@@ -706,7 +728,7 @@ export default function MasterTable() {
 
                                 {/* Detailed Fields */}
                                 <div className="space-y-4 pt-4 px-2">
-                                    <div className="space-y-1">
+                                    {canDepartmentSelector && <div className="space-y-1">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Active Tray Location</label>
                                         <select
                                             value={selectedLetter.tray_id || ""}
@@ -719,12 +741,12 @@ export default function MasterTable() {
                                                 <option key={t.id} value={t.id} style={{ color: 'black', backgroundColor: 'white' }}>{t.tray_no}</option>
                                             ))}
                                         </select>
-                                    </div>
+                                    </div>}
 
-                                    <div className="space-y-1">
+                                    {canStatusDropdown && <div className="space-y-1">
                                         <div className="flex items-center justify-between gap-2">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-orange-500">Correspondence Status</label>
-                                            <button
+                                            {canEndorse && <button
                                                 type="button"
                                                 onClick={() => {
                                                     // Quick action to set for ATG Dashboard
@@ -733,7 +755,7 @@ export default function MasterTable() {
                                                 className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 border border-indigo-100 dark:border-indigo-900/30 hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
                                             >
                                                 Show to ATG Dashboard
-                                            </button>
+                                            </button>}
                                         </div>
                                         <select
                                             value={selectedLetter.global_status || ""}
@@ -749,7 +771,7 @@ export default function MasterTable() {
                                                 <option key={s.id} value={s.id} style={{ color: 'black', backgroundColor: 'white' }}>{s.status_name}</option>
                                             ))}
                                         </select>
-                                    </div>
+                                    </div>}
 
                                     {/* Kind Dropdown */}
                                     <div className="space-y-1">
@@ -778,7 +800,7 @@ export default function MasterTable() {
                                     </div>
 
                                     {/* Assign This Letter To (Endorsement) */}
-                                    <div className="space-y-1 p-4 rounded-2xl bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20" ref={endorseRef}>
+                                    {canEndorse && <div className="space-y-1 p-4 rounded-2xl bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20" ref={endorseRef}>
                                         <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-1.5">
                                             <Send className="w-3 h-3" /> Assign This Letter To (Endorse)
                                         </label>
@@ -812,7 +834,7 @@ export default function MasterTable() {
                                                 </div>
                                             )}
                                         </div>
-                                    </div>
+                                    </div>}
 
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Summary / Content</label>
@@ -877,7 +899,7 @@ export default function MasterTable() {
                                     </div>
 
                                     {/* Attachment Section */}
-                                    <div className="space-y-4 pt-4 px-2">
+                                    {canAttachmentUpload && <div className="space-y-4 pt-4 px-2">
                                         <div className="flex items-center justify-between">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                                                 <Paperclip className="w-3 h-3" /> Digital Attachment
@@ -941,13 +963,13 @@ export default function MasterTable() {
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <button
+                                                {canPdf && <button
                                                     onClick={() => handleViewPDF(selectedLetter)}
                                                     className="p-2.5 rounded-xl bg-white dark:bg-white/5 text-blue-500 hover:bg-blue-500 hover:text-white border border-blue-100 dark:border-white/10 transition-all shadow-sm"
                                                     title="View Scan"
                                                 >
                                                     <Eye className="w-4 h-4" />
-                                                </button>
+                                                </button>}
                                             </div>
                                         )}
                                         <div className="flex flex-col gap-2">
@@ -982,16 +1004,16 @@ export default function MasterTable() {
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <button
+                                                {canPdf && <button
                                                     onClick={() => handleViewPDF(selectedLetter)}
                                                     className="p-2.5 rounded-xl bg-white dark:bg-white/5 text-orange-500 hover:bg-orange-500 hover:text-white border border-orange-100 dark:border-white/10 transition-all shadow-sm"
                                                     title="View Document"
                                                 >
                                                     <Eye className="w-4 h-4" />
-                                                </button>
+                                                </button>}
                                             </div>
                                         )}
-                                    </div>
+                                    </div>}
                                 </div>
                             </div>
                         </div>
@@ -1004,14 +1026,16 @@ export default function MasterTable() {
                             >
                                 Cancel
                             </button>
-                            <button
-                                onClick={handleUpdateDetails}
-                                disabled={loading}
-                                className="flex-[2] py-4 px-6 rounded-2xl bg-orange-500 text-white text-xs font-black uppercase tracking-widest shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {loading && <Loader2 className="w-3 h-3 animate-spin" />}
-                                Update changes
-                            </button>
+                            {canSave && (
+                                <button
+                                    onClick={handleUpdateDetails}
+                                    disabled={loading}
+                                    className="flex-[2] py-4 px-6 rounded-2xl bg-orange-500 text-white text-xs font-black uppercase tracking-widest shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+                                    Update changes
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

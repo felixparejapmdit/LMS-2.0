@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
+import useAccess from "../../hooks/useAccess";
 import {
     Table as TableIcon,
     Search,
@@ -22,6 +23,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function LetterTracker() {
     const { user, layoutStyle, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
+    const { canField } = useAccess();
     const navigate = useNavigate();
 
     const [letters, setLetters] = useState([]);
@@ -30,6 +32,10 @@ export default function LetterTracker() {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedLetter, setSelectedLetter] = useState(null);
     const [isTrackDrawerOpen, setIsTrackDrawerOpen] = useState(false);
+    const canSearch = canField("letter-tracker", "search");
+    const canPdf = canField("letter-tracker", "pdf_button");
+    const canTrack = canField("letter-tracker", "track_button");
+    const canRefresh = canField("letter-tracker", "refresh_button");
 
     // Theme Variables
     const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
@@ -78,6 +84,8 @@ export default function LetterTracker() {
         }
 
         // 2. Search Filter
+        if (!canSearch) return true;
+
         return (
             letter.entry_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             letter.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -123,9 +131,9 @@ export default function LetterTracker() {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => fetchLetters(true)} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
+                        {canRefresh && <button onClick={() => fetchLetters(true)} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
                             <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
-                        </button>
+                        </button>}
                     </div>
                 </header>
 
@@ -137,16 +145,18 @@ export default function LetterTracker() {
                                 <h2 className={`text-2xl font-black uppercase tracking-tight ${textColor}`}>Letter Tracker</h2>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{isSuperAdmin ? 'Full Access Monitoring' : 'Your Registered Records'}</p>
                             </div>
-                            <div className="relative group min-w-[300px]">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Search reference, sender..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
-                                />
-                            </div>
+                            {canSearch && (
+                                <div className="relative group min-w-[300px]">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search reference, sender..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {/* Table Container */}
@@ -194,10 +204,10 @@ export default function LetterTracker() {
                                                     </span>
                                                 </td>
                                                 <td className="p-5 text-center px-0">
-                                                    <button onClick={() => handleTrackOpen(letter)} className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all transform hover:scale-110 mx-auto border border-indigo-100 dark:border-indigo-900/20 shadow-sm"><Activity className="w-4 h-4" /></button>
+                                                    {canTrack && <button onClick={() => handleTrackOpen(letter)} className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all transform hover:scale-110 mx-auto border border-indigo-100 dark:border-indigo-900/20 shadow-sm"><Activity className="w-4 h-4" /></button>}
                                                 </td>
                                                 <td className="p-5 text-center px-0">
-                                                    {(letter.scanned_copy || letter.attachment_id) ? (
+                                                    {canPdf && (letter.scanned_copy || letter.attachment_id) ? (
                                                         <button onClick={() => handleViewPDF(letter)} className="p-2.5 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all transform hover:scale-110 mx-auto border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-4 h-4" /></button>
                                                     ) : <span className="text-gray-200">-</span>}
                                                 </td>

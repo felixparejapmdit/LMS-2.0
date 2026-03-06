@@ -24,9 +24,11 @@ import { directus, directusUrl } from "../../hooks/useDirectus";
 import { uploadFiles } from "@directus/sdk";
 import axios from "axios";
 import API_BASE from "../../config/apiConfig";
+import useAccess from "../../hooks/useAccess";
 
 export default function Profile() {
     const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const access = useAccess();
     const [loading, setLoading] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -52,6 +54,11 @@ export default function Profile() {
         confirm: false
     });
     const [passwordStatus, setPasswordStatus] = useState({ type: null, message: "" });
+    const canField = access?.canField || (() => true);
+    const canSave = canField("profile", "save_button");
+    const canPasswordField = canField("profile", "password_field");
+    const canAvatarUpload = canField("profile", "avatar_upload");
+    const canUsernameField = canField("profile", "username_field");
 
     const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
     const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
@@ -162,7 +169,7 @@ export default function Profile() {
 
                                 <div className="flex flex-col md:flex-row gap-12 items-start">
                                     {/* Photo Area */}
-                                    <div className="flex flex-col items-center shrink-0">
+                                    {canAvatarUpload && <div className="flex flex-col items-center shrink-0">
                                         <div
                                             className={`relative group/avatar cursor-pointer transition-all ${isDragging ? 'scale-110' : ''}`}
                                             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -200,7 +207,7 @@ export default function Profile() {
                                             </div>
                                         </div>
                                         <p className="mt-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{uploadingPhoto ? 'Syncing...' : 'Identity Photo'}</p>
-                                    </div>
+                                    </div>}
 
                                     {/* Name Fields */}
                                     <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -228,7 +235,7 @@ export default function Profile() {
                                                 className={`w-full px-5 py-4 rounded-2xl text-sm font-bold bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${textColor}`}
                                             />
                                         </div>
-                                        <div className="md:col-span-2 space-y-3">
+                                        {canUsernameField && <div className="md:col-span-2 space-y-3">
                                             <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                                                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
                                                 Username
@@ -242,7 +249,7 @@ export default function Profile() {
                                                     className={`w-full pl-14 pr-5 py-4 rounded-2xl text-sm font-bold bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${textColor}`}
                                                 />
                                             </div>
-                                        </div>
+                                        </div>}
                                         <div className="md:col-span-2 space-y-3">
                                             <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                                                 <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
@@ -261,20 +268,22 @@ export default function Profile() {
                                     </div>
                                 </div>
 
-                                <div className="mt-12 pt-8 border-t border-slate-50 dark:border-white/5 flex justify-end">
-                                    <button
-                                        onClick={handleSaveProfile}
-                                        disabled={loading}
-                                        className="flex items-center gap-3 px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs tracking-widest shadow-xl shadow-blue-500/20 transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-50"
-                                    >
-                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                        UPDATE IDENTITY
-                                    </button>
-                                </div>
+                                {canSave && (
+                                    <div className="mt-12 pt-8 border-t border-slate-50 dark:border-white/5 flex justify-end">
+                                        <button
+                                            onClick={handleSaveProfile}
+                                            disabled={loading}
+                                            className="flex items-center gap-3 px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs tracking-widest shadow-xl shadow-blue-500/20 transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-50"
+                                        >
+                                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                            UPDATE IDENTITY
+                                        </button>
+                                    </div>
+                                )}
                             </section>
 
                             {/* Password Section */}
-                            <section className={`${cardBg} rounded-[2.5rem] border p-10 shadow-sm relative overflow-hidden`}>
+                            {canPasswordField && <section className={`${cardBg} rounded-[2.5rem] border p-10 shadow-sm relative overflow-hidden`}>
                                 <div className="absolute top-0 left-0 w-64 h-64 bg-red-500/5 rounded-full -ml-32 -mt-32 blur-3xl"></div>
 
                                 <div className={`flex items-center gap-3 mb-10 ${textColor}`}>
@@ -349,7 +358,7 @@ export default function Profile() {
                                         </button>
                                     </div>
                                 </form>
-                            </section>
+                            </section>}
 
                             <div className="h-20 md:h-0"></div> {/* Space for sticky mobile stuff if needed */}
                         </div>

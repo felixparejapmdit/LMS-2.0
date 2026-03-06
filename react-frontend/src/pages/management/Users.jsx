@@ -22,16 +22,19 @@ import {
     Upload
 } from "lucide-react";
 import { directus, directusUrl } from "../../hooks/useDirectus";
+import useAccess from "../../hooks/useAccess";
 import { uploadFiles } from "@directus/sdk";
 import userService from "../../services/userService";
 import departmentService from "../../services/departmentService";
 import axios from "axios";
 
 export default function Users() {
+    const access = useAccess();
     const context = useAuth();
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
     const { layoutStyle, setIsMobileMenuOpen } = context;
+    const canField = access?.canField || (() => true);
     const [users, setUsers] = useState([]);
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -64,6 +67,16 @@ export default function Users() {
     const [previewUrl, setPreviewUrl] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const canSearch = canField("users", "search");
+    const canAdd = canField("users", "add_button");
+    const canEdit = canField("users", "edit_button");
+    const canDelete = canField("users", "delete_button");
+    const canSave = canField("users", "save_button");
+    const canRefresh = canField("users", "refresh_button");
+    const canViewToggle = canField("users", "view_toggle");
+    const canRoleFilter = canField("users", "role_filter");
+    const canDepartmentFilter = canField("users", "department_filter");
+    const canAvatarUpload = canField("users", "avatar_upload");
 
     const handleFileUpload = async (file) => {
         if (!file || !file.type.startsWith('image/')) {
@@ -216,7 +229,7 @@ export default function Users() {
     const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
 
     const filteredUsers = users.filter(userItem => {
-        const matchesSearch =
+        const matchesSearch = !canSearch ||
             `${userItem.first_name} ${userItem.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
             userItem.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             userItem.email?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -284,20 +297,22 @@ export default function Users() {
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1 relative">
                             <h3 className={`font-black uppercase tracking-tight truncate ${textColor}`}>{userItem.first_name} {userItem.last_name} <span className="opacity-50 text-[10px] font-bold lowercase">(@{userItem.username || 'no-username'})</span></h3>
-                            <div className="relative">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(isMenuOpen === userItem.id ? null : userItem.id); }}
-                                    className="p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
-                                >
-                                    <MoreVertical className="w-4 h-4 text-gray-400" />
-                                </button>
-                                {isMenuOpen === userItem.id && (
-                                    <div className="absolute right-0 top-full mt-2 w-32 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl z-20 py-1">
-                                        <button onClick={() => openEditModal(userItem)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit</button>
-                                        <button onClick={() => handleDelete(userItem.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Delete</button>
-                                    </div>
-                                )}
-                            </div>
+                            {(canEdit || canDelete) && (
+                                <div className="relative">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setIsMenuOpen(isMenuOpen === userItem.id ? null : userItem.id); }}
+                                        className="p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                                    >
+                                        <MoreVertical className="w-4 h-4 text-gray-400" />
+                                    </button>
+                                    {isMenuOpen === userItem.id && (
+                                        <div className="absolute right-0 top-full mt-2 w-32 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl z-20 py-1">
+                                            {canEdit && <button onClick={() => openEditModal(userItem)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit</button>}
+                                            {canDelete && <button onClick={() => handleDelete(userItem.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Delete</button>}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <p className="text-xs text-gray-500 font-medium line-clamp-1">{userItem.email}</p>
                         {viewMode === 'grid' && (
@@ -311,10 +326,12 @@ export default function Users() {
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{userItem.roleData?.name || userItem.role}</p>
                             <p className="text-sm font-bold text-blue-500">{userItem.department?.dept_code || 'No Dept'}</p>
                         </div>
-                        <div className="flex items-center gap-1">
-                            <button onClick={(e) => { e.stopPropagation(); openEditModal(userItem); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-blue-500"><Edit2 className="w-4 h-4" /></button>
-                            <button onClick={(e) => { e.stopPropagation(); handleDelete(userItem.id); }} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                        </div>
+                        {(canEdit || canDelete) && (
+                            <div className="flex items-center gap-1">
+                                {canEdit && <button onClick={(e) => { e.stopPropagation(); openEditModal(userItem); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-blue-500"><Edit2 className="w-4 h-4" /></button>}
+                                {canDelete && <button onClick={(e) => { e.stopPropagation(); handleDelete(userItem.id); }} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -334,8 +351,8 @@ export default function Users() {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>
-                        <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-blue-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> Add User</button>
+                        {canRefresh && <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>}
+                        {canAdd && <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-blue-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> Add User</button>}
                     </div>
                 </header>
 
@@ -347,37 +364,45 @@ export default function Users() {
 
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">
                             <div className="flex-1 flex flex-col md:flex-row gap-4">
-                                <div className="relative flex-1 group">
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search by name, email or username..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full pl-12 pr-4 py-3 rounded-2xl border bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                                    />
+                                {canSearch && (
+                                    <div className="relative flex-1 group">
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search by name, email or username..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full pl-12 pr-4 py-3 rounded-2xl border bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                                        />
+                                    </div>
+                                )}
+                                {canRoleFilter && (
+                                    <select
+                                        value={selectedRole}
+                                        onChange={(e) => setSelectedRole(e.target.value)}
+                                        className="px-4 py-3 rounded-2xl border bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all min-w-[150px] font-bold text-gray-500"
+                                    >
+                                        <option value="">All Roles</option>
+                                        {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                                    </select>
+                                )}
+                                {canDepartmentFilter && (
+                                    <select
+                                        value={selectedDepartment}
+                                        onChange={(e) => setSelectedDepartment(e.target.value)}
+                                        className="px-4 py-3 rounded-2xl border bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all min-w-[150px] font-bold text-gray-500"
+                                    >
+                                        <option value="">All Departments</option>
+                                        {departments.map(d => <option key={d.id} value={d.id}>{d.dept_name}</option>)}
+                                    </select>
+                                )}
+                            </div>
+                            {canViewToggle && (
+                                <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1.5 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm font-sans h-fit">
+                                    <button onClick={() => setViewMode("grid")} className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-5 h-5" /></button>
+                                    <button onClick={() => setViewMode("list")} className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-5 h-5" /></button>
                                 </div>
-                                <select
-                                    value={selectedRole}
-                                    onChange={(e) => setSelectedRole(e.target.value)}
-                                    className="px-4 py-3 rounded-2xl border bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all min-w-[150px] font-bold text-gray-500"
-                                >
-                                    <option value="">All Roles</option>
-                                    {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-                                </select>
-                                <select
-                                    value={selectedDepartment}
-                                    onChange={(e) => setSelectedDepartment(e.target.value)}
-                                    className="px-4 py-3 rounded-2xl border bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all min-w-[150px] font-bold text-gray-500"
-                                >
-                                    <option value="">All Departments</option>
-                                    {departments.map(d => <option key={d.id} value={d.id}>{d.dept_name}</option>)}
-                                </select>
-                            </div>
-                            <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1.5 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm font-sans h-fit">
-                                <button onClick={() => setViewMode("grid")} className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-5 h-5" /></button>
-                                <button onClick={() => setViewMode("list")} className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-5 h-5" /></button>
-                            </div>
+                            )}
                         </div>
 
                         {loading ? (
@@ -454,45 +479,47 @@ export default function Users() {
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
                             </div>
 
-                            <div className="flex flex-col items-center mb-10">
-                                <div
-                                    className={`relative group/avatar cursor-pointer transition-all ${isDragging ? 'scale-110' : ''}`}
-                                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                                    onDragLeave={() => setIsDragging(false)}
-                                    onDrop={(e) => {
-                                        e.preventDefault();
-                                        setIsDragging(false);
-                                        const file = e.dataTransfer.files?.[0];
-                                        if (file) handleFileUpload(file);
-                                    }}
-                                >
-                                    <div className={`w-32 h-32 rounded-[2.5rem] bg-slate-50 dark:bg-white/5 border-2 border-dashed flex items-center justify-center overflow-hidden transition-all ${isDragging ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/10' : 'border-gray-200 dark:border-white/10 group-hover/avatar:border-blue-500/50'}`}>
-                                        {uploadingPhoto ? (
-                                            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-                                        ) : previewUrl ? (
-                                            <img src={previewUrl} className="w-full h-full object-cover" alt="Preview" />
-                                        ) : (
-                                            <div className="flex flex-col items-center gap-2 text-gray-400">
-                                                <Camera className="w-8 h-8" />
-                                                <span className="text-[10px] font-bold uppercase tracking-widest">Upload Photo</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="absolute inset-0 opacity-0 cursor-pointer"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0];
+                            {canAvatarUpload && (
+                                <div className="flex flex-col items-center mb-10">
+                                    <div
+                                        className={`relative group/avatar cursor-pointer transition-all ${isDragging ? 'scale-110' : ''}`}
+                                        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                                        onDragLeave={() => setIsDragging(false)}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            setIsDragging(false);
+                                            const file = e.dataTransfer.files?.[0];
                                             if (file) handleFileUpload(file);
                                         }}
-                                    />
-                                    <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg border-4 border-white dark:border-[#111] transition-transform group-hover/avatar:scale-110">
-                                        <Upload className="w-4 h-4" />
+                                    >
+                                        <div className={`w-32 h-32 rounded-[2.5rem] bg-slate-50 dark:bg-white/5 border-2 border-dashed flex items-center justify-center overflow-hidden transition-all ${isDragging ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/10' : 'border-gray-200 dark:border-white/10 group-hover/avatar:border-blue-500/50'}`}>
+                                            {uploadingPhoto ? (
+                                                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                                            ) : previewUrl ? (
+                                                <img src={previewUrl} className="w-full h-full object-cover" alt="Preview" />
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2 text-gray-400">
+                                                    <Camera className="w-8 h-8" />
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest">Upload Photo</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleFileUpload(file);
+                                            }}
+                                        />
+                                        <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg border-4 border-white dark:border-[#111] transition-transform group-hover/avatar:scale-110">
+                                            <Upload className="w-4 h-4" />
+                                        </div>
                                     </div>
+                                    <p className="mt-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{uploadingPhoto ? 'Uploading image...' : 'Drag & Drop or Paste Image'}</p>
                                 </div>
-                                <p className="mt-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{uploadingPhoto ? 'Uploading image...' : 'Drag & Drop or Paste Image'}</p>
-                            </div>
+                            )}
 
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 {error && <div className="text-red-500 text-sm font-bold">{error}</div>}
@@ -535,9 +562,11 @@ export default function Users() {
                                         </select>
                                     </div>
                                 </div>
-                                <div className="pt-4">
-                                    <button disabled={submitting} className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save User"}</button>
-                                </div>
+                                {canSave && (
+                                    <div className="pt-4">
+                                        <button disabled={submitting} className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save User"}</button>
+                                    </div>
+                                )}
                             </form>
                         </div>
                     </div>

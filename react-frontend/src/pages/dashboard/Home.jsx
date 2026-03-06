@@ -25,9 +25,11 @@ import {
     Users,
     Plus
 } from "lucide-react";
+import useAccess from "../../hooks/useAccess";
 
 export default function Home() {
     const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const access = useAccess();
     const navigate = useNavigate();
     const [stats, setStats] = useState({
         activeTasks: 0,
@@ -42,6 +44,10 @@ export default function Home() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [systemStatus, setSystemStatus] = useState({ isOnline: false, uptime: 0 });
+    const canField = access?.canField || (() => true);
+    const canRefresh = canField("home", "refresh_button");
+    const canQuickNewLetter = canField("home", "quick_new_letter_button");
+    const canQuickTrays = canField("home", "quick_trays_button");
 
     const fetchStats = async (showRefresh = false) => {
         if (showRefresh) setRefreshing(true);
@@ -250,14 +256,18 @@ export default function Home() {
                         <div className={`p-6 rounded-[2rem] border ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
                             <h3 className={`text-xs font-black uppercase tracking-widest mb-4 ${'text-gray-400'}`}>Quick Workflows</h3>
                             <div className="grid grid-cols-2 gap-3">
-                                <button onClick={() => navigate('/new-letter')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${'bg-slate-50 dark:bg-[#1a1a1a] hover:bg-slate-100 dark:hover:bg-[#222]'}`}>
-                                    <FileText className={`w-5 h-5 ${'text-blue-500'}`} />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Compose</span>
-                                </button>
-                                <button onClick={() => navigate('/setup/trays')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${'bg-slate-50 dark:bg-[#1a1a1a] hover:bg-slate-100 dark:hover:bg-[#222]'}`}>
-                                    <Inbox className={`w-5 h-5 ${'text-blue-500'}`} />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Trays</span>
-                                </button>
+                                {canQuickNewLetter && (
+                                    <button onClick={() => navigate('/new-letter')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${'bg-slate-50 dark:bg-[#1a1a1a] hover:bg-slate-100 dark:hover:bg-[#222]'}`}>
+                                        <FileText className={`w-5 h-5 ${'text-blue-500'}`} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Compose</span>
+                                    </button>
+                                )}
+                                {canQuickTrays && (
+                                    <button onClick={() => navigate('/setup/trays')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${'bg-slate-50 dark:bg-[#1a1a1a] hover:bg-slate-100 dark:hover:bg-[#222]'}`}>
+                                        <Inbox className={`w-5 h-5 ${'text-blue-500'}`} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Trays</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -279,11 +289,13 @@ export default function Home() {
                                 <h1 className="text-xl font-black text-[#1A1A1B] dark:text-white tracking-tighter uppercase font-outfit">Overview</h1>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4 hidden md:flex">
-                            <button onClick={() => fetchStats(true)} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
-                                <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
-                            </button>
-                        </div>
+                        {canRefresh && (
+                            <div className="flex items-center gap-4 hidden md:flex">
+                                <button onClick={() => fetchStats(true)} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
+                                    <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+                                </button>
+                            </div>
+                        )}
                     </header>
                     <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pt-6 md:pt-10 custom-scrollbar">
                         <div className="w-full space-y-8 md:space-y-10 lg:space-y-12">
@@ -369,14 +381,18 @@ export default function Home() {
                                     <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
                                         <h3 className="text-[10px] font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] mb-6">Operations</h3>
                                         <div className="space-y-4">
-                                            <button onClick={() => navigate('/new-letter')} className="w-full flex items-center justify-between p-4 bg-[#F7F7F7] dark:bg-white/5 rounded-xl hover:bg-[#E5E5E5] dark:hover:bg-white/10 transition-colors group">
-                                                <span className="text-[10px] font-black text-[#737373] group-hover:text-[#1A1A1B] dark:group-hover:text-white uppercase tracking-widest">New Document</span>
-                                                <Plus className="w-4 h-4 text-[#737373]" />
-                                            </button>
-                                            <button onClick={() => navigate('/setup/trays')} className="w-full flex items-center justify-between p-4 bg-[#F7F7F7] dark:bg-white/5 rounded-xl hover:bg-[#E5E5E5] dark:hover:bg-white/10 transition-colors group">
-                                                <span className="text-[10px] font-black text-[#737373] group-hover:text-[#1A1A1B] dark:group-hover:text-white uppercase tracking-widest">Physical Trays</span>
-                                                <Inbox className="w-4 h-4 text-[#737373]" />
-                                            </button>
+                                            {canQuickNewLetter && (
+                                                <button onClick={() => navigate('/new-letter')} className="w-full flex items-center justify-between p-4 bg-[#F7F7F7] dark:bg-white/5 rounded-xl hover:bg-[#E5E5E5] dark:hover:bg-white/10 transition-colors group">
+                                                    <span className="text-[10px] font-black text-[#737373] group-hover:text-[#1A1A1B] dark:group-hover:text-white uppercase tracking-widest">New Document</span>
+                                                    <Plus className="w-4 h-4 text-[#737373]" />
+                                                </button>
+                                            )}
+                                            {canQuickTrays && (
+                                                <button onClick={() => navigate('/setup/trays')} className="w-full flex items-center justify-between p-4 bg-[#F7F7F7] dark:bg-white/5 rounded-xl hover:bg-[#E5E5E5] dark:hover:bg-white/10 transition-colors group">
+                                                    <span className="text-[10px] font-black text-[#737373] group-hover:text-[#1A1A1B] dark:group-hover:text-white uppercase tracking-widest">Physical Trays</span>
+                                                    <Inbox className="w-4 h-4 text-[#737373]" />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
 
@@ -406,7 +422,7 @@ export default function Home() {
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-400 md:hidden"><Menu className="w-5 h-5" /></button>
                         <h1 className="text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-widest">Workspace / Dashboard</h1>
                     </div>
-                    <button onClick={() => fetchStats(true)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-all"><RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /></button>
+                    {canRefresh && <button onClick={() => fetchStats(true)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-all"><RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /></button>}
                 </header>
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
                     <div className="w-full">

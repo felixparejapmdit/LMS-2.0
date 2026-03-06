@@ -31,10 +31,12 @@ import attachmentService from "../../services/attachmentService";
 import letterService from "../../services/letterService";
 import axios from "axios";
 import SuccessModal from "../../components/SuccessModal";
+import useAccess from "../../hooks/useAccess";
 
 export default function NewLetter() {
     const navigate = useNavigate();
     const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const access = useAccess();
 
     const [loading, setLoading] = useState(false);
     const [kinds, setKinds] = useState([]);
@@ -69,6 +71,16 @@ export default function NewLetter() {
     const suggestionRef = useRef(null);
 
     const [error, setError] = useState("");
+    const canField = access?.canField || (() => true);
+    const canSenderField = canField("new-letter", "sender_field");
+    const canSummaryField = canField("new-letter", "summary_field");
+    const canStatusDropdown = canField("new-letter", "status_dropdown");
+    const canDepartmentSelector = canField("new-letter", "department_selector");
+    const canAttachmentSelector = canField("new-letter", "attachment_selector");
+    const canAttachmentUpload = canField("new-letter", "attachment_upload");
+    const canKindDropdown = canField("new-letter", "kind_dropdown");
+    const canTraySelector = canField("new-letter", "tray_selector");
+    const canSave = canField("new-letter", "save_button");
 
     useEffect(() => {
         const fetchRefs = async () => {
@@ -317,43 +329,45 @@ export default function NewLetter() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center justify-between">
-                                        <span>Sender / Recipient</span>
-                                        <span className="text-[10px] text-red-500 font-black">REQUIRED</span>
-                                    </label>
-                                    <div className="relative">
-                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
-                                        <input
-                                            type="text"
-                                            required
-                                            placeholder="Organization or Individual"
-                                            value={formData.sender}
-                                            onChange={handleSenderChange}
-                                            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
-                                            autoComplete="off"
-                                            className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                        />
+                                {canSenderField && (
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center justify-between">
+                                            <span>Sender / Recipient</span>
+                                            <span className="text-[10px] text-red-500 font-black">REQUIRED</span>
+                                        </label>
+                                        <div className="relative">
+                                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                                            <input
+                                                type="text"
+                                                required
+                                                placeholder="Organization or Individual"
+                                                value={formData.sender}
+                                                onChange={handleSenderChange}
+                                                onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                                                autoComplete="off"
+                                                className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                            />
 
-                                        {showSuggestions && (
-                                            <div
-                                                ref={suggestionRef}
-                                                className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
-                                            >
-                                                {suggestions.map((person) => (
-                                                    <div
-                                                        key={person.id}
-                                                        onClick={() => selectSuggestion(person.name)}
-                                                        className="px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600 transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3"
-                                                    >
-                                                        <User className="w-3 h-3 text-orange-400" />
-                                                        <span>{person.name}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
+                                            {showSuggestions && (
+                                                <div
+                                                    ref={suggestionRef}
+                                                    className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
+                                                >
+                                                    {suggestions.map((person) => (
+                                                        <div
+                                                            key={person.id}
+                                                            onClick={() => selectSuggestion(person.name)}
+                                                            className="px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600 transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3"
+                                                        >
+                                                            <User className="w-3 h-3 text-orange-400" />
+                                                            <span>{person.name}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </section>
 
                             {/* Classification */}
@@ -363,17 +377,19 @@ export default function NewLetter() {
                                     <h3 className="font-bold">Classification</h3>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Letter Kind</label>
-                                    <select
-                                        required
-                                        value={formData.kind}
-                                        onChange={e => setFormData({ ...formData, kind: e.target.value })}
-                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                    >
-                                        {kinds.map(k => <option key={k.id} value={k.id}>{k.kind_name}</option>)}
-                                    </select>
-                                </div>
+                                {canKindDropdown && (
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Letter Kind</label>
+                                        <select
+                                            required
+                                            value={formData.kind}
+                                            onChange={e => setFormData({ ...formData, kind: e.target.value })}
+                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        >
+                                            {kinds.map(k => <option key={k.id} value={k.id}>{k.kind_name}</option>)}
+                                        </select>
+                                    </div>
+                                )}
 
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Letter Type</label>
@@ -398,33 +414,37 @@ export default function NewLetter() {
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Global Status</label>
-                                    <select
-                                        required
-                                        value={formData.global_status}
-                                        onChange={e => setFormData({ ...formData, global_status: e.target.value })}
-                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                    >
-                                        {statuses.map(s => <option key={s.id} value={s.id}>{s.status_name}</option>)}
-                                    </select>
-                                </div>
+                                {canStatusDropdown && (
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Global Status</label>
+                                        <select
+                                            required
+                                            value={formData.global_status}
+                                            onChange={e => setFormData({ ...formData, global_status: e.target.value })}
+                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        >
+                                            {statuses.map(s => <option key={s.id} value={s.id}>{s.status_name}</option>)}
+                                        </select>
+                                    </div>
+                                )}
 
 
-                                <div className={`space-y-2 pt-4 border-t ${'border-gray-50 dark:border-[#222]'}`}>
-                                    <label className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${'text-gray-700 dark:text-gray-300'}`}>
-                                        <Building2 className="w-3 h-3" />
-                                        Department
-                                    </label>
-                                    <select
-                                        value={formData.assigned_dept}
-                                        onChange={e => setFormData({ ...formData, assigned_dept: e.target.value })}
-                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20 text-blue-700 dark:text-blue-400'}`}
-                                    >
-                                        <option value="">No Department</option>
-                                        {departments.map(d => <option key={d.id} value={d.id}>{d.dept_name}</option>)}
-                                    </select>
-                                </div>
+                                {canDepartmentSelector && (
+                                    <div className={`space-y-2 pt-4 border-t ${'border-gray-50 dark:border-[#222]'}`}>
+                                        <label className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${'text-gray-700 dark:text-gray-300'}`}>
+                                            <Building2 className="w-3 h-3" />
+                                            Department
+                                        </label>
+                                        <select
+                                            value={formData.assigned_dept}
+                                            onChange={e => setFormData({ ...formData, assigned_dept: e.target.value })}
+                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20 text-blue-700 dark:text-blue-400'}`}
+                                        >
+                                            <option value="">No Department</option>
+                                            {departments.map(d => <option key={d.id} value={d.id}>{d.dept_name}</option>)}
+                                        </select>
+                                    </div>
+                                )}
                             </section>
 
                             {/* Authority Notes */}
@@ -459,20 +479,22 @@ export default function NewLetter() {
                             </section>
 
                             {/* Summary */}
-                            <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-4`}>
-                                <div className="flex items-center justify-between mb-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Letter Summary</label>
-                                    <span className="text-[10px] text-red-500 font-black tracking-widest">REQUIRED FIELD</span>
-                                </div>
-                                <textarea
-                                    rows="4"
-                                    required
-                                    value={formData.summary}
-                                    onChange={e => setFormData({ ...formData, summary: e.target.value })}
-                                    placeholder="Enter Letter Summary"
-                                    className={`w-full px-4 py-3 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-orange-500 resize-none transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                />
-                            </section>
+                            {canSummaryField && (
+                                <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-4`}>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Letter Summary</label>
+                                        <span className="text-[10px] text-red-500 font-black tracking-widest">REQUIRED FIELD</span>
+                                    </div>
+                                    <textarea
+                                        rows="4"
+                                        required
+                                        value={formData.summary}
+                                        onChange={e => setFormData({ ...formData, summary: e.target.value })}
+                                        placeholder="Enter Letter Summary"
+                                        className={`w-full px-4 py-3 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-orange-500 resize-none transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                    />
+                                </section>
+                            )}
 
                             {(() => {
                                 const selectedAtt = attachments.find(a => String(a.id) === String(formData.attachment_id));
@@ -482,40 +504,46 @@ export default function NewLetter() {
                                 return (
                                     <>
                                         {/* Physical Attachment Selection - Moved Above Upload */}
-                                        <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-8`}>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-2">
-                                                    <FilePlus className="w-3 h-3" />
-                                                    Physical Attachment
-                                                </label>
-                                                <select
-                                                    value={formData.attachment_id}
-                                                    onChange={e => setFormData({ ...formData, attachment_id: e.target.value })}
-                                                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                                >
-                                                    <option value="">-- Select Physical Attachment --</option>
-                                                    {attachments.map(a => <option key={a.id} value={a.id}>{a.attachment_name}</option>)}
-                                                </select>
-                                            </div>
+                                        {(canAttachmentSelector || canTraySelector) && (
+                                            <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-8`}>
+                                                {canAttachmentSelector && (
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-2">
+                                                            <FilePlus className="w-3 h-3" />
+                                                            Physical Attachment
+                                                        </label>
+                                                        <select
+                                                            value={formData.attachment_id}
+                                                            onChange={e => setFormData({ ...formData, attachment_id: e.target.value })}
+                                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                                        >
+                                                            <option value="">-- Select Physical Attachment --</option>
+                                                            {attachments.map(a => <option key={a.id} value={a.id}>{a.attachment_name}</option>)}
+                                                        </select>
+                                                    </div>
+                                                )}
 
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-2">
-                                                    <Clock className="w-3 h-3" />
-                                                    Storage Tray (Physical Location)
-                                                </label>
-                                                <select
-                                                    value={formData.tray_id}
-                                                    onChange={e => setFormData({ ...formData, tray_id: e.target.value })}
-                                                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                                >
-                                                    <option value="">-- Select Tray (Optional) --</option>
-                                                    {trays.map(t => <option key={t.id} value={t.id}>{t.tray_no} - {t.description}</option>)}
-                                                </select>
-                                            </div>
-                                        </section>
+                                                {canTraySelector && (
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-2">
+                                                            <Clock className="w-3 h-3" />
+                                                            Storage Tray (Physical Location)
+                                                        </label>
+                                                        <select
+                                                            value={formData.tray_id}
+                                                            onChange={e => setFormData({ ...formData, tray_id: e.target.value })}
+                                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                                        >
+                                                            <option value="">-- Select Tray (Optional) --</option>
+                                                            {trays.map(t => <option key={t.id} value={t.id}>{t.tray_no} - {t.description}</option>)}
+                                                        </select>
+                                                    </div>
+                                                )}
+                                            </section>
+                                        )}
 
                                         {/* Digital Attachment (Scanned Copy) - Disabled if Physical Attachment is not Letter/Photo */}
-                                        <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-6 relative overflow-hidden transition-all duration-300 ${!isLetterOrPhoto ? 'opacity-60 grayscale-[0.5] pointer-events-none select-none' : ''}`}>
+                                        {canAttachmentUpload && <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-6 relative overflow-hidden transition-all duration-300 ${!isLetterOrPhoto ? 'opacity-60 grayscale-[0.5] pointer-events-none select-none' : ''}`}>
                                             <div className={`flex items-center justify-between border-b pb-6 mb-2 ${'border-slate-50 dark:border-[#222]'}`}>
                                                 <div className="flex items-center gap-3">
                                                     <Upload className={`w-5 h-5 text-indigo-400`} />
@@ -580,7 +608,7 @@ export default function NewLetter() {
                                                     </div>
                                                 </div>
                                             )}
-                                        </section>
+                                        </section>}
                                     </>
                                 );
                             })()}
@@ -594,14 +622,16 @@ export default function NewLetter() {
                             >
                                 CANCEL
                             </button>
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className={`flex items-center gap-2 px-10 py-3 text-white text-sm font-bold rounded-2xl transition-all shadow-xl disabled:opacity-50 ${'bg-[#F6A17B] hover:bg-[#e8946e] shadow-orange-100 dark:shadow-none'}`}
-                            >
-                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                SEND LETTER
-                            </button>
+                            {canSave && (
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className={`flex items-center gap-2 px-10 py-3 text-white text-sm font-bold rounded-2xl transition-all shadow-xl disabled:opacity-50 ${'bg-[#F6A17B] hover:bg-[#e8946e] shadow-orange-100 dark:shadow-none'}`}
+                                >
+                                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    SEND LETTER
+                                </button>
+                            )}
                         </div>
                     </form>
                 </div>

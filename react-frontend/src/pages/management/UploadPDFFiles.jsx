@@ -22,12 +22,14 @@ import {
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import jsQR from "jsqr";
+import useAccess from "../../hooks/useAccess";
 
 // Configure PDF.js worker locally for Vite reliability
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 export default function UploadPDFFiles() {
     const { layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const access = useAccess();
     const [files, setFiles] = useState([]);
     const [scanning, setScanning] = useState(false);
     const [syncing, setSyncing] = useState(false);
@@ -36,6 +38,12 @@ export default function UploadPDFFiles() {
     const [selectedPreview, setSelectedPreview] = useState(null);
     const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0, message: "" });
     const fileInputRef = useRef(null);
+    const canField = access?.canField || (() => true);
+    const canUpload = canField("upload-pdf", "attachment_upload");
+    const canSync = canField("upload-pdf", "save_button");
+    const canPdf = canField("upload-pdf", "pdf_button");
+    const canDelete = canField("upload-pdf", "delete_button");
+    const canViewToggle = canField("upload-pdf", "view_toggle");
 
     // Layout Styling
     const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
@@ -261,21 +269,23 @@ export default function UploadPDFFiles() {
                         </div>
                     </div>
                     <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
-                            <button
-                                onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-white/10 shadow-sm text-blue-500' : 'text-gray-400 hover:text-gray-600'}`}
-                            >
-                                <LayoutGrid size={16} />
-                            </button>
-                            <button
-                                onClick={() => setViewMode('list')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-white/10 shadow-sm text-blue-500' : 'text-gray-400 hover:text-gray-600'}`}
-                            >
-                                <List size={16} />
-                            </button>
-                        </div>
-                        {files.length > 0 && !scanning && !syncing && (
+                        {canViewToggle && (
+                            <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                                <button
+                                    onClick={() => setViewMode('grid')}
+                                    className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-white/10 shadow-sm text-blue-500' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    <LayoutGrid size={16} />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('list')}
+                                    className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-white/10 shadow-sm text-blue-500' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    <List size={16} />
+                                </button>
+                            </div>
+                        )}
+                        {canSync && files.length > 0 && !scanning && !syncing && (
                             <button
                                 onClick={handleGenerate}
                                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2"
@@ -299,7 +309,7 @@ export default function UploadPDFFiles() {
                     <div className="max-w-[100vw] mx-auto space-y-8">
 
                         {/* Drop Zone */}
-                        <div
+                        {canUpload && <div
                             className={`relative border-2 border-dashed rounded-[2.5rem] p-12 transition-all duration-300 flex flex-col items-center justify-center text-center
                                 ${dragActive ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/10' : 'border-gray-200 dark:border-white/10 hover:border-blue-400'}
                                 ${cardBg}
@@ -328,7 +338,7 @@ export default function UploadPDFFiles() {
                                 <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> First Page QR</span>
                                 <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Auto-Sync & Merge</span>
                             </div>
-                        </div>
+                        </div>}
 
                         {/* Sync Progress Bar */}
                         {syncing && (
@@ -367,7 +377,7 @@ export default function UploadPDFFiles() {
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between px-4">
                                     <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] text-gray-400`}>Ready to process ({files.length})</h4>
-                                    <button onClick={() => setFiles([])} className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-600">Clear All</button>
+                                    {canDelete && <button onClick={() => setFiles([])} className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-600">Clear All</button>}
                                 </div>
                                 <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" : "space-y-3"}>
                                     {files.map((f) => (
@@ -381,34 +391,38 @@ export default function UploadPDFFiles() {
                                                         title={f.name}
                                                     />
                                                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
-                                                    <div className="absolute top-4 left-4 flex items-center gap-2">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setSelectedPreview(f);
-                                                            }}
-                                                            className="p-2 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-blue-500 transition-all opacity-0 group-hover:opacity-100"
-                                                            title="Preview PDF"
-                                                        >
-                                                            <Eye className="w-4 h-4" />
-                                                        </button>
-                                                        <a
-                                                            href={f.previewUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="p-2 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-blue-500 transition-all opacity-0 group-hover:opacity-100"
-                                                            title="Open in new tab"
-                                                        >
-                                                            <ExternalLink className="w-4 h-4" />
-                                                        </a>
-                                                    </div>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); removeFile(f.id); }}
-                                                        className="absolute top-4 right-4 p-2 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-red-500 transition-all opacity-0 group-hover:opacity-100"
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                    </button>
+                                                    {(canPdf || canDelete) && (
+                                                        <>
+                                                            {canPdf && <div className="absolute top-4 left-4 flex items-center gap-2">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setSelectedPreview(f);
+                                                                    }}
+                                                                    className="p-2 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-blue-500 transition-all opacity-0 group-hover:opacity-100"
+                                                                    title="Preview PDF"
+                                                                >
+                                                                    <Eye className="w-4 h-4" />
+                                                                </button>
+                                                                <a
+                                                                    href={f.previewUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="p-2 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-blue-500 transition-all opacity-0 group-hover:opacity-100"
+                                                                    title="Open in new tab"
+                                                                >
+                                                                    <ExternalLink className="w-4 h-4" />
+                                                                </a>
+                                                            </div>}
+                                                            {canDelete && <button
+                                                                onClick={(e) => { e.stopPropagation(); removeFile(f.id); }}
+                                                                className="absolute top-4 right-4 p-2 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-red-500 transition-all opacity-0 group-hover:opacity-100"
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </button>}
+                                                        </>
+                                                    )}
                                                 </div>
 
                                                 {/* Info */}
@@ -455,13 +469,19 @@ export default function UploadPDFFiles() {
                                             </div>
                                         ) : (
                                             <div key={f.id} className={`${cardBg} rounded-2xl border p-4 flex items-center gap-6 group hover:border-blue-500/50 hover:shadow-lg transition-all`}>
-                                                <button
-                                                    onClick={() => setSelectedPreview(f)}
-                                                    className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-900/10 flex items-center justify-center shrink-0 hover:bg-red-100 dark:hover:bg-red-900/20 transition-all group/icon"
-                                                    title="Click to preview PDF"
-                                                >
-                                                    <FileText className="w-6 h-6 text-red-500 group-hover/icon:scale-110 transition-transform" />
-                                                </button>
+                                                {canPdf ? (
+                                                    <button
+                                                        onClick={() => setSelectedPreview(f)}
+                                                        className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-900/10 flex items-center justify-center shrink-0 hover:bg-red-100 dark:hover:bg-red-900/20 transition-all group/icon"
+                                                        title="Click to preview PDF"
+                                                    >
+                                                        <FileText className="w-6 h-6 text-red-500 group-hover/icon:scale-110 transition-transform" />
+                                                    </button>
+                                                ) : (
+                                                    <div className="w-12 h-12 rounded-xl bg-red-50/50 dark:bg-red-900/5 flex items-center justify-center shrink-0 opacity-50">
+                                                        <FileText className="w-6 h-6 text-red-400" />
+                                                    </div>
+                                                )}
 
                                                 <div className="flex-1 min-w-0">
                                                     <h5 className={`text-xs font-black uppercase tracking-tight truncate ${textColor}`}>{f.name}</h5>
@@ -494,12 +514,14 @@ export default function UploadPDFFiles() {
                                                         <div className="w-4 h-4 rounded-full border-2 border-slate-200 dark:border-white/10" />
                                                     )}
 
-                                                    <button
-                                                        onClick={() => removeFile(f.id)}
-                                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                    </button>
+                                                    {canDelete && (
+                                                        <button
+                                                            onClick={() => removeFile(f.id)}
+                                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         )
@@ -523,7 +545,7 @@ export default function UploadPDFFiles() {
             </main>
 
             {/* PDF Preview Modal */}
-            {selectedPreview && (
+            {canPdf && selectedPreview && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-12">
                     <div
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"

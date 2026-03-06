@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
+import useAccess from "../../hooks/useAccess";
 import {
     Tags,
     Plus,
@@ -17,10 +18,18 @@ import {
 import letterKindService from "../../services/letterKindService";
 
 export default function LetterKinds() {
+    const access = useAccess();
     const context = useAuth();
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
     const { layoutStyle, setIsMobileMenuOpen } = context;
+    const canField = access?.canField || (() => true);
+    const canAdd = canField("letter-kinds", "add_button");
+    const canEdit = canField("letter-kinds", "edit_button");
+    const canDelete = canField("letter-kinds", "delete_button");
+    const canSave = canField("letter-kinds", "save_button");
+    const canRefresh = canField("letter-kinds", "refresh_button");
+    const canViewToggle = canField("letter-kinds", "view_toggle");
     const [kinds, setKinds] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -87,6 +96,7 @@ export default function LetterKinds() {
     };
 
     const openCreateModal = () => {
+        if (!canAdd) return;
         setModalMode("create");
         setFormData({ kind_name: "", description: "" });
         setSelectedKind(null);
@@ -94,6 +104,7 @@ export default function LetterKinds() {
     };
 
     const openEditModal = (item) => {
+        if (!canEdit) return;
         setModalMode("edit");
         setFormData({
             kind_name: item.kind_name || "",
@@ -124,8 +135,8 @@ export default function LetterKinds() {
                             </button>
                             {isMenuOpen === item.id && (
                                 <div className="absolute right-0 top-full mt-2 w-32 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl z-20 py-1">
-                                    <button onClick={() => openEditModal(item)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit</button>
-                                    <button onClick={() => handleDelete(item.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Delete</button>
+                                    {canEdit && <button onClick={() => openEditModal(item)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit</button>}
+                                    {canDelete && <button onClick={() => handleDelete(item.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Delete</button>}
                                 </div>
                             )}
                         </div>
@@ -136,8 +147,8 @@ export default function LetterKinds() {
             {viewMode === 'list' && (
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
-                        <button onClick={(e) => { e.stopPropagation(); openEditModal(item); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-purple-500"><Edit2 className="w-4 h-4" /></button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                        {canEdit && <button onClick={(e) => { e.stopPropagation(); openEditModal(item); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-purple-500"><Edit2 className="w-4 h-4" /></button>}
+                        {canDelete && <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>}
                     </div>
                 </div>
             )}
@@ -162,8 +173,8 @@ export default function LetterKinds() {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>
-                        <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-purple-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> Add Kind</button>
+                        {canRefresh && <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>}
+                        {canAdd && <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-purple-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> Add Kind</button>}
                     </div>
                 </header>
 
@@ -173,10 +184,12 @@ export default function LetterKinds() {
                             <div>
                                 <h2 className={`text-3xl font-bold ${textColor}`}>Letter Kinds</h2>
                             </div>
-                            <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222]">
-                                <button onClick={() => setViewMode("grid")} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-purple-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-4 h-4" /></button>
-                                <button onClick={() => setViewMode("list")} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-purple-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-4 h-4" /></button>
-                            </div>
+                            {canViewToggle && (
+                                <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222]">
+                                    <button onClick={() => setViewMode("grid")} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-purple-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-4 h-4" /></button>
+                                    <button onClick={() => setViewMode("list")} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-purple-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-4 h-4" /></button>
+                                </div>
+                            )}
                         </div>
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-40 gap-4"><Loader2 className="w-10 h-10 text-purple-500 animate-spin" /></div>
@@ -209,7 +222,7 @@ export default function LetterKinds() {
                                     <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" rows={3}></textarea>
                                 </div>
                                 <div className="pt-4">
-                                    <button disabled={submitting} className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Letter Kind"}</button>
+                                    {canSave && <button disabled={submitting} className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Letter Kind"}</button>}
                                 </div>
                             </form>
                         </div>
