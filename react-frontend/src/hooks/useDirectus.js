@@ -2,14 +2,23 @@ import { createDirectus, rest, authentication, readMe } from "@directus/sdk";
 
 // Robust URL resolution: prioritize env var, then current hostname, then fallback to localhost
 const getDirectusUrl = () => {
-    if (import.meta.env.VITE_DIRECTUS_URL) return import.meta.env.VITE_DIRECTUS_URL;
+    let url = import.meta.env.VITE_DIRECTUS_URL;
 
-    // If we're in a browser, use relative paths for production so nginx proxy is hit
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-        return '/directus';
+    if (!url) {
+        // If we're in a browser, use relative paths for production so nginx proxy is hit
+        if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+            url = '/directus';
+        } else {
+            url = "http://localhost:8055";
+        }
     }
 
-    return "http://localhost:8055";
+    // Directus SDK `createDirectus(url)` fails if url is relative because it uses `new URL()`
+    if (url && url.startsWith('/') && typeof window !== 'undefined') {
+        return window.location.origin + url;
+    }
+
+    return url;
 };
 
 export const directusUrl = getDirectusUrl();
