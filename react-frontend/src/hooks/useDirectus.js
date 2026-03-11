@@ -4,10 +4,9 @@ import { createDirectus, rest, authentication, readMe } from "@directus/sdk";
 const getDirectusUrl = () => {
     if (import.meta.env.VITE_DIRECTUS_URL) return import.meta.env.VITE_DIRECTUS_URL;
 
-    // If we're in a browser, use the current hostname but with port 8055
-    if (typeof window !== 'undefined') {
-        const hostname = window.location.hostname;
-        return `http://${hostname}:8055`;
+    // If we're in a browser, use relative paths for production so nginx proxy is hit
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+        return '/directus';
     }
 
     return "http://localhost:8055";

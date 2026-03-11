@@ -310,11 +310,11 @@ export default function Home() {
                                     <h3 className="text-3xl font-black text-[#1A1A1B] dark:text-white">{stats.archivedTasks}</h3>
                                 </div>
                                 <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                    <p className="text-[10px] font-black text-[#737373] uppercase tracking-[0.2em] mb-2">Team Size</p>
+                                    <p className="text-[10px] font-black text-[#737373] uppercase tracking-[0.2em] mb-2">USERS</p>
                                     <h3 className="text-3xl font-black text-[#1A1A1B] dark:text-white">{stats.totalUsers}</h3>
                                 </div>
                                 <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                    <p className="text-[10px] font-black text-[#737373] uppercase tracking-[0.2em] mb-2">Database Users</p>
+                                    <p className="text-[10px] font-black text-[#737373] uppercase tracking-[0.2em] mb-2">PEOPLE</p>
                                     <h3 className="text-3xl font-black text-[#1A1A1B] dark:text-white">{stats.totalPeople}</h3>
                                 </div>
                             </div>
