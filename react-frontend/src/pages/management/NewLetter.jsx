@@ -455,7 +455,7 @@ export default function NewLetter() {
                                         rows="3"
                                         value={formData.evemnote}
                                         onChange={e => setFormData({ ...formData, evemnote: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all resize-none ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -464,7 +464,7 @@ export default function NewLetter() {
                                         rows="3"
                                         value={formData.aevmnote}
                                         onChange={e => setFormData({ ...formData, aevmnote: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all resize-none ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -473,7 +473,7 @@ export default function NewLetter() {
                                         rows="3"
                                         value={formData.atgnote}
                                         onChange={e => setFormData({ ...formData, atgnote: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all resize-none ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     />
                                 </div>
                             </section>
