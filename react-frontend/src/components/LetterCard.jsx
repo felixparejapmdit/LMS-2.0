@@ -118,26 +118,26 @@ export default function LetterCard({
                 {actions}
               </div>
               <div
-                className="text-xs text-[#737373] line-clamp-1 italic"
+                className="text-xs text-[#737373] dark:text-gray-400 line-clamp-1 italic"
                 dangerouslySetInnerHTML={{ __html: summary?.substring(0, 120) + '...' }}
               />
               <div className="flex items-center gap-4 pt-1.5 grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all">
                 <div className="flex items-center gap-1.5">
-                  <Clock className="w-3 h-3 text-[#A3A3A3]" />
-                  <span className="text-[10px] font-medium text-[#737373]">
+                  <Clock className="w-3 h-3 text-[#A3A3A3] dark:text-gray-500" />
+                  <span className="text-[10px] font-medium text-[#737373] dark:text-gray-400">
                     {formattedDate}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <MapPin className="w-3 h-3 text-[#A3A3A3]" />
-                  <span className="text-[10px] font-medium text-[#737373]">
+                  <MapPin className="w-3 h-3 text-[#A3A3A3] dark:text-gray-500" />
+                  <span className="text-[10px] font-medium text-[#737373] dark:text-gray-400">
                     {tray?.tray_no || 'Pending'}
                   </span>
                 </div>
                 {attachment && (
                   <div className="flex items-center gap-1.5">
-                    <Paperclip className="w-3 h-3 text-[#A3A3A3]" />
-                    <span className="text-[10px] font-medium text-[#737373]">{attachment.attachment_name}</span>
+                    <Paperclip className="w-3 h-3 text-[#A3A3A3] dark:text-gray-500" />
+                    <span className="text-[10px] font-medium text-[#737373] dark:text-gray-400">{attachment.attachment_name}</span>
                   </div>
                 )}
               </div>

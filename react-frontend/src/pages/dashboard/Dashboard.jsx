@@ -209,7 +209,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
 
             <div className="flex items-center gap-6">
               {view === 'inbox' && canTabFilter && (
-                <div className="flex items-center gap-1 border border-[#E5E5E5] p-1 rounded-lg bg-gray-50/50 no-scrollbar overflow-x-auto">
+                <div className="flex items-center gap-1 border border-[#E5E5E5] dark:border-[#333] p-1 rounded-lg bg-gray-50/50 dark:bg-white/5 no-scrollbar overflow-x-auto">
                   {[
                     { id: 'review', label: 'For Review', count: inboxStats.review },
                     { id: 'atg_note', label: 'For ATG Note', count: inboxStats.atg_note },
@@ -221,10 +221,10 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                     <button
                       key={tab.id}
                       onClick={() => setActiveStepTab(tab.id)}
-                      className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === tab.id ? 'bg-[#1A1A1B] text-white' : 'text-[#737373] hover:text-[#1A1A1B]'}`}
+                      className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === tab.id ? 'bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B]' : 'text-[#737373] dark:text-[#A3A3A3] hover:text-[#1A1A1B] dark:hover:text-white'}`}
                     >
                       {tab.label}
-                      <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black ${activeStepTab === tab.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black ${activeStepTab === tab.id ? 'bg-white/20 text-white dark:bg-black/20 dark:text-[#1A1A1B]' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'}`}>
                         {tab.count}
                       </span>
                     </button>
@@ -248,7 +248,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
               <div className="mb-8 md:mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h2 className="text-3xl font-bold text-[#1A1A1B] dark:text-white tracking-tight mb-2">{activeTabLabel}</h2>
-                  <p className="text-sm text-[#737373]">Viewing {assignments.length} assignments currently on hold or in progress.</p>
+                  <p className="text-sm text-[#737373] dark:text-gray-400">Viewing {assignments.length} assignments currently on hold or in progress.</p>
                 </div>
 
                 {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
@@ -258,7 +258,9 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                       className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 ${!selectedTray ? 'bg-[#1A1A1B] text-white' : 'text-[#737373] hover:text-[#1A1A1B]'}`}
                     >
                       All
-                      <span className={`text-[8px] font-black px-1 py-0.5 rounded ${!selectedTray ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>{assignments.length}</span>
+                      <span className={`text-[8px] font-black px-1 py-0.5 rounded ${!selectedTray ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                        {assignments.length}
+                      </span>
                     </button>
                     {trays.map(t => {
                       const trayCount = assignments.filter(a => a.letter?.tray_id === t.id).length;
@@ -269,7 +271,9 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                           className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 ${selectedTray === t.id ? 'bg-[#1A1A1B] text-white' : 'text-[#737373] hover:text-[#1A1A1B]'}`}
                         >
                           {t.tray_no}
-                          <span className={`text-[8px] font-black px-1 py-0.5 rounded ${selectedTray === t.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>{trayCount}</span>
+                          <span className={`text-[8px] font-black px-1 py-0.5 rounded ${selectedTray === t.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                            {trayCount}
+                          </span>
                         </button>
                       );
                     })}
@@ -510,24 +514,37 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
 
                 {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
                   <div className="flex items-center gap-2 bg-gray-50 dark:bg-white/5 p-1 rounded-2xl border border-gray-100 dark:border-[#333] mb-4">
-                    <button
-                      onClick={() => setSelectedTray(null)}
-                      className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${!selectedTray ? 'bg-white dark:bg-[#333] text-orange-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                      All ({assignments.length})
+                    <button className="text-xs font-semibold text-gray-400 hover:text-gray-900 flex items-center gap-1 transition-colors">
+                      <Filter className="w-3 h-3" /> Filter
                     </button>
-                    {trays.map(t => {
-                      const count = assignments.filter(a => a.letter?.tray_id === t.id).length;
-                      return (
-                        <button
-                          key={t.id}
-                          onClick={() => setSelectedTray(t.id)}
-                          className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${selectedTray === t.id ? 'bg-white dark:bg-[#333] text-orange-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                        >
-                          {t.tray_no} ({count})
-                        </button>
-                      );
-                    })}
+                    {canSearch && (
+                      <button className="text-xs font-semibold text-gray-400 hover:text-gray-900 flex items-center gap-1 transition-colors">
+                        <Search className="w-3 h-3" /> Search
+                      </button>
+                    )}
+                    {view === 'inbox' && canTabFilter && (
+                      <div className="flex border-l border-gray-100 dark:border-[#222] pl-4 gap-6">
+                        {[
+                          { id: 'review', label: 'For Review', count: inboxStats.review },
+                          { id: 'atg_note', label: 'For ATG Note', count: inboxStats.atg_note },
+                          { id: 'signature', label: 'For Signature', count: inboxStats.signature },
+                          { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
+                          { id: 'pending', label: 'Pending', count: inboxStats.pending },
+                          { id: 'hold', label: 'On Hold', count: inboxStats.hold }
+                        ].map(tab => (
+                          <button
+                            key={tab.id}
+                            onClick={() => setActiveStepTab(tab.id)}
+                            className={`text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeStepTab === tab.id ? 'text-orange-600 underline underline-offset-8' : 'text-gray-400 hover:text-gray-600'}`}
+                          >
+                            {tab.label}
+                            <span className="text-[8px] bg-gray-50 dark:bg-white/5 px-1.5 py-0.5 rounded text-gray-400">
+                              {tab.count}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -537,42 +554,6 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                     view === 'outgoing' ? 'Correspondence sent to external entities.' :
                       ''}
               </p>
-            </div>
-
-            <div className="mb-10 flex items-center justify-between border-t border-gray-100 dark:border-[#222] pt-4">
-              <div className="flex gap-4">
-                <button className="text-xs font-semibold text-gray-400 hover:text-gray-900 flex items-center gap-1 transition-colors">
-                  <Filter className="w-3 h-3" /> Filter
-                </button>
-                {canSearch && (
-                  <button className="text-xs font-semibold text-gray-400 hover:text-gray-900 flex items-center gap-1 transition-colors">
-                    <Search className="w-3 h-3" /> Search
-                  </button>
-                )}
-                {view === 'inbox' && canTabFilter && (
-                  <div className="flex border-l border-gray-100 dark:border-[#222] pl-4 gap-6">
-                    {[
-                      { id: 'review', label: 'For Review', count: inboxStats.review },
-                      { id: 'atg_note', label: 'For ATG Note', count: inboxStats.atg_note },
-                      { id: 'signature', label: 'For Signature', count: inboxStats.signature },
-                      { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
-                      { id: 'pending', label: 'Pending', count: inboxStats.pending },
-                      { id: 'hold', label: 'On Hold', count: inboxStats.hold }
-                    ].map(tab => (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveStepTab(tab.id)}
-                        className={`text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeStepTab === tab.id ? 'text-orange-600 underline underline-offset-8' : 'text-gray-400 hover:text-gray-600'}`}
-                      >
-                        {tab.label}
-                        <span className="text-[8px] bg-gray-50 dark:bg-white/5 px-1.5 py-0.5 rounded text-gray-400">
-                          {tab.count}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
 
             {loading ? (
@@ -585,28 +566,29 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <Inbox className="w-12 h-12 text-gray-200 mx-auto mb-4" />
                 <p className="text-gray-400 font-medium">No results found.</p>
               </div>
-            ) : (<div className="space-y-4">
-              {filteredAssignments.map((assignment) => (
-                assignment.letter && (
-                  <div key={assignment.id}>
-                    <LetterCard
-                      id={assignment.id}
-                      letterId={assignment.letter.id}
-                      atgId={assignment.letter.lms_id}
-                      sender={assignment.letter.sender}
-                      summary={assignment.letter.summary}
-                      status={assignment.status}
-                      step={assignment.step?.step_name}
-                      dueDate={assignment.due_date || assignment.letter.date_received}
-                      attachment={assignment.letter.attachment}
-                      tray={assignment.letter.tray}
-                      layout="notion"
-                      actions={renderTrayActions(assignment)}
-                    />
-                  </div>
-                )
-              ))}
-            </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredAssignments.map((assignment) => (
+                  assignment.letter && (
+                    <div key={assignment.id}>
+                      <LetterCard
+                        id={assignment.id}
+                        letterId={assignment.letter.id}
+                        atgId={assignment.letter.lms_id}
+                        sender={assignment.letter.sender}
+                        summary={assignment.letter.summary}
+                        status={assignment.status}
+                        step={assignment.step?.step_name}
+                        dueDate={assignment.due_date || assignment.letter.date_received}
+                        attachment={assignment.letter.attachment}
+                        tray={assignment.letter.tray}
+                        layout="notion"
+                        actions={renderTrayActions(assignment)}
+                      />
+                    </div>
+                  )
+                ))}
+              </div>
             )}
           </div>
         </main>

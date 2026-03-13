@@ -16,7 +16,8 @@ import {
     Hash,
     ChevronRight,
     GitMerge,
-    Menu
+    Menu,
+    Printer
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import { useNavigate } from "react-router-dom";
@@ -116,18 +117,47 @@ export default function LetterTracker() {
         window.open(url, '_blank');
     };
 
+    const handlePrintQR = (entry_id) => {
+        const printWindow = window.open('', '_blank');
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${entry_id}`;
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Reference QR - ${entry_id}</title>
+                    <style>
+                        body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; background: white; }
+                        .container { border: 2px solid #000; padding: 30px; border-radius: 20px; text-align: center; }
+                        img { width: 300px; height: 300px; }
+                        .ref { margin-top: 20px; font-size: 36px; font-weight: 900; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <img src="${qrUrl}" />
+                        <div class="ref">${entry_id}</div>
+                    </div>
+                    <script>
+                        window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
+                    </script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
     return (
         <div className={`flex h-screen ${pageBg} overflow-hidden font-sans`}>
             <Sidebar />
 
             <main className="flex-1 flex flex-col overflow-hidden relative">
                 {/* Header */}
-                <header className={`h-16 ${headerBg} border-b px-4 md:px-12 flex items-center justify-between sticky top-0 z-30 shrink-0 transition-colors duration-500`}>
+                <header className={`h-16 ${headerBg} border-b px-4 md:px-6 flex items-center justify-between sticky top-0 z-30 shrink-0 transition-colors duration-500`}>
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Digital Archive</span>
-                            <h1 className={`text-xl font-black tracking-tighter uppercase font-outfit ${textColor}`}>Letter Tracker</h1>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Digital Archive</span>
+                            <h1 className={`text-xl font-bold tracking-tighter uppercase font-outfit ${textColor}`}>Letter Tracker</h1>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -137,12 +167,12 @@ export default function LetterTracker() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
                     <div className="max-w-full mx-auto space-y-6">
                         {/* Summary & Search */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
-                                <h2 className={`text-2xl font-black uppercase tracking-tight ${textColor}`}>Letter Tracker</h2>
+                                <h2 className={`text-2xl font-bold uppercase tracking-tight ${textColor}`}>Letter Tracker</h2>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{isSuperAdmin ? 'Full Access Monitoring' : 'Your Registered Records'}</p>
                             </div>
                             {canSearch && (
@@ -153,63 +183,79 @@ export default function LetterTracker() {
                                         placeholder="Search reference, sender..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
+                                        className={`w-full pl-12 pr-4 py-3 rounded-xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
                                     />
                                 </div>
                             )}
                         </div>
 
                         {/* Table Container */}
-                        <div className={`rounded-[2.5rem] border overflow-hidden shadow-sm ${cardBg}`}>
+                        <div className={`rounded-3xl border overflow-hidden shadow-sm ${cardBg}`}>
                             <div className="overflow-x-auto custom-scrollbar">
                                 <table className="w-full text-left border-collapse min-w-[1000px]">
                                     <thead>
                                         <tr className={`border-b ${'border-gray-50 dark:border-[#222] bg-gray-50/50'}`}>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Reference #</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Date Received</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Sender</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Letter Summary</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Status</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Track</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">PDF</th>
+                                            <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Reference #</th>
+                                            <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Date Received</th>
+                                            <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Sender</th>
+                                            <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Letter Summary</th>
+                                            <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500 text-center">Status</th>
+                                            <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500 text-center">Track</th>
+                                            <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500 text-center">QR</th>
+                                            <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500 text-center">PDF</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50 dark:divide-[#222]">
                                         {loading ? (
-                                            <tr><td colSpan="7" className="p-20 text-center"><Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto" /></td></tr>
+                                            <tr><td colSpan="8" className="p-20 text-center"><Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto" /></td></tr>
                                         ) : filteredLetters.length === 0 ? (
-                                            <tr><td colSpan="7" className="p-20 text-center text-gray-400 font-bold uppercase tracking-widest">No matching records found</td></tr>
+                                            <tr><td colSpan="8" className="p-20 text-center text-gray-400 font-bold uppercase tracking-widest">No matching records found</td></tr>
                                         ) : filteredLetters.map((letter) => (
-                                            <tr key={letter.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
-                                                <td className="p-5 whitespace-nowrap">
-                                                    <span className={`text-[10px] font-black px-2.5 py-1 rounded bg-slate-100 dark:bg-white/10 ${textColor}`}>
+                                            <tr key={letter.id} className="hover:bg-gray-50/80 dark:hover:bg-white/5 transition-colors group">
+                                                <td className="px-5 py-4 whitespace-nowrap">
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 ${textColor}`}>
                                                         {letter.entry_id}
                                                     </span>
                                                 </td>
-                                                <td className="p-5 whitespace-nowrap">
+                                                <td className="px-5 py-4 whitespace-nowrap">
                                                     <div className="flex flex-col">
-                                                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{new Date(letter.date_received).toLocaleDateString()}</span>
-                                                        <span className="text-[10px] text-orange-500 font-black">{new Date(letter.date_received).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                                                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{new Date(letter.date_received).toLocaleDateString()}</span>
+                                                        <span className="text-[10px] text-orange-500 font-bold">{new Date(letter.date_received).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                                                     </div>
                                                 </td>
-                                                <td className="p-5 text-xs font-black text-slate-700 dark:text-slate-200 uppercase truncate max-w-[150px]">
+                                                <td className="px-5 py-4 text-xs font-bold text-slate-700 dark:text-slate-200 uppercase truncate max-w-[150px]">
                                                     {letter.sender}
                                                 </td>
-                                                <td className="p-5 max-w-xs">
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium line-clamp-2">{letter.summary}</p>
+                                                <td className="px-5 py-4 max-w-xs">
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium line-clamp-1">{letter.summary}</p>
                                                 </td>
-                                                <td className="p-5 text-center">
-                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${letter.status?.status_name === 'Incoming' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'}`}>
+                                                <td className="px-5 py-4 text-center">
+                                                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest ${letter.status?.status_name === 'Incoming' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-gray-50 text-gray-600 border border-gray-100'}`}>
                                                         {letter.status?.status_name || 'REGISTERED'}
                                                     </span>
                                                 </td>
-                                                <td className="p-5 text-center px-0">
-                                                    {canTrack && <button onClick={() => handleTrackOpen(letter)} className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all transform hover:scale-110 mx-auto border border-indigo-100 dark:border-indigo-900/20 shadow-sm"><Activity className="w-4 h-4" /></button>}
+                                                <td className="px-5 py-4 text-center">
+                                                    <div className="flex justify-center">
+                                                        {canTrack && <button onClick={() => handleTrackOpen(letter)} className="p-2 rounded-lg bg-indigo-50/50 dark:bg-indigo-900/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all border border-indigo-100 dark:border-indigo-900/20 shadow-sm"><Activity className="w-3.5 h-3.5" /></button>}
+                                                    </div>
                                                 </td>
-                                                <td className="p-5 text-center px-0">
-                                                    {canPdf && (letter.scanned_copy || letter.attachment_id) ? (
-                                                        <button onClick={() => handleViewPDF(letter)} className="p-2.5 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all transform hover:scale-110 mx-auto border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-4 h-4" /></button>
-                                                    ) : <span className="text-gray-200">-</span>}
+                                                <td className="px-5 py-4 text-center">
+                                                    <div className="flex justify-center">
+                                                        <button
+                                                            onClick={() => handlePrintQR(letter.entry_id)}
+                                                            className="p-2 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all border border-blue-100 dark:border-blue-900/20 shadow-sm"
+                                                            title="Print QR Code"
+                                                        >
+                                                            <Printer className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                                <td className="px-5 py-4 text-center">
+                                                    <div className="flex justify-center">
+                                                        {canPdf && (letter.scanned_copy || letter.attachment_id) ? (
+                                                            <button onClick={() => handleViewPDF(letter)} className="p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-3.5 h-3.5" /></button>
+                                                        ) : <span className="text-gray-300">-</span>}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}

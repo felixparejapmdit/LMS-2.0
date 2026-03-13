@@ -21,7 +21,9 @@ import {
     Upload,
     Trash2,
     Check,
-    FileText
+    X as XIcon,
+    FileText,
+    MessageSquare
 } from "lucide-react";
 import letterKindService from "../../services/letterKindService";
 import departmentService from "../../services/departmentService";
@@ -60,9 +62,13 @@ export default function NewLetter() {
         atgnote: "",
         assigned_dept: "",
         tray_id: "",
-        attachment_id: ""
+        selectedRefIds: [],
+        encoder: ""
     });
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [attachmentSearch, setAttachmentSearch] = useState("");
+    const [showAttachmentResults, setShowAttachmentResults] = useState(false);
+    const attachmentSearchRef = useRef(null);
 
     const [scannedFiles, setScannedFiles] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
@@ -81,6 +87,15 @@ export default function NewLetter() {
     const canKindDropdown = canField("new-letter", "kind_dropdown");
     const canTraySelector = canField("new-letter", "tray_selector");
     const canSave = canField("new-letter", "save_button");
+    const canEncoderField = canField("new-letter", "encoder_field");
+
+    const [activeField, setActiveField] = useState(null);
+
+    const validateFormat = (text) => {
+        if (!text) return true;
+        const regex = /^[A-Z,\s.]+$/i;
+        return regex.test(text) && text.includes(',');
+    };
 
     useEffect(() => {
         const fetchRefs = async () => {
@@ -124,6 +139,9 @@ export default function NewLetter() {
             if (suggestionRef.current && !suggestionRef.current.contains(event.target)) {
                 setShowSuggestions(false);
             }
+            if (attachmentSearchRef.current && !attachmentSearchRef.current.contains(event.target)) {
+                setShowAttachmentResults(false);
+            }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -144,6 +162,14 @@ export default function NewLetter() {
         }
     };
 
+    const handleEncoderChange = (e) => {
+        const val = e.target.value;
+        setFormData({ ...formData, encoder: val });
+        setActiveField('encoder');
+        const query = val.includes(',') ? val.split(',').pop().trim() : val.trim();
+        fetchSuggestions(query);
+    };
+
     const handleSenderChange = (e) => {
         const val = e.target.value;
         setFormData({ ...formData, sender: val });
@@ -159,11 +185,14 @@ export default function NewLetter() {
     };
 
     const selectSuggestion = (name) => {
-        const parts = formData.sender.split(';').map(p => p.trim());
-        // Replace the last part being typed with the full selected name
-        parts[parts.length - 1] = name;
-        const newValue = parts.filter(p => p !== "").join('; ');
-        setFormData({ ...formData, sender: newValue + '; ' });
+        if (activeField === 'sender') {
+            const parts = formData.sender.split(';').map(p => p.trim());
+            parts[parts.length - 1] = name;
+            const newValue = parts.filter(p => p !== "").join('; ');
+            setFormData({ ...formData, sender: newValue + '; ' });
+        } else if (activeField === 'encoder') {
+            setFormData({ ...formData, encoder: name });
+        }
         setShowSuggestions(false);
     };
 
@@ -207,6 +236,19 @@ export default function NewLetter() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        const senderParts = formData.sender.split(';').map(s => s.trim()).filter(s => s !== "");
+        const invalidSender = senderParts.find(s => !validateFormat(s));
+        if (invalidSender) {
+            alert("Each sender/recipient name must follow the format: LASTNAME, FIRSTNAME");
+            return;
+        }
+
+        if (formData.encoder && !validateFormat(formData.encoder)) {
+            alert("Encoder name must follow the format: LASTNAME, FIRSTNAME");
+            return;
+        }
+
         setLoading(true);
         setError("");
 
@@ -228,11 +270,16 @@ export default function NewLetter() {
                 scannedCopyPath = response.data.file_path;
             }
 
-            await letterService.create({
+            const created = await letterService.create({
                 ...formData,
+                attachment_id: formData.selectedRefIds.join(','),
                 scanned_copy: scannedCopyPath,
                 encoder_id: user.id
             });
+
+            if (created?.lms_id) {
+                setPredictedLmsId(created.lms_id);
+            }
 
             setIsSuccessModalOpen(true);
         } catch (err) {
@@ -343,12 +390,81 @@ export default function NewLetter() {
                                                 placeholder="Organization or Individual"
                                                 value={formData.sender}
                                                 onChange={handleSenderChange}
-                                                onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                                                onFocus={() => {
+                                                    setActiveField('sender');
+                                                    if (suggestions.length > 0) setShowSuggestions(true);
+                                                }}
                                                 autoComplete="off"
-                                                className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                                className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all ${!validateFormat(formData.sender) && formData.sender ? 'border-red-500/50' : ''} ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                             />
 
-                                            {showSuggestions && (
+                                            {showSuggestions && activeField === 'sender' && (
+                                                <div
+                                                    ref={suggestionRef}
+                                                    className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
+                                                >
+                                                    {suggestions.map((person) => (
+                                                        <div
+                                                            key={person.id}
+                                                            onClick={() => selectSuggestion(person.name)}
+                                                            className="px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600 transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3"
+                                                        >
+                                                            <User className="w-3 h-3 text-orange-400" />
+                                                            <span>{person.name}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Summary / Regarding - Grouped under Sender */}
+                                {canSummaryField && (
+                                    <div className="space-y-2 pt-4 border-t border-dashed border-gray-100 dark:border-[#222]">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${'text-gray-500 dark:text-gray-400'}`}>
+                                                <MessageSquare className="w-3 h-3 text-orange-400" />
+                                                Regarding (Re:)
+                                            </label>
+                                            <span className="text-[9px] text-red-500 font-black tracking-widest uppercase">Required</span>
+                                        </div>
+                                        <textarea
+                                            rows="3"
+                                            required
+                                            value={formData.summary}
+                                            onChange={e => setFormData({ ...formData, summary: e.target.value })}
+                                            placeholder="Enter Regarding"
+                                            className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 resize-none transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Encoder Section - Grouped under Regarding */}
+                                {canEncoderField && (
+                                    <div className="space-y-2 pt-4 border-t border-dashed border-gray-100 dark:border-[#222]">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${'text-gray-500 dark:text-gray-400'}`}>
+                                                <User className="w-3 h-3 text-orange-400" />
+                                                Encoder Name
+                                            </label>
+                                            <span className="text-[9px] text-red-500 font-black tracking-widest uppercase">Required</span>
+                                        </div>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                required
+                                                value={formData.encoder}
+                                                onChange={handleEncoderChange}
+                                                onFocus={() => {
+                                                    setActiveField('encoder');
+                                                    if (formData.encoder.length >= 2) handleEncoderChange({ target: { value: formData.encoder } });
+                                                }}
+                                                autoComplete="off"
+                                                placeholder="LASTNAME, FIRSTNAME"
+                                                className={`w-full px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider outline-none focus:ring-2 focus:ring-orange-500 transition-all ${!validateFormat(formData.encoder) && formData.encoder ? 'border-red-500/50' : ''} ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                            />
+                                            {showSuggestions && activeField === 'encoder' && (
                                                 <div
                                                     ref={suggestionRef}
                                                     className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
@@ -478,48 +594,87 @@ export default function NewLetter() {
                                 </div>
                             </section>
 
-                            {/* Summary */}
-                            {canSummaryField && (
-                                <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-4`}>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Letter Summary</label>
-                                        <span className="text-[10px] text-red-500 font-black tracking-widest">REQUIRED FIELD</span>
-                                    </div>
-                                    <textarea
-                                        rows="4"
-                                        required
-                                        value={formData.summary}
-                                        onChange={e => setFormData({ ...formData, summary: e.target.value })}
-                                        placeholder="Enter Letter Summary"
-                                        className={`w-full px-4 py-3 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-orange-500 resize-none transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                    />
-                                </section>
-                            )}
-
                             {(() => {
-                                const selectedAtt = attachments.find(a => String(a.id) === String(formData.attachment_id));
-                                const attName = selectedAtt?.attachment_name?.toLowerCase() || "";
-                                const isLetterOrPhoto = attName.includes("letter") || attName.includes("photo");
-
                                 return (
                                     <>
                                         {/* Physical Attachment Selection - Moved Above Upload */}
                                         {(canAttachmentSelector || canTraySelector) && (
                                             <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-8`}>
                                                 {canAttachmentSelector && (
-                                                    <div className="space-y-2">
+                                                    <div className="space-y-4">
                                                         <label className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-2">
                                                             <FilePlus className="w-3 h-3" />
                                                             Physical Attachment
                                                         </label>
-                                                        <select
-                                                            value={formData.attachment_id}
-                                                            onChange={e => setFormData({ ...formData, attachment_id: e.target.value })}
-                                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                                        >
-                                                            <option value="">-- Select Physical Attachment --</option>
-                                                            {attachments.map(a => <option key={a.id} value={a.id}>{a.attachment_name}</option>)}
-                                                        </select>
+                                                        <div className="space-y-3" ref={attachmentSearchRef}>
+                                                            <div className="relative">
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Type to search attachments..."
+                                                                    value={attachmentSearch}
+                                                                    onChange={(e) => {
+                                                                        setAttachmentSearch(e.target.value);
+                                                                        setShowAttachmentResults(true);
+                                                                    }}
+                                                                    onFocus={() => setShowAttachmentResults(true)}
+                                                                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                                                />
+
+                                                                {showAttachmentResults && (
+                                                                    <div className={`absolute z-[110] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}>
+                                                                        {attachments
+                                                                            .filter(att => att.attachment_name.toLowerCase().includes(attachmentSearch.toLowerCase()))
+                                                                            .map(att => (
+                                                                                <div
+                                                                                    key={att.id}
+                                                                                    onClick={() => {
+                                                                                        if (!formData.selectedRefIds.includes(String(att.id))) {
+                                                                                            setFormData(prev => ({
+                                                                                                ...prev,
+                                                                                                selectedRefIds: [...prev.selectedRefIds, String(att.id)]
+                                                                                            }));
+                                                                                        }
+                                                                                        setAttachmentSearch("");
+                                                                                        setShowAttachmentResults(false);
+                                                                                    }}
+                                                                                    className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/10 hover:text-blue-600 transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center justify-between"
+                                                                                >
+                                                                                    <span>{att.attachment_name}</span>
+                                                                                    {formData.selectedRefIds.includes(String(att.id)) && <Check className="w-3 h-3" />}
+                                                                                </div>
+                                                                            ))}
+                                                                        {attachments.filter(att => att.attachment_name.toLowerCase().includes(attachmentSearch.toLowerCase())).length === 0 && (
+                                                                            <div className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center italic">
+                                                                                No results found
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {formData.selectedRefIds.map(id => {
+                                                                    const att = attachments.find(a => String(a.id) === String(id));
+                                                                    return (
+                                                                        <div key={id} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40 rounded-lg text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
+                                                                            <span>{att?.attachment_name || id}</span>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setFormData(prev => ({
+                                                                                        ...prev,
+                                                                                        selectedRefIds: prev.selectedRefIds.filter(i => i !== id)
+                                                                                    }));
+                                                                                }}
+                                                                                className="hover:text-red-500"
+                                                                            >
+                                                                                <XIcon className="w-3 h-3" />
+                                                                            </button>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 )}
 
@@ -542,46 +697,40 @@ export default function NewLetter() {
                                             </section>
                                         )}
 
-                                        {/* Digital Attachment (Scanned Copy) - Disabled if Physical Attachment is not Letter/Photo */}
-                                        {canAttachmentUpload && <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-6 relative overflow-hidden transition-all duration-300 ${!isLetterOrPhoto ? 'opacity-60 grayscale-[0.5] pointer-events-none select-none' : ''}`}>
+                                        {/* Digital Attachment (Scanned Copy) - Always Enabled */}
+                                        {canAttachmentUpload && <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-6 relative overflow-hidden transition-all duration-300`}>
                                             <div className={`flex items-center justify-between border-b pb-6 mb-2 ${'border-slate-50 dark:border-[#222]'}`}>
                                                 <div className="flex items-center gap-3">
                                                     <Upload className={`w-5 h-5 text-indigo-400`} />
                                                     <h3 className={`font-bold ${textColor}`}>Attachments (Scanned Letter)</h3>
                                                 </div>
-                                                {!isLetterOrPhoto && (
-                                                    <span className="text-[10px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-600 px-3 py-1 rounded-full border border-amber-500/20">
-                                                        {formData.attachment_id ? `Not available for ${selectedAtt?.attachment_name}` : 'Select Physical Attachment First'}
-                                                    </span>
-                                                )}
                                             </div>
 
                                             <div
-                                                onClick={() => isLetterOrPhoto && fileInputRef.current.click()}
+                                                onClick={() => fileInputRef.current.click()}
                                                 onDragOver={(e) => e.preventDefault()}
-                                                onDrop={(e) => isLetterOrPhoto && handleDrop(e)}
-                                                className={`flex flex-col items-center justify-center border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-12 transition-all group ${!isLetterOrPhoto ? 'cursor-not-allowed border-slate-200 dark:border-[#222] bg-slate-50/30' : 'cursor-pointer border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5'}`}
+                                                onDrop={(e) => handleDrop(e)}
+                                                className={`flex flex-col items-center justify-center border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-12 transition-all group cursor-pointer border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5`}
                                             >
                                                 <input
                                                     type="file"
                                                     multiple
-                                                    disabled={!isLetterOrPhoto}
                                                     className="hidden"
                                                     ref={fileInputRef}
                                                     onChange={handleFileChange}
                                                 />
-                                                <div className={`w-16 h-16 bg-white dark:bg-white/10 rounded-full flex items-center justify-center shadow-lg mb-4 ${isLetterOrPhoto ? 'group-hover:scale-110' : ''} transition-transform`}>
-                                                    <Upload className={`w-6 h-6 ${isLetterOrPhoto ? 'text-orange-400' : 'text-slate-300'}`} />
+                                                <div className={`w-16 h-16 bg-white dark:bg-white/10 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform`}>
+                                                    <Upload className={`w-6 h-6 text-orange-400`} />
                                                 </div>
-                                                <h3 className={`text-sm font-black uppercase tracking-widest mb-1 ${isLetterOrPhoto ? textColor : 'text-slate-400'}`}>
-                                                    {isLetterOrPhoto ? 'Click to Upload' : 'Upload Restricted'}
+                                                <h3 className={`text-sm font-black uppercase tracking-widest mb-1 ${textColor}`}>
+                                                    Click to Upload
                                                 </h3>
                                                 <p className="text-xs text-slate-400 font-medium">
-                                                    {isLetterOrPhoto ? 'Scanned copies of the letter or related documents' : 'Requires Physical Attachment classification: Letter or Photo'}
+                                                    Scanned copies of the letter or related documents
                                                 </p>
                                             </div>
 
-                                            {isLetterOrPhoto && scannedFiles.length > 0 && (
+                                            {scannedFiles.length > 0 && (
                                                 <div className="mt-8 space-y-2">
                                                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected Files ({scannedFiles.length})</h4>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">

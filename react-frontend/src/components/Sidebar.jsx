@@ -243,7 +243,7 @@ export default function Sidebar() {
               </div>
               {(isSidebarExpanded || isMobileMenuOpen) && (
                 <div className="flex flex-col animate-in fade-in slide-in-from-left-2 transition-all">
-                  <span className="text-sm font-bold text-slate-900 tracking-tighter leading-none">LMS 2.0</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tighter leading-none">LMS 2.0</span>
                 </div>
               )}
             </div>
@@ -317,7 +317,7 @@ export default function Sidebar() {
                 title={!isSidebarExpanded && !isMobileMenuOpen ? "View Profile" : ""}
                 className={`
                     flex-1 flex items-center gap-3 p-2 rounded-2xl transition-all duration-300 group/prof
-                    hover:bg-slate-200 border border-transparent
+                    hover:bg-slate-200 dark:hover:bg-white/10 border border-transparent
                     ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center p-2' : 'justify-start'}
                   `}
               >
@@ -335,7 +335,7 @@ export default function Sidebar() {
                 </div>
                 {(isSidebarExpanded || isMobileMenuOpen) && (
                   <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
-                    <span className="text-[11px] font-black text-slate-900 truncate tracking-tight group-hover/prof:text-blue-600">
+                    <span className="text-[11px] font-black text-slate-900 dark:text-gray-100 truncate tracking-tight group-hover/prof:text-blue-600">
                       {user?.first_name} {user?.last_name}
                     </span>
                     <span className="text-[9px] font-bold text-blue-500 truncate tracking-widest leading-none mt-1">
@@ -406,8 +406,8 @@ export default function Sidebar() {
                   className={({ isActive }) => `
                   flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all duration-200 relative
                   ${isActive && !item.children && item.path !== "#"
-                      ? "bg-gray-200 text-gray-900 font-semibold"
-                      : "text-gray-500 hover:bg-gray-200/70"}
+                      ? "bg-gray-200 dark:bg-[#333] text-gray-900 dark:text-white font-semibold"
+                      : "text-gray-500 dark:text-gray-400 hover:bg-gray-200/70 dark:hover:bg-white/5"}
                   ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                 `}
                 >
@@ -428,8 +428,8 @@ export default function Sidebar() {
                         className={({ isActive }) => `
                         flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all duration-200 relative
                         ${isActive
-                            ? "bg-gray-200 text-gray-900 font-semibold"
-                            : "text-gray-400 hover:bg-gray-200/70"}
+                            ? "bg-gray-200 dark:bg-[#333] text-gray-900 dark:text-white font-semibold"
+                            : "text-gray-400 dark:text-gray-500 hover:bg-gray-200/70 dark:hover:bg-white/5"}
                         `}
                       >
                         <child.icon className="w-3.5 h-3.5 shrink-0" />
@@ -535,7 +535,7 @@ export default function Sidebar() {
                     flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200
                     ${isActive && !item.children && item.path !== "#"
                       ? "bg-slate-700 text-white font-medium"
-                      : "text-[#737373] hover:text-white hover:bg-slate-700"}
+                      : "text-[#737373] dark:text-[#A3A3A3] hover:text-white hover:bg-slate-700"}
                     ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                   `}
                 >
@@ -736,9 +736,9 @@ export default function Sidebar() {
 
   const getSidebarBg = () => {
     switch (layoutStyle) {
-      case 'notion': return "bg-[#FBFBFA] border-gray-100";
-      case 'minimalist': return "bg-[#F7F7F7] border-[#E5E5E5]";
-      default: return "bg-white border-gray-100";
+      case 'notion': return "bg-[#FBFBFA] dark:bg-[#191919] border-gray-100 dark:border-[#333]";
+      case 'minimalist': return "bg-[#F7F7F7] dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]";
+      default: return "bg-white dark:bg-[#111] border-gray-100 dark:border-[#222]";
     }
   };
 
@@ -796,28 +796,28 @@ export default function Sidebar() {
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setIsLogoutModalOpen(false)}
           />
-          <div className="relative w-full max-w-[340px] bg-white rounded-3xl border border-gray-100 shadow-2xl p-8 text-center animate-in zoom-in-95 duration-300">
-            <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center text-red-500 mx-auto mb-6">
-              <LogOut className="w-7 h-7" />
+          <div className="relative w-full max-w-[340px] bg-white dark:bg-[#1a1a1a] rounded-3xl border border-gray-100 dark:border-[#333] shadow-2xl p-8 text-center animate-in zoom-in-95 duration-300">
+            <div className="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-900/10 flex items-center justify-center text-red-500 mx-auto mb-6">
+              <LogOut className="w-6 h-6" />
             </div>
 
-            <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">Confirm Logout</h3>
-            <p className="text-xs text-gray-500 leading-relaxed mb-8">
-              Are you sure you want to sign out?
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Confirm Logout</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+              Are you sure you want to end your current session?
             </p>
 
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setIsLogoutModalOpen(false)}
-                className="py-3 bg-slate-100 text-slate-500 hover:text-slate-700 rounded-xl font-bold text-xs transition-all border border-transparent hover:border-slate-200"
-              >
-                Cancel
-              </button>
+            <div className="flex flex-col gap-3">
               <button
                 onClick={confirmLogout}
-                className="py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs shadow-lg shadow-red-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                className="w-full py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold tracking-tight shadow-lg shadow-red-200 dark:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                Sign Out
+                Logout Now
+              </button>
+              <button
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="w-full py-4 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 rounded-2xl font-bold tracking-tight transition-all"
+              >
+                Go Back
               </button>
             </div>
           </div>

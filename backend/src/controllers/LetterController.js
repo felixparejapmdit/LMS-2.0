@@ -142,7 +142,7 @@ class LetterController {
                 kind: sanitizeInt(kind),
                 global_status: finalGlobalStatus,
                 tray_id: sanitizeInt(tray_id),
-                attachment_id: sanitizeInt(attachment_id),
+                attachment_id: attachment_id,
                 letter_type: letter_type || 'Non-Confidential',
                 vemcode,
                 evemnote,

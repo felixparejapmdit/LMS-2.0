@@ -45,7 +45,11 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [isGuest, setIsGuest] = useState(localStorage.getItem("isGuest") === "true");
     const [loading, setLoading] = useState(true);
-    const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+    const [theme, setTheme] = useState(() => {
+        const stored = localStorage.getItem("theme");
+        if (stored) return stored;
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    });
     const [layoutStyle, setLayoutStyle] = useState(normalizeLayoutStyle(localStorage.getItem("layoutStyle") || "minimalist"));
     const [fontFamily, setFontFamily] = useState(localStorage.getItem("fontFamily") || "Outfit"); // Inter, Public Sans, Geist, Plus Jakarta Sans, Outfit
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(localStorage.getItem("isSidebarExpanded") !== "false");
@@ -88,6 +92,21 @@ export const AuthProvider = ({ children }) => {
         if (!perm) return false;
         return !!perm[action];
     };
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+        const handleChange = (e) => {
+            // Only auto-switch if the user hasn't explicitly set a preference in this session
+            // or if we want to strictly follow system.
+            // For now, let's make it follow system if no override is in localStorage
+            if (!localStorage.getItem("theme")) {
+                setTheme(e.matches ? "dark" : "light");
+            }
+        };
+
+        mediaQuery.addEventListener("change", handleChange);
+        return () => mediaQuery.removeEventListener("change", handleChange);
+    }, []);
 
     useEffect(() => {
         if (theme === "dark") {

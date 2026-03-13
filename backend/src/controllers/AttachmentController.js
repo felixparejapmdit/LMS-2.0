@@ -5,7 +5,11 @@ const fs = require('fs');
 class AttachmentController {
     static async view(req, res) {
         try {
-            const result = await Attachment.findByPk(req.params.id);
+            let id = req.params.id;
+            if (typeof id === 'string' && id.includes(',')) {
+                id = id.split(',')[0]; // View the first one by default
+            }
+            const result = await Attachment.findByPk(id);
             if (!result || !result.file_path) {
                 return res.status(404).json({ error: 'File not found' });
             }
@@ -65,10 +69,9 @@ class AttachmentController {
 
                     fs.writeFileSync(combinedPath, mergedPdfBytes);
 
-                    // Cleanup: Remove the temp uploaded chunk and the OLD base file if it was a scanned copy
+                    // Cleanup
                     try {
                         fs.unlinkSync(req.file.path);
-                        // If it's an existing scanned_copy (not a reference attachment), delete it to save space
                         if (existing_path && fs.existsSync(existing_path)) {
                             fs.unlinkSync(existing_path);
                         }
@@ -179,23 +182,35 @@ class AttachmentController {
             let pagesAdded = 0;
 
             for (const letter of letters) {
-                let filePath = null;
-                if (letter.scanned_copy) {
-                    filePath = letter.scanned_copy;
-                } else if (letter.attachment_id) {
-                    const att = await Attachment.findByPk(letter.attachment_id);
-                    if (att) filePath = att.file_path;
-                }
-
-                if (filePath && fs.existsSync(filePath)) {
+                // Handle scanned copy first
+                if (letter.scanned_copy && fs.existsSync(letter.scanned_copy)) {
                     try {
-                        const bytes = fs.readFileSync(filePath);
+                        const bytes = fs.readFileSync(letter.scanned_copy);
                         const pdf = await PDFDocument.load(bytes);
                         const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
                         pages.forEach(page => mergedPdf.addPage(page));
                         pagesAdded += pages.length;
                     } catch (err) {
-                        console.warn(`Failed to process ${filePath}:`, err.message);
+                        console.warn(`Failed to process scanned_copy ${letter.scanned_copy}:`, err.message);
+                    }
+                }
+
+                // Handle attachment_id (can be comma separated)
+                if (letter.attachment_id) {
+                    const ids = String(letter.attachment_id).split(',');
+                    for (const id of ids) {
+                        const att = await Attachment.findByPk(id.trim());
+                        if (att && att.file_path && fs.existsSync(att.file_path)) {
+                            try {
+                                const bytes = fs.readFileSync(att.file_path);
+                                const pdf = await PDFDocument.load(bytes);
+                                const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                                pages.forEach(page => mergedPdf.addPage(page));
+                                pagesAdded += pages.length;
+                            } catch (err) {
+                                console.warn(`Failed to process attachment ${id}:`, err.message);
+                            }
+                        }
                     }
                 }
             }
@@ -206,9 +221,8 @@ class AttachmentController {
 
             const mergedPdfBytes = await mergedPdf.save();
             const combinedFileName = `Bulk-Combined-${Date.now()}.pdf`;
-            const combinedPath = path.join(path.dirname(letters[0]?.scanned_copy || __dirname), combinedFileName);
+            const combinedPath = path.join(path.dirname(letters[0]?.scanned_copy || (__dirname + '/../uploads')), combinedFileName);
 
-            // Ensure directory exists for safety
             const dir = path.dirname(combinedPath);
             if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
@@ -230,7 +244,6 @@ class AttachmentController {
             const encodedPath = req.query.path;
             if (!encodedPath) return res.status(400).json({ error: 'Path required' });
 
-            // Deciding to use a more direct approach since it's local
             const decodedPath = Buffer.from(encodedPath, 'base64').toString('ascii');
             const fullPath = path.resolve(decodedPath);
 

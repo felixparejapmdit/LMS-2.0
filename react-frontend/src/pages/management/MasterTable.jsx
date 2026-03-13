@@ -32,7 +32,8 @@ import {
     Activity,
     GitMerge,
     Upload,
-    Send
+    Send,
+    Printer
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import departmentService from "../../services/departmentService";
@@ -393,6 +394,39 @@ export default function MasterTable() {
         }
     };
 
+    const handlePrintQR = (lms_id) => {
+        if (!lms_id) {
+            alert("This record does not have a Reference Code yet.");
+            return;
+        }
+        const printWindow = window.open('', '_blank');
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${lms_id}`;
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Reference QR - ${lms_id}</title>
+                    <style>
+                        body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; background: white; }
+                        .container { border: 2px solid #000; padding: 30px; border-radius: 20px; text-align: center; }
+                        img { width: 300px; height: 300px; }
+                        .ref { margin-top: 20px; font-size: 36px; font-weight: 900; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <img src="${qrUrl}" />
+                        <div class="ref">${lms_id}</div>
+                    </div>
+                    <script>
+                        window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
+                    </script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
     const filteredLetters = letters.filter(l => {
         // Data Visibility Filter for USER role
         const roleName = user?.roleData?.name?.toString().toUpperCase() || '';
@@ -528,20 +562,21 @@ export default function MasterTable() {
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Sender</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Summary</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Track</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">QR</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">PDF</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50 dark:divide-[#222]">
                                         {loading ? (
                                             <tr>
-                                                <td colSpan="9" className="p-20 text-center">
+                                                <td colSpan="11" className="p-20 text-center">
                                                     <Loader2 className="w-10 h-10 text-orange-500 animate-spin mx-auto mb-4" />
                                                     <p className="text-xs font-black uppercase tracking-widest text-gray-400">Compiling Database...</p>
                                                 </td>
                                             </tr>
                                         ) : filteredLetters.length === 0 ? (
                                             <tr>
-                                                <td colSpan="9" className="p-20 text-center">
+                                                <td colSpan="11" className="p-20 text-center">
                                                     <Search className="w-10 h-10 text-gray-200 mx-auto mb-4" />
                                                     <p className="text-xs font-black uppercase tracking-widest text-gray-400">No Records Found</p>
                                                 </td>
@@ -606,6 +641,15 @@ export default function MasterTable() {
                                                             </button>
                                                         </PermissionGuard>
                                                     )}
+                                                </td>
+                                                <td className="p-5 text-center">
+                                                    <button
+                                                        onClick={() => handlePrintQR(letter.lms_id)}
+                                                        className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/10 text-blue-500 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-all transform hover:scale-105 mx-auto"
+                                                        title="Print QR Code"
+                                                    >
+                                                        <Printer className="w-4 h-4" />
+                                                    </button>
                                                 </td>
                                                 <td className="p-5 text-center">
                                                     {canPdf && (letter.attachment_id || letter.scanned_copy) ? (
