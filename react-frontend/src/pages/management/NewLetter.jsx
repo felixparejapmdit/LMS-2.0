@@ -173,13 +173,10 @@ export default function NewLetter() {
     const handleSenderChange = (e) => {
         const val = e.target.value;
         setFormData({ ...formData, sender: val });
+        setActiveField('sender');
 
-        // Split by semicolon to allow multiple "Last, First" entries
         const parts = val.split(';');
         const lastPart = parts[parts.length - 1].trim();
-
-        // If the typing part has enough chars and looks like they are starting a name (after comma or fresh) 
-        // e.g. "DOE, J" or just "DOE"
         const query = lastPart.includes(',') ? lastPart.split(',').pop().trim() : lastPart.trim();
         fetchSuggestions(query);
     };

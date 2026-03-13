@@ -48,22 +48,35 @@ class LetterController {
             const shortYear = yearStr.slice(-2);
             const ymd = yearStr + (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0');
 
-            // Annual count for LMS ID
-            const annualCount = await Letter.count({
-                where: {
-                    created_at: { [Op.gte]: new Date(now.getFullYear(), 0, 1) }
-                }
+            // Find counters via Max sequence
+            const lastYearEntry = await Letter.findOne({
+                where: { lms_id: { [Op.like]: `LMS${shortYear}-%` } },
+                order: [['lms_id', 'DESC']]
             });
 
-            // Daily count for Entry ID
-            const dailyCount = await Letter.count({
-                where: {
-                    created_at: { [Op.gte]: new Date(now.getFullYear(), now.getMonth(), now.getDate()) }
-                }
+            const lastDayEntry = await Letter.findOne({
+                where: { entry_id: { [Op.like]: `${ymd}%` } },
+                order: [['entry_id', 'DESC']]
             });
 
-            const lms_id = `LMS${shortYear}-${(annualCount + 1).toString().padStart(5, '0')}`;
-            const entry_id = `${ymd}${(dailyCount + 1).toString().padStart(3, '0')}`;
+            let annualSequence = 1;
+            if (lastYearEntry) {
+                const parts = lastYearEntry.lms_id.split('-');
+                if (parts.length > 1) {
+                    const lastSeq = parseInt(parts[1]);
+                    if (!isNaN(lastSeq)) annualSequence = lastSeq + 1;
+                }
+            }
+
+            let dailySequence = 1;
+            if (lastDayEntry) {
+                const lastSeqStr = lastDayEntry.entry_id.slice(-3);
+                const lastSeq = parseInt(lastSeqStr);
+                if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
+            }
+
+            const lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, '0')}`;
+            const entry_id = `${ymd}${dailySequence.toString().padStart(3, '0')}`;
 
             res.json({ lms_id, entry_id });
         } catch (error) {
@@ -111,21 +124,37 @@ class LetterController {
             const shortYear = yearStr.slice(-2);
             const ymd = yearStr + (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0');
 
-            // Find counters
-            const annualCount = await Letter.count({
-                where: {
-                    created_at: { [Op.gte]: new Date(now.getFullYear(), 0, 1) }
-                }
+            // Find counters via Max sequence to avoid reuse/collision after deletions
+            const lastYearEntry = await Letter.findOne({
+                where: { lms_id: { [Op.like]: `LMS${shortYear}-%` } },
+                order: [['lms_id', 'DESC']],
+                transaction
             });
 
-            const dailyCount = await Letter.count({
-                where: {
-                    created_at: { [Op.gte]: new Date(now.getFullYear(), now.getMonth(), now.getDate()) }
-                }
+            const lastDayEntry = await Letter.findOne({
+                where: { entry_id: { [Op.like]: `${ymd}%` } },
+                order: [['entry_id', 'DESC']],
+                transaction
             });
 
-            const lms_id = `LMS${shortYear}-${(annualCount + 1).toString().padStart(5, '0')}`;
-            const entry_id = `${ymd}${(dailyCount + 1).toString().padStart(3, '0')}`;
+            let annualSequence = 1;
+            if (lastYearEntry) {
+                const parts = lastYearEntry.lms_id.split('-');
+                if (parts.length > 1) {
+                    const lastSeq = parseInt(parts[1]);
+                    if (!isNaN(lastSeq)) annualSequence = lastSeq + 1;
+                }
+            }
+
+            let dailySequence = 1;
+            if (lastDayEntry) {
+                const lastSeqStr = lastDayEntry.entry_id.slice(-3);
+                const lastSeq = parseInt(lastSeqStr);
+                if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
+            }
+
+            const lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, '0')}`;
+            const entry_id = `${ymd}${dailySequence.toString().padStart(3, '0')}`;
 
             // Sanitize numeric fields (convert "" to null)
             const sanitizeInt = (val) => (val === "" || val === undefined || val === null) ? null : parseInt(val);

@@ -145,6 +145,19 @@ export default function GuestSendLetter() {
             setLoading(true);
             let scannedCopyPath = null;
 
+            const senderStr = formData.senders.join('; ').trim();
+            if (!senderStr) {
+                alert("Sender name is required.");
+                setLoading(false);
+                return;
+            }
+
+            if (!formData.regarding.trim()) {
+                alert("Letter summary/regarding field is required.");
+                setLoading(false);
+                return;
+            }
+
             // 1. If there's a scanned file, upload the first one as primary scan
             if (attachments.length > 0) {
                 const formDataUpload = new FormData();
@@ -160,14 +173,14 @@ export default function GuestSendLetter() {
 
             // 3. Save the letter
             const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letters`, {
-                sender: formData.senders.join('; '),
-                encoder: formData.encoder, // Pass typed encoder name for syncing to Persons
+                sender: senderStr,
+                encoder: formData.encoder,
                 summary: formData.regarding,
-                date_received: new Date(),
-                global_status: 1, // Incoming
+                date_received: new Date().toISOString(),
+                global_status: 1,
                 encoder_id: user?.id,
                 letter_type: 'Non-Confidential',
-                attachment_id: formData.selectedRefIds.join(','),
+                attachment_id: (formData.selectedRefIds || []).join(','),
                 scanned_copy: scannedCopyPath,
                 direction: 'Incoming',
                 kind: null,
@@ -181,7 +194,8 @@ export default function GuestSendLetter() {
             setIsSuccessModalOpen(true);
         } catch (err) {
             console.error("Submission failed:", err);
-            alert("Failed to send letter. Check console for details.");
+            const backendError = err.response?.data?.error || err.message;
+            alert(`Failed to send letter. Reason: ${backendError}`);
         } finally {
             setLoading(false);
         }
@@ -319,12 +333,12 @@ export default function GuestSendLetter() {
                     </div>
                 </header>
 
-                <main className="flex-1 p-4 md:p-6 overflow-y-auto custom-scrollbar">
-                    <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <main className="flex-1 p-4 md:p-4 overflow-y-auto custom-scrollbar">
+                    <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
 
                         {/* Metadata Section */}
-                        <div className="lg:col-span-12 xl:col-span-8 space-y-6">
-                            <section className={`${cardBg} p-6 md:p-10 rounded-3xl border space-y-6 md:space-y-8`}>
+                        <div className="lg:col-span-12 xl:col-span-8 space-y-4">
+                            <section className={`${cardBg} p-6 md:p-6 rounded-2xl border space-y-4 md:space-y-6`}>
                                 <div className={`flex items-center gap-4 border-b pb-6 ${'border-slate-50 dark:border-[#222]'}`}>
                                     <FileText className={`w-5 h-5 ${subTextColor}`} />
                                     <h2 className={`text-lg font-bold uppercase tracking-tight ${textColor}`}>Letter Metadata</h2>
@@ -480,7 +494,7 @@ export default function GuestSendLetter() {
 
                         {/* Attachment Section */}
                         <div className="lg:col-span-12 xl:col-span-4 space-y-6">
-                            <section className={`${cardBg} p-6 md:p-8 rounded-3xl border flex flex-col`}>
+                            <section className={`${cardBg} p-6 md:p-6 rounded-2xl border flex flex-col`}>
                                 <div className={`flex items-center gap-4 border-b pb-4 mb-8 ${'border-slate-50 dark:border-[#222]'}`}>
                                     <Upload className={`w-5 h-5 ${subTextColor}`} />
                                     <h2 className={`text-lg font-bold uppercase tracking-tight ${textColor}`}>Attachments</h2>
@@ -573,7 +587,7 @@ export default function GuestSendLetter() {
                                                     onClick={() => fileInputRef.current.click()}
                                                     onDragOver={(e) => e.preventDefault()}
                                                     onDrop={(e) => handleDrop(e)}
-                                                    className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-6 md:p-10 transition-all group cursor-pointer border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5`}
+                                                    className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-6 md:p-8 transition-all group cursor-pointer border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5`}
                                                 >
                                                     <input
                                                         type="file"
