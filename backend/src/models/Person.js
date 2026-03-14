@@ -24,6 +24,10 @@ const Person = sequelize.define('Person', {
         type: DataTypes.STRING,
         allowNull: true,
         field: 'telegram_id'
+    },
+    telegram_chat_id: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
 }, {
     tableName: 'person',

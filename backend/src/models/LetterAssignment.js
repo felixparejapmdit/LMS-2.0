@@ -1,5 +1,6 @@
-const { DataTypes } = require('sequelize');
+const { DataTypes, Op } = require('sequelize');
 const sequelize = require('../config/db');
+const TelegramService = require('../services/telegramService');
 
 const LetterAssignment = sequelize.define('LetterAssignment', {
     id: {
@@ -51,9 +52,7 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
     timestamps: false,
     hooks: {
         afterCreate: async (assignment, options) => {
-            const LetterLog = sequelize.models.LetterLog;
-            const Department = sequelize.models.Department;
-            const ProcessStep = sequelize.models.ProcessStep;
+            const { LetterLog, Department, ProcessStep, Letter, User, Person } = sequelize.models;
 
             if (!LetterLog || !Department || !ProcessStep) return;
 
@@ -77,14 +76,37 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                     department_id: assignment.department_id,
                     log_details: `Letter assigned to ${deptName} (Step: ${stepName}).`
                 }, { transaction: options.transaction });
+
+                // Telegram Notification
+                if (TelegramService) {
+                    const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
+                    if (letter) {
+                        const { text, replyMarkup } = await TelegramService.notifyMovement(letter, deptName, stepName);
+
+                        // Recipients: VIPs and Administrators
+                        const recipients = await User.findAll({
+                            where: { role: { [Op.in]: ['VIP', 'Administrator'] } },
+                            transaction: options.transaction
+                        });
+
+                        // Also notify the encoder if they are not already in recipients
+                        if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
+                            const encoder = await User.findByPk(letter.encoder_id, { transaction: options.transaction });
+                            if (encoder) recipients.push(encoder);
+                        }
+
+                        const chatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
+                        for (const chatId of chatIds) {
+                            await TelegramService.sendMessage(chatId, text, replyMarkup);
+                        }
+                    }
+                }
             } catch (err) {
-                console.error("Hook afterCreate LetterLog error:", err);
+                console.error("Hook afterCreate LetterLog/Telegram error:", err);
             }
         },
         afterUpdate: async (assignment, options) => {
-            const LetterLog = sequelize.models.LetterLog;
-            const Department = sequelize.models.Department;
-            const ProcessStep = sequelize.models.ProcessStep;
+            const { LetterLog, Department, ProcessStep, Letter, User, Person } = sequelize.models;
 
             if (!LetterLog || !Department || !ProcessStep) return;
 
@@ -124,8 +146,33 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                         department_id: assignment.department_id,
                         log_details: logDetails
                     }, { transaction: options.transaction });
+
+                    // Telegram Notification
+                    if (TelegramService) {
+                        const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
+                        if (letter) {
+                            const { text, replyMarkup } = await TelegramService.notifyMovement(letter, deptName, stepName);
+
+                            // Recipients: VIPs and Administrators
+                            const recipients = await User.findAll({
+                                where: { role: { [Op.in]: ['VIP', 'Administrator'] } },
+                                transaction: options.transaction
+                            });
+
+                            // Also notify the encoder if they are not already in recipients
+                            if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
+                                const encoder = await User.findByPk(letter.encoder_id, { transaction: options.transaction });
+                                if (encoder) recipients.push(encoder);
+                            }
+
+                            const chatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
+                            for (const chatId of chatIds) {
+                                await TelegramService.sendMessage(chatId, text, replyMarkup);
+                            }
+                        }
+                    }
                 } catch (err) {
-                    console.error("Hook afterUpdate LetterLog error:", err);
+                    console.error("Hook afterUpdate LetterLog/Telegram error:", err);
                 }
             }
         }

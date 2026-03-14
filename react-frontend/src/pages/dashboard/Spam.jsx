@@ -25,7 +25,9 @@ export default function Spam() {
 
     const [formName, setFormName] = useState("");
     const [formTelegram, setFormTelegram] = useState("");
+    const [formChatId, setFormChatId] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
     const canField = access?.canField || (() => true);
     const canSearch = canField("spam", "search");
     const canSubmit = canField("spam", "submit_button");
@@ -67,6 +69,7 @@ export default function Spam() {
             await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons`, {
                 name: formName,
                 telegram: formTelegram,
+                telegram_chat_id: formChatId,
                 name_id: null,
                 area: null
             });
@@ -83,6 +86,7 @@ export default function Spam() {
     const handleClearTelegram = () => {
         setFormName("");
         setFormTelegram("");
+        setFormChatId("");
     };
 
     const filteredPeople = people
@@ -90,7 +94,8 @@ export default function Spam() {
         .filter(p =>
             p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             p.area?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.telegram?.toLowerCase().includes(searchTerm.toLowerCase())
+            p.telegram?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.telegram_chat_id?.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
     const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
@@ -180,6 +185,12 @@ export default function Spam() {
                                                     {person.telegram || "Not Integrated"}
                                                 </span>
                                             </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Bot Chat ID</span>
+                                                <span className={`text-[10px] font-black font-mono ${person.telegram_chat_id ? 'text-green-500' : 'text-gray-300'}`}>
+                                                    {person.telegram_chat_id || "No Bot ID"}
+                                                </span>
+                                            </div>
                                         </div>
 
                                         {canSubmit && person.telegram && (
@@ -205,7 +216,7 @@ export default function Spam() {
                                 <p className="text-sm text-gray-400 font-medium">Register a new contact for direct messaging.</p>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-2">Name: (Lastname, FirstName)</label>
                                     <input
@@ -217,12 +228,22 @@ export default function Spam() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-2">Telegram: (Number or Username)</label>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-2">Telegram: (Username)</label>
                                     <input
                                         type="text"
-                                        placeholder="e.g. @username or +123456789"
+                                        placeholder="e.g. @username"
                                         value={formTelegram}
                                         onChange={(e) => setFormTelegram(e.target.value)}
+                                        className={`w-full px-6 py-4 rounded-[1.5rem] border outline-none transition-all ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#1a1a1a] border-[#E5E5E5] dark:border-[#333] text-[#1A1A1B] dark:text-white focus:border-orange-500/50' : 'bg-slate-50 border-gray-200 text-slate-900 focus:border-orange-500/50'}`}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-2">Bot Chat ID: (Numeric ID)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. 12345678"
+                                        value={formChatId}
+                                        onChange={(e) => setFormChatId(e.target.value)}
                                         className={`w-full px-6 py-4 rounded-[1.5rem] border outline-none transition-all ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#1a1a1a] border-[#E5E5E5] dark:border-[#333] text-[#1A1A1B] dark:text-white focus:border-orange-500/50' : 'bg-slate-50 border-gray-200 text-slate-900 focus:border-orange-500/50'}`}
                                     />
                                 </div>

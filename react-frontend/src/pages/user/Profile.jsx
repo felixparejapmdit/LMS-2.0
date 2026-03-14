@@ -18,7 +18,8 @@ import {
     ShieldAlert,
     CheckCircle2,
     XCircle,
-    Menu
+    Menu,
+    MessageSquare
 } from "lucide-react";
 import { directus, directusUrl, getAssetUrl } from "../../hooks/useDirectus";
 import { uploadFiles } from "@directus/sdk";
@@ -39,7 +40,8 @@ export default function Profile() {
         first_name: user?.first_name || "",
         last_name: user?.last_name || "",
         username: user?.username || "",
-        avatar: user?.avatar || null
+        avatar: user?.avatar || null,
+        telegram_chat_id: user?.telegram_chat_id || ""
     });
 
     // Password State
@@ -264,6 +266,23 @@ export default function Profile() {
                                                     className={`w-full pl-14 pr-5 py-4 rounded-2xl text-sm font-medium bg-slate-100/50 dark:bg-white/5 border border-transparent text-gray-500 cursor-not-allowed`}
                                                 />
                                             </div>
+                                        </div>
+                                        <div className="md:col-span-2 space-y-3">
+                                            <label className="text-[11px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                                                Telegram Bot Chat ID
+                                            </label>
+                                            <div className="relative group/input">
+                                                <MessageSquare className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 transition-colors group-focus-within/input:text-blue-500" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="e.g. 12345678"
+                                                    value={profileData.telegram_chat_id}
+                                                    onChange={e => setProfileData({ ...profileData, telegram_chat_id: e.target.value })}
+                                                    className={`w-full pl-14 pr-5 py-4 rounded-2xl text-sm font-bold bg-blue-50/10 dark:bg-blue-900/5 border border-blue-100/50 dark:border-blue-900/20 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${textColor}`}
+                                                />
+                                            </div>
+                                            <p className="text-[10px] text-gray-400 pl-2">Required for receiving automated notifications from @LMS2_0Bot</p>
                                         </div>
                                     </div>
                                 </div>

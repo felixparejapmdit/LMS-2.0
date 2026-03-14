@@ -33,6 +33,7 @@ export default function Persons() {
     const canSave = canField("persons", "save_button");
     const canRefresh = canField("persons", "refresh_button");
     const canViewToggle = canField("persons", "view_toggle");
+
     const [persons, setPersons] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -46,7 +47,8 @@ export default function Persons() {
         name: "",
         name_id: "",
         area: "",
-        telegram: ""
+        telegram: "",
+        telegram_chat_id: ""
     });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
@@ -111,7 +113,7 @@ export default function Persons() {
     const openCreateModal = () => {
         if (!canAdd) return;
         setModalMode("create");
-        setFormData({ name: "", name_id: "", area: "", telegram: "" });
+        setFormData({ name: "", name_id: "", area: "", telegram: "", telegram_chat_id: "" });
         setSelectedPerson(null);
         setIsModalOpen(true);
     };
@@ -123,7 +125,8 @@ export default function Persons() {
             name: person.name || "",
             name_id: person.name_id || "",
             area: person.area || "",
-            telegram: person.telegram || ""
+            telegram: person.telegram || "",
+            telegram_chat_id: person.telegram_chat_id || ""
         });
         setSelectedPerson(person);
         setIsModalOpen(true);
@@ -143,7 +146,7 @@ export default function Persons() {
                         <div className="w-12 h-12 bg-orange-50 dark:bg-orange-900/10 rounded-full flex items-center justify-center text-orange-600 dark:text-orange-400 group-hover:scale-110 transition-transform shrink-0">
                             <UserCircle className="w-6 h-6" />
                         </div>
-                        {viewMode === 'grid' && person.telegram && (
+                        {viewMode === 'grid' && (person.telegram || person.telegram_chat_id) && (
                             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-500">
                                 <MessageSquare className="w-3 h-3" />
                                 <span className="text-[9px] font-black uppercase tracking-widest hidden sm:block">Telegram</span>
@@ -176,15 +179,20 @@ export default function Persons() {
                         <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">
                             ID: {person.name_id || 'N/A'}
                         </div>
+                        {person.telegram_chat_id && (
+                            <div className="text-[9px] text-green-500 font-bold uppercase tracking-widest mt-1">
+                                Bot ID: {person.telegram_chat_id}
+                            </div>
+                        )}
                     </div>
                 </div>
                 {viewMode === 'list' && (
                     <div className="flex items-center gap-4">
                         <div className="text-right hidden md:block shrink-0">
                             {person.telegram && (
-                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest block">TELEGRAM ID</span>
+                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest block">TELEGRAM</span>
                             )}
-                            <p className="text-sm font-bold text-gray-500">{person.telegram || 'User'}</p>
+                            <p className="text-sm font-bold text-gray-500">{person.telegram || (person.telegram_chat_id ? 'Bot Active' : 'User')}</p>
                         </div>
                         <div className="flex items-center gap-1">
                             {canEdit && <button onClick={(e) => { e.stopPropagation(); openEditModal(person); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-orange-500"><Edit2 className="w-4 h-4" /></button>}
@@ -274,9 +282,15 @@ export default function Persons() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Telegram ID (Optional)</label>
-                                    <input type="text" value={formData.telegram} onChange={e => setFormData({ ...formData, telegram: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30 focus:border-blue-500 text-sm font-bold text-blue-600 dark:text-blue-400" placeholder="@username or ID" />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Telegram ID</label>
+                                        <input type="text" value={formData.telegram} onChange={e => setFormData({ ...formData, telegram: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30 focus:border-blue-500 text-sm font-bold text-blue-600 dark:text-blue-400" placeholder="@username" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Bot Chat ID</label>
+                                        <input type="text" value={formData.telegram_chat_id} onChange={e => setFormData({ ...formData, telegram_chat_id: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-green-50/50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30 focus:border-green-500 text-sm font-bold text-green-600 dark:text-green-400" placeholder="Numeric ID" />
+                                    </div>
                                 </div>
                                 <div className="pt-4">
                                     {canSave && <button disabled={submitting} className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Contact Info"}</button>}

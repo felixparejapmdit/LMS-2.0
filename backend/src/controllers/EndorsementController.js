@@ -15,7 +15,7 @@ const ALL_LETTER_ROLES = new Set([
 // CREATE the table if it doesn't exist
 (async () => {
     try {
-        await Endorsement.sync({ alter: true });
+        await Endorsement.sync();
     } catch (e) {
         console.warn('Endorsement sync warning:', e.message);
     }

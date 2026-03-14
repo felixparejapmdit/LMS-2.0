@@ -227,12 +227,19 @@ export const AuthProvider = ({ children }) => {
         const userId = user?.id;
         const wasGuest = isGuest;
 
+        console.log("AuthContext: Performing logout and clearing cache...");
+
         // Clear local state immediately for fast transitions
         setUser(null);
         setIsGuest(false);
         setPermissions([]);
         setPermissionsLoaded(false);
+
+        // Remove ALL auth related items
         localStorage.removeItem("isGuest");
+        localStorage.removeItem("directus_auth");
+        localStorage.removeItem(AUTH_USER_KEY);
+        localStorage.removeItem(AUTH_PERMS_KEY);
         writeCachedJson(AUTH_USER_KEY, null);
         writeCachedJson(AUTH_PERMS_KEY, null);
 
@@ -243,13 +250,15 @@ export const AuthProvider = ({ children }) => {
             }
 
             // Try SDK logout (only if we have something to log out of)
-            if (localStorage.getItem('directus_auth')) {
-                await directus.logout().catch(() => { });
-            }
+            await directus.logout().catch((err) => {
+                console.warn("AuthContext: SDK logout failed (expected if token expired):", err.message);
+            });
         } catch (error) {
             console.error("Logout process encountered an error:", error);
         } finally {
+            // Final safety clear
             localStorage.removeItem("directus_auth");
+            window.location.href = "/login"; // Force redirect to break any internal state loops
         }
     };
 

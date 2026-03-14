@@ -16,6 +16,7 @@ const endorsementRoutes = require('./routes/endorsementRoutes');
 const rolePermissionRoutes = require('./routes/rolePermissionRoutes');
 const systemPageRoutes = require('./routes/systemPageRoutes');
 const pdfSyncRoutes = require('./routes/pdfSyncRoutes');
+const telegramRoutes = require('./routes/telegramRoutes');
 
 const path = require('path');
 
@@ -47,15 +48,6 @@ app.use('/api/process-steps', processStepRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/letters', letterRoutes);
-app.use('/api/letter-assignments', letterAssignmentRoutes);
-app.use('/api/stats', statsRoutes);
-app.use('/api/comments', commentRoutes);
-app.use('/api/persons', personRoutes);
-app.use('/api/endorsements', endorsementRoutes);
-app.use('/api/role-permissions', rolePermissionRoutes);
-app.use('/api/system-pages', systemPageRoutes);
-app.use('/api/import', require('./routes/importRoutes'));
-
 app.get('/health', (req, res) => {
     res.json({
         status: 'OK',
@@ -63,6 +55,16 @@ app.get('/health', (req, res) => {
         timestamp: new Date()
     });
 });
+
+app.use('/api/letter-assignments', letterAssignmentRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/persons', personRoutes);
+app.use('/api/endorsements', endorsementRoutes);
+app.use('/api/role-permissions', rolePermissionRoutes);
+app.use('/api/system-pages', systemPageRoutes);
+app.use('/api/telegram', telegramRoutes);
+app.use('/api/import', require('./routes/importRoutes'));
 
 // Final fallback for 404s to help debugging
 app.use((req, res, next) => {

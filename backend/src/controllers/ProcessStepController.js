@@ -5,6 +5,18 @@ class ProcessStepController {
     static async getAll(req, res) {
         try {
             const { vip } = req.query;
+            const stepWhere = {};
+            if (vip === 'true') {
+                stepWhere.step_name = {
+                    [Op.or]: [
+                        { [Op.like]: '%Review%' },
+                        { [Op.like]: '%Signature%' },
+                        { [Op.like]: '%Endorsement%' },
+                        { [Op.like]: '%VEM%' }
+                    ]
+                };
+            }
+
             const includeCfg = [{
                 model: LetterAssignment,
                 as: 'assignments',
@@ -41,6 +53,7 @@ class ProcessStepController {
             }
 
             const steps = await ProcessStep.findAll({
+                where: stepWhere,
                 include: includeCfg,
                 subQuery: false // Important for joined filtered queries
             });

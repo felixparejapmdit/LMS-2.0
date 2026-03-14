@@ -52,6 +52,9 @@ const User = sequelize.define('User', {
     },
     avatar: {
         type: DataTypes.UUID
+    },
+    telegram_chat_id: {
+        type: DataTypes.STRING
     }
 }, {
     tableName: 'directus_users',
