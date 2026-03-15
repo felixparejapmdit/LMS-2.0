@@ -39,6 +39,7 @@ services:
       DB_PATH: "${DB_PATH:-/directus/database/data.db}"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
       TELEGRAM_WEBHOOK_URL: "${TELEGRAM_WEBHOOK_URL}"
+      DIRECTUS_INTERNAL_URL: "http://directus:8055"
     depends_on:
       - directus
     restart: unless-stopped

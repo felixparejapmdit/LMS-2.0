@@ -17,6 +17,7 @@ const rolePermissionRoutes = require('./routes/rolePermissionRoutes');
 const systemPageRoutes = require('./routes/systemPageRoutes');
 const pdfSyncRoutes = require('./routes/pdfSyncRoutes');
 const telegramRoutes = require('./routes/telegramRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 const path = require('path');
 
@@ -40,6 +41,7 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Routes
 app.use('/api/pdf-sync', pdfSyncRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/trays', trayRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/statuses', statusRoutes);

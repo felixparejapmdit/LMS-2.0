@@ -186,20 +186,25 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (username, password) => {
         try {
-            // Combined login: Does lookup + Directus auth + Perms fetch in ONE shot
-            const res = await axios.post(`${BACKEND_URL}/auth/login`, { username, password });
+            // Find user by username in our backend with strict matching
+            const userRes = await axios.get(`${BACKEND_URL}/users?username=${username}`);
+            const foundUsers = userRes.data;
 
-            if (!res.data.success) {
-                throw new Error(res.data.error || "Login failed");
-            }
+            // Strictly find the user that matches the typed username (case-insensitive)
+            const userFetch = foundUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
 
-            const { user: updatedMe, permissions: perms, directus_auth: directusAuth } = res.data;
+            if (!userFetch) throw new Error("User not found in local database");
 
-            // Manually sync Directus SDK storage so it remains authenticated
-            if (directusAuth) {
-                localStorage.setItem('directus_auth', JSON.stringify(directusAuth));
-                // Force internal SDK state update if possible, but the storage helper handles it on next request
-            }
+            // Authenticate and fetch permissions in parallel to reduce login latency
+            const [, perms] = await Promise.all([
+                directus.login(userFetch.email, password),
+                fetchUserPermissions(userFetch.role)
+            ]);
+
+            const updatedMe = { ...userFetch, islogin: true };
+
+            // Fire-and-forget: mark user online without blocking UI transition
+            axios.put(`${BACKEND_URL}/users/${userFetch.id}`, { islogin: true }).catch(() => { });
 
             setIsGuest(false);
             localStorage.removeItem("isGuest");
@@ -207,18 +212,14 @@ export const AuthProvider = ({ children }) => {
             writeCachedJson(AUTH_USER_KEY, updatedMe);
             if (Array.isArray(perms)) {
                 writeCachedJson(AUTH_PERMS_KEY, perms);
-                setPermissions(perms);
-                setPermissionsLoaded(true);
             }
-            if (updatedMe.layout_style) setLayoutStyle(normalizeLayoutStyle(updatedMe.layout_style));
-            if (updatedMe.theme_preference) setTheme(updatedMe.theme_preference);
-            if (updatedMe.font_family) setFontFamily(updatedMe.font_family);
-
+            if (userFetch.layout_style) setLayoutStyle(normalizeLayoutStyle(userFetch.layout_style));
+            if (userFetch.theme_preference) setTheme(userFetch.theme_preference);
+            if (userFetch.font_family) setFontFamily(userFetch.font_family);
             return { success: true, user: updatedMe };
         } catch (error) {
             console.error("Login failed:", error);
-            const message = error.response?.data?.error || error.message;
-            return { success: false, error: message };
+            return { success: false, error: error.message };
         }
     };
 
@@ -297,23 +298,26 @@ export const AuthProvider = ({ children }) => {
         try {
             const meId = await directus.request(readMe({ fields: ['id'] }));
 
-            // One consolidated call to get full profile AND permissions
-            const response = await axios.get(`${BACKEND_URL}/auth/access-config?userId=${meId.id}`);
-            const { user: me, permissions: perms } = response.data;
+            // Bypass Directus field permissions by fetching full details from our backend
+            const response = await axios.get(`${BACKEND_URL}/users/${meId.id}`);
+            const me = response.data;
 
-            console.log("AuthContext: checkAuth successful (consolidated):", me.username);
+            console.log("AuthContext: checkAuth successful (via backend):", me);
 
-            // Ensure islogin is true (non-blocking)
+            // Fetch Permissions
+            const perms = await fetchUserPermissions(me.role);
+
+            // Ensure islogin is true if they are successfully authed
             if (!me.islogin) {
+                // Fire-and-forget to avoid blocking transition
                 axios.put(`${BACKEND_URL}/users/${me.id}`, { islogin: true }).catch(() => { });
+                me.islogin = true;
             }
 
             setUser(me);
             writeCachedJson(AUTH_USER_KEY, me);
             if (Array.isArray(perms)) {
                 writeCachedJson(AUTH_PERMS_KEY, perms);
-                setPermissions(perms);
-                setPermissionsLoaded(true);
             }
             if (me.layout_style) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
             if (me.theme_preference) setTheme(me.theme_preference);
