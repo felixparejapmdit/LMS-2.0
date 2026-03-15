@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import LetterCard from "../../components/LetterCard";
 import axios from "axios";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth, useSession, useUI } from "../../context/AuthContext";
 import {
     Activity,
     BarChart3,
@@ -28,7 +28,8 @@ import {
 import useAccess from "../../hooks/useAccess";
 
 export default function Home() {
-    const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const { user } = useSession();
+    const { layoutStyle, setIsMobileMenuOpen } = useUI();
     const access = useAccess();
     const navigate = useNavigate();
     const [stats, setStats] = useState({
@@ -74,14 +75,14 @@ export default function Home() {
     };
 
     useEffect(() => {
-        if (user) {
+        if (user?.id) {
             fetchStats();
 
             // Sync stats every 60s
             const interval = setInterval(() => fetchStats(), 60000);
             return () => clearInterval(interval);
         }
-    }, [user]);
+    }, [user?.id]);
 
     const formatUptime = (seconds) => {
         const d = Math.floor(seconds / (3600 * 24));

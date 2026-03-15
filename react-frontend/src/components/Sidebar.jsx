@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, useSession, useUI } from "../context/AuthContext";
 import {
   Inbox,
   Settings,
@@ -44,7 +44,8 @@ import systemPageService from "../services/systemPageService";
 import { getPageKeyFromPath, humanizePageId } from "../utils/pageAccess";
 
 export default function Sidebar() {
-  const { user, logout, theme, toggleTheme, layoutStyle, isSidebarExpanded, toggleSidebar, isMobileMenuOpen, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
+  const { user, logout, isSuperAdmin, hasPermission } = useSession();
+  const { theme, toggleTheme, layoutStyle, isSidebarExpanded, toggleSidebar, isMobileMenuOpen, setIsMobileMenuOpen } = useUI();
   const navigate = useNavigate();
   const location = useLocation();
   const navScrollRef = useRef(null);
@@ -55,7 +56,6 @@ export default function Sidebar() {
   });
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
-  const { hasPermission } = useAuth();
 
   useEffect(() => {
     localStorage.setItem('sidebar_expanded_menus', JSON.stringify(expandedMenus));
@@ -84,7 +84,7 @@ export default function Sidebar() {
     fetchCount();
     const interval = setInterval(fetchCount, 30000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user?.id]);
 
   const handleNotificationClick = () => {
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
@@ -180,7 +180,7 @@ export default function Sidebar() {
     };
     collectPages(navItems);
     systemPageService.syncPages(flatPages).catch(() => { });
-  }, [user]);
+  }, [user?.id]);
 
   const filteredNavItems = navItems
     .map(item => {

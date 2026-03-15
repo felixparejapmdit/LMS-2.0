@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth, useSession, useUI } from "../../context/AuthContext";
 import useAccess from "../../hooks/useAccess";
 import {
     Table as TableIcon,
@@ -23,7 +23,8 @@ import letterService from "../../services/letterService";
 import { useNavigate } from "react-router-dom";
 
 export default function LetterTracker() {
-    const { user, layoutStyle, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
+    const { user, isSuperAdmin } = useSession();
+    const { layoutStyle, setIsMobileMenuOpen } = useUI();
     const { canField } = useAccess();
     const navigate = useNavigate();
 
@@ -67,8 +68,8 @@ export default function LetterTracker() {
     };
 
     useEffect(() => {
-        fetchLetters();
-    }, [user]);
+        if (user?.id) fetchLetters();
+    }, [user?.id]);
 
     const filteredLetters = letters.filter(letter => {
         // 1. Data Visibility Filter based on Role

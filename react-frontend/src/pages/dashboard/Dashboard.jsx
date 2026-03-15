@@ -6,7 +6,7 @@ import LetterCard from "../../components/LetterCard";
 import { directus } from "../../hooks/useDirectus";
 import { readItems } from "@directus/sdk";
 import axios from "axios";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth, useSession, useUI } from "../../context/AuthContext";
 import {
   Search,
   Filter,
@@ -33,7 +33,8 @@ import trayService from "../../services/trayService";
 import useAccess from "../../hooks/useAccess";
 
 export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
-  const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+  const { user } = useSession();
+  const { layoutStyle, setIsMobileMenuOpen } = useUI();
   const access = useAccess();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +108,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       if (view !== 'inbox') {
         setActiveStepTab('review');
       }
@@ -116,7 +117,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       if (view === 'inbox') fetchInboxStats();
       setSelectedTray(null); // Reset filter on tab change
     }
-  }, [user, view, activeStepTab]);
+  }, [user?.id, view, activeStepTab]);
 
   const handleTrayUpdate = async (letterId, trayId, assignmentId) => {
     // Optimistic UI: Immediately hide from current view if it's moving

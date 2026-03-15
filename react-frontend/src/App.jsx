@@ -41,13 +41,13 @@ import Profile from "./pages/user/Profile";
 // Guest
 import GuestSendLetter from "./pages/guest/GuestSendLetter";
 
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthProvider, useAuth, useSession } from "./context/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import systemPageService from "./services/systemPageService";
 import { getPageKeyFromPath, humanizePageId } from "./utils/pageAccess";
 
 const ProtectedRoute = ({ children }) => {
-  const { user, loading, hasPermission, permissionsLoaded, isGuest } = useAuth();
+  const { user, loading, hasPermission, permissionsLoaded, isGuest } = useSession();
   const location = useLocation();
   const pageKey = getPageKeyFromPath(location.pathname);
 

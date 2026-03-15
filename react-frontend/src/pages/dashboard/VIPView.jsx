@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth, useSession, useUI } from "../../context/AuthContext";
 import {
     FileText,
     LogOut,
@@ -21,7 +21,8 @@ import {
 import useAccess from "../../hooks/useAccess";
 
 export default function VIPView() {
-    const { user, logout, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const { user, logout } = useSession();
+    const { layoutStyle } = useUI();
     const access = useAccess();
     const navigate = useNavigate();
 

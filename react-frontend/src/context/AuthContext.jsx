@@ -1,10 +1,11 @@
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useReducer, useMemo, useCallback } from "react";
 import { directus } from "../hooks/useDirectus";
 import { readMe } from "@directus/sdk";
 import axios from "axios";
 
-// Robust URL resolution: prioritize env var, then current hostname (port 5000), then fallback to localhost
+// --- HELPERS ---
+
 const getBackendUrl = () => {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
@@ -39,91 +40,268 @@ const writeCachedJson = (key, value) => {
     }
 };
 
+// --- CONTEXTS ---
+
 const AuthContext = createContext();
+const UIContext = createContext();
+
+// --- REDUCERS ---
+
+const authReducer = (state, action) => {
+    switch (action.type) {
+        case 'SET_LOADING':
+            return { ...state, loading: action.payload };
+        case 'INIT_SESSION':
+            return {
+                ...state,
+                user: action.payload.user,
+                permissions: action.payload.permissions || [],
+                permissionsLoaded: action.payload.permissionsLoaded,
+                isGuest: action.payload.isGuest || false,
+                loading: false
+            };
+        case 'UPDATE_USER':
+            return { ...state, user: action.payload };
+        case 'SET_PERMISSIONS':
+            return { ...state, permissions: action.payload, permissionsLoaded: true };
+        case 'LOGOUT':
+            return {
+                user: null,
+                isGuest: false,
+                loading: false,
+                permissions: [],
+                permissionsLoaded: false
+            };
+        default:
+            return state;
+    }
+};
+
+// --- PROVIDER ---
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [isGuest, setIsGuest] = useState(localStorage.getItem("isGuest") === "true");
-    const [loading, setLoading] = useState(true);
+    // 1. AUTH STATE (Session, Permissions)
+    const [authState, dispatch] = useReducer(authReducer, {
+        user: null,
+        isGuest: localStorage.getItem("isGuest") === "true",
+        loading: true,
+        permissions: [],
+        permissionsLoaded: false,
+    });
+
+    // 2. UI STATE (Preferences, Sidebar)
     const [theme, setTheme] = useState(() => {
         const stored = localStorage.getItem("theme");
         if (stored) return stored;
         return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     });
     const [layoutStyle, setLayoutStyle] = useState(normalizeLayoutStyle(localStorage.getItem("layoutStyle") || "minimalist"));
-    const [fontFamily, setFontFamily] = useState(localStorage.getItem("fontFamily") || "Outfit"); // Inter, Public Sans, Geist, Plus Jakarta Sans, Outfit
+    const [fontFamily, setFontFamily] = useState(localStorage.getItem("fontFamily") || "Outfit");
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(localStorage.getItem("isSidebarExpanded") !== "false");
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [permissions, setPermissions] = useState([]);
-    const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
-    const fetchUserPermissions = async (roleId) => {
-        if (!roleId) return [];
+    // --- HELPER ACTIONS ---
+
+    const logout = useCallback(async () => {
+        const userId = authState.user?.id;
+        const wasGuest = authState.isGuest;
+
+        console.log("AuthContext: Performing logout...");
+
+        dispatch({ type: 'LOGOUT' });
+
+        localStorage.removeItem("isGuest");
+        localStorage.removeItem("directus_auth");
+        localStorage.removeItem(AUTH_USER_KEY);
+        localStorage.removeItem(AUTH_PERMS_KEY);
+
         try {
-            const res = await axios.get(`${BACKEND_URL}/role-permissions/role/${roleId}`);
-            const perms = res.data || [];
-            setPermissions(perms);
-            writeCachedJson(AUTH_PERMS_KEY, perms);
-            setPermissionsLoaded(true);
-            return perms;
+            if (userId && !wasGuest) {
+                axios.put(`${BACKEND_URL}/users/${userId}`, { islogin: false }).catch(() => { });
+            }
+            await directus.logout().catch(() => { });
         } catch (error) {
-            console.error("Failed to fetch permissions:", error);
-            setPermissions([]);
-            writeCachedJson(AUTH_PERMS_KEY, null);
-            setPermissionsLoaded(true);
-            return [];
+            console.error("Logout error:", error);
+        } finally {
+            window.location.href = "/login";
+        }
+    }, [authState.user?.id, authState.isGuest]);
+
+
+    const checkAuth = useCallback(async () => {
+        if (authState.isGuest) {
+            dispatch({
+                type: 'INIT_SESSION',
+                payload: {
+                    user: { first_name: "Guest", last_name: "User", email: "guest@example.com", isGuest: true },
+                    permissions: [],
+                    permissionsLoaded: true,
+                    isGuest: true
+                }
+            });
+            return;
+        }
+
+        const directusStored = localStorage.getItem('directus_auth');
+        if (!directusStored) {
+            dispatch({ type: 'LOGOUT' });
+            return;
+        }
+
+        const cachedUser = readCachedJson(AUTH_USER_KEY, null);
+        const cachedPermsRaw = localStorage.getItem(AUTH_PERMS_KEY);
+        const cachedPerms = cachedPermsRaw ? readCachedJson(AUTH_PERMS_KEY, []) : null;
+
+        // Fast Load: Use Cache first
+        if (cachedUser) {
+            dispatch({
+                type: 'INIT_SESSION',
+                payload: {
+                    user: cachedUser,
+                    permissions: Array.isArray(cachedPerms) ? cachedPerms : [],
+                    permissionsLoaded: cachedPermsRaw !== null,
+                    isGuest: false
+                }
+            });
+        }
+
+        try {
+            const meId = await directus.request(readMe({ fields: ['id'] }));
+            const response = await axios.get(`${BACKEND_URL}/auth/access-config?userId=${meId.id}`);
+            const { user: me, permissions: perms } = response.data;
+
+            console.log("AuthContext: checkAuth successful:", me.username);
+
+            if (!me.islogin) {
+                axios.put(`${BACKEND_URL}/users/${me.id}`, { islogin: true }).catch(() => { });
+            }
+
+            // Sync prefs from backend
+            if (me.layout_style) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
+            if (me.theme_preference) setTheme(me.theme_preference);
+            if (me.font_family) setFontFamily(me.font_family);
+
+            // Update state and cache
+            writeCachedJson(AUTH_USER_KEY, me);
+            writeCachedJson(AUTH_PERMS_KEY, perms);
+
+            dispatch({
+                type: 'INIT_SESSION',
+                payload: {
+                    user: me,
+                    permissions: perms,
+                    permissionsLoaded: true,
+                    isGuest: false
+                }
+            });
+        } catch (error) {
+            const status = error.status || error.response?.status;
+            if (status === 401 || error.message?.includes('401')) {
+                logout();
+            }
+        } finally {
+            dispatch({ type: 'SET_LOADING', payload: false });
+        }
+    }, [authState.isGuest, logout]);
+
+    const login = async (username, password) => {
+        try {
+            const res = await axios.post(`${BACKEND_URL}/auth/login`, { username, password });
+            if (!res.data.success) throw new Error(res.data.error || "Login failed");
+
+            const { user: me, permissions: perms, directus_auth: directusAuth } = res.data;
+
+            if (directusAuth) localStorage.setItem('directus_auth', JSON.stringify(directusAuth));
+            localStorage.removeItem("isGuest");
+
+            writeCachedJson(AUTH_USER_KEY, me);
+            writeCachedJson(AUTH_PERMS_KEY, perms);
+
+            dispatch({
+                type: 'LOGIN',
+                payload: { user: me, permissions: perms }
+            });
+
+            if (me.layout_style) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
+            if (me.theme_preference) setTheme(me.theme_preference);
+            if (me.font_family) setFontFamily(me.font_family);
+
+            return { success: true, user: me };
+        } catch (error) {
+            console.error("Login failed:", error);
+            return { success: false, error: error.response?.data?.error || error.message };
         }
     };
 
-    const hasPermission = (pageId, action = 'can_view') => {
-        if (isGuest) {
-            return pageId === 'guest-send-letter';
-        }
+    const loginGuest = () => {
+        localStorage.setItem("isGuest", "true");
+        dispatch({
+            type: 'LOGIN_GUEST',
+            payload: { user: { first_name: "Guest", last_name: "User", email: "guest@example.com", isGuest: true } }
+        });
+    };
 
-        // Deny-by-default once authenticated if no permission records are present.
-        if (!permissions || permissions.length === 0) return false;
+    // --- PERMISSION LOGIC (Memoized) ---
+    const hasPermission = useCallback((pageId, action = 'can_view') => {
+        if (authState.isGuest) return pageId === 'guest-send-letter';
+        if (!authState.permissions || authState.permissions.length === 0) return false;
 
         const normalizePageId = (value = "") => value.toString().toLowerCase().replace(/[^a-z0-9]/g, "");
-        const perm = permissions.find(p =>
+        const perm = authState.permissions.find(p =>
             p.page_name === pageId ||
             normalizePageId(p.page_name) === normalizePageId(pageId)
         );
-        // If we have permissions records but NONE for this specific page, deny by default (secure)
-        if (!perm) return false;
-        return !!perm[action];
+        return perm ? !!perm[action] : false;
+    }, [authState.permissions, authState.isGuest]);
+
+    // --- UI ACTIONS ---
+    const toggleTheme = async () => {
+        const newTheme = theme === "light" ? "dark" : "light";
+        setTheme(newTheme);
+        if (authState.user?.id && !authState.isGuest) {
+            axios.put(`${BACKEND_URL}/users/${authState.user.id}`, { theme_preference: newTheme }).catch(() => { });
+        }
     };
+
+    const toggleLayoutStyle = (style) => {
+        const normalized = normalizeLayoutStyle(style);
+        setLayoutStyle(normalized);
+        if (authState.user?.id && !authState.isGuest) {
+            axios.put(`${BACKEND_URL}/users/${authState.user.id}`, { layout_style: normalized }).catch(() => { });
+        }
+    };
+
+    const changeFontFamily = (font) => {
+        setFontFamily(font);
+        if (authState.user?.id && !authState.isGuest) {
+            axios.put(`${BACKEND_URL}/users/${authState.user.id}`, { font_family: font }).catch(() => { });
+        }
+    };
+
+    const toggleSidebar = () => setIsSidebarExpanded(prev => !prev);
+
+    // --- EFFECTS ---
+    useEffect(() => {
+        checkAuth();
+    }, []);
 
     useEffect(() => {
         const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
         const handleChange = (e) => {
-            // Only auto-switch if the user hasn't explicitly set a preference in this session
-            // or if we want to strictly follow system.
-            // For now, let's make it follow system if no override is in localStorage
-            if (!localStorage.getItem("theme")) {
-                setTheme(e.matches ? "dark" : "light");
-            }
+            if (!localStorage.getItem("theme")) setTheme(e.matches ? "dark" : "light");
         };
-
         mediaQuery.addEventListener("change", handleChange);
         return () => mediaQuery.removeEventListener("change", handleChange);
     }, []);
 
     useEffect(() => {
-        if (theme === "dark") {
-            document.documentElement.classList.add("dark");
-        } else {
-            document.documentElement.classList.remove("dark");
-        }
+        if (theme === "dark") document.documentElement.classList.add("dark");
+        else document.documentElement.classList.remove("dark");
         localStorage.setItem("theme", theme);
     }, [theme]);
 
     useEffect(() => {
-        const normalized = normalizeLayoutStyle(layoutStyle);
-        if (normalized !== layoutStyle) {
-            setLayoutStyle(normalized);
-            return;
-        }
-        localStorage.setItem("layoutStyle", normalized);
+        localStorage.setItem("layoutStyle", layoutStyle);
     }, [layoutStyle]);
 
     useEffect(() => {
@@ -135,252 +313,82 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem("isSidebarExpanded", isSidebarExpanded);
     }, [isSidebarExpanded]);
 
-    const toggleTheme = async () => {
-        const newTheme = theme === "light" ? "dark" : "light";
-        setTheme(newTheme);
-        if (user?.id && !isGuest) {
-            try {
-                await axios.put(`${BACKEND_URL}/users/${user.id}`, { theme_preference: newTheme });
-            } catch (err) {
-                console.error("Failed to sync theme to backend", err);
-            }
-        }
-    };
-
-    const toggleLayoutStyle = async (style) => {
-        const normalized = normalizeLayoutStyle(style);
-        setLayoutStyle(normalized);
-        if (user?.id && !isGuest) {
-            try {
-                await axios.put(`${BACKEND_URL}/users/${user.id}`, { layout_style: normalized });
-            } catch (err) {
-                console.error("Failed to sync layout to backend", err);
-            }
-        }
-    };
-
-    const changeFontFamily = async (font) => {
-        setFontFamily(font);
-        if (user?.id && !isGuest) {
-            try {
-                await axios.put(`${BACKEND_URL}/users/${user.id}`, { font_family: font });
-            } catch (err) {
-                console.error("Failed to sync font to backend", err);
-            }
-        }
-    };
-
-    const toggleSidebar = () => {
-        setIsSidebarExpanded(prev => !prev);
-    };
-
-    const loginGuest = () => {
-        setIsGuest(true);
-        localStorage.setItem("isGuest", "true");
-        setUser({ first_name: "Guest", last_name: "User", email: "guest@example.com", isGuest: true });
-        setPermissions([]);
-        setPermissionsLoaded(true);
-        writeCachedJson(AUTH_USER_KEY, null);
-        writeCachedJson(AUTH_PERMS_KEY, null);
-    };
-
-    const login = async (username, password) => {
-        try {
-            // Combined login: Does lookup + Directus auth + Perms fetch in ONE shot
-            const res = await axios.post(`${BACKEND_URL}/auth/login`, { username, password });
-
-            if (!res.data.success) {
-                throw new Error(res.data.error || "Login failed");
-            }
-
-            const { user: updatedMe, permissions: perms, directus_auth: directusAuth } = res.data;
-
-            // Manually sync Directus SDK storage so it remains authenticated
-            if (directusAuth) {
-                localStorage.setItem('directus_auth', JSON.stringify(directusAuth));
-                // Force internal SDK state update if possible, but the storage helper handles it on next request
-            }
-
-            setIsGuest(false);
-            localStorage.removeItem("isGuest");
-            setUser(updatedMe);
-            writeCachedJson(AUTH_USER_KEY, updatedMe);
-            if (Array.isArray(perms)) {
-                writeCachedJson(AUTH_PERMS_KEY, perms);
-                setPermissions(perms);
-                setPermissionsLoaded(true);
-            }
-            if (updatedMe.layout_style) setLayoutStyle(normalizeLayoutStyle(updatedMe.layout_style));
-            if (updatedMe.theme_preference) setTheme(updatedMe.theme_preference);
-            if (updatedMe.font_family) setFontFamily(updatedMe.font_family);
-
-            return { success: true, user: updatedMe };
-        } catch (error) {
-            console.error("Login failed:", error);
-            const message = error.response?.data?.error || error.message;
-            return { success: false, error: message };
-        }
-    };
-
-    const logout = async () => {
-        const userId = user?.id;
-        const wasGuest = isGuest;
-
-        console.log("AuthContext: Performing logout and clearing cache...");
-
-        // Clear local state immediately for fast transitions
-        setUser(null);
-        setIsGuest(false);
-        setPermissions([]);
-        setPermissionsLoaded(false);
-
-        // Remove ALL auth related items
-        localStorage.removeItem("isGuest");
-        localStorage.removeItem("directus_auth");
-        localStorage.removeItem(AUTH_USER_KEY);
-        localStorage.removeItem(AUTH_PERMS_KEY);
-        writeCachedJson(AUTH_USER_KEY, null);
-        writeCachedJson(AUTH_PERMS_KEY, null);
-
-        try {
-            if (userId && !wasGuest) {
-                // Notify backend user is offline (non-blocking)
-                axios.put(`${BACKEND_URL}/users/${userId}`, { islogin: false }).catch(() => { });
-            }
-
-            // Try SDK logout (only if we have something to log out of)
-            await directus.logout().catch((err) => {
-                console.warn("AuthContext: SDK logout failed (expected if token expired):", err.message);
-            });
-        } catch (error) {
-            console.error("Logout process encountered an error:", error);
-        } finally {
-            // Final safety clear
-            localStorage.removeItem("directus_auth");
-            window.location.href = "/login"; // Force redirect to break any internal state loops
-        }
-    };
-
-    const checkAuth = async () => {
-        if (isGuest) {
-            setUser({ first_name: "Guest", last_name: "User", email: "guest@example.com", isGuest: true });
-            setPermissions([]);
-            setLoading(false);
-            return;
-        }
-
-        // Before hitting Directus, check if we even have a session stored locally
-        // This avoids the 401 Unauthorized log appearing in the console for every redirect to login
-        const directusStored = localStorage.getItem('directus_auth');
-        if (!directusStored) {
-            setUser(null);
-            setLoading(false);
-            setPermissions([]);
-            setPermissionsLoaded(false);
-            writeCachedJson(AUTH_USER_KEY, null);
-            writeCachedJson(AUTH_PERMS_KEY, null);
-            return;
-        }
-
-        const cachedUser = readCachedJson(AUTH_USER_KEY, null);
-        const cachedPermsRaw = localStorage.getItem(AUTH_PERMS_KEY);
-        const cachedPerms = cachedPermsRaw ? readCachedJson(AUTH_PERMS_KEY, []) : null;
-        const hasCachedUser = !!cachedUser;
-
-        if (hasCachedUser) {
-            setUser(cachedUser);
-            setPermissions(Array.isArray(cachedPerms) ? cachedPerms : []);
-            setPermissionsLoaded(cachedPermsRaw !== null);
-            setLoading(false);
-        }
-
-        try {
-            const meId = await directus.request(readMe({ fields: ['id'] }));
-
-            // One consolidated call to get full profile AND permissions
-            const response = await axios.get(`${BACKEND_URL}/auth/access-config?userId=${meId.id}`);
-            const { user: me, permissions: perms } = response.data;
-
-            console.log("AuthContext: checkAuth successful (consolidated):", me.username);
-
-            // Ensure islogin is true (non-blocking)
-            if (!me.islogin) {
-                axios.put(`${BACKEND_URL}/users/${me.id}`, { islogin: true }).catch(() => { });
-            }
-
-            setUser(me);
-            writeCachedJson(AUTH_USER_KEY, me);
-            if (Array.isArray(perms)) {
-                writeCachedJson(AUTH_PERMS_KEY, perms);
-                setPermissions(perms);
-                setPermissionsLoaded(true);
-            }
-            if (me.layout_style) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
-            if (me.theme_preference) setTheme(me.theme_preference);
-            if (me.font_family) setFontFamily(me.font_family);
-        } catch (error) {
-            const status = error.status || error.response?.status;
-            console.warn("AuthContext: Token validation failed.", status);
-
-            // If it's a 401 (Unauthorized) or similar identity error
-            // Clean up everything so the user is forced back to a clean login state
-            if (status === 401 || error.message?.includes('401') || (error.name === 'DirectusError' && !status)) {
-                console.log("AuthContext: Session invalid, triggering logout.");
-                logout();
-            }
-        } finally {
-            if (!hasCachedUser) setLoading(false);
-        }
-    };
-
+    // Background preferences sync
     useEffect(() => {
-        if (!user?.id || isGuest) return;
-
+        if (!authState.user?.id || authState.isGuest) return;
         const syncPrefs = async () => {
             try {
-                const response = await axios.get(`${BACKEND_URL}/users/${user.id}`);
+                const response = await axios.get(`${BACKEND_URL}/users/${authState.user.id}`);
                 const me = response.data;
-                if (me.layout_style && normalizeLayoutStyle(me.layout_style) !== layoutStyle) {
-                    setLayoutStyle(normalizeLayoutStyle(me.layout_style));
-                }
+                if (me.layout_style && normalizeLayoutStyle(me.layout_style) !== layoutStyle) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
                 if (me.theme_preference && me.theme_preference !== theme) setTheme(me.theme_preference);
                 if (me.font_family && me.font_family !== fontFamily) setFontFamily(me.font_family);
-            } catch (error) {
-                console.error("Failed to sync preferences:", error);
-            }
+            } catch (error) { /* silence */ }
         };
-
-        const interval = setInterval(syncPrefs, 30000); // Sync every 30 seconds
+        const interval = setInterval(syncPrefs, 60000);
         return () => clearInterval(interval);
-    }, [user?.id, isGuest, layoutStyle, theme]);
+    }, [authState.user?.id, authState.isGuest, layoutStyle, theme]);
 
-    useEffect(() => {
-        checkAuth();
-    }, []);
+    // --- MEMOIZED VALUES ---
+    const authContextValue = useMemo(() => ({
+        ...authState,
+        login,
+        logout,
+        loginGuest,
+        hasPermission
+    }), [authState, hasPermission, logout]);
+
+    const uiContextValue = useMemo(() => ({
+        theme, toggleTheme,
+        layoutStyle, toggleLayoutStyle,
+        fontFamily, changeFontFamily,
+        isSidebarExpanded, toggleSidebar,
+        isMobileMenuOpen, setIsMobileMenuOpen
+    }), [theme, layoutStyle, fontFamily, isSidebarExpanded, isMobileMenuOpen]);
 
     return (
-        <AuthContext.Provider value={{
-            user, login, logout, loginGuest, isGuest, loading, theme, toggleTheme,
-            layoutStyle, toggleLayoutStyle, fontFamily, changeFontFamily, isSidebarExpanded, toggleSidebar,
-            isMobileMenuOpen, setIsMobileMenuOpen, permissions, hasPermission, permissionsLoaded
-        }}>
-            {children}
+        <AuthContext.Provider value={authContextValue}>
+            <UIContext.Provider value={uiContextValue}>
+                {children}
+            </UIContext.Provider>
         </AuthContext.Provider>
     );
 };
 
+// --- HOOKS ---
+
 export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (!context) return null;
+    const auth = useContext(AuthContext);
+    const ui = useContext(UIContext);
+    if (!auth || !ui) return null;
 
-    const { user } = context;
+    const { user } = auth;
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-
-    // Super Admin check: either role is Admin/Super Admin/Developer OR it's a specific developer email
     const isSuperAdmin = roleName === 'ADMIN' ||
         roleName === 'SUPER ADMIN' ||
         roleName === 'DEVELOPER' ||
-        user?.email === 'felixpareja07@gmail.com'; // Placeholder for developer override
+        user?.email === 'felixpareja07@gmail.com';
+
+    // Return combined object for backward compatibility, but it will trigger re-renders
+    // on ANY change. We should encourage using useSession() and useUI()
+    return { ...auth, ...ui, isSuperAdmin };
+};
+
+export const useSession = () => {
+    const context = useContext(AuthContext);
+    if (!context) throw new Error("useSession must be used within AuthProvider");
+    
+    // Memoize the super admin calculation so it doesn't change on every useSession call
+    const isSuperAdmin = useMemo(() => {
+        const roleName = (context.user?.roleData?.name || context.user?.role || '').toString().toUpperCase();
+        return roleName === 'ADMIN' || roleName === 'SUPER ADMIN' || roleName === 'DEVELOPER' || context.user?.email === 'felixpareja07@gmail.com';
+    }, [context.user]);
 
     return { ...context, isSuperAdmin };
+};
+
+export const useUI = () => {
+    const context = useContext(UIContext);
+    if (!context) throw new Error("useUI must be used within AuthProvider");
+    return context;
 };
