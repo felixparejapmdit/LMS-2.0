@@ -264,7 +264,7 @@ export default function MasterTable() {
             } else {
                 for (const id of selectedIds) {
                     if (newStatus === "Show to ATG Dashboard") {
-                        await letterService.update(id, { tray_id: 0, global_status: 2 });
+                        await letterService.update(id, { tray_id: null, global_status: 2 });
                     } else {
                         const statusMatch = statuses.find(s => s.status_name === newStatus);
                         const payload = statusMatch ? { global_status: statusMatch.id } : { letter_type: newStatus };
@@ -468,7 +468,7 @@ export default function MasterTable() {
                             <TableIcon className={`w-4 h-4 ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-orange-500'}`} />
                             <div>
                                 <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Master</h1>
-                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Correspondence Table</h2>
+                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Master Table</h2>
                             </div>
                         </div>
                     </div>
@@ -491,15 +491,15 @@ export default function MasterTable() {
                         {/* Summary & Search */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
-                                <h2 className={`text-2xl font-black uppercase tracking-tight ${textColor}`}>Master Records</h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Manage and track all registered correspondence from a single view.</p>
+                                <h2 className={`text-2xl font-black uppercase tracking-tight ${textColor}`}>Records</h2>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Manage all files.</p>
                             </div>
                             {canSearch && (
                                 <div className="relative group min-w-[300px]">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
                                         type="text"
-                                        placeholder="Find letters, senders, summaries..."
+                                        placeholder="Search..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${layoutStyle === 'minimalist' ? 'bg-white dark:bg-white/5 border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
@@ -516,8 +516,8 @@ export default function MasterTable() {
                                         <CheckSquare className="w-5 h-5" />
                                     </div>
                                     <div>
-                                        <p className={`text-xs font-black uppercase tracking-tight ${textColor}`}>{selectedIds.length} Records Selected</p>
-                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Apply bulk updates to the letters</p>
+                                        <p className={`text-xs font-black uppercase tracking-tight ${textColor}`}>{selectedIds.length} Selected</p>
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Bulk update</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 custom-scrollbar w-full md:w-auto">
@@ -555,13 +555,13 @@ export default function MasterTable() {
                                                 </button>
                                             </th>
                                             <th className="p-5 w-12 text-center"></th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">LMS ID</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">ID</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Group</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 whitespace-nowrap">Date Received</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Step</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 whitespace-nowrap">Date</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Sender</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Summary</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Track</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Info</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">History</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">QR</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">PDF</th>
                                         </tr>
@@ -571,14 +571,14 @@ export default function MasterTable() {
                                             <tr>
                                                 <td colSpan="11" className="p-20 text-center">
                                                     <Loader2 className="w-10 h-10 text-orange-500 animate-spin mx-auto mb-4" />
-                                                    <p className="text-xs font-black uppercase tracking-widest text-gray-400">Compiling Database...</p>
+                                                    <p className="text-xs font-black uppercase tracking-widest text-gray-400">Loading...</p>
                                                 </td>
                                             </tr>
                                         ) : filteredLetters.length === 0 ? (
                                             <tr>
                                                 <td colSpan="11" className="p-20 text-center">
                                                     <Search className="w-10 h-10 text-gray-200 mx-auto mb-4" />
-                                                    <p className="text-xs font-black uppercase tracking-widest text-gray-400">No Records Found</p>
+                                                    <p className="text-xs font-black uppercase tracking-widest text-gray-400">No records</p>
                                                 </td>
                                             </tr>
                                         ) : filteredLetters.map((letter) => (
@@ -672,7 +672,7 @@ export default function MasterTable() {
 
                         {/* Footer / Pagination Placeholder */}
                         <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-400 px-4">
-                            <span>Showing {filteredLetters.length} of {letters.length} entries</span>
+                            <span>{filteredLetters.length} / {letters.length}</span>
                             <div className="flex items-center gap-4">
                                 <button disabled className="opacity-50">Previous</button>
                                 <div className="flex items-center gap-2">
@@ -697,8 +697,8 @@ export default function MasterTable() {
                                     <FileText className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Letter Details</h2>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedLetter?.lms_id || 'System ID: ' + selectedLetter?.id}</p>
+                                    <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Update</h2>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedLetter?.lms_id || 'Letter ' + selectedLetter?.id}</p>
                                 </div>
                             </div>
                             <button onClick={() => setIsDrawerOpen(false)} className="p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors">
@@ -717,7 +717,7 @@ export default function MasterTable() {
                                     {/* Workflow Step Selection (Radio Buttons) */}
                                     {canStepSelector && <div className="space-y-4">
                                         <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                                            <GitMerge className="w-3 h-3" /> Update Process Step
+                                            <GitMerge className="w-3 h-3" /> Stage
                                         </label>
                                         <div className="flex flex-wrap gap-2 mt-2">
                                             {steps.map((step) => {
@@ -756,7 +756,7 @@ export default function MasterTable() {
                                                 <Clock className="w-5 h-5" />
                                             </div>
                                             <div>
-                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Received On</label>
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</label>
                                                 <p className={`text-xs font-black uppercase tracking-tight ${textColor}`}>
                                                     {new Date(selectedLetter.date_received).toLocaleDateString(undefined, { dateStyle: 'long' })}
                                                 </p>
@@ -773,7 +773,7 @@ export default function MasterTable() {
                                 {/* Detailed Fields */}
                                 <div className="space-y-4 pt-4 px-2">
                                     {canDepartmentSelector && <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Active Tray Location</label>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tray</label>
                                         <select
                                             value={selectedLetter.tray_id || ""}
                                             onChange={(e) => setSelectedLetter({ ...selectedLetter, tray_id: e.target.value === "" ? null : parseInt(e.target.value) })}
@@ -789,16 +789,16 @@ export default function MasterTable() {
 
                                     {canStatusDropdown && <div className="space-y-1">
                                         <div className="flex items-center justify-between gap-2">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-orange-500">Correspondence Status</label>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-orange-500">Status</label>
                                             {canEndorse && <button
                                                 type="button"
                                                 onClick={() => {
                                                     // Quick action to set for ATG Dashboard
-                                                    setSelectedLetter(prev => ({ ...prev, tray_id: 0, global_status: 2 }));
+                                                    setSelectedLetter(prev => ({ ...prev, tray_id: null, global_status: 2 }));
                                                 }}
                                                 className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 border border-indigo-100 dark:border-indigo-900/30 hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
                                             >
-                                                Show to ATG Dashboard
+                                                To Dashboard
                                             </button>}
                                         </div>
                                         <select
@@ -810,7 +810,7 @@ export default function MasterTable() {
                                             style={{ backgroundColor: 'white', color: 'black' }}
                                             className="w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm"
                                         >
-                                            <option value="" style={{ color: 'black', backgroundColor: 'white' }}>-- Change Status --</option>
+                                            <option value="" style={{ color: 'black', backgroundColor: 'white' }}>-- Status --</option>
                                             {statuses.map(s => (
                                                 <option key={s.id} value={s.id} style={{ color: 'black', backgroundColor: 'white' }}>{s.status_name}</option>
                                             ))}
@@ -819,14 +819,14 @@ export default function MasterTable() {
 
                                     {/* Kind Dropdown */}
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Letter Kind</label>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Kind</label>
                                         <select
                                             value={selectedLetter.kind || ""}
                                             onChange={(e) => setSelectedLetter({ ...selectedLetter, kind: e.target.value === "" ? null : parseInt(e.target.value) })}
                                             style={{ backgroundColor: 'white', color: 'black' }}
                                             className="w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm"
                                         >
-                                            <option value="" style={{ color: 'black', backgroundColor: 'white' }}>-- Select Kind --</option>
+                                            <option value="" style={{ color: 'black', backgroundColor: 'white' }}>-- Kind --</option>
                                             {letterKinds.map(k => (
                                                 <option key={k.id} value={k.id} style={{ color: 'black', backgroundColor: 'white' }}>{k.kind_name}</option>
                                             ))}
@@ -834,7 +834,7 @@ export default function MasterTable() {
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sender Entity</label>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sender</label>
                                         <input
                                             type="text"
                                             className={`w-full px-4 py-3 rounded-xl border text-sm font-bold ${'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
@@ -846,9 +846,9 @@ export default function MasterTable() {
                                     {/* Assign This Letter To (Endorsement) */}
                                     {canEndorse && <div className="space-y-1 p-4 rounded-2xl bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20" ref={endorseRef}>
                                         <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-1.5">
-                                            <Send className="w-3 h-3" /> Assign This Letter To (Endorse)
+                                            <Send className="w-3 h-3" /> Endorse
                                         </label>
-                                        <p className="text-[9px] text-orange-400/80 font-medium mb-2">Type to search and select a person. This will record an endorsement on Update Changes.</p>
+                                        <p className="text-[9px] text-orange-400/80 font-medium mb-2">Search person.</p>
                                         <div className="relative">
                                             <input
                                                 type="text"
@@ -881,7 +881,7 @@ export default function MasterTable() {
                                     </div>}
 
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Summary / Content</label>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Summary</label>
                                         <textarea
                                             rows="4"
                                             className={`w-full px-4 py-3 rounded-xl border text-sm font-bold resize-none ${'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
@@ -891,7 +891,7 @@ export default function MasterTable() {
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Letter Security Type</label>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Security</label>
                                         <select
                                             value={selectedLetter.letter_type || "Non-Confidential"}
                                             onChange={(e) => setSelectedLetter({ ...selectedLetter, letter_type: e.target.value })}
@@ -1000,7 +1000,7 @@ export default function MasterTable() {
                                                     </div>
                                                     <div>
                                                         <p className={`text-xs font-black uppercase tracking-tight ${textColor}`}>
-                                                            Digitized Scan
+                                                            Scan
                                                         </p>
                                                         <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest line-clamp-1">
                                                             {selectedLetter.scanned_copy.split(/[\\/]/).pop()}
@@ -1017,7 +1017,7 @@ export default function MasterTable() {
                                             </div>
                                         )}
                                         <div className="flex flex-col gap-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Selected Reference Attachment</label>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Link</label>
                                             <select
                                                 value={selectedLetter.attachment_id || ""}
                                                 onChange={(e) => setSelectedLetter({ ...selectedLetter, attachment_id: e.target.value === "" ? null : parseInt(e.target.value) })}
@@ -1077,7 +1077,7 @@ export default function MasterTable() {
                                     className="flex-[2] py-4 px-6 rounded-2xl bg-orange-500 text-white text-xs font-black uppercase tracking-widest shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                 >
                                     {loading && <Loader2 className="w-3 h-3 animate-spin" />}
-                                    Update changes
+                                    Save
                                 </button>
                             )}
                         </div>
@@ -1097,7 +1097,7 @@ export default function MasterTable() {
                                     <GitMerge className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Workflow Track</h2>
+                                    <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Track</h2>
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{trackingLetter?.lms_id}</p>
                                 </div>
                             </div>
@@ -1150,7 +1150,7 @@ export default function MasterTable() {
                                 {trackingLetter?.logs && trackingLetter.logs.length > 0 && (
                                     <div className="pt-8 border-t border-gray-100 dark:border-[#222]">
                                         <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-6 flex items-center gap-2">
-                                            <Activity className="w-3 h-3" /> Audit Logs & Activity
+                                            <Activity className="w-3 h-3" /> Activity
                                         </h3>
                                         <div className="space-y-6">
                                             {trackingLetter.logs.map((log, i) => (
@@ -1181,7 +1181,7 @@ export default function MasterTable() {
                                 onClick={() => setIsTrackDrawerOpen(false)}
                                 className="w-full py-4 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-600/20"
                             >
-                                Close Tracker
+                                Close
                             </button>
                         </div>
                     </div>

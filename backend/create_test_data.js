@@ -13,7 +13,7 @@ async function createTestData() {
             date_received: new Date(),
             sender: 'VIP SENDER',
             summary: 'VIP SUMMARY',
-            tray_id: 0,
+            tray_id: null,
             global_status: 2
         });
 

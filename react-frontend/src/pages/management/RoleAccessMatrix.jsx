@@ -201,11 +201,11 @@ export default function RoleAccessMatrix() {
 
     const getPageCategory = (pageId) => {
         const id = pageId.toLowerCase();
-        if (id.includes('home') || id.includes('dashboard') || id.includes('activity') || id.includes('guest')) return 'Core Systems';
-        if (id.includes('user') || id.includes('role') || id.includes('access') || id.includes('dept')) return 'Identity & Management';
-        if (id.includes('letter') || id.includes('table') || id.includes('comments') || id.includes('endorse') || id.includes('detail')) return 'Records & Correspondence';
-        if (id.includes('tray') || id.includes('status') || id.includes('kind') || id.includes('step') || id.includes('attach') || id.includes('person') || id.includes('import') || id.includes('pdf')) return 'Configuration & Setup';
-        return 'Other Modules';
+        if (id.includes('home') || id.includes('dashboard') || id.includes('activity') || id.includes('guest')) return 'System';
+        if (id.includes('user') || id.includes('role') || id.includes('access') || id.includes('dept')) return 'Users';
+        if (id.includes('letter') || id.includes('table') || id.includes('comments') || id.includes('endorse') || id.includes('detail')) return 'Letters';
+        if (id.includes('tray') || id.includes('status') || id.includes('kind') || id.includes('step') || id.includes('attach') || id.includes('person') || id.includes('import') || id.includes('pdf')) return 'Setup';
+        return 'Others';
     };
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -226,11 +226,11 @@ export default function RoleAccessMatrix() {
     }, {});
 
     const CATEGORY_ORDER = [
-        'Core Systems',
-        'Identity & Management',
-        'Records & Correspondence',
-        'Configuration & Setup',
-        'Other Modules'
+        'System',
+        'Users',
+        'Letters',
+        'Setup',
+        'Others'
     ];
 
     return (
@@ -241,7 +241,7 @@ export default function RoleAccessMatrix() {
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Management</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Setup</span>
                             <h1 className={`text-xl font-black tracking-tighter uppercase font-outfit ${textColor}`}>Access Matrix</h1>
                         </div>
                     </div>
@@ -265,7 +265,7 @@ export default function RoleAccessMatrix() {
                                 className={`px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-blue-500/20 active:scale-95 disabled:opacity-50`}
                             >
                                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                {saving ? "Deploying..." : "Save Matrix"}
+                                {saving ? "Saving..." : "Save"}
                             </button>
                         )}
                     </div>
@@ -315,17 +315,17 @@ export default function RoleAccessMatrix() {
                                 <table className="w-full text-left border-collapse min-w-[1000px]">
                                     <thead>
                                         <tr className="border-b border-gray-100 dark:border-[#222]">
-                                            <th className="p-6 w-16 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">#</th>
-                                            <th className="p-6 w-[300px] text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Functional Area (Page)</th>
+                                            <th className="p-3 w-12 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">#</th>
+                                            <th className="p-3 w-[250px] text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Page</th>
                                             {ACTIONS.map(action => (
-                                                <th key={action.id} className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                                                    <div className="flex flex-col items-center gap-2">
+                                                <th key={action.id} className="p-3 text-center text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                                                    <div className="flex flex-col items-center gap-1">
                                                         <action.icon className="w-4 h-4 text-blue-500" />
-                                                        {action.label}
+                                                        <span className="hidden md:inline">{action.label}</span>
                                                     </div>
                                                 </th>
                                             ))}
-                                            <th className="p-6 text-right text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Direct Action</th>
+                                            <th className="p-3 text-right text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50 dark:divide-[#222]">
@@ -333,7 +333,7 @@ export default function RoleAccessMatrix() {
                                             <tr>
                                                 <td colSpan={ACTIONS.length + 3} className="p-32 text-center text-gray-400">
                                                     <Loader2 className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-6 opacity-20" />
-                                                    <p className="text-xs font-black uppercase tracking-widest opacity-40">Decrypting Permissions...</p>
+                                                    <p className="text-xs font-black uppercase tracking-widest opacity-40">Loading...</p>
                                                 </td>
                                             </tr>
                                         ) : CATEGORY_ORDER.filter(cat => categorizedPages[cat]).length === 0 ? (
@@ -354,22 +354,22 @@ export default function RoleAccessMatrix() {
                                                 </tr>
                                                 {categorizedPages[category].map((page, index) => (
                                                     <tr key={page.page_id} className="hover:bg-slate-50/50 dark:hover:bg-white/2 transition-colors">
-                                                        <td className="p-6 text-[11px] font-black text-gray-400 font-mono">
+                                                        <td className="p-3 text-[11px] font-black text-gray-400 font-mono">
                                                             {(index + 1).toString().padStart(2, '0')}
                                                         </td>
-                                                        <td className="p-6">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/10 flex items-center justify-center text-blue-600">
-                                                                    <Layout className="w-5 h-5" />
+                                                        <td className="p-3">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/10 flex items-center justify-center text-blue-600 shrink-0">
+                                                                    <Layout className="w-4 h-4" />
                                                                 </div>
-                                                                <div className="flex flex-col">
-                                                                    <span className={`text-[11px] font-black uppercase tracking-tight ${textColor}`}>{page.page_name}</span>
-                                                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{page.page_id}</span>
+                                                                <div className="flex flex-col min-w-0">
+                                                                    <span className={`text-[10px] font-black uppercase tracking-tight truncate ${textColor}`}>{page.page_name}</span>
+                                                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest truncate">{page.page_id}</span>
                                                                 </div>
                                                             </div>
                                                         </td>
                                                         {ACTIONS.map(action => (
-                                                            <td key={action.id} className="p-6 text-center">
+                                                            <td key={action.id} className="p-3 text-center">
                                                                 {action.id === 'field_permissions' ? (
                                                                     <button
                                                                         disabled={!canEditField}
@@ -381,42 +381,42 @@ export default function RoleAccessMatrix() {
                                                                                 fields: JSON.stringify(currentFields, null, 2)
                                                                             });
                                                                         }}
-                                                                        className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center transition-all ${Object.keys(matrix[page.page_id]?.field_permissions || {}).length > 0
+                                                                        className={`w-9 h-9 rounded-xl md:rounded-[1rem] flex items-center justify-center transition-all mx-auto ${Object.keys(matrix[page.page_id]?.field_permissions || {}).length > 0
                                                                             ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
                                                                             : "bg-slate-100 dark:bg-white/5 text-gray-300 dark:text-gray-700 hover:text-blue-500"
                                                                             } ${!canEditField ? 'opacity-40 pointer-events-none' : ''}`}
                                                                     >
-                                                                        <Settings className="w-5 h-5" />
+                                                                        <Settings className="w-3 h-3" />
                                                                     </button>
                                                                 ) : (
                                                                     <button
                                                                         onClick={() => handleToggle(page.page_id, action.id)}
-                                                                        className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center transition-all ${matrix[page.page_id]?.[action.id]
+                                                                        className={`w-7 h-7 rounded-lg md:rounded-xl flex items-center justify-center transition-all mx-auto ${matrix[page.page_id]?.[action.id]
                                                                             ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
                                                                             : "bg-slate-100 dark:bg-white/5 text-gray-300 dark:text-gray-700 hover:text-blue-500"
                                                                             }`}
                                                                     >
-                                                                        {matrix[page.page_id]?.[action.id] ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+                                                                        {matrix[page.page_id]?.[action.id] ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
                                                                     </button>
                                                                 )}
                                                             </td>
                                                         ))}
-                                                        <td className="p-8">
-                                                            <div className="flex justify-end gap-2">
+                                                        <td className="p-3">
+                                                            <div className="flex justify-end gap-1.5 flex-wrap md:flex-nowrap">
                                                                 {canAllowAll && (
                                                                     <button
                                                                         onClick={() => handleToggleAll(page.page_id, true)}
-                                                                        className="px-4 py-2 rounded-xl bg-green-500/10 text-green-500 text-[9px] font-black uppercase tracking-widest hover:bg-green-500 hover:text-white transition-all shadow-sm active:scale-95"
+                                                                        className="px-3 py-1.5 rounded-lg bg-green-500/10 text-green-500 text-[8px] font-black uppercase tracking-widest hover:bg-green-500 hover:text-white transition-all shadow-sm active:scale-95 whitespace-nowrap"
                                                                     >
-                                                                        Allow All
+                                                                        Allow
                                                                     </button>
                                                                 )}
                                                                 {canRestrict && (
                                                                     <button
                                                                         onClick={() => handleToggleAll(page.page_id, false)}
-                                                                        className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-white transition-all shadow-sm active:scale-95"
+                                                                        className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 text-[8px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-95 whitespace-nowrap"
                                                                     >
-                                                                        Restrict
+                                                                        Deny
                                                                     </button>
                                                                 )}
                                                             </div>
@@ -434,130 +434,134 @@ export default function RoleAccessMatrix() {
             </main>
 
             {/* Field Permissions Modal */}
-            {fieldModal.isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setFieldModal({ isOpen: false, pageId: null, fields: "" })} />
-                    <div className={`${cardBg} w-full max-w-lg rounded-[2.5rem] border shadow-2xl relative z-10 p-8`}>
-                        <div className="flex items-center justify-between mb-8">
-                            <div className="flex flex-col">
-                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Field Permissions</span>
-                                <h3 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>{fieldModal.pageId}</h3>
-                            </div>
-                            <button onClick={() => setFieldModal({ isOpen: false, pageId: null, fields: "" })} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl text-gray-400">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            <p className="text-xs text-gray-500 font-medium italic">
-                                Use JSON format to restrict specific components: <br />
-                                <code>{`{ "delete_btn": false, "salary_field": false }`}</code>
-                            </p>
-                            <textarea
-                                value={fieldModal.fields}
-                                onChange={(e) => setFieldModal(prev => ({ ...prev, fields: e.target.value }))}
-                                className="w-full h-64 p-4 rounded-2xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-mono text-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                                placeholder={`{ "component_id": false }`}
-                            />
-                            <button
-                                onClick={() => {
-                                    try {
-                                        const parsed = JSON.parse(fieldModal.fields);
-                                        setMatrix(prev => ({
-                                            ...prev,
-                                            [fieldModal.pageId]: {
-                                                ...prev[fieldModal.pageId],
-                                                field_permissions: mergeFieldPermissions(fieldModal.pageId, parsed)
-                                            }
-                                        }));
-                                        setFieldModal({ isOpen: false, pageId: null, fields: "" });
-                                    } catch (e) {
-                                        alert("Invalid JSON format");
-                                    }
-                                }}
-                                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-blue-500/20"
-                            >
-                                Apply component configuration
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Instruction Modal */}
-            {isInstructionOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/60 shadow-2xl backdrop-blur-xl" onClick={() => setIsInstructionOpen(false)} />
-                    <div className={`${cardBg} w-full max-w-2xl rounded-[3rem] border shadow-2xl relative z-10 overflow-hidden`}>
-                        <div className="p-10 space-y-8">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-                                        <ShieldCheck className="w-6 h-6" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Protocol Guide</span>
-                                        <h3 className={`text-2xl font-black uppercase tracking-tight ${textColor}`}>Access Matrix Briefing</h3>
-                                    </div>
+            {
+                fieldModal.isOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setFieldModal({ isOpen: false, pageId: null, fields: "" })} />
+                        <div className={`${cardBg} w-full max-w-lg rounded-[2.5rem] border shadow-2xl relative z-10 p-8`}>
+                            <div className="flex items-center justify-between mb-8">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Field Permissions</span>
+                                    <h3 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>{fieldModal.pageId}</h3>
                                 </div>
-                                <button onClick={() => setIsInstructionOpen(false)} className="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl text-gray-400 transition-colors">
-                                    <X className="w-6 h-6" />
+                                <button onClick={() => setFieldModal({ isOpen: false, pageId: null, fields: "" })} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl text-gray-400">
+                                    <X className="w-5 h-5" />
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
-                                            <Zap className="w-4 h-4" />
-                                        </div>
-                                        <h4 className={`text-xs font-black uppercase tracking-widest ${textColor}`}>Dynamic Logic</h4>
-                                    </div>
-                                    <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
-                                        The matrix detects pages automatically from the database. Any Functional Area added to the <b>system_pages</b> collection will appear here instantly.
-                                    </p>
-                                </div>
-
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
-                                            <FileCode className="w-4 h-4" />
-                                        </div>
-                                        <h4 className={`text-xs font-black uppercase tracking-widest ${textColor}`}>Component Locks</h4>
-                                    </div>
-                                    <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
-                                        Use the <b>Fields (Gear)</b> icon to restrict specific UI elements like buttons or text inputs using JSON tags.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="p-6 rounded-3xl bg-slate-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 space-y-4">
-                                <div className="flex items-center gap-3">
-                                    <Info className="w-4 h-4 text-blue-500" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Restriction Example</span>
-                                </div>
-                                <div className="bg-slate-900/5 dark:bg-black/20 p-4 rounded-2xl font-mono text-[10px] leading-relaxed text-blue-500 overflow-x-auto">
-                                    {`{`} <br />
-                                    &nbsp;&nbsp;&quot;delete_button&quot;: false,<br />
-                                    &nbsp;&nbsp;&quot;edit_salary_field&quot;: false,<br />
-                                    &nbsp;&nbsp;&quot;approve_action&quot;: true<br />
-                                    {`}`}
-                                </div>
-                                <p className="text-[10px] text-gray-400 italic">
-                                    * The UI calls <b>canField(page, tag)</b> to check these locks. If a tag is not present or set to true, it remains visible by default.
+                            <div className="space-y-4">
+                                <p className="text-xs text-gray-500 font-medium italic">
+                                    Use JSON format to restrict specific components: <br />
+                                    <code>{`{ "delete_btn": false, "salary_field": false }`}</code>
                                 </p>
+                                <textarea
+                                    value={fieldModal.fields}
+                                    onChange={(e) => setFieldModal(prev => ({ ...prev, fields: e.target.value }))}
+                                    className="w-full h-64 p-4 rounded-2xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-mono text-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                                    placeholder={`{ "component_id": false }`}
+                                />
+                                <button
+                                    onClick={() => {
+                                        try {
+                                            const parsed = JSON.parse(fieldModal.fields);
+                                            setMatrix(prev => ({
+                                                ...prev,
+                                                [fieldModal.pageId]: {
+                                                    ...prev[fieldModal.pageId],
+                                                    field_permissions: mergeFieldPermissions(fieldModal.pageId, parsed)
+                                                }
+                                            }));
+                                            setFieldModal({ isOpen: false, pageId: null, fields: "" });
+                                        } catch (e) {
+                                            alert("Invalid JSON format");
+                                        }
+                                    }}
+                                    className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-blue-500/20"
+                                >
+                                    Apply component configuration
+                                </button>
                             </div>
-
-                            <button
-                                onClick={() => setIsInstructionOpen(false)}
-                                className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-xl shadow-blue-500/20 transition-all active:scale-95"
-                            >
-                                Acknowledge Briefing
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
+
+            {/* Instruction Modal */}
+            {
+                isInstructionOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/60 shadow-2xl backdrop-blur-xl" onClick={() => setIsInstructionOpen(false)} />
+                        <div className={`${cardBg} w-full max-w-2xl rounded-[3rem] border shadow-2xl relative z-10 overflow-hidden`}>
+                            <div className="p-10 space-y-8">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                                            <ShieldCheck className="w-6 h-6" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Protocol Guide</span>
+                                            <h3 className={`text-2xl font-black uppercase tracking-tight ${textColor}`}>Access Matrix Briefing</h3>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setIsInstructionOpen(false)} className="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl text-gray-400 transition-colors">
+                                        <X className="w-6 h-6" />
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                                                <Zap className="w-4 h-4" />
+                                            </div>
+                                            <h4 className={`text-xs font-black uppercase tracking-widest ${textColor}`}>Dynamic Logic</h4>
+                                        </div>
+                                        <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+                                            The matrix detects pages automatically from the database. Any Page added to the <b>system_pages</b> collection will appear here instantly.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+                                                <FileCode className="w-4 h-4" />
+                                            </div>
+                                            <h4 className={`text-xs font-black uppercase tracking-widest ${textColor}`}>Component Locks</h4>
+                                        </div>
+                                        <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+                                            Use the <b>Fields (Gear)</b> icon to restrict specific UI elements like buttons or text inputs using JSON tags.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 space-y-4">
+                                    <div className="flex items-center gap-3">
+                                        <Info className="w-4 h-4 text-blue-500" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Restriction Example</span>
+                                    </div>
+                                    <div className="bg-slate-900/5 dark:bg-black/20 p-4 rounded-2xl font-mono text-[10px] leading-relaxed text-blue-500 overflow-x-auto">
+                                        {`{`} <br />
+                                        &nbsp;&nbsp;&quot;delete_button&quot;: false,<br />
+                                        &nbsp;&nbsp;&quot;edit_salary_field&quot;: false,<br />
+                                        &nbsp;&nbsp;&quot;approve_action&quot;: true<br />
+                                        {`}`}
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 italic">
+                                        * The UI calls <b>canField(page, tag)</b> to check these locks. If a tag is not present or set to true, it remains visible by default.
+                                    </p>
+                                </div>
+
+                                <button
+                                    onClick={() => setIsInstructionOpen(false)}
+                                    className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-xl shadow-blue-500/20 transition-all active:scale-95"
+                                >
+                                    Acknowledge Briefing
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
         </div>
     );
 }

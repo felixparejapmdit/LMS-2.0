@@ -267,9 +267,19 @@ export default function NewLetter() {
                 scannedCopyPath = response.data.file_path;
             }
 
+            if (formData.selectedRefIds.length > 1) {
+                setError("Please select only one physical attachment for now.");
+                setLoading(false);
+                return;
+            }
+
+            const attachmentId = formData.selectedRefIds.length > 0
+                ? parseInt(formData.selectedRefIds[0])
+                : null;
+
             const created = await letterService.create({
                 ...formData,
-                attachment_id: formData.selectedRefIds.join(','),
+                attachment_id: Number.isNaN(attachmentId) ? null : attachmentId,
                 scanned_copy: scannedCopyPath,
                 encoder_id: user.id
             });
@@ -311,7 +321,7 @@ export default function NewLetter() {
                             <FilePlus className={`w-4 h-4 ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-orange-500'}`} />
                             <div>
                                 <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Workspace</h1>
-                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>New Entry</h2>
+                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>New Letter</h2>
                             </div>
                         </div>
                     </div>
@@ -320,7 +330,7 @@ export default function NewLetter() {
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 custom-scrollbar">
                     <form onSubmit={handleSubmit} className="w-full space-y-8">
                         <div className="mb-8">
-                            <h2 className={`text-3xl font-bold ${textColor}`}>Add New Letter</h2>
+                            <h2 className={`text-3xl font-bold ${textColor}`}>New Letter</h2>
 
                         </div>
 
@@ -336,21 +346,21 @@ export default function NewLetter() {
                             <section className={`${cardBg} rounded-3xl border p-8 shadow-sm space-y-6`}>
                                 <div className={`flex items-center gap-2 mb-2 ${textColor}`}>
                                     <Clipboard className="w-5 h-5 text-orange-400" />
-                                    <h3 className="font-bold">Core Details</h3>
+                                    <h3 className="font-bold">Info</h3>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Entry Classification</label>
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Letter Code</label>
                                     <div className="p-3 bg-orange-50/50 dark:bg-orange-950/20 border border-dashed border-orange-200 dark:border-orange-800/40 rounded-xl text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest flex items-center justify-between">
                                         <span>Reference Code: {predictedLmsId}</span>
-                                        <span className="text-[8px] bg-orange-100 dark:bg-orange-900/40 px-2 py-0.5 rounded-full">(ANNUAL SEQUENCE)</span>
+                                        <span className="text-[8px] bg-orange-100 dark:bg-orange-900/40 px-2 py-0.5 rounded-full">(ID)</span>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                                            <Clock className="w-3 h-3" /> Date & Time Received
+                                            <Clock className="w-3 h-3" /> Date
                                         </label>
                                         <input
                                             type="datetime-local"
@@ -361,14 +371,14 @@ export default function NewLetter() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Direction</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Type</label>
                                         <select
                                             value={formData.direction}
                                             onChange={e => setFormData({ ...formData, direction: e.target.value })}
                                             className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                         >
-                                            <option value="Incoming">Incoming</option>
-                                            <option value="Outgoing">Outgoing</option>
+                                            <option value="Incoming">Letters In</option>
+                                            <option value="Outgoing">Letters Out</option>
                                         </select>
                                     </div>
                                 </div>
@@ -376,7 +386,7 @@ export default function NewLetter() {
                                 {canSenderField && (
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center justify-between">
-                                            <span>Sender / Recipient</span>
+                                            <span>Sender</span>
                                             <span className="text-[10px] text-red-500 font-black">REQUIRED</span>
                                         </label>
                                         <div className="relative">
@@ -384,7 +394,7 @@ export default function NewLetter() {
                                             <input
                                                 type="text"
                                                 required
-                                                placeholder="Organization or Individual"
+                                                placeholder="Name"
                                                 value={formData.sender}
                                                 onChange={handleSenderChange}
                                                 onFocus={() => {
@@ -422,7 +432,7 @@ export default function NewLetter() {
                                         <div className="flex items-center justify-between mb-1">
                                             <label className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${'text-gray-500 dark:text-gray-400'}`}>
                                                 <MessageSquare className="w-3 h-3 text-orange-400" />
-                                                Regarding (Re:)
+                                                Subject
                                             </label>
                                             <span className="text-[9px] text-red-500 font-black tracking-widest uppercase">Required</span>
                                         </div>
@@ -431,7 +441,7 @@ export default function NewLetter() {
                                             required
                                             value={formData.summary}
                                             onChange={e => setFormData({ ...formData, summary: e.target.value })}
-                                            placeholder="Enter Regarding"
+                                            placeholder="Subject"
                                             className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 resize-none transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                         />
                                     </div>
@@ -443,7 +453,7 @@ export default function NewLetter() {
                                         <div className="flex items-center justify-between mb-1">
                                             <label className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${'text-gray-500 dark:text-gray-400'}`}>
                                                 <User className="w-3 h-3 text-orange-400" />
-                                                Encoder Name
+                                                Encoder
                                             </label>
                                             <span className="text-[9px] text-red-500 font-black tracking-widest uppercase">Required</span>
                                         </div>
@@ -492,7 +502,7 @@ export default function NewLetter() {
 
                                 {canKindDropdown && (
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Letter Kind</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Kind</label>
                                         <select
                                             required
                                             value={formData.kind}
@@ -517,10 +527,10 @@ export default function NewLetter() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">VEM Code</label>
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Reference</label>
                                     <input
                                         type="text"
-                                        placeholder="Reference VEM Code"
+                                        placeholder="Ref Code"
                                         value={formData.vemcode}
                                         onChange={e => setFormData({ ...formData, vemcode: e.target.value })}
                                         className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
@@ -529,7 +539,7 @@ export default function NewLetter() {
 
                                 {canStatusDropdown && (
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Global Status</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Status</label>
                                         <select
                                             required
                                             value={formData.global_status}
@@ -601,13 +611,13 @@ export default function NewLetter() {
                                                     <div className="space-y-4">
                                                         <label className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-2">
                                                             <FilePlus className="w-3 h-3" />
-                                                            Physical Attachment
+                                                            Link
                                                         </label>
                                                         <div className="space-y-3" ref={attachmentSearchRef}>
                                                             <div className="relative">
                                                                 <input
                                                                     type="text"
-                                                                    placeholder="Type to search attachments..."
+                                                                    placeholder="Search..."
                                                                     value={attachmentSearch}
                                                                     onChange={(e) => {
                                                                         setAttachmentSearch(e.target.value);
@@ -679,7 +689,7 @@ export default function NewLetter() {
                                                     <div className="space-y-2">
                                                         <label className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-2">
                                                             <Clock className="w-3 h-3" />
-                                                            Storage Tray (Physical Location)
+                                                            Tray
                                                         </label>
                                                         <select
                                                             value={formData.tray_id}
@@ -699,7 +709,7 @@ export default function NewLetter() {
                                             <div className={`flex items-center justify-between border-b pb-6 mb-2 ${'border-slate-50 dark:border-[#222]'}`}>
                                                 <div className="flex items-center gap-3">
                                                     <Upload className={`w-5 h-5 text-indigo-400`} />
-                                                    <h3 className={`font-bold ${textColor}`}>Attachments (Scanned Letter)</h3>
+                                                    <h3 className={`font-bold ${textColor}`}>Upload</h3>
                                                 </div>
                                             </div>
 
@@ -720,16 +730,16 @@ export default function NewLetter() {
                                                     <Upload className={`w-6 h-6 text-orange-400`} />
                                                 </div>
                                                 <h3 className={`text-sm font-black uppercase tracking-widest mb-1 ${textColor}`}>
-                                                    Click to Upload
+                                                    Upload
                                                 </h3>
                                                 <p className="text-xs text-slate-400 font-medium">
-                                                    Scanned copies of the letter or related documents
+                                                    Select PDF or scanned copies of the letter
                                                 </p>
                                             </div>
 
                                             {scannedFiles.length > 0 && (
                                                 <div className="mt-8 space-y-2">
-                                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected Files ({scannedFiles.length})</h4>
+                                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Files ({scannedFiles.length})</h4>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                                                         {scannedFiles.map((file, index) => (
                                                             <div key={index} className={`flex items-center justify-between p-3 rounded-xl border group animate-in fade-in slide-in-from-bottom-2 duration-300 ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}>
@@ -766,7 +776,7 @@ export default function NewLetter() {
                                 onClick={() => navigate(-1)}
                                 className={`px-8 py-3 text-sm font-bold transition-colors ${'text-gray-500 hover:text-gray-900'}`}
                             >
-                                CANCEL
+                                Cancel
                             </button>
                             {canSave && (
                                 <button
@@ -775,7 +785,7 @@ export default function NewLetter() {
                                     className={`flex items-center gap-2 px-10 py-3 text-white text-sm font-bold rounded-2xl transition-all shadow-xl disabled:opacity-50 ${'bg-[#F6A17B] hover:bg-[#e8946e] shadow-orange-100 dark:shadow-none'}`}
                                 >
                                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                    SEND LETTER
+                                    Save
                                 </button>
                             )}
                         </div>

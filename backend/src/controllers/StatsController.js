@@ -73,7 +73,7 @@ class StatsController {
                     {
                         model: Letter,
                         as: 'letter',
-                        where: { tray_id: 0 },
+                        where: { tray_id: { [Op.or]: [0, null] } },
                         required: true,
                         include: [{ model: Status, as: 'status', required: false }, 'letterKind', 'attachment', 'tray']
                     },
@@ -146,7 +146,8 @@ class StatsController {
                 const hasTray = a.letter?.tray_id && a.letter.tray_id !== 0;
 
                 // Exclude VIP correctly: tray_id == 0 AND (global_status == 2 OR status == ATG Note)
-                const isVip = a.letter?.tray_id === 0 && (a.letter?.global_status === 2 || letterStatus === 'ATG Note');
+                const isVip = (a.letter?.tray_id === 0 || a.letter?.tray_id == null) &&
+                    (a.letter?.global_status === 2 || letterStatus === 'ATG Note');
                 if (isVip) return;
 
                 // Hold counts ANY hold status

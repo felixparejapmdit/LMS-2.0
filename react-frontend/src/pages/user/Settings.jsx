@@ -104,7 +104,7 @@ export default function Settings() {
                     <div className="w-full">
                         <div className="mb-8">
                             <h2 className={`text-3xl font-bold ${textColor}`}>Settings</h2>
-                            <p className="text-gray-500 mt-2">Manage your account preferences and system configuration.</p>
+                            <p className="text-gray-500 mt-2">Customize layout and font.</p>
                         </div>
 
                         <div className="space-y-8" key={user?.id}>
@@ -112,7 +112,7 @@ export default function Settings() {
                             <section className={`${cardBg} rounded-2xl border p-8 shadow-sm`}>
                                 <div className={`flex items-center gap-2 mb-6 ${textColor}`}>
                                     <Palette className="w-5 h-5 text-gray-400" />
-                                    <h3 className="font-bold">Layout System</h3>
+                                    <h3 className="font-bold">Layout</h3>
                                 </div>
 
                                 {canLayoutSelector && (
@@ -128,7 +128,7 @@ export default function Settings() {
                                                 <span className={`text-xs font-bold uppercase tracking-widest ${textColor}`}>Minimalist</span>
                                                 {layoutStyle === 'minimalist' && <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>}
                                             </div>
-                                            <p className="text-[9px] text-gray-500 uppercase font-black">Active Layout (Notion and 3-Col Grid disabled)</p>
+                                            <p className="text-[9px] text-gray-500 uppercase font-black">Active Style</p>
                                         </button>
                                     </div>
                                 )}
@@ -137,7 +137,7 @@ export default function Settings() {
                                 {canFontSelector && <div className="mt-10 mb-6 pt-10 border-t border-gray-100 dark:border-white/5">
                                     <h4 className={`text-sm font-bold flex items-center gap-2 mb-6 ${textColor}`}>
                                         <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
-                                        Typography System
+                                        Font Style
                                     </h4>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -158,7 +158,7 @@ export default function Settings() {
                                                     <span className={`text-sm font-bold ${textColor}`}>{font.name}</span>
                                                     {fontFamily === font.name && <div className="w-2 h-2 bg-orange-500 rounded-full"></div>}
                                                 </div>
-                                                <p className="text-[10px] text-gray-400">The quick brown fox jumps over the lazy dog</p>
+                                                <p className="text-[10px] text-gray-400">Abc 123</p>
                                             </button>
                                         ))}
                                     </div>
@@ -173,7 +173,7 @@ export default function Settings() {
                                         className={`flex items-center gap-2 px-8 py-3 text-white text-sm font-bold rounded-xl transition-all shadow-md bg-orange-500 hover:bg-orange-600 shadow-orange-100 dark:shadow-none active:scale-95 disabled:opacity-50`}
                                     >
                                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                        SAVE CHANGES
+                                        Save
                                     </button>
                                 </div>
                             )}

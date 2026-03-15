@@ -1,10 +1,34 @@
 
 require('dotenv').config();
+const axios = require('axios');
 const app = require('./app');
 const sequelize = require('./config/db');
 const { Person, User, Endorsement, RolePermission, SystemPage, LetterKind, Status, ProcessStep, Letter, Tray, LetterAssignment, LetterLog, Attachment, Comment, LinkLetter, Role } = require('./models/associations');
 
 const PORT = process.env.PORT || 5000;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_WEBHOOK_URL = process.env.TELEGRAM_WEBHOOK_URL;
+
+const setupTelegramWebhook = async () => {
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_WEBHOOK_URL) {
+        console.log('Telegram webhook not configured (missing TELEGRAM_BOT_TOKEN or TELEGRAM_WEBHOOK_URL).');
+        return;
+    }
+
+    try {
+        const response = await axios.post(
+            `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`,
+            { url: TELEGRAM_WEBHOOK_URL }
+        );
+        if (!response.data?.ok) {
+            console.warn('Telegram webhook setup failed:', response.data);
+            return;
+        }
+        console.log('Telegram webhook set:', TELEGRAM_WEBHOOK_URL);
+    } catch (err) {
+        console.warn('Telegram webhook setup error:', err.response?.data || err.message);
+    }
+};
 
 async function startServer() {
     try {
@@ -53,6 +77,13 @@ async function startServer() {
         await ensureColumn('directus_users', 'theme_preference', "VARCHAR(255) DEFAULT 'light'");
         await ensureColumn('directus_users', 'telegram_chat_id', "VARCHAR(255)");
 
+        // Normalize any invalid tray_id=0 back to NULL (FK-safe unassigned tray)
+        try {
+            await sequelize.query("UPDATE letters SET tray_id = NULL WHERE tray_id = 0");
+        } catch (e) {
+            console.warn("Tray ID cleanup skipped:", e.message);
+        }
+
         // 3. Specific Index Fixes
         try {
             await sequelize.query("CREATE UNIQUE INDEX IF NOT EXISTS role_page_unique ON role_permissions (role_id, page_name)");
@@ -62,6 +93,8 @@ async function startServer() {
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
         });
+
+        setupTelegramWebhook().catch(() => { });
     } catch (error) {
         console.error('Unable to connect to the database:', error);
     }

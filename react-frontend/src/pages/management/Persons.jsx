@@ -100,7 +100,7 @@ export default function Persons() {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this contact?")) return;
+        if (!window.confirm("Delete contact?")) return;
         try {
             await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/${id}`);
             fetchData();
@@ -174,14 +174,14 @@ export default function Persons() {
                         </div>
                         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium mb-1">
                             <MapPin className="w-3 h-3" />
-                            {person.area || "No Area"}
+                            {person.area || "None"}
                         </div>
                         <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">
                             ID: {person.name_id || 'N/A'}
                         </div>
                         {person.telegram_chat_id && (
                             <div className="text-[9px] text-green-500 font-bold uppercase tracking-widest mt-1">
-                                Bot ID: {person.telegram_chat_id}
+                                ID: {person.telegram_chat_id}
                             </div>
                         )}
                     </div>
@@ -216,14 +216,14 @@ export default function Persons() {
                         <div className="flex items-center gap-2">
                             <UsersIcon className={`w-4 h-4 ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-orange-500'}`} />
                             <div>
-                                <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Management</h1>
-                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Contacts</h2>
+                                <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Setup</h1>
+                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Persons</h2>
                             </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
                         {canRefresh && <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>}
-                        {canAdd && <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-orange-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> Add Contact</button>}
+                        {canAdd && <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-orange-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> New</button>}
                     </div>
                 </header>
 
@@ -231,8 +231,8 @@ export default function Persons() {
                     <div className="max-w-[100vw] mx-auto">
                         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
                             <div>
-                                <h2 className={`text-3xl font-bold ${textColor}`}>Directory / Contacts</h2>
-                                <p className="text-gray-500 mt-2">Manage external senders, contact IDs, and Telegram integrations.</p>
+                                <h2 className={`text-3xl font-bold ${textColor}`}>Persons</h2>
+                                <p className="text-gray-500 mt-2">Manage contacts.</p>
                             </div>
                             {canViewToggle && (
                                 <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm font-sans">
@@ -259,7 +259,7 @@ export default function Persons() {
                     <div className={`${cardBg} w-full max-w-lg rounded-[2.5rem] border shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 overflow-hidden`}>
                         <div className="p-8">
                             <div className="flex items-center justify-between mb-8">
-                                <h3 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>{modalMode === 'create' ? 'Add Contact' : 'Edit Contact'}</h3>
+                                <h3 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>{modalMode === 'create' ? 'Add' : 'Edit'}</h3>
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
                             </div>
 
@@ -267,33 +267,33 @@ export default function Persons() {
                                 {error && <div className="text-red-500 text-sm font-bold">{error}</div>}
 
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Name</label>
                                     <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">LMS / System ID</label>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">ID</label>
                                         <input type="text" value={formData.name_id} onChange={e => setFormData({ ...formData, name_id: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold font-mono" />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Assign Area</label>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Area</label>
                                         <input type="text" value={formData.area} onChange={e => setFormData({ ...formData, area: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" />
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Telegram ID</label>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Telegram</label>
                                         <input type="text" value={formData.telegram} onChange={e => setFormData({ ...formData, telegram: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30 focus:border-blue-500 text-sm font-bold text-blue-600 dark:text-blue-400" placeholder="@username" />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Bot Chat ID</label>
-                                        <input type="text" value={formData.telegram_chat_id} onChange={e => setFormData({ ...formData, telegram_chat_id: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-green-50/50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30 focus:border-green-500 text-sm font-bold text-green-600 dark:text-green-400" placeholder="Numeric ID" />
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Chat ID</label>
+                                        <input type="text" value={formData.telegram_chat_id} onChange={e => setFormData({ ...formData, telegram_chat_id: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-green-50/50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30 focus:border-green-500 text-sm font-bold text-green-600 dark:text-green-400" placeholder="ID" />
                                     </div>
                                 </div>
                                 <div className="pt-4">
-                                    {canSave && <button disabled={submitting} className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Contact Info"}</button>}
+                                    {canSave && <button disabled={submitting} className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}</button>}
                                 </div>
                             </form>
                         </div>

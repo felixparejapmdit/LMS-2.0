@@ -18,6 +18,11 @@ class LetterAssignmentController {
             const where = {};
 
             const normalizedRole = role ? role.toString().toUpperCase() : '';
+            let atgStatusId = null;
+            if (vip === 'true' || req.query.exclude_vip === 'true' || named_filter === 'atg_note') {
+                const atgStatus = await Status.findOne({ where: { status_name: 'ATG Note' } });
+                atgStatusId = atgStatus?.id || null;
+            }
 
             // Role-based filtering for USER role
             if (normalizedRole === 'USER' && user_id) {
@@ -135,26 +140,31 @@ class LetterAssignmentController {
             }
 
             if (vip === 'true') {
+                const atgStatusFilter = atgStatusId
+                    ? {
+                        [Op.or]: [
+                            { '$letter.global_status$': atgStatusId },
+                            { '$letter.status.status_name$': 'ATG Note' }
+                        ]
+                    }
+                    : { '$letter.status.status_name$': 'ATG Note' };
                 if (!where[Op.and]) where[Op.and] = [];
-                where[Op.and].push({
-                    '$letter.tray_id$': 0,
-                    [Op.or]: [
-                        { '$letter.global_status$': 2 },
-                        { '$letter.status.status_name$': 'ATG Note' }
-                    ]
-                });
+                where[Op.and].push({ '$letter.tray_id$': { [Op.or]: [0, null] } }, atgStatusFilter);
             } else if (req.query.exclude_vip === 'true' && named_filter !== 'atg_note') {
                 // Only exclude VIPs from general tabs, allow in ATG Note if specifically requested there
                 if (!where[Op.not]) where[Op.not] = {};
+                const atgStatusFilter = atgStatusId
+                    ? {
+                        [Op.or]: [
+                            { '$letter.global_status$': atgStatusId },
+                            { '$letter.status.status_name$': 'ATG Note' }
+                        ]
+                    }
+                    : { '$letter.status.status_name$': 'ATG Note' };
                 where[Op.not] = {
                     [Op.and]: [
-                        { '$letter.tray_id$': 0 },
-                        {
-                            [Op.or]: [
-                                { '$letter.global_status$': 2 },
-                                { '$letter.status.status_name$': 'ATG Note' }
-                            ]
-                        }
+                        { '$letter.tray_id$': { [Op.or]: [0, null] } },
+                        atgStatusFilter
                     ]
                 };
             }

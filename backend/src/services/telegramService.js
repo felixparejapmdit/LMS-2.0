@@ -4,18 +4,45 @@ require('dotenv').config();
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const BASE_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
+const ICONS = {
+    bell: '📢',
+    page: '📄',
+    person: '👤',
+    rocket: '🚀',
+    pin: '📍',
+    comment: '💬',
+    track: '🔍',
+    check: '✅'
+};
+
 class TelegramService {
+    static escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;');
+    }
+    static parseSenderNames(senderField) {
+        if (!senderField) return [];
+        return senderField
+            .split(';')
+            .map((name) => name.trim())
+            .filter((name) => name.length > 0);
+    }
     /**
      * Sends a message to a specific chat ID
      */
-    static async sendMessage(chatId, text, replyMarkup = null) {
+    static async sendMessage(chatId, text, replyMarkup = null, extra = {}) {
         if (!BOT_TOKEN || !chatId) return null;
 
         try {
             const payload = {
                 chat_id: chatId,
                 text: text,
-                parse_mode: 'HTML'
+                parse_mode: 'HTML',
+                ...extra
             };
             if (replyMarkup) {
                 payload.reply_markup = replyMarkup;
@@ -28,26 +55,54 @@ class TelegramService {
         }
     }
 
-    /**
-     * Formats notification for letter movements
-     */
-    static async notifyMovement(letter, deptName, stepName) {
-        const text = `📢 <b>LMS 2.0 Notification</b>
-📄 Letter: <code>${letter.lms_id}</code>
-👤 Sender: ${letter.sender}
-🚀 New Status: ${stepName}
-📍 Department: ${deptName}`;
+    static async answerCallbackQuery(callbackQueryId, text = null, showAlert = false) {
+        if (!BOT_TOKEN || !callbackQueryId) return null;
+        try {
+            const payload = {
+                callback_query_id: callbackQueryId,
+                show_alert: showAlert
+            };
+            if (text) payload.text = text;
+            const response = await axios.post(`${BASE_URL}/answerCallbackQuery`, payload);
+            return response.data;
+        } catch (error) {
+            console.error('Error answering Telegram callback:', error.response?.data || error.message);
+            return null;
+        }
+    }
 
-        const replyMarkup = {
-            inline_keyboard: [
-                [
-                    { text: '💬 Add Comment', callback_data: `add_comment:${letter.id}` },
-                    { text: '🔍 Track Progress', url: `https://test-lms.pmdmc.net/letter-tracker/${letter.id}` }
-                ]
-            ]
-        };
+    static buildMovementText(letter, deptName, stepName) {
+        const safeLms = TelegramService.escapeHtml(letter.lms_id);
+        const safeSender = TelegramService.escapeHtml(letter.sender);
+        const safeStep = TelegramService.escapeHtml(stepName);
+        const safeDept = TelegramService.escapeHtml(deptName);
+        return `${ICONS.bell} <b>LMS 2.0 Notification</b>\n` +
+            `${ICONS.page} Letter: <code>${safeLms}</code>\n` +
+            `${ICONS.person} Sender: ${safeSender}\n` +
+            `${ICONS.rocket} New Status: ${safeStep}\n` +
+            `${ICONS.pin} Department: ${safeDept}`;
+    }
 
-        return { text, replyMarkup };
+    static buildMovementReplyMarkup(letterId, options = {}) {
+        const allowComment = options.allowComment === true;
+        const allowAcknowledge = options.allowAcknowledge === true;
+        const row = [];
+        if (allowComment) {
+            row.push({ text: `${ICONS.comment} Add Comment`, callback_data: `add_comment:${letterId}` });
+        }
+        row.push({ text: `${ICONS.track} Track Progress`, callback_data: `track_progress:${letterId}` });
+
+        const inlineKeyboard = [row];
+        if (allowAcknowledge) {
+            inlineKeyboard.push([{ text: `${ICONS.check} Received`, callback_data: `ack:${letterId}` }]);
+        }
+
+        return { inline_keyboard: inlineKeyboard };
+    }
+
+    static isVipRole(userInstance) {
+        const roleName = (userInstance?.roleData?.name || userInstance?.role || '').toString().toUpperCase();
+        return roleName === 'VIP';
     }
 
     /**
@@ -76,6 +131,32 @@ class TelegramService {
                 chatIds.push(person.telegram_chat_id);
             }
         }
+        return [...new Set(chatIds)];
+    }
+
+    /**
+     * Gets chat IDs for sender names stored in the Person table
+     */
+    static async getChatIdsForSenders(senderField, Person) {
+        const { Op } = require('sequelize');
+        const chatIds = [];
+        const senderNames = TelegramService.parseSenderNames(senderField);
+
+        for (const name of senderNames) {
+            let person = await Person.findOne({ where: { name } });
+            if (!person) {
+                person = await Person.findOne({
+                    where: {
+                        name: { [Op.like]: `%${name}%` }
+                    }
+                });
+            }
+
+            if (person && person.telegram_chat_id) {
+                chatIds.push(person.telegram_chat_id);
+            }
+        }
+
         return [...new Set(chatIds)];
     }
 }

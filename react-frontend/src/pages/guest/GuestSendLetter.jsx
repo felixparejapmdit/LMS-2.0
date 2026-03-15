@@ -306,7 +306,6 @@ export default function GuestSendLetter() {
                         <div className="flex items-center gap-2">
                             <FileText className={`w-4 h-4 ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-blue-500'}`} />
                             <div>
-                                <h1 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Correspondence</h1>
                                 <h2 className={`text-sm font-bold uppercase tracking-tight ${textColor}`}>{referenceNo}</h2>
                             </div>
                         </div>
@@ -314,7 +313,7 @@ export default function GuestSendLetter() {
 
                     <div className="flex items-center gap-6">
                         <div className="hidden md:flex flex-col items-end">
-                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Entry Date</span>
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Date</span>
                             <span className={`text-xs font-bold ${textColor}`}>{today}</span>
                         </div>
                         {!isLoggedIn && (
@@ -341,7 +340,7 @@ export default function GuestSendLetter() {
                             <section className={`${cardBg} p-6 md:p-6 rounded-2xl border space-y-4 md:space-y-6`}>
                                 <div className={`flex items-center gap-4 border-b pb-6 ${'border-slate-50 dark:border-[#222]'}`}>
                                     <FileText className={`w-5 h-5 ${subTextColor}`} />
-                                    <h2 className={`text-lg font-bold uppercase tracking-tight ${textColor}`}>Letter Metadata</h2>
+                                    <h2 className={`text-lg font-bold uppercase tracking-tight ${textColor}`}>Letter</h2>
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-6">
@@ -349,7 +348,7 @@ export default function GuestSendLetter() {
                                     {canSenderField && <div className="space-y-3">
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <User className={`w-3 h-3 ${subTextColor}`} /> Sender Name (LASTNAME, FIRSTNAME)
+                                                <User className={`w-3 h-3 ${subTextColor}`} /> Sender
                                             </div>
                                             <div className="flex items-center gap-4">
                                                 <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
@@ -414,7 +413,7 @@ export default function GuestSendLetter() {
                                             className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed ${'border-slate-100 dark:border-[#333] text-slate-400 hover:border-orange-500/30 hover:text-orange-600'} transition-all`}
                                         >
                                             <Plus className="w-4 h-4" />
-                                            <span className="text-[10px] font-bold uppercase tracking-widest">Add another sender</span>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest">Add Name</span>
                                         </button>
                                     </div>}
 
@@ -422,13 +421,13 @@ export default function GuestSendLetter() {
                                     {canSummaryField && <div className="space-y-3">
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between gap-2">
                                             <div className="flex items-center gap-2">
-                                                <MessageSquare className={`w-3 h-3 ${subTextColor}`} /> Regarding (Re:)
+                                                <MessageSquare className={`w-3 h-3 ${subTextColor}`} /> Subject
                                             </div>
                                             <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
                                         </label>
                                         <textarea
                                             rows={4}
-                                            placeholder="Enter letter summary"
+                                            placeholder="Subject"
                                             value={formData.regarding}
                                             onChange={(e) => setFormData({ ...formData, regarding: e.target.value })}
                                             className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-base font-medium outline-none resize-none`}
@@ -440,7 +439,7 @@ export default function GuestSendLetter() {
                                         {canEncoderField && <div className="space-y-4 pt-4 border-t border-slate-50 dark:border-white/5">
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
-                                                    <User className={`w-3 h-3 ${subTextColor}`} /> Encoder Name (LASTNAME, FIRSTNAME)
+                                                    <User className={`w-3 h-3 ${subTextColor}`} /> Encoded By (Lastname, Firstname)
                                                 </div>
                                                 <div className="flex items-center gap-4">
                                                     <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
@@ -497,7 +496,7 @@ export default function GuestSendLetter() {
                             <section className={`${cardBg} p-6 md:p-6 rounded-2xl border flex flex-col`}>
                                 <div className={`flex items-center gap-4 border-b pb-4 mb-8 ${'border-slate-50 dark:border-[#222]'}`}>
                                     <Upload className={`w-5 h-5 ${subTextColor}`} />
-                                    <h2 className={`text-lg font-bold uppercase tracking-tight ${textColor}`}>Attachments</h2>
+                                    <h2 className={`text-lg font-bold uppercase tracking-tight ${textColor}`}>Files</h2>
                                 </div>
 
                                 {(() => {
@@ -506,13 +505,13 @@ export default function GuestSendLetter() {
                                             {/* Physical Attachment Selection */}
                                             {canAttachmentSelector && <div className="space-y-3">
                                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                                    Physical Attachment / Reference
+                                                    Setup
                                                 </label>
                                                 <div className="space-y-3" ref={attachmentSearchRef}>
                                                     <div className="relative">
                                                         <input
                                                             type="text"
-                                                            placeholder="Type to search attachments..."
+                                                            placeholder="Search..."
                                                             value={attachmentSearch}
                                                             onChange={(e) => {
                                                                 setAttachmentSearch(e.target.value);
@@ -581,7 +580,7 @@ export default function GuestSendLetter() {
                                             {/* Digital Upload */}
                                             {canAttachmentUpload && <div className={`space-y-6 transition-all duration-300`}>
                                                 <div className="flex items-center justify-between">
-                                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Scanned Letter Upload</h4>
+                                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Letter Image/PDF</h4>
                                                 </div>
                                                 <div
                                                     onClick={() => fileInputRef.current.click()}
@@ -600,7 +599,7 @@ export default function GuestSendLetter() {
                                                         <Upload className={`w-8 h-8 ${subTextColor}`} />
                                                     </div>
                                                     <h3 className={`text-sm font-bold uppercase tracking-widest mb-1 ${textColor}`}>
-                                                        Click to Upload
+                                                        Upload
                                                     </h3>
                                                     <p className="text-xs text-slate-400 font-medium">
                                                         or drag and drop files here
@@ -609,7 +608,7 @@ export default function GuestSendLetter() {
 
                                                 {attachments.length > 0 && (
                                                     <div className="mt-8 space-y-2">
-                                                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Attached Files ({attachments.length})</h4>
+                                                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Attached ({attachments.length})</h4>
                                                         <div className="max-h-40 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                                                             {attachments.map((file, index) => (
                                                                 <div key={index} className={`flex items-center justify-between p-3 rounded-xl border group ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}>
@@ -644,7 +643,7 @@ export default function GuestSendLetter() {
                                             onClick={handleSend}
                                             className={`w-full py-4 ${accentColor} text-white font-bold text-xs uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-3 transition-all shadow-md active:scale-[0.98] ${'shadow-orange-100'}`}
                                         >
-                                            <Send className="w-4 h-4" /> Send Letter
+                                            <Send className="w-4 h-4" /> Submit
                                         </button>
                                     )}
                                     {canClear && (
@@ -652,7 +651,7 @@ export default function GuestSendLetter() {
                                             onClick={handleClear}
                                             className={`w-full py-4 bg-transparent border-2 font-bold text-xs uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-3 transition-all ${'border-slate-100 dark:border-[#333] text-slate-400 hover:border-red-100 dark:hover:border-red-900/20 hover:text-red-500'}`}
                                         >
-                                            <Trash2 className="w-4 h-4" /> Clear All Fields
+                                            <Trash2 className="w-4 h-4" /> Clear
                                         </button>
                                     )}
                                 </div>

@@ -18,7 +18,7 @@ async function test() {
 
         if (vip === 'true') {
             letterInclude.where = {
-                tray_id: 0,
+                tray_id: null,
                 [Op.or]: [
                     { global_status: 2 },
                     { '$letter.status.status_name$': 'ATG Note' }

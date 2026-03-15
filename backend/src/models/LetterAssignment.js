@@ -81,7 +81,7 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                 if (TelegramService) {
                     const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
                     if (letter) {
-                        const { text, replyMarkup } = await TelegramService.notifyMovement(letter, deptName, stepName);
+                        const movementText = TelegramService.buildMovementText(letter, deptName, stepName);
 
                         // Recipients: VIPs and Administrators
                         const recipients = await User.findAll({
@@ -95,9 +95,18 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                             if (encoder) recipients.push(encoder);
                         }
 
-                        const chatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
+                        const vipRecipients = recipients.filter((userInstance) => TelegramService.isVipRole(userInstance));
+                        const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
+                        const vipChatIds = await TelegramService.getChatIdsForUsers(vipRecipients, Person, User);
+                        const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
+                        const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
                         for (const chatId of chatIds) {
-                            await TelegramService.sendMessage(chatId, text, replyMarkup);
+                            const allowComment = vipChatIds.includes(chatId);
+                            const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, {
+                                allowComment,
+                                allowAcknowledge: !allowComment
+                            });
+                            await TelegramService.sendMessage(chatId, movementText, replyMarkup);
                         }
                     }
                 }
@@ -151,7 +160,7 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                     if (TelegramService) {
                         const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
                         if (letter) {
-                            const { text, replyMarkup } = await TelegramService.notifyMovement(letter, deptName, stepName);
+                            const movementText = TelegramService.buildMovementText(letter, deptName, stepName);
 
                             // Recipients: VIPs and Administrators
                             const recipients = await User.findAll({
@@ -165,9 +174,18 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                                 if (encoder) recipients.push(encoder);
                             }
 
-                            const chatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
+                            const vipRecipients = recipients.filter((userInstance) => TelegramService.isVipRole(userInstance));
+                            const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
+                            const vipChatIds = await TelegramService.getChatIdsForUsers(vipRecipients, Person, User);
+                            const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
+                            const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
                             for (const chatId of chatIds) {
-                                await TelegramService.sendMessage(chatId, text, replyMarkup);
+                                const allowComment = vipChatIds.includes(chatId);
+                                const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, {
+                                    allowComment,
+                                    allowAcknowledge: !allowComment
+                                });
+                                await TelegramService.sendMessage(chatId, movementText, replyMarkup);
                             }
                         }
                     }

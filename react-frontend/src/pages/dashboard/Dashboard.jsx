@@ -55,9 +55,9 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     signature: 'For Signature',
     vem: 'VEM Letter',
     pending: 'Pending',
-    hold: 'On Hold'
+    hold: 'Hold'
   };
-  const activeTabLabel = tabLabels[activeStepTab] || 'Active Records';
+  const activeTabLabel = tabLabels[activeStepTab] || 'Letters';
 
   const fetchAssignments = async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -203,7 +203,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <h1 className={`text-xl font-bold ${textColor} tracking-tight`}>
                   {view === 'inbox' ? 'Inbox' : view === 'outbox' ? 'Outbox' : view}
                 </h1>
-                <p className="text-[10px] text-[#737373] uppercase tracking-[0.2em] font-medium">LMS Workspace</p>
+                <p className="text-[10px] text-[#737373] uppercase tracking-[0.2em] font-medium">LMS</p>
               </div>
             </div>
 
@@ -216,7 +216,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                     { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                     { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
                     { id: 'pending', label: 'Pending', count: inboxStats.pending },
-                    { id: 'hold', label: 'On Hold', count: inboxStats.hold }
+                    { id: 'hold', label: 'Hold', count: inboxStats.hold }
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -235,7 +235,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <button
                   onClick={() => fetchAssignments(true)}
                   className="p-2 text-[#737373] hover:text-[#1A1A1B] dark:hover:text-white transition-colors"
-                  title="Sync Data"
+                  title="Refresh"
                 >
                   <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                 </button>
@@ -248,7 +248,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
               <div className="mb-8 md:mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h2 className="text-3xl font-bold text-[#1A1A1B] dark:text-white tracking-tight mb-2">{activeTabLabel}</h2>
-                  <p className="text-sm text-[#737373] dark:text-gray-400">Viewing {assignments.length} assignments currently on hold or in progress.</p>
+                  <p className="text-sm text-[#737373] dark:text-gray-400">{assignments.length} letters.</p>
                 </div>
 
                 {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
@@ -284,12 +284,12 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
               {loading ? (
                 <div className="py-32 flex flex-col items-center justify-center border border-[#E5E5E5] dark:border-[#222] bg-white dark:bg-[#141414] rounded-2xl">
                   <Loader2 className="w-8 h-8 text-[#1A1A1B] dark:text-white animate-spin mb-4" />
-                  <span className="text-xs font-bold text-[#737373] uppercase tracking-widest">Fetching Content...</span>
+                  <span className="text-xs font-bold text-[#737373] uppercase tracking-widest">Loading...</span>
                 </div>
               ) : filteredAssignments.length === 0 ? (
                 <div className="py-32 flex flex-col items-center justify-center border border-dashed border-[#E5E5E5] dark:border-[#222] bg-white dark:bg-[#141414] rounded-2xl">
                   <Inbox className="w-10 h-10 text-[#E5E5E5] mb-4" />
-                  <span className="text-xs font-bold text-[#A3A3A3] uppercase tracking-widest">Inbox Zero</span>
+                  <span className="text-xs font-bold text-[#A3A3A3] uppercase tracking-widest">No letters</span>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -338,7 +338,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <Menu className="w-6 h-6" />
               </button>
               <div className="flex flex-col">
-                <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Workspace</span>
+                <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">LMS</span>
                 <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">{view === 'inbox' ? 'Inbox' : view === 'outbox' ? 'Outbox' : view}</h1>
               </div>
             </div>
@@ -348,7 +348,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 dark:text-slate-600" />
                   <input
                     type="text"
-                    placeholder="Search records..."
+                    placeholder="Search..."
                     className="bg-slate-50 dark:bg-white/5 border-2 border-slate-50 dark:border-transparent rounded-2xl pl-12 pr-6 py-2.5 text-sm w-40 lg:w-80 focus:border-blue-500 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-white/10 transition-all outline-none font-bold text-slate-700 dark:text-slate-200"
                   />
                 </div>
@@ -357,10 +357,10 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <button
                   onClick={() => fetchAssignments(true)}
                   className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400 dark:text-slate-600 hover:text-blue-500 dark:hover:text-blue-400 flex items-center gap-2"
-                  title="Refresh Cache"
+                  title="Refresh"
                 >
                   <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                  <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Sync</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Refresh</span>
                 </button>
               )}
               {view === 'inbox' && canTabFilter && (
@@ -371,7 +371,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                     { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                     { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
                     { id: 'pending', label: 'Pending', count: inboxStats.pending },
-                    { id: 'hold', label: 'On Hold', count: inboxStats.hold }
+                    { id: 'hold', label: 'Hold', count: inboxStats.hold }
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -403,8 +403,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="flex flex-col">
-                          <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">{view === 'inbox' ? activeTabLabel : 'Active Records'}</h2>
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">Total: {assignments.length} items</p>
+                          <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">{view === 'inbox' ? activeTabLabel : 'Letters'}</h2>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">Total: {assignments.length}</p>
                         </div>
 
                         {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
@@ -436,14 +436,14 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                   {loading ? (
                     <div className="py-24 bg-white dark:bg-[#141414] border border-slate-100 dark:border-[#222] rounded-[2.5rem] shadow-sm flex flex-col items-center justify-center">
                       <Loader2 className="w-10 h-10 text-blue-600 dark:text-blue-400 animate-spin mb-4" />
-                      <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Loading Records...</p>
+                      <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Loading...</p>
                     </div>
                   ) : filteredAssignments.length === 0 ? (
                     <div className="py-24 bg-white dark:bg-[#141414] border border-slate-100 dark:border-[#222] rounded-[2.5rem] shadow-sm flex flex-col items-center justify-center">
                       <div className="w-20 h-20 bg-slate-50 dark:bg-white/5 rounded-full flex items-center justify-center mb-6">
                         <Inbox className="w-10 h-10 text-slate-200 dark:text-slate-700" />
                       </div>
-                      <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">No Records Found</p>
+                      <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">No letters</p>
                     </div>
                   ) : (<div className="space-y-6">
                     {filteredAssignments.map((assignment) => (
@@ -530,7 +530,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                           { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                           { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
                           { id: 'pending', label: 'Pending', count: inboxStats.pending },
-                          { id: 'hold', label: 'On Hold', count: inboxStats.hold }
+                          { id: 'hold', label: 'Hold', count: inboxStats.hold }
                         ].map(tab => (
                           <button
                             key={tab.id}
@@ -549,9 +549,9 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 )}
               </div>
               <p className="text-lg text-gray-500 dark:text-gray-400">
-                {view === 'archive' ? 'History of all completed letter assignments.' :
-                  view === 'upcoming' ? 'Tasks with nearing due dates and deadlines.' :
-                    view === 'outgoing' ? 'Correspondence sent to external entities.' :
+                {view === 'archive' ? 'Completed letters.' :
+                  view === 'upcoming' ? 'Upcoming tasks.' :
+                    view === 'outgoing' ? 'Sent letters.' :
                       ''}
               </p>
             </div>
@@ -559,12 +559,12 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
             {loading ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <Loader2 className="w-8 h-8 text-gray-200 animate-spin" />
-                <p className="text-sm text-gray-400 font-medium font-sans italic">Fetching blocks...</p>
+                <p className="text-sm text-gray-400 font-medium font-sans italic">Loading...</p>
               </div>
             ) : filteredAssignments.length === 0 ? (
               <div className="py-20 text-center border border-dashed border-gray-100 dark:border-[#222] rounded-2xl">
                 <Inbox className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-                <p className="text-gray-400 font-medium">No results found.</p>
+                <p className="text-gray-400 font-medium">No letters.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -610,7 +610,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <h1 className="text-[10px] md:text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest truncate max-w-[150px] md:max-w-none">Workspace / {view === 'archive' ? 'Archive' : 'Inbox'}</h1>
+            <h1 className="text-[10px] md:text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest truncate max-w-[150px] md:max-w-none">{view === 'archive' ? 'History' : 'Inbox'}</h1>
             <div className="h-4 w-[1px] bg-gray-200 dark:bg-[#333] hidden md:block"></div>
             <p className="text-sm font-medium text-gray-900 dark:text-gray-200 hidden md:block">{assignments.length} {view === 'archive' ? 'Processed' : 'Pending'}</p>
           </div>
@@ -623,7 +623,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                 { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
                 { id: 'pending', label: 'Pending', count: inboxStats.pending },
-                { id: 'hold', label: 'On Hold', count: inboxStats.hold }
+                { id: 'hold', label: 'Hold', count: inboxStats.hold }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -646,7 +646,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 className="px-4 py-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-all flex items-center gap-2 border border-gray-100 dark:border-[#333]"
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                <span className="text-xs font-bold uppercase tracking-widest hidden md:inline">Fetch Assignments</span>
+                <span className="text-xs font-bold uppercase tracking-widest hidden md:inline">Refresh</span>
               </button>
             )}
           </div>
@@ -659,9 +659,9 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
               <div className="flex items-center gap-6">
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
                   {view === 'inbox' ? activeTabLabel :
-                    view === 'archive' ? 'Archive' :
-                      view === 'upcoming' ? 'Upcoming Tasks' :
-                        view === 'outgoing' ? 'Outgoing Letters' : 'Outbox'}
+                    view === 'archive' ? 'History' :
+                      view === 'upcoming' ? 'Upcoming' :
+                        view === 'outgoing' ? 'Sent' : 'Outbox'}
                 </h2>
 
                 {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
@@ -688,23 +688,23 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 )}
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                {view === 'archive' ? 'History of all completed letter assignments.' :
-                  view === 'upcoming' ? 'Tasks with nearing due dates and deadlines.' :
-                    view === 'outgoing' ? 'Correspondence sent to external entities.' :
-                      'Manage your departmental letters and workflow steps.'}
+                {view === 'archive' ? 'Completed letters.' :
+                  view === 'upcoming' ? 'Upcoming tasks.' :
+                    view === 'outgoing' ? 'Sent letters.' :
+                      'Manage letters.'}
               </p>
             </div>
 
             {loading ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
-                <p className="text-sm text-gray-500 font-medium">Synchronizing with Directus...</p>
+                <p className="text-sm text-gray-500 font-medium">Loading...</p>
               </div>
             ) : filteredAssignments.length === 0 ? (
               <div className="py-32 text-center bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#222] rounded-3xl shadow-sm">
                 <Inbox className="w-16 h-16 text-gray-100 dark:text-gray-700 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-gray-300 dark:text-gray-600 uppercase tracking-widest">Inbox Zero</h3>
-                <p className="text-gray-400 dark:text-gray-600 mt-1">No pending letters for your department.</p>
+                <h3 className="text-lg font-bold text-gray-300 dark:text-gray-600 uppercase tracking-widest">No records</h3>
+                <p className="text-gray-400 dark:text-gray-600 mt-1">No data.</p>
               </div>
             ) : (<div className="grid grid-cols-1 gap-4">
               {filteredAssignments.map((assignment) => (

@@ -113,7 +113,7 @@ export default function Trays() {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Delete this physical tray? This will NOT delete associated letters but will remove the location reference.")) return;
+        if (!window.confirm("Delete this tray?")) return;
         try {
             await trayService.deleteTray(id);
             fetchTrays();
@@ -163,7 +163,7 @@ export default function Trays() {
                             <TrayIcon className={`w-4 h-4 ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-orange-500'}`} />
                             <div>
                                 <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Workspace</h1>
-                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Physical Trays</h2>
+                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Trays</h2>
                             </div>
                         </div>
                     </div>
@@ -183,7 +183,7 @@ export default function Trays() {
                                 className="hidden md:flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-orange-500/20 uppercase tracking-widest"
                             >
                                 <Plus className="w-3 h-3" />
-                                Add Tray
+                                New
                             </button>
                         )}
                     </div>
@@ -193,8 +193,8 @@ export default function Trays() {
                     <div className="max-w-[100vw] mx-auto">
                         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
                             <div>
-                                <h2 className={`text-3xl font-bold ${textColor}`}>Tray Management</h2>
-                                <p className="text-gray-500 mt-2">Organize and monitor physical storage bins for correspondence.</p>
+                                <h2 className={`text-3xl font-bold ${textColor}`}>Trays</h2>
+                                <p className="text-gray-500 mt-2">Manage storage.</p>
                             </div>
 
                             {canViewToggle && (
@@ -218,13 +218,13 @@ export default function Trays() {
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-40 gap-4">
                                 <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
-                                <p className="text-sm text-gray-500 font-bold uppercase tracking-widest">Synchronizing...</p>
+                                <p className="text-sm text-gray-500 font-bold uppercase tracking-widest">Loading...</p>
                             </div>
                         ) : trays.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-40 gap-4 text-center bg-white dark:bg-[#141414] rounded-[2rem] border border-gray-100 dark:border-[#222]">
                                 <TrayIcon className="w-16 h-16 text-slate-100 dark:text-[#222]" />
-                                <h3 className="text-lg font-bold text-slate-300 dark:text-slate-700 uppercase tracking-widest">System Ready</h3>
-                                <p className="text-sm text-slate-400 max-w-xs">No physical trays found. Use the 'Add Tray' button to define your storage bins.</p>
+                                <h3 className="text-lg font-bold text-slate-300 dark:text-slate-700 uppercase tracking-widest">No trays</h3>
+                                <p className="text-sm text-slate-400 max-w-xs">Add a tray to get started.</p>
                             </div>
                         ) : (
                             <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-6" : "space-y-4"}>
@@ -283,7 +283,7 @@ export default function Trays() {
                                                 {viewMode === 'grid' && (
                                                     <div className="pt-6 border-t border-gray-50 dark:border-[#222]">
                                                         <div className="flex items-center justify-between mb-2">
-                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Utilization</span>
+                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Space</span>
                                                             <span className="text-[10px] font-black text-orange-500">{percent}%</span>
                                                         </div>
                                                         <div className="w-full h-1.5 bg-slate-100 dark:bg-[#222] rounded-full overflow-hidden">
@@ -356,7 +356,7 @@ export default function Trays() {
                                     <div className="w-10 h-10 bg-slate-50 dark:bg-white/5 rounded-xl flex items-center justify-center text-slate-300 dark:text-slate-700 group-hover:bg-orange-500 group-hover:text-white transition-all">
                                         <Plus className="w-6 h-6" />
                                     </div>
-                                    <span className="text-xs font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest group-hover:text-orange-500">+ Define New Tray</span>
+                                    <span className="text-xs font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest group-hover:text-orange-500">+ New Tray</span>
                                 </button>}
                             </div>
                         )}
@@ -371,9 +371,7 @@ export default function Trays() {
                     <div className={`${cardBg} w-full max-w-md rounded-[2.5rem] border shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 overflow-hidden`}>
                         <div className="p-8">
                             <div className="flex items-center justify-between mb-8">
-                                <h3 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>
-                                    {modalMode === 'create' ? 'Create New Tray' : 'Edit Physical Tray'}
-                                </h3>
+                                {modalMode === 'create' ? 'Add' : 'Edit'}
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">
                                     <X className="w-5 h-5 text-gray-400" />
                                 </button>
@@ -388,7 +386,7 @@ export default function Trays() {
                                 )}
 
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Tray ID / Number</label>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Name</label>
                                     <input
                                         type="text"
                                         required
@@ -404,7 +402,7 @@ export default function Trays() {
                                     <input
                                         type="text"
                                         required
-                                        placeholder="Physical location or purpose"
+                                        placeholder="Purpose"
                                         value={formData.description}
                                         onChange={e => setFormData({ ...formData, description: e.target.value })}
                                         className={`w-full px-6 py-4 rounded-2xl border ${'bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'} text-sm font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-inner`}
@@ -412,7 +410,7 @@ export default function Trays() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Max Capacity (Docs)</label>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Capacity</label>
                                     <input
                                         type="number"
                                         required
@@ -432,7 +430,7 @@ export default function Trays() {
                                         ) : (
                                             <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
                                         )}
-                                        {modalMode === 'create' ? 'Define Tray' : 'Update Tray Instance'}
+                                        {modalMode === 'create' ? 'Save' : 'Save'}
                                     </button>}
                                 </div>
                             </form>

@@ -89,7 +89,11 @@ export default function Profile() {
     const handleSaveProfile = async () => {
         setLoading(true);
         try {
-            await axios.put(`${API_BASE}/users/${user.id}`, profileData);
+            const payload = {
+                ...profileData,
+                telegram_chat_id: profileData.telegram_chat_id?.trim() || null
+            };
+            await axios.put(`${API_BASE}/users/${user.id}`, payload);
             window.location.reload();
         } catch (err) {
             console.error("Save failed", err);

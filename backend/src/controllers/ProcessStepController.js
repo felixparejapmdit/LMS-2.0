@@ -6,6 +6,7 @@ class ProcessStepController {
         try {
             const { vip } = req.query;
             const stepWhere = {};
+            let atgStatusId = null;
             if (vip === 'true') {
                 stepWhere.step_name = {
                     [Op.or]: [
@@ -15,6 +16,8 @@ class ProcessStepController {
                         { [Op.like]: '%VEM%' }
                     ]
                 };
+                const atgStatus = await Status.findOne({ where: { status_name: 'ATG Note' } });
+                atgStatusId = atgStatus?.id || null;
             }
 
             const includeCfg = [{
@@ -27,16 +30,19 @@ class ProcessStepController {
 
             // If VIP view, only count letters with tray_id 0 and (global_status: 2 OR status name: 'ATG Note')
             if (vip === 'true') {
+                const atgStatusFilter = atgStatusId
+                    ? {
+                        [Op.or]: [
+                            { '$assignments.letter.global_status$': atgStatusId },
+                            { '$assignments.letter.status.status_name$': 'ATG Note' }
+                        ]
+                    }
+                    : { '$assignments.letter.status.status_name$': 'ATG Note' };
                 includeCfg[0].where = {
                     ...includeCfg[0].where,
                     [Op.and]: [
-                        { '$assignments.letter.tray_id$': 0 },
-                        {
-                            [Op.or]: [
-                                { '$assignments.letter.global_status$': 2 },
-                                { '$assignments.letter.status.status_name$': 'ATG Note' }
-                            ]
-                        }
+                        { '$assignments.letter.tray_id$': { [Op.or]: [0, null] } },
+                        atgStatusFilter
                     ]
                 };
 

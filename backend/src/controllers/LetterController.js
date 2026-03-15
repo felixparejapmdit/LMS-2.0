@@ -259,7 +259,14 @@ class LetterController {
         try {
             const letter = await Letter.findByPk(req.params.id);
             if (!letter) return res.status(404).json({ error: 'Not found' });
-            await letter.update(req.body);
+            const updates = { ...req.body };
+            if (Object.prototype.hasOwnProperty.call(updates, 'tray_id')) {
+                const parsed = updates.tray_id === "" || updates.tray_id === undefined || updates.tray_id === null
+                    ? null
+                    : parseInt(updates.tray_id);
+                updates.tray_id = Number.isNaN(parsed) ? null : parsed;
+            }
+            await letter.update(updates);
             res.json(letter);
         } catch (error) {
             res.status(400).json({ error: error.message });
