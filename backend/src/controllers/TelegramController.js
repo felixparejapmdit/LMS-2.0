@@ -32,11 +32,18 @@ class TelegramController {
             .replace(/\"/g, '&quot;');
     }
     static getPublicBaseUrl() {
-        const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL || '';
+        let webhookUrl = process.env.TELEGRAM_WEBHOOK_URL || '';
         if (!webhookUrl) return null;
+        
+        // Ensure protocol exists for URL constructor
+        if (!webhookUrl.startsWith('http')) {
+            webhookUrl = 'https://' + webhookUrl;
+        }
+
         try {
             return new URL(webhookUrl).origin;
         } catch (error) {
+            console.error('Telegram BOT: Invalid TELEGRAM_WEBHOOK_URL format:', webhookUrl);
             return null;
         }
     }
@@ -381,6 +388,20 @@ class TelegramController {
                     const normalized = text.trim();
                     const lower = normalized.toLowerCase();
                     const commandToken = lower.split(/\s+/)[0];
+
+                    // Handle /start or /help
+                    if (commandToken.startsWith('/start') || commandToken.startsWith('/help')) {
+                        let msg = `${ICONS.mail} <b>LMS 2.0 Management Bot</b>\n\n`;
+                        msg += `This bot allows you to track letters and add comments directly from Telegram.\n\n`;
+                        msg += `Your Telegram Chat ID: <code>${from.id}</code>\n\n`;
+                        msg += `<i>Use this ID in your LMS Profile to receive notifications.</i>\n\n`;
+                        msg += `<b>Commands:</b>\n`;
+                        msg += `/show letters - View pending letters (VIP only)`;
+                        
+                        await TelegramService.sendMessage(from.id, msg);
+                        return;
+                    }
+
                     const isShowCommand = /^\/show(?:@[\w_]+)?$/.test(commandToken) || /^\/showletters(?:@[\w_]+)?$/.test(commandToken);
                     const isShowLetters = isShowCommand && (lower.includes('letters') || commandToken.startsWith('/showletters'));
 
@@ -401,6 +422,9 @@ class TelegramController {
                         await TelegramService.sendMessage(from.id, `Choose which letters to view:`, replyMarkup);
                     } else if (isShowCommand) {
                         await TelegramService.sendMessage(from.id, `Try: /show letters`);
+                    } else if (commandToken.startsWith('/')) {
+                        // Unknown command
+                        await TelegramService.sendMessage(from.id, `${ICONS.warning} Unknown command. Try /help`);
                     }
                 }
             }

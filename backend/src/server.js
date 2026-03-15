@@ -11,22 +11,38 @@ const TELEGRAM_WEBHOOK_URL = process.env.TELEGRAM_WEBHOOK_URL;
 
 const setupTelegramWebhook = async () => {
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_WEBHOOK_URL) {
-        console.log('Telegram webhook not configured (missing TELEGRAM_BOT_TOKEN or TELEGRAM_WEBHOOK_URL).');
+        console.log('Telegram BOT: Webhook not configured (missing TOKEN or URL).');
         return;
     }
+
+    let finalWebhookUrl = TELEGRAM_WEBHOOK_URL;
+    // Auto-fix: if the user provided just the domain, append the correct API path
+    if (!finalWebhookUrl.endsWith('/api/telegram/webhook')) {
+        // Ensure no trailing slash before appending
+        const base = finalWebhookUrl.replace(/\/$/, '');
+        finalWebhookUrl = `${base}/api/telegram/webhook`;
+    }
+
+    console.log(`Telegram BOT: Attempting to set webhook to: ${finalWebhookUrl}`);
 
     try {
         const response = await axios.post(
             `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`,
-            { url: TELEGRAM_WEBHOOK_URL }
+            { 
+                url: finalWebhookUrl,
+                allowed_updates: ["message", "callback_query"] 
+            },
+            { timeout: 10000 }
         );
+
         if (!response.data?.ok) {
-            console.warn('Telegram webhook setup failed:', response.data);
+            console.error('Telegram BOT: Setup FAILED:', response.data);
             return;
         }
-        console.log('Telegram webhook set:', TELEGRAM_WEBHOOK_URL);
+        console.log('Telegram BOT: Webhook successfully linked.');
     } catch (err) {
-        console.warn('Telegram webhook setup error:', err.response?.data || err.message);
+        const errorDetail = err.response?.data || err.message;
+        console.error('Telegram BOT: Setup ERROR:', errorDetail);
     }
 };
 

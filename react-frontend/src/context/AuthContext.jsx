@@ -64,6 +64,16 @@ const authReducer = (state, action) => {
             return { ...state, user: action.payload };
         case 'SET_PERMISSIONS':
             return { ...state, permissions: action.payload, permissionsLoaded: true };
+        case 'LOGIN':
+        case 'LOGIN_GUEST':
+            return {
+                ...state,
+                user: action.payload.user,
+                permissions: action.payload.permissions || [],
+                permissionsLoaded: true,
+                isGuest: action.type === 'LOGIN_GUEST',
+                loading: false
+            };
         case 'LOGOUT':
             return {
                 user: null,
@@ -171,10 +181,6 @@ export const AuthProvider = ({ children }) => {
             const { user: me, permissions: perms } = response.data;
 
             console.log("AuthContext: checkAuth successful:", me.username);
-
-            if (!me.islogin) {
-                axios.put(`${BACKEND_URL}/users/${me.id}`, { islogin: true }).catch(() => { });
-            }
 
             // Sync prefs from backend
             if (me.layout_style) setLayoutStyle(normalizeLayoutStyle(me.layout_style));

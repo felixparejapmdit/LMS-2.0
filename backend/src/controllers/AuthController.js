@@ -45,6 +45,7 @@ const withDefaultFieldPermissions = (pageName, raw = {}) => {
 
 class AuthController {
     static async login(req, res) {
+        const startTime = Date.now();
         try {
             const { username, password } = req.body;
 
@@ -52,7 +53,9 @@ class AuthController {
                 return res.status(400).json({ error: 'Username and password are required' });
             }
 
-            // 1. Find user by username or email in our shared DB
+            console.log(`[LOGIN] Attempt started for: ${username}`);
+
+            // 1. Find user (Shared DB)
             const user = await User.findOne({
                 where: sequelize.or(
                     { username: username },
@@ -65,73 +68,76 @@ class AuthController {
             });
 
             if (!user) {
+                console.warn(`[LOGIN] User not found: ${username}`);
                 return res.status(401).json({ error: 'User not found' });
             }
 
-            // 2. Authenticate with Directus (this validates the password)
+            // 2. Validate password via Directus
             let directusAuth;
             try {
+                const directusLoginStart = Date.now();
                 const response = await axios.post(`${DIRECTUS_URL}/auth/login`, {
                     email: user.email,
                     password: password
-                });
+                }, { timeout: 10000 }); // 10s timeout
                 directusAuth = response.data;
+                console.log(`[LOGIN] Directus auth took ${Date.now() - directusLoginStart}ms`);
             } catch (err) {
-                console.error("Directus login failed for user:", user.email);
+                console.error(`[LOGIN] Directus auth failed for ${user.email}:`, err.message);
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
 
-            // 3. Fetch User Permissions
-            let perms = await RolePermission.findAll({
-                where: { role_id: user.role }
-            });
+            // 3. Fetch/Fix Permissions
+            const permsStart = Date.now();
+            let perms = await RolePermission.findAll({ where: { role_id: user.role } });
 
-            // Ensure all pages have a record (same logic as RolePermissionController)
-            const pages = await SystemPage.findAll({ attributes: ['page_id'] });
-            const existingPageNames = new Set(perms.map(r => r.page_name));
-            const missingPages = pages
-                .map(p => p.page_id)
-                .filter(pageId => !existingPageNames.has(pageId));
-
-            if (missingPages.length > 0) {
+            // Only fix permissions if the count is significantly lower than expected
+            const pagesCount = await SystemPage.count();
+            if (perms.length < pagesCount) {
+                console.log(`[LOGIN] Syncing ${pagesCount - perms.length} missing permissions...`);
+                const pages = await SystemPage.findAll({ attributes: ['page_id'] });
+                const existingPageNames = new Set(perms.map(r => r.page_name));
+                
                 await sequelize.transaction(async (t) => {
-                    for (const pageId of missingPages) {
-                        await RolePermission.create({
-                            role_id: user.role,
-                            page_name: pageId,
-                            can_view: false,
-                            can_create: false,
-                            can_edit: false,
-                            can_delete: false,
-                            can_special: false,
-                            field_permissions: withDefaultFieldPermissions(pageId, {})
-                        }, { transaction: t });
+                    for (const page of pages) {
+                        if (!existingPageNames.has(page.page_id)) {
+                            await RolePermission.create({
+                                role_id: user.role,
+                                page_name: page.page_id,
+                                can_view: false,
+                                can_create: false,
+                                can_edit: false,
+                                can_delete: false,
+                                can_special: false,
+                                field_permissions: withDefaultFieldPermissions(page.page_id, {})
+                            }, { transaction: t });
+                        }
                     }
                 });
-                // Re-fetch after creation
-                perms = await RolePermission.findAll({
-                    where: { role_id: user.role }
-                });
+                // Final fetch
+                perms = await RolePermission.findAll({ where: { role_id: user.role } });
             }
+            console.log(`[LOGIN] Perms sync/fetch took ${Date.now() - permsStart}ms`);
 
             const normalizedPerms = perms.map((record) => ({
                 ...record.toJSON(),
                 field_permissions: withDefaultFieldPermissions(record.page_name, record.field_permissions)
             }));
 
-            // 4. Update islogin status (non-blocking)
+            // 4. Record login (async)
             user.update({ islogin: true }).catch(() => { });
 
-            // 5. Return everything in one shot
+            console.log(`[LOGIN] Success for ${username} in ${Date.now() - startTime}ms`);
+
             res.json({
                 success: true,
-                user: user,
+                user,
                 permissions: normalizedPerms,
                 directus_auth: directusAuth.data
             });
 
         } catch (error) {
-            console.error("Combined login failed:", error);
+            console.error(`[LOGIN] Critical failure in ${Date.now() - startTime}ms:`, error);
             res.status(500).json({ error: error.message });
         }
     }
