@@ -181,6 +181,12 @@ class TelegramController {
                 if (action === 'add_comment') {
                     await TelegramService.answerCallbackQuery(callbackId);
                     const vipUser = await TelegramController.resolveUserByTelegramId(from.id);
+                    if (!vipUser) {
+                        if (chatId) {
+                            await TelegramService.sendMessage(chatId, `${ICONS.cross} Your Telegram account isn't linked to an LMS user. Please set your Chat ID in your Profile settings within the LMS.`);
+                        }
+                        return;
+                    }
                     if (!TelegramService.isVipOnly(vipUser)) {
                         console.warn(`[TELEGRAM] Access Denied for add_comment: ${from.id} (${from.username})`);
                         if (chatId) {
@@ -199,10 +205,16 @@ class TelegramController {
                 } else if (action === 'show_letters') {
                     await TelegramService.answerCallbackQuery(callbackId);
                     const vipUser = await TelegramController.resolveUserByTelegramId(from.id);
-                    if (!TelegramService.isStaffOrVip(vipUser)) {
+                    if (!vipUser) {
+                        if (chatId) {
+                            await TelegramService.sendMessage(chatId, `${ICONS.cross} Your Telegram account isn't linked to an LMS user. Please set your Chat ID in your Profile settings within the LMS.`);
+                        }
+                        return;
+                    }
+                    if (!TelegramService.isVipOnly(vipUser)) {
                         console.warn(`[TELEGRAM] Access Denied for show_letters: ${from.id} (${from.username})`);
                         if (chatId) {
-                            await TelegramService.sendMessage(chatId, `${ICONS.cross} Access Denied. Only staff/VIP users can view letters in the bot.`);
+                            await TelegramService.sendMessage(chatId, `${ICONS.cross} Access Denied. Only VIP users can view letters in the bot.`);
                         }
                         return;
                     }
@@ -281,10 +293,16 @@ class TelegramController {
                 } else if (action === 'show_comments') {
                     await TelegramService.answerCallbackQuery(callbackId);
                     const vipUser = await TelegramController.resolveUserByTelegramId(from.id);
-                    if (!TelegramService.isStaffOrVip(vipUser)) {
+                    if (!vipUser) {
+                        if (chatId) {
+                            await TelegramService.sendMessage(chatId, `${ICONS.cross} Your Telegram account isn't linked to an LMS user. Please set your Chat ID in your Profile settings within the LMS.`);
+                        }
+                        return;
+                    }
+                    if (!TelegramService.isVipOnly(vipUser)) {
                         console.warn(`[TELEGRAM] Access Denied for show_comments: ${from.id} (${from.username})`);
                         if (chatId) {
-                            await TelegramService.sendMessage(chatId, `${ICONS.cross} Access Denied. Only staff/VIP users can view comments in the bot.`);
+                            await TelegramService.sendMessage(chatId, `${ICONS.cross} Access Denied. Only VIP users can view comments in the bot.`);
                         }
                         return;
                     }
@@ -435,7 +453,8 @@ class TelegramController {
                         msg += `Your Telegram Chat ID: <code>${from.id}</code>\n\n`;
                         msg += `<i>Use this ID in your LMS Profile to receive notifications.</i>\n\n`;
                         msg += `<b>Commands:</b>\n`;
-                        msg += `/show letters - View pending letters (VIP only)`;
+                        msg += `/show - View pending letters (VIP only)\n`;
+                        msg += `/showletters - View pending letters (VIP only)`;
 
                         if (chatId) {
                             await TelegramService.sendMessage(chatId, msg);
@@ -443,14 +462,20 @@ class TelegramController {
                         return;
                     }
 
-                    const isShowLetters = command === '/showletters' || (command === '/show' && argsLower.includes('letters'));
+                    const isShowLetters = command === '/showletters' || command === '/show';
 
                     if (isShowLetters) {
                         const vipUser = await TelegramController.resolveUserByTelegramId(from.id);
-                        if (!TelegramService.isStaffOrVip(vipUser)) {
+                        if (!vipUser) {
+                            if (chatId) {
+                                await TelegramService.sendMessage(chatId, `${ICONS.cross} Your Telegram account isn't linked to an LMS user. Please set your Chat ID in your Profile settings within the LMS.`);
+                            }
+                            return;
+                        }
+                        if (!TelegramService.isVipOnly(vipUser)) {
                             console.warn(`[TELEGRAM] Access Denied for /show letters: ${from.id} (${from.username})`);
                             if (chatId) {
-                                await TelegramService.sendMessage(chatId, `${ICONS.cross} Access Denied. Only staff/VIP users can use /show letters.`);
+                                await TelegramService.sendMessage(chatId, `${ICONS.cross} Access Denied. Only VIP users can use /show letters.`);
                             }
                             return;
                         }
@@ -464,10 +489,6 @@ class TelegramController {
                         };
                         if (chatId) {
                             await TelegramService.sendMessage(chatId, `Choose which letters to view:`, replyMarkup);
-                        }
-                    } else if (command === '/show') {
-                        if (chatId) {
-                            await TelegramService.sendMessage(chatId, `Try: /show letters`);
                         }
                     } else if (command && command.startsWith('/')) {
                         // Unknown command

@@ -83,25 +83,37 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                     if (letter) {
                         const movementText = TelegramService.buildMovementText(letter, deptName, stepName);
 
-                        // Recipients: VIPs and Administrators
+                        // Recipients: configured staff (VIPs will be filtered out before sending)
                         const recipients = await User.findAll({
                             where: { role: { [Op.in]: ['VIP', 'Administrator'] } },
                             transaction: options.transaction
                         });
 
-                        // Also notify the encoder if they are not already in recipients
+                        // Also notify the encoder if they are not already in recipients and not VIP
                         if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
                             const encoder = await User.findByPk(letter.encoder_id, { transaction: options.transaction });
-                            if (encoder) recipients.push(encoder);
+                            if (encoder && !TelegramService.isVipOnly(encoder)) recipients.push(encoder);
                         }
 
-                        const vipRecipients = recipients.filter((userInstance) => TelegramService.isVipOnly(userInstance));
                         const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
-                        const vipChatIds = await TelegramService.getChatIdsForUsers(vipRecipients, Person, User);
                         const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
                         const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
-                        for (const chatId of chatIds) {
-                            const allowComment = vipChatIds.includes(chatId);
+
+                        let filteredChatIds = chatIds;
+                        if (chatIds.length > 0) {
+                            const vipUsers = await User.findAll({
+                                where: { telegram_chat_id: { [Op.in]: chatIds } },
+                                include: [{ model: sequelize.models.Role, as: 'roleData' }],
+                                transaction: options.transaction
+                            });
+                            const vipChatIds = vipUsers
+                                .filter((userInstance) => TelegramService.isVipOnly(userInstance))
+                                .map((userInstance) => userInstance.telegram_chat_id);
+                            filteredChatIds = chatIds.filter((chatId) => !vipChatIds.includes(chatId));
+                        }
+
+                        for (const chatId of filteredChatIds) {
+                            const allowComment = false;
                             const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, {
                                 allowComment,
                                 allowAcknowledge: !allowComment
@@ -162,25 +174,37 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                         if (letter) {
                             const movementText = TelegramService.buildMovementText(letter, deptName, stepName);
 
-                            // Recipients: VIPs and Administrators
+                            // Recipients: configured staff (VIPs will be filtered out before sending)
                             const recipients = await User.findAll({
                                 where: { role: { [Op.in]: ['VIP', 'Administrator'] } },
                                 transaction: options.transaction
                             });
 
-                            // Also notify the encoder if they are not already in recipients
+                            // Also notify the encoder if they are not already in recipients and not VIP
                             if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
                                 const encoder = await User.findByPk(letter.encoder_id, { transaction: options.transaction });
-                                if (encoder) recipients.push(encoder);
+                                if (encoder && !TelegramService.isVipOnly(encoder)) recipients.push(encoder);
                             }
 
-                            const vipRecipients = recipients.filter((userInstance) => TelegramService.isVipOnly(userInstance));
                             const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
-                            const vipChatIds = await TelegramService.getChatIdsForUsers(vipRecipients, Person, User);
                             const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
                             const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
-                            for (const chatId of chatIds) {
-                                const allowComment = vipChatIds.includes(chatId);
+
+                            let filteredChatIds = chatIds;
+                            if (chatIds.length > 0) {
+                                const vipUsers = await User.findAll({
+                                    where: { telegram_chat_id: { [Op.in]: chatIds } },
+                                    include: [{ model: sequelize.models.Role, as: 'roleData' }],
+                                    transaction: options.transaction
+                                });
+                                const vipChatIds = vipUsers
+                                    .filter((userInstance) => TelegramService.isVipOnly(userInstance))
+                                    .map((userInstance) => userInstance.telegram_chat_id);
+                                filteredChatIds = chatIds.filter((chatId) => !vipChatIds.includes(chatId));
+                            }
+
+                            for (const chatId of filteredChatIds) {
+                                const allowComment = false;
                                 const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, {
                                     allowComment,
                                     allowAcknowledge: !allowComment
