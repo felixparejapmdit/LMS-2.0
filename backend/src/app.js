@@ -25,9 +25,25 @@ const app = express();
 app.set('trust proxy', 1); // Enable trusting proxy headers (important for Proxmox/Docker)
 const serverStartTime = new Date();
 const shouldLogRequests = process.env.REQUEST_LOGS === 'true' || process.env.NODE_ENV !== 'production';
+const slowRequestLogsEnabled = process.env.SLOW_REQUEST_LOGS !== 'false';
+const slowRequestThresholdMs = Number.parseInt(process.env.SLOW_REQUEST_THRESHOLD_MS || '1000', 10);
 
 app.use(cors());
 app.use(express.json());
+
+// Log slow requests to help pinpoint latency hotspots
+if (slowRequestLogsEnabled) {
+    app.use((req, res, next) => {
+        const start = process.hrtime.bigint();
+        res.on('finish', () => {
+            const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
+            if (durationMs >= (Number.isFinite(slowRequestThresholdMs) ? slowRequestThresholdMs : 1000)) {
+                console.warn(`[SLOW] ${req.method} ${req.originalUrl} ${res.statusCode} - ${durationMs.toFixed(1)}ms`);
+            }
+        });
+        next();
+    });
+}
 
 // Request logger to help debug routing
 if (shouldLogRequests) {
@@ -37,8 +53,14 @@ if (shouldLogRequests) {
     });
 }
 
-// Serve uploaded files (scanned copies / PDFs)
+// Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// Debug: Force log every hit to telegram webhook specifically
+app.use('/api/telegram', (req, res, next) => {
+    console.log(`[BOT-DEBUG] Telegram Route Hit: ${req.method} ${req.url}`);
+    next();
+});
 
 // --- HEALTH CHECKS ---
 const healthHandler = (req, res) => {

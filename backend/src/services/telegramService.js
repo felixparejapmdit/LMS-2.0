@@ -100,9 +100,70 @@ class TelegramService {
         return { inline_keyboard: inlineKeyboard };
     }
 
+    static isStaffOrVip(userInstance) {
+        if (!userInstance) return false;
+        
+        const roleData = userInstance.roleData;
+        const roleName = (roleData?.name || '').toString().toUpperCase();
+        const roleIdRaw = (userInstance.role || '').toString();
+        const roleId = roleIdRaw.toLowerCase();
+
+        const envRoleNames = (process.env.TELEGRAM_STAFF_ROLE_NAMES || '')
+            .split(',')
+            .map((name) => name.trim().toUpperCase())
+            .filter(Boolean);
+        const envRoleIds = (process.env.TELEGRAM_STAFF_ROLE_IDS || '')
+            .split(',')
+            .map((id) => id.trim().toLowerCase())
+            .filter(Boolean);
+
+        // Check by Name (Standard)
+        const allowedNames = ['VIP', 'ADMIN', 'ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER', 'SUPER ADMIN', 'DEVELOPER', ...envRoleNames];
+        if (allowedNames.includes(roleName)) return true;
+        if (allowedNames.includes(roleIdRaw.toUpperCase())) return true;
+
+        // Fallback: Check by common Role UUIDs if name is missing for some reason
+        const staffRoleIds = [
+            'ac74f61c-344d-4648-9bcf-0ed4d2330b37', // VIP
+            'ec986bba-2c97-47a8-968f-f8a163e5f014', // Administrator
+            '53ad72fa-4b7a-45ca-9b80-123421e237d8', // System Admin
+            'd4353d52-3fde-4c91-a110-720947789420'  // Superuser
+        ];
+        
+        return staffRoleIds.includes(roleId) || envRoleIds.includes(roleId);
+    }
+
+    static isVipOnly(userInstance) {
+        if (!userInstance) return false;
+        const roleData = userInstance.roleData;
+        const roleName = (roleData?.name || '').toString().toUpperCase();
+        const roleIdRaw = (userInstance.role || '').toString();
+        const roleId = roleIdRaw.toLowerCase();
+
+        const envVipNames = (process.env.TELEGRAM_VIP_ROLE_NAMES || '')
+            .split(',')
+            .map((name) => name.trim().toUpperCase())
+            .filter(Boolean);
+        const envVipIds = (process.env.TELEGRAM_VIP_ROLE_IDS || '')
+            .split(',')
+            .map((id) => id.trim().toLowerCase())
+            .filter(Boolean);
+
+        const vipNames = ['VIP', ...envVipNames];
+        if (vipNames.includes(roleName)) return true;
+        if (vipNames.includes(roleIdRaw.toUpperCase())) return true;
+
+        // Default VIP role UUID if role name is unavailable
+        const vipRoleIds = [
+            'ac74f61c-344d-4648-9bcf-0ed4d2330b37' // VIP
+        ];
+
+        return vipRoleIds.includes(roleId) || envVipIds.includes(roleId);
+    }
+
+    // Backward compatibility
     static isVipRole(userInstance) {
-        const roleName = (userInstance?.roleData?.name || userInstance?.role || '').toString().toUpperCase();
-        return roleName === 'VIP';
+        return TelegramService.isVipOnly(userInstance);
     }
 
     /**

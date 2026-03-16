@@ -3,6 +3,24 @@ const axios = require('axios');
 const sequelize = require('../config/db');
 
 const DIRECTUS_URL = process.env.DIRECTUS_INTERNAL_URL || 'http://directus:8055';
+const PERMS_CACHE_TTL_MS = Number.parseInt(process.env.PERMS_CACHE_TTL_MS || '60000', 10);
+const permsCache = new Map();
+
+const getCachedPerms = (roleId) => {
+    if (!roleId || !Number.isFinite(PERMS_CACHE_TTL_MS) || PERMS_CACHE_TTL_MS <= 0) return null;
+    const cached = permsCache.get(roleId);
+    if (!cached) return null;
+    if (cached.expiresAt < Date.now()) {
+        permsCache.delete(roleId);
+        return null;
+    }
+    return cached.value;
+};
+
+const setCachedPerms = (roleId, value) => {
+    if (!roleId || !Number.isFinite(PERMS_CACHE_TTL_MS) || PERMS_CACHE_TTL_MS <= 0) return;
+    permsCache.set(roleId, { value, expiresAt: Date.now() + PERMS_CACHE_TTL_MS });
+};
 
 const PAGE_FIELD_PRESETS = {
     'home': ['refresh_button', 'quick_new_letter_button', 'quick_trays_button'],
@@ -42,6 +60,11 @@ const withDefaultFieldPermissions = (pageName, raw = {}) => {
     }
     return normalized;
 };
+
+const normalizePermissions = (perms) => perms.map((record) => ({
+    ...record.toJSON(),
+    field_permissions: withDefaultFieldPermissions(record.page_name, record.field_permissions)
+}));
 
 class AuthController {
     static async login(req, res) {
@@ -119,10 +142,8 @@ class AuthController {
             }
             console.log(`[LOGIN] Perms sync/fetch took ${Date.now() - permsStart}ms`);
 
-            const normalizedPerms = perms.map((record) => ({
-                ...record.toJSON(),
-                field_permissions: withDefaultFieldPermissions(record.page_name, record.field_permissions)
-            }));
+            const normalizedPerms = normalizePermissions(perms);
+            setCachedPerms(user.role, normalizedPerms);
 
             // 4. Record login (async)
             user.update({ islogin: true }).catch(() => { });
@@ -158,14 +179,14 @@ class AuthController {
 
             if (!user) return res.status(404).json({ error: 'User not found' });
 
-            const perms = await RolePermission.findAll({
-                where: { role_id: user.role }
-            });
-
-            const normalizedPerms = perms.map((record) => ({
-                ...record.toJSON(),
-                field_permissions: withDefaultFieldPermissions(record.page_name, record.field_permissions)
-            }));
+            let normalizedPerms = getCachedPerms(user.role);
+            if (!normalizedPerms) {
+                const perms = await RolePermission.findAll({
+                    where: { role_id: user.role }
+                });
+                normalizedPerms = normalizePermissions(perms);
+                setCachedPerms(user.role, normalizedPerms);
+            }
 
             res.json({
                 user,

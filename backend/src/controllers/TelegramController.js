@@ -170,7 +170,8 @@ class TelegramController {
 
         try {
             if (update.callback_query) {
-                const { data, from, id: callbackId } = update.callback_query;
+                const { data, from, id: callbackId, message } = update.callback_query;
+                const chatId = message?.chat?.id ?? from?.id;
                 if (!data) {
                     await TelegramService.answerCallbackQuery(callbackId);
                     return;
@@ -180,26 +181,32 @@ class TelegramController {
                 if (action === 'add_comment') {
                     await TelegramService.answerCallbackQuery(callbackId);
                     const vipUser = await TelegramController.resolveUserByTelegramId(from.id);
-                    if (!TelegramService.isVipRole(vipUser)) {
-                        await TelegramService.sendMessage(
-                            from.id,
-                            `${ICONS.cross} Only VIP users are allowed to add comments via Telegram.`
-                        );
+                    if (!TelegramService.isVipOnly(vipUser)) {
+                        console.warn(`[TELEGRAM] Access Denied for add_comment: ${from.id} (${from.username})`);
+                        if (chatId) {
+                            await TelegramService.sendMessage(chatId, `${ICONS.cross} Access Denied. Only VIP users can add comments via Telegram.`);
+                        }
                         return;
                     }
 
-                    await TelegramService.sendMessage(
-                        from.id,
-                        `${ICONS.note} <b>Adding Comment to Letter #${actionValue}</b>\n\nPlease <u>REPLY</u> to this message with your comment.`,
-                        { force_reply: true }
-                    );
+                    if (chatId) {
+                        await TelegramService.sendMessage(
+                            chatId,
+                            `${ICONS.note} <b>Adding Comment to Letter #${actionValue}</b>\n\nPlease <u>REPLY</u> to this message with your comment.`,
+                            { force_reply: true }
+                        );
+                    }
                 } else if (action === 'show_letters') {
                     await TelegramService.answerCallbackQuery(callbackId);
                     const vipUser = await TelegramController.resolveUserByTelegramId(from.id);
-                    if (!TelegramService.isVipRole(vipUser)) {
-                        await TelegramService.sendMessage(from.id, `${ICONS.cross} Only VIP users can view letters in the bot.`);
+                    if (!TelegramService.isStaffOrVip(vipUser)) {
+                        console.warn(`[TELEGRAM] Access Denied for show_letters: ${from.id} (${from.username})`);
+                        if (chatId) {
+                            await TelegramService.sendMessage(chatId, `${ICONS.cross} Access Denied. Only staff/VIP users can view letters in the bot.`);
+                        }
                         return;
                     }
+                    const allowComment = TelegramService.isVipOnly(vipUser);
 
                     const type = actionValue;
                     const titleMap = {
@@ -211,7 +218,9 @@ class TelegramController {
                     const assignments = await TelegramController.fetchLettersByType(type);
 
                     if (!assignments.length) {
-                        await TelegramService.sendMessage(from.id, `${ICONS.warning} No letters found for ${title}.`);
+                        if (chatId) {
+                            await TelegramService.sendMessage(chatId, `${ICONS.warning} No letters found for ${title}.`);
+                        }
                         return;
                     }
 
@@ -221,7 +230,9 @@ class TelegramController {
                     if (assignments.length > maxItems) {
                         header += ` Showing first ${maxItems}.`;
                     }
-                    await TelegramService.sendMessage(from.id, header);
+                    if (chatId) {
+                        await TelegramService.sendMessage(chatId, header);
+                    }
 
                     for (const assignment of limited) {
                         try {
@@ -250,7 +261,6 @@ class TelegramController {
                             const replyMarkup = {
                                 inline_keyboard: [
                                     [
-                                        { text: `${ICONS.comment} Add Comment`, callback_data: `add_comment:${letter.id}` },
                                         { text: `${ICONS.folder} View Comments`, callback_data: `show_comments:${letter.id}` }
                                     ],
                                     [
@@ -258,7 +268,12 @@ class TelegramController {
                                     ]
                                 ]
                             };
-                            await TelegramService.sendMessage(from.id, text, replyMarkup, { disable_web_page_preview: true });
+                            if (allowComment) {
+                                replyMarkup.inline_keyboard[0].unshift({ text: `${ICONS.comment} Add Comment`, callback_data: `add_comment:${letter.id}` });
+                            }
+                            if (chatId) {
+                                await TelegramService.sendMessage(chatId, text, replyMarkup, { disable_web_page_preview: true });
+                            }
                         } catch (sendError) {
                             console.error('Telegram show_letters send error:', sendError);
                         }
@@ -266,8 +281,11 @@ class TelegramController {
                 } else if (action === 'show_comments') {
                     await TelegramService.answerCallbackQuery(callbackId);
                     const vipUser = await TelegramController.resolveUserByTelegramId(from.id);
-                    if (!TelegramService.isVipRole(vipUser)) {
-                        await TelegramService.sendMessage(from.id, `${ICONS.cross} Only VIP users can view comments in the bot.`);
+                    if (!TelegramService.isStaffOrVip(vipUser)) {
+                        console.warn(`[TELEGRAM] Access Denied for show_comments: ${from.id} (${from.username})`);
+                        if (chatId) {
+                            await TelegramService.sendMessage(chatId, `${ICONS.cross} Access Denied. Only staff/VIP users can view comments in the bot.`);
+                        }
                         return;
                     }
 
@@ -280,7 +298,9 @@ class TelegramController {
                     });
 
                     if (!comments.length) {
-                        await TelegramService.sendMessage(from.id, `${ICONS.warning} No comments yet for Letter #${letterId}.`);
+                        if (chatId) {
+                            await TelegramService.sendMessage(chatId, `${ICONS.warning} No comments yet for Letter #${letterId}.`);
+                        }
                         return;
                     }
 
@@ -293,7 +313,9 @@ class TelegramController {
                     });
 
                     const body = lines.join('\n\n');
-                    await TelegramService.sendMessage(from.id, `${ICONS.mail} <b>Comments for Letter #${letterId}</b>\n\n${body}`);
+                    if (chatId) {
+                        await TelegramService.sendMessage(chatId, `${ICONS.mail} <b>Comments for Letter #${letterId}</b>\n\n${body}`);
+                    }
                 } else if (action === 'ack') {
                     await TelegramService.answerCallbackQuery(callbackId, 'Received. Thank you!', false);
                     const user = await TelegramController.resolveUserByTelegramId(from.id);
@@ -326,7 +348,10 @@ class TelegramController {
                     });
 
                     if (!letter) {
-                        return await TelegramService.sendMessage(from.id, `${ICONS.cross} Letter not found.`);
+                        if (chatId) {
+                            return await TelegramService.sendMessage(chatId, `${ICONS.cross} Letter not found.`);
+                        }
+                        return;
                     }
 
                     const safeLms = TelegramController.escapeHtml(letter.lms_id);
@@ -354,12 +379,18 @@ class TelegramController {
                     trackingText += `--------------------\n`;
                     trackingText += `${ICONS.flag} <b>Status:</b> ${TelegramController.escapeHtml(letter.status?.status_name || 'PROCESSING')}`;
 
-                    await TelegramService.sendMessage(from.id, trackingText);
+                    if (chatId) {
+                        await TelegramService.sendMessage(chatId, trackingText);
+                    }
                 } else {
                     await TelegramService.answerCallbackQuery(callbackId);
                 }
-            } else if (update.message) {
-                const { text, from, reply_to_message } = update.message;
+            } else {
+                const message = update.message || update.edited_message || update.channel_post || update.edited_channel_post;
+                if (!message) return;
+                const { text, from, reply_to_message } = message;
+                const chatId = message.chat?.id ?? from?.id;
+                if (!from?.id) return;
 
                 if (reply_to_message && reply_to_message.text && reply_to_message.text.includes('Adding Comment to Letter #')) {
                     const letterIdMatch = reply_to_message.text.match(/Letter #(\d+)/);
@@ -370,8 +401,11 @@ class TelegramController {
                         const user = await TelegramController.resolveUserByTelegramId(from.id);
 
                         if (user) {
-                            if (!TelegramService.isVipRole(user)) {
-                                await TelegramService.sendMessage(from.id, `${ICONS.cross} Only VIP users can add comments via Telegram.`);
+                            if (!TelegramService.isVipOnly(user)) {
+                                console.warn(`[TELEGRAM] Access Denied for reply comment: ${from.id} (${from.username})`);
+                                if (chatId) {
+                                    await TelegramService.sendMessage(chatId, `${ICONS.cross} Access Denied. Only VIP users can add comments via Telegram.`);
+                                }
                                 return;
                             }
                             await Comment.create({
@@ -379,36 +413,45 @@ class TelegramController {
                                 user_id: user.id,
                                 comment_body: commentBody
                             });
-                            await TelegramService.sendMessage(from.id, `${ICONS.check} Comment successfully added to Letter #${letterId}.`);
+                            if (chatId) {
+                                await TelegramService.sendMessage(chatId, `${ICONS.check} Comment successfully added to Letter #${letterId}.`);
+                            }
                         } else {
-                            await TelegramService.sendMessage(from.id, `${ICONS.cross} Your Telegram account isn't linked to an LMS user. Please set your Chat ID in your Profile settings within the LMS.`);
+                            if (chatId) {
+                                await TelegramService.sendMessage(chatId, `${ICONS.cross} Your Telegram account isn't linked to an LMS user. Please set your Chat ID in your Profile settings within the LMS.`);
+                            }
                         }
                     }
-                } else if (text) {
-                    const normalized = text.trim();
-                    const lower = normalized.toLowerCase();
-                    const commandToken = lower.split(/\s+/)[0];
+                } else if (text || message?.caption) {
+                    const parsed = TelegramController.extractCommand(message);
+                    if (!parsed) return;
+                    const { command, argsText } = parsed;
+                    const argsLower = argsText.toLowerCase();
 
                     // Handle /start or /help
-                    if (commandToken.startsWith('/start') || commandToken.startsWith('/help')) {
+                    if (command === '/start' || command === '/help') {
                         let msg = `${ICONS.mail} <b>LMS 2.0 Management Bot</b>\n\n`;
                         msg += `This bot allows you to track letters and add comments directly from Telegram.\n\n`;
                         msg += `Your Telegram Chat ID: <code>${from.id}</code>\n\n`;
                         msg += `<i>Use this ID in your LMS Profile to receive notifications.</i>\n\n`;
                         msg += `<b>Commands:</b>\n`;
                         msg += `/show letters - View pending letters (VIP only)`;
-                        
-                        await TelegramService.sendMessage(from.id, msg);
+
+                        if (chatId) {
+                            await TelegramService.sendMessage(chatId, msg);
+                        }
                         return;
                     }
 
-                    const isShowCommand = /^\/show(?:@[\w_]+)?$/.test(commandToken) || /^\/showletters(?:@[\w_]+)?$/.test(commandToken);
-                    const isShowLetters = isShowCommand && (lower.includes('letters') || commandToken.startsWith('/showletters'));
+                    const isShowLetters = command === '/showletters' || (command === '/show' && argsLower.includes('letters'));
 
                     if (isShowLetters) {
                         const vipUser = await TelegramController.resolveUserByTelegramId(from.id);
-                        if (!TelegramService.isVipRole(vipUser)) {
-                            await TelegramService.sendMessage(from.id, `${ICONS.cross} Only VIP users can use /show letters.`);
+                        if (!TelegramService.isStaffOrVip(vipUser)) {
+                            console.warn(`[TELEGRAM] Access Denied for /show letters: ${from.id} (${from.username})`);
+                            if (chatId) {
+                                await TelegramService.sendMessage(chatId, `${ICONS.cross} Access Denied. Only staff/VIP users can use /show letters.`);
+                            }
                             return;
                         }
 
@@ -419,12 +462,18 @@ class TelegramController {
                                 [{ text: 'VEM Letter', callback_data: 'show_letters:vem' }]
                             ]
                         };
-                        await TelegramService.sendMessage(from.id, `Choose which letters to view:`, replyMarkup);
-                    } else if (isShowCommand) {
-                        await TelegramService.sendMessage(from.id, `Try: /show letters`);
-                    } else if (commandToken.startsWith('/')) {
+                        if (chatId) {
+                            await TelegramService.sendMessage(chatId, `Choose which letters to view:`, replyMarkup);
+                        }
+                    } else if (command === '/show') {
+                        if (chatId) {
+                            await TelegramService.sendMessage(chatId, `Try: /show letters`);
+                        }
+                    } else if (command && command.startsWith('/')) {
                         // Unknown command
-                        await TelegramService.sendMessage(from.id, `${ICONS.warning} Unknown command. Try /help`);
+                        if (chatId) {
+                            await TelegramService.sendMessage(chatId, `${ICONS.warning} Unknown command. Try /help`);
+                        }
                     }
                 }
             }
@@ -434,11 +483,45 @@ class TelegramController {
     }
 
     static async handleWebhook(req, res) {
+        console.log('[BOT-DEBUG] Webhook Body Size:', JSON.stringify(req.body).length);
         const update = req.body;
         res.sendStatus(200);
         TelegramController.processUpdate(update).catch((error) => {
-            console.error('Telegram Webhook Error:', error);
+            console.error('[BOT-DEBUG] Process Error:', error);
         });
+    }
+
+    static async ping(req, res) {
+        res.json({
+            ok: true,
+            service: 'telegram-webhook',
+            timestamp: new Date().toISOString()
+        });
+    }
+
+    static extractCommand(message) {
+        if (!message) return null;
+        const text = message.text || message.caption || '';
+        const entities = message.entities || message.caption_entities || [];
+        const botCommand = entities.find((entity) => entity.type === 'bot_command' && entity.offset === 0);
+
+        if (botCommand && text) {
+            const rawCommand = text.slice(botCommand.offset, botCommand.offset + botCommand.length);
+            const command = rawCommand.split('@')[0].toLowerCase();
+            const argsText = text.slice(botCommand.length).trim();
+            return { rawCommand, command, argsText, text };
+        }
+
+        if (!text) return null;
+        const trimmed = text.trim();
+        const token = trimmed.split(/\s+/)[0];
+        if (!token.startsWith('/')) return null;
+        return {
+            rawCommand: token,
+            command: token.split('@')[0].toLowerCase(),
+            argsText: trimmed.slice(token.length).trim(),
+            text: trimmed
+        };
     }
 }
 

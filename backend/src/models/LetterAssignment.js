@@ -95,7 +95,7 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                             if (encoder) recipients.push(encoder);
                         }
 
-                        const vipRecipients = recipients.filter((userInstance) => TelegramService.isVipRole(userInstance));
+                        const vipRecipients = recipients.filter((userInstance) => TelegramService.isVipOnly(userInstance));
                         const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
                         const vipChatIds = await TelegramService.getChatIdsForUsers(vipRecipients, Person, User);
                         const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
@@ -174,7 +174,7 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                                 if (encoder) recipients.push(encoder);
                             }
 
-                            const vipRecipients = recipients.filter((userInstance) => TelegramService.isVipRole(userInstance));
+                            const vipRecipients = recipients.filter((userInstance) => TelegramService.isVipOnly(userInstance));
                             const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
                             const vipChatIds = await TelegramService.getChatIdsForUsers(vipRecipients, Person, User);
                             const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
