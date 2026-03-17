@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import LetterCard from "../../components/LetterCard";
 import { directus } from "../../hooks/useDirectus";
@@ -26,7 +26,11 @@ import {
   Zap,
   Menu,
   UserCheck,
-  PenTool
+  PenTool,
+  CheckSquare,
+  FileEdit,
+  Trash2,
+  AlertCircle
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import trayService from "../../services/trayService";
@@ -36,12 +40,23 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const { user } = useSession();
   const { layoutStyle, setIsMobileMenuOpen } = useUI();
   const access = useAccess();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeStepTab, setActiveStepTab] = useState("review"); // named_filter
+  
+  // Tab state synced with URL
+  const activeStepTab = searchParams.get('tab') || 'review';
+  const setActiveStepTab = (tab) => {
+    setSearchParams(prev => {
+      prev.set('tab', tab);
+      return prev;
+    });
+  };
+
   const [inboxStats, setInboxStats] = useState({ review: 0, signature: 0, vem: 0, pending: 0, hold: 0, empty_entry: 0 });
   const [trays, setTrays] = useState([]);
+  const [steps, setSteps] = useState([]);
   const [selectedTray, setSelectedTray] = useState(null); // Filter for ATG Note
   const canField = access?.canField || (() => true);
   const pageId = forcedDeptId ? "department-letters" : (view === "outbox" ? "outbox" : "inbox");
@@ -108,13 +123,23 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     }
   };
 
+  const fetchSteps = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/process-steps`);
+      setSteps(res.data);
+    } catch (err) {
+      console.error("Error fetching steps:", err);
+    }
+  };
+
   useEffect(() => {
     if (user?.id) {
-      if (view !== 'inbox') {
+      if (view !== 'inbox' && activeStepTab !== 'review') {
         setActiveStepTab('review');
       }
       fetchAssignments();
       fetchTrays();
+      fetchSteps();
       if (view === 'inbox') fetchInboxStats();
       setSelectedTray(null); // Reset filter on tab change
     }
@@ -139,6 +164,94 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const filteredAssignments = canTraySelector && selectedTray
     ? assignments.filter(a => a.letter?.tray_id === selectedTray)
     : assignments;
+  
+  const handleQuickAction = async (e, assignment, action) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (action === 'delete') {
+      if (!window.confirm("Are you sure you want to delete this letter?")) return;
+      try {
+        await letterService.delete(assignment.letter.id);
+        fetchAssignments();
+        fetchInboxStats();
+      } catch (err) {
+        console.error("Delete failed:", err);
+      }
+      return;
+    }
+
+    // Workflow transition
+    const stepIdMap = {
+      'signature': 1, // For Signature
+      'review': 2     // For Review
+    };
+
+    const newStepId = stepIdMap[action];
+    if (!newStepId) return;
+
+    try {
+      // Optimistic Update
+      setAssignments(prev => prev.filter(a => a.id !== assignment.id));
+      
+      const isMock = assignment.id.toString().startsWith('mock-');
+      
+      if (isMock) {
+        // Find step for department info
+        const targetStep = steps.find(s => s.id === newStepId);
+        const deptId = targetStep?.dept_id || user?.dept_id?.id || user?.dept_id || null;
+
+        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments`, {
+          letter_id: assignment.letter.id,
+          step_id: newStepId,
+          department_id: deptId,
+          assigned_by: user?.id,
+          status: 'Pending',
+          status_id: 8 // Assuming 8 is mapped to Pending/Active in the DB
+        });
+      } else {
+        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${assignment.id}`, {
+          step_id: newStepId
+        });
+      }
+
+      fetchAssignments();
+      fetchInboxStats();
+    } catch (err) {
+      console.error("Quick action failed:", err);
+      fetchAssignments();
+    }
+  };
+
+  const renderQuickActions = (assignment) => {
+    if (activeStepTab !== 'pending') return null;
+
+    return (
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+        <button
+          onClick={(e) => handleQuickAction(e, assignment, 'review')}
+          className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100"
+          title="Approve Review"
+        >
+          <FileEdit className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={(e) => handleQuickAction(e, assignment, 'signature')}
+          className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100"
+          title="Approve Signature"
+        >
+          <PenTool className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={(e) => handleQuickAction(e, assignment, 'delete')}
+          className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100"
+          title="Delete Letter"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  };
 
   // Theme Variables
   const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
@@ -311,7 +424,12 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                           attachment={assignment.letter.attachment}
                           tray={assignment.letter.tray}
                           layout="minimalist"
-                          actions={renderTrayActions(assignment)}
+                          actions={
+                            <div className="flex items-center gap-2">
+                              {renderTrayActions(assignment)}
+                              {renderQuickActions(assignment)}
+                            </div>
+                          }
                         />
                       </div>
                     )
@@ -464,7 +582,12 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                             dueDate={assignment.due_date || assignment.letter.date_received}
                             attachment={assignment.letter.attachment}
                             layout="grid"
-                            actions={renderTrayActions(assignment)}
+                            actions={
+                              <div className="flex items-center gap-2">
+                                {renderTrayActions(assignment)}
+                                {renderQuickActions(assignment)}
+                              </div>
+                            }
                           />
                         </div>
                       )
@@ -588,7 +711,12 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                         attachment={assignment.letter.attachment}
                         tray={assignment.letter.tray}
                         layout="notion"
-                        actions={renderTrayActions(assignment)}
+                        actions={
+                          <div className="flex items-center gap-2">
+                            {renderTrayActions(assignment)}
+                            {renderQuickActions(assignment)}
+                          </div>
+                        }
                       />
                     </div>
                   )
@@ -728,7 +856,12 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                       attachment={assignment.letter.attachment}
                       tray={assignment.letter.tray}
                       layout={layoutStyle}
-                      actions={renderTrayActions(assignment)}
+                      actions={
+                        <div className="flex items-center gap-2">
+                          {renderTrayActions(assignment)}
+                          {renderQuickActions(assignment)}
+                        </div>
+                      }
                     />
                   </div>
                 )
