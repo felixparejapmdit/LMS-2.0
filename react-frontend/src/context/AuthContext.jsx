@@ -371,6 +371,8 @@ export const useAuth = () => {
     const { user } = auth;
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
     const isSuperAdmin = roleName === 'ADMIN' ||
+        roleName === 'ADMINISTRATOR' ||
+        roleName === 'SYSTEM ADMIN' ||
         roleName === 'SUPER ADMIN' ||
         roleName === 'DEVELOPER' ||
         user?.email === 'felixpareja07@gmail.com';

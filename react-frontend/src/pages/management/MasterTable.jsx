@@ -385,10 +385,20 @@ export default function MasterTable() {
 
     const handleViewPDF = (letter) => {
         if (letter.scanned_copy) {
-            const encodedPath = btoa(letter.scanned_copy);
-            window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view-path?path=${encodedPath}`, '_blank');
+            // Use a more robust base64 encoding for paths with special characters
+            const pathValue = letter.scanned_copy;
+            const encodedPath = btoa(unescape(encodeURIComponent(pathValue)));
+            // Prioritize current origin if VITE_API_URL is relative
+            const baseUrl = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith('http')) 
+                ? import.meta.env.VITE_API_URL 
+                : window.location.origin + (import.meta.env.VITE_API_URL || '/api');
+            
+            window.open(`${baseUrl}/attachments/view-path?path=${encodedPath}`, '_blank');
         } else if (letter.attachment_id) {
-            window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view/${letter.attachment_id}`, '_blank');
+            const baseUrl = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith('http')) 
+                ? import.meta.env.VITE_API_URL 
+                : window.location.origin + (import.meta.env.VITE_API_URL || '/api');
+            window.open(`${baseUrl}/attachments/view/${letter.attachment_id}`, '_blank');
         } else {
             alert("No document available to view.");
         }
@@ -651,8 +661,8 @@ export default function MasterTable() {
                                                         <Printer className="w-4 h-4" />
                                                     </button>
                                                 </td>
-                                                <td className="p-5 text-center">
-                                                    {canPdf && (letter.attachment_id || letter.scanned_copy) ? (
+                                                 <td className="p-5 text-center">
+                                                     {(isSuperAdmin || (canPdf && (letter.attachment_id || letter.scanned_copy))) ? (
                                                         <button
                                                             onClick={() => handleViewPDF(letter)}
                                                             className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all mx-auto"
