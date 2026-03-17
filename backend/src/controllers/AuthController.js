@@ -6,6 +6,10 @@ const DIRECTUS_URL = process.env.DIRECTUS_INTERNAL_URL || 'http://directus:8055'
 const PERMS_CACHE_TTL_MS = Number.parseInt(process.env.PERMS_CACHE_TTL_MS || '60000', 10);
 const permsCache = new Map();
 
+let cachedPages = null;
+let cachedPagesTimestamp = 0;
+const PAGES_CACHE_TTL = 600000; // 10 minutes
+
 const getCachedPerms = (roleId) => {
     if (!roleId || !Number.isFinite(PERMS_CACHE_TTL_MS) || PERMS_CACHE_TTL_MS <= 0) return null;
     const cached = permsCache.get(roleId);
@@ -78,7 +82,7 @@ class AuthController {
 
             console.log(`[LOGIN] Attempt started for: ${username}`);
 
-            // 1. Find user (Shared DB)
+            // 1. Find user (Shared DB) - Start FIRST
             const user = await User.findOne({
                 where: sequelize.or(
                     { username: username },
@@ -95,52 +99,55 @@ class AuthController {
                 return res.status(401).json({ error: 'User not found' });
             }
 
-            // 2. Validate password via Directus
-            let directusAuth;
-            try {
-                const directusLoginStart = Date.now();
-                const response = await axios.post(`${DIRECTUS_URL}/auth/login`, {
-                    email: user.email,
-                    password: password
-                }, { timeout: 10000 }); // 10s timeout
-                directusAuth = response.data;
-                console.log(`[LOGIN] Directus auth took ${Date.now() - directusLoginStart}ms`);
-            } catch (err) {
-                console.error(`[LOGIN] Directus auth failed for ${user.email}:`, err.message);
-                return res.status(401).json({ error: 'Invalid credentials' });
-            }
-
-            // 3. Fetch/Fix Permissions
-            const permsStart = Date.now();
-            let perms = await RolePermission.findAll({ where: { role_id: user.role } });
-
-            // Only fix permissions if the count is significantly lower than expected
-            const pagesCount = await SystemPage.count();
-            if (perms.length < pagesCount) {
-                console.log(`[LOGIN] Syncing ${pagesCount - perms.length} missing permissions...`);
-                const pages = await SystemPage.findAll({ attributes: ['page_id'] });
-                const existingPageNames = new Set(perms.map(r => r.page_name));
-                
-                await sequelize.transaction(async (t) => {
-                    for (const page of pages) {
-                        if (!existingPageNames.has(page.page_id)) {
-                            await RolePermission.create({
-                                role_id: user.role,
-                                page_name: page.page_id,
-                                can_view: false,
-                                can_create: false,
-                                can_edit: false,
-                                can_delete: false,
-                                can_special: false,
-                                field_permissions: withDefaultFieldPermissions(page.page_id, {})
-                            }, { transaction: t });
-                        }
+            // 2. Parallelize Directus Auth and Permissions Fetch
+            const [directusAuth, dbPerms] = await Promise.all([
+                // Directus Auth
+                (async () => {
+                    try {
+                        const directusLoginStart = Date.now();
+                        const response = await axios.post(`${DIRECTUS_URL}/auth/login`, {
+                            email: user.email,
+                            password: password
+                        }, { timeout: 8000 });
+                        console.log(`[LOGIN] Directus auth took ${Date.now() - directusLoginStart}ms`);
+                        return response.data;
+                    } catch (err) {
+                        console.error(`[LOGIN] Directus auth failed for ${user.email}:`, err.message);
+                        throw new Error('Invalid credentials');
                     }
-                });
-                // Final fetch
-                perms = await RolePermission.findAll({ where: { role_id: user.role } });
+                })(),
+                // Initial Perms Fetch
+                RolePermission.findAll({ where: { role_id: user.role } })
+            ]);
+
+            let perms = dbPerms;
+
+            // 3. Optimize Perms Sync (Only if needed)
+            if (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) {
+                cachedPages = await SystemPage.findAll({ attributes: ['page_id'] });
+                cachedPagesTimestamp = Date.now();
             }
-            console.log(`[LOGIN] Perms sync/fetch took ${Date.now() - permsStart}ms`);
+
+            if (perms.length < cachedPages.length) {
+                const existingPageNames = new Set(perms.map(r => r.page_name));
+                const missingPages = cachedPages.filter(p => !existingPageNames.has(p.page_id));
+                
+                if (missingPages.length > 0) {
+                    console.log(`[LOGIN] Syncing ${missingPages.length} missing permissions...`);
+                    const toCreate = missingPages.map(page => ({
+                        role_id: user.role,
+                        page_name: page.page_id,
+                        can_view: false,
+                        can_create: false,
+                        can_edit: false,
+                        can_delete: false,
+                        can_special: false,
+                        field_permissions: withDefaultFieldPermissions(page.page_id, {})
+                    }));
+                    await RolePermission.bulkCreate(toCreate, { ignoreDuplicates: true });
+                    perms = await RolePermission.findAll({ where: { role_id: user.role } });
+                }
+            }
 
             const normalizedPerms = normalizePermissions(perms);
             setCachedPerms(user.role, normalizedPerms);
@@ -158,14 +165,13 @@ class AuthController {
             });
 
         } catch (error) {
-            console.error(`[LOGIN] Critical failure in ${Date.now() - startTime}ms:`, error);
-            res.status(500).json({ error: error.message });
+            console.error(`[LOGIN] Failure in ${Date.now() - startTime}ms:`, error.message);
+            res.status(error.message === 'Invalid credentials' ? 401 : 500).json({ error: error.message });
         }
     }
 
     static async getConfig(req, res) {
         // Combined endpoint for App initialization (User + Permissions)
-        // Usually called with a valid Directus token in headers
         try {
             const { userId } = req.query;
             if (!userId) return res.status(400).json({ error: 'User ID required' });

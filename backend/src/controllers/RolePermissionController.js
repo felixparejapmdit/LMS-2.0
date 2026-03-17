@@ -1,5 +1,6 @@
 const { RolePermission, Role, SystemPage, User } = require('../models/associations');
 const sequelize = require('../config/db');
+
 const PAGE_FIELD_PRESETS = {
     'home': ['refresh_button', 'quick_new_letter_button', 'quick_trays_button'],
     'vip-view': ['step_selector', 'pdf_button', 'comment_box', 'submit_button', 'edit_button', 'delete_button', 'logout_button'],
@@ -65,25 +66,22 @@ class RolePermissionController {
                 .filter(pageId => !existingPageNames.has(pageId));
 
             if (missingPages.length > 0) {
-                await sequelize.transaction(async (t) => {
-                    for (const pageId of missingPages) {
-                        await RolePermission.create({
-                            role_id: roleId,
-                            page_name: pageId,
-                            can_view: false,
-                            can_create: false,
-                            can_edit: false,
-                            can_delete: false,
-                            can_special: false,
-                            field_permissions: withDefaultFieldPermissions(pageId, {})
-                        }, { transaction: t });
-                    }
+                const toCreate = missingPages.map(pageId => ({
+                    role_id: roleId,
+                    page_name: pageId,
+                    can_view: false,
+                    can_create: false,
+                    can_edit: false,
+                    can_delete: false,
+                    can_special: false,
+                    field_permissions: withDefaultFieldPermissions(pageId, {})
+                }));
+                await RolePermission.bulkCreate(toCreate, { ignoreDuplicates: true });
+                
+                results = await RolePermission.findAll({
+                    where: { role_id: roleId }
                 });
             }
-
-            results = await RolePermission.findAll({
-                where: { role_id: req.params.roleId }
-            });
 
             const normalized = results.map((record) => ({
                 ...record.toJSON(),
@@ -99,42 +97,25 @@ class RolePermissionController {
         try {
             const { role_id, permissions } = req.body;
 
-            // Basic validation
             if (!role_id || !Array.isArray(permissions)) {
                 return res.status(400).json({ error: 'Invalid payload' });
             }
 
-            // Transactional update for data integrity
-            await sequelize.transaction(async (t) => {
-                for (const p of permissions) {
-                    const { page_name, can_view, can_create, can_edit, can_delete, can_special, field_permissions } = p;
-                    const normalizedFields = withDefaultFieldPermissions(page_name, field_permissions);
+            const toUpsert = permissions.map(p => ({
+                role_id,
+                page_name: p.page_name,
+                can_view: !!p.can_view,
+                can_create: !!p.can_create,
+                can_edit: !!p.can_edit,
+                can_delete: !!p.can_delete,
+                can_special: !!p.can_special,
+                field_permissions: withDefaultFieldPermissions(p.page_name, p.field_permissions)
+            }));
 
-                    // Manually find and update or create to avoid upsert issues with custom unique indexes
-                    const [record, created] = await RolePermission.findOrCreate({
-                        where: { role_id, page_name },
-                        defaults: {
-                            can_view: !!can_view,
-                            can_create: !!can_create,
-                            can_edit: !!can_edit,
-                            can_delete: !!can_delete,
-                            can_special: !!can_special,
-                            field_permissions: normalizedFields
-                        },
-                        transaction: t
-                    });
-
-                    if (!created) {
-                        await record.update({
-                            can_view: !!can_view,
-                            can_create: !!can_create,
-                            can_edit: !!can_edit,
-                            can_delete: !!can_delete,
-                            can_special: !!can_special,
-                            field_permissions: normalizedFields
-                        }, { transaction: t });
-                    }
-                }
+            // Using bulkCreate with updateOnDuplicate if supported, otherwise manual batched upsert
+            // For SQLite, bulkCreate with ignoreDuplicates/updateOnDuplicate is most efficient
+            await RolePermission.bulkCreate(toUpsert, {
+                updateOnDuplicate: ['can_view', 'can_create', 'can_edit', 'can_delete', 'can_special', 'field_permissions']
             });
 
             res.json({ message: 'Permissions updated successfully' });
@@ -158,12 +139,12 @@ class RolePermissionController {
                             'user_count'
                         ]
                     ]
-                },
-                include: [{ model: RolePermission, as: 'permissions' }]
+                }
+                // Removed the include: RolePermission to speed up role listing
             });
             res.json(roles);
         } catch (error) {
-            console.error("Failed to fetch roles with permissions and counts:", error);
+            console.error("Failed to fetch roles with user counts:", error);
             res.status(500).json({ error: error.message });
         }
     }

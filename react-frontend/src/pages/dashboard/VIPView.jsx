@@ -461,10 +461,12 @@ export default function VIPView() {
         <div className="relative font-sans">
             {renderLayout()}
 
-            {/* VIP MODAL OVERLAY */}
+            {/* VIP SIDE PANEL (Converted from Modal to allow table interaction) */}
             {isModalOpen && selectedLetter && (
-                <div className="fixed inset-0 z-[1000] flex justify-end pointer-events-none">
-                    <div className="relative w-full md:w-[85vw] lg:w-[75vw] xl:w-[65vw] h-full bg-white dark:bg-[#0c0c0c] flex flex-col lg:flex-row shadow-[-20px_0_50px_rgba(0,0,0,0.15)] dark:shadow-[-20px_0_50px_rgba(0,0,0,0.6)] animate-in slide-in-from-right duration-500 pointer-events-auto border-l border-slate-200 dark:border-[#222]">
+                <div className="fixed inset-y-0 right-0 z-[1000] flex justify-end pointer-events-none w-full">
+                    {/* Note: No backdrop here to allow clicking the table on the left */}
+                    
+                    <div className="relative w-full md:w-[80vw] lg:w-[70vw] xl:w-[65vw] h-full bg-white dark:bg-[#0c0c0c] flex flex-col lg:flex-row shadow-[-40px_0_80px_rgba(0,0,0,0.1)] dark:shadow-[-40px_0_80px_rgba(0,0,0,0.7)] animate-in slide-in-from-right duration-500 pointer-events-auto border-l border-slate-200 dark:border-[#222]">
                         {/* LEFT COLUMN: INFO & COMMENTS */}
                         <div className="w-full lg:w-[400px] xl:w-[450px] flex flex-col border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-[#222] bg-slate-50/50 dark:bg-[#0A0A0A] shrink-0 h-1/2 lg:h-full">
                             {/* Modal Header */}
@@ -580,51 +582,52 @@ export default function VIPView() {
                                 </div>
                             </div>
 
-                            <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-[#222]">
-                                <div className="flex justify-between items-center">
-                                    {canCommentBox && (
-                                        <label className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-1.5 block">Add Note</label>
-                                    )}
-                                </div>
-                                {canCommentBox && (
-                                    <textarea
-                                        rows="5"
-                                        placeholder="Write something..."
-                                        className="w-full p-4 rounded-xl bg-white dark:bg-[#111] border border-slate-200 dark:border-[#333] text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none text-slate-900 dark:text-slate-200"
-                                        value={newCommentText}
-                                        onChange={(e) => setNewCommentText(e.target.value)}
-                                    />
-                                )}
-                                {canSubmit && (
-                                    <button
-                                        onClick={handleAddComment}
-                                        disabled={isSaving || !newCommentText.trim()}
-                                        className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[0.85rem] flex items-center justify-center gap-2 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
-                                    >
-                                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                        {isSaving ? "Sending..." : "Submit"}
-                                    </button>
-                                )}
-                            </div>
-                        </div>
 
-                        {/* Navigation Buttons */}
-                        <div className="p-5 md:p-6 border-t border-slate-100 dark:border-[#222] flex items-center gap-3 bg-white dark:bg-[#0c0c0c] shrink-0">
-                            <button
-                                onClick={handlePrev}
-                                disabled={currentIndex === 0}
-                                className="flex-1 py-3 bg-slate-50 dark:bg-[#111] border border-slate-200 dark:border-[#333] rounded-[0.85rem] flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 dark:hover:text-white transition-all disabled:opacity-40"
-                            >
-                                <ChevronLeft className="w-4 h-4" /> Prev
-                            </button>
-                            <span className="text-[10px] font-black text-slate-400 group-hover:text-white mx-1">{currentIndex + 1} / {letters.length}</span>
-                            <button
-                                onClick={handleNext}
-                                disabled={currentIndex === letters.length - 1}
-                                className="flex-1 py-3 bg-slate-50 dark:bg-[#111] border border-slate-200 dark:border-[#333] rounded-[0.85rem] flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 dark:hover:text-white transition-all disabled:opacity-40"
-                            >
-                                Next <ChevronRight className="w-4 h-4" />
-                            </button>
+                            <div className="p-6 border-t border-slate-100 dark:border-[#222] bg-white dark:bg-[#0c0c0c]">
+                                <div className="space-y-4">
+                                    {canCommentBox && (
+                                        <div>
+                                            <label className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-1.5 block">Add Note</label>
+                                            <textarea
+                                                rows="4"
+                                                placeholder="Write something..."
+                                                className="w-full p-4 rounded-xl bg-white dark:bg-[#111] border border-slate-200 dark:border-[#333] text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none text-slate-900 dark:text-slate-200"
+                                                value={newCommentText}
+                                                onChange={(e) => setNewCommentText(e.target.value)}
+                                            />
+                                        </div>
+                                    )}
+                                    {canSubmit && (
+                                        <button
+                                            onClick={handleAddComment}
+                                            disabled={isSaving || !newCommentText.trim()}
+                                            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[0.85rem] flex items-center justify-center gap-2 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+                                        >
+                                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                            {isSaving ? "Sending..." : "Submit"}
+                                        </button>
+                                    )}
+
+                                    {/* Navigation Buttons (Moved Below Submit) */}
+                                    <div className="flex items-center gap-3 pt-4 mt-2 border-t border-slate-100 dark:border-[#222]">
+                                        <button
+                                            onClick={handlePrev}
+                                            disabled={currentIndex === 0}
+                                            className="flex-1 py-3 bg-slate-50 dark:bg-[#111] border border-slate-200 dark:border-[#333] rounded-[0.85rem] flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 dark:hover:text-white transition-all disabled:opacity-40"
+                                        >
+                                            <ChevronLeft className="w-4 h-4" /> Prev
+                                        </button>
+                                        <span className="text-[10px] font-black text-slate-400 mx-1 min-w-[40px] text-center">{currentIndex + 1} / {letters.length}</span>
+                                        <button
+                                            onClick={handleNext}
+                                            disabled={currentIndex === letters.length - 1}
+                                            className="flex-1 py-3 bg-slate-50 dark:bg-[#111] border border-slate-200 dark:border-[#333] rounded-[0.85rem] flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 dark:hover:text-white transition-all disabled:opacity-40"
+                                        >
+                                            Next <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         {/* RIGHT COLUMN: PDF VIEWER */}

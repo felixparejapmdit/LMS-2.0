@@ -18,6 +18,8 @@ const BACKEND_URL = getBackendUrl();
 const normalizeLayoutStyle = (style) => (style === "minimalist" ? "minimalist" : "minimalist");
 const AUTH_USER_KEY = "auth_user";
 const AUTH_PERMS_KEY = "auth_permissions";
+const LAST_REFRESH_KEY = "auth_last_refresh";
+const REFRESH_THROTTLE_MS = 300000; // 5 minutes
 
 const readCachedJson = (key, fallback = null) => {
     try {
@@ -176,11 +178,21 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
+            // Throttle: Don't refresh if we did it recently
+            const lastRefresh = Number(localStorage.getItem(LAST_REFRESH_KEY) || 0);
+            const isFresh = (Date.now() - lastRefresh) < REFRESH_THROTTLE_MS;
+
+            if (cachedUser && cachedPerms && isFresh) {
+                console.log("AuthContext: Using fresh cached session, skipping network refresh.");
+                return;
+            }
+
             const meId = await directus.request(readMe({ fields: ['id'] }));
             const response = await axios.get(`${BACKEND_URL}/auth/access-config?userId=${meId.id}`);
             const { user: me, permissions: perms } = response.data;
 
-            console.log("AuthContext: checkAuth successful:", me.username);
+            console.log("AuthContext: session refresh successful:", me.username);
+            localStorage.setItem(LAST_REFRESH_KEY, Date.now().toString());
 
             // Sync prefs from backend
             if (me.layout_style) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
@@ -227,6 +239,8 @@ export const AuthProvider = ({ children }) => {
                 type: 'LOGIN',
                 payload: { user: me, permissions: perms }
             });
+
+            localStorage.setItem(LAST_REFRESH_KEY, Date.now().toString());
 
             if (me.layout_style) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
             if (me.theme_preference) setTheme(me.theme_preference);
@@ -375,6 +389,7 @@ export const useAuth = () => {
         roleName === 'SYSTEM ADMIN' ||
         roleName === 'SUPER ADMIN' ||
         roleName === 'DEVELOPER' ||
+        roleName === 'ROOT' ||
         user?.email === 'felixpareja07@gmail.com';
 
     // Return combined object for backward compatibility, but it will trigger re-renders
@@ -389,7 +404,13 @@ export const useSession = () => {
     // Memoize the super admin calculation so it doesn't change on every useSession call
     const isSuperAdmin = useMemo(() => {
         const roleName = (context.user?.roleData?.name || context.user?.role || '').toString().toUpperCase();
-        return roleName === 'ADMIN' || roleName === 'SUPER ADMIN' || roleName === 'DEVELOPER' || context.user?.email === 'felixpareja07@gmail.com';
+        return roleName === 'ADMIN' || 
+               roleName === 'ADMINISTRATOR' || 
+               roleName === 'SYSTEM ADMIN' || 
+               roleName === 'SUPER ADMIN' || 
+               roleName === 'DEVELOPER' || 
+               roleName === 'ROOT' ||
+               context.user?.email === 'felixpareja07@gmail.com';
     }, [context.user]);
 
     return { ...context, isSuperAdmin };
