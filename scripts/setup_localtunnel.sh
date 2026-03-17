@@ -20,38 +20,40 @@ fi
 
 # 3. Setup Temp Directory
 mkdir -p "$TMP_DIR"
-LOG_FILE="$TMP_DIR/localtunnel.log"
-PID_FILE="$TMP_DIR/localtunnel.pid"
-URL_FILE="$TMP_DIR/localtunnel.url"
+LOG_FILE="$TMP_DIR/ngrok.log"
+PID_FILE="$TMP_DIR/ngrok.pid"
+URL_FILE="$TMP_DIR/ngrok.url"
 
-# Patayin ang lumang localtunnel kung meron man
-if [ -f "$PID_FILE" ]; then
-    OLD_PID=$(cat "$PID_FILE")
-    kill $OLD_PID 2>/dev/null
+# Patayin ang lumang ngrok kung meron man
+if pgrep -x "ngrok" > /dev/null; then
+    echo "Killing existing ngrok process..."
+    pkill -x "ngrok"
     rm "$PID_FILE" "$LOG_FILE" "$URL_FILE" 2>/dev/null
 fi
 
-# 4. Start LocalTunnel
-# Note: Binago ko ang port sa 8055 para mag-match sa Directus mo sa Proxmox
-echo "Starting LocalTunnel on port 8055..."
-npx -y localtunnel --port 8055 --host https://loca.lt > "$LOG_FILE" 2>&1 &
+# 4. Start Ngrok
+# Gagamit tayo ng port 5000 para sa iyong Backend
+echo "Starting Ngrok tunnel on port 5000..."
+ngrok http 5000 --log=stdout > "$LOG_FILE" 2>&1 &
 echo $! > "$PID_FILE"
 
-# 5. Wait for URL
+# 5. Wait for URL (Ngrok API check)
+echo -n "Waiting for Ngrok URL"
 URL=""
 COUNTER=0
-MAX_RETRIES=30 # 30 seconds max wait
+MAX_RETRIES=15 
 
+# Mas mabilis at accurate kunin ang URL via Ngrok local API kaysa sa logs
 while [ -z "$URL" ] && [ $COUNTER -lt $MAX_RETRIES ]; do
     sleep 2
-    URL=$(grep -o 'https://[^ ]*loca.lt' "$LOG_FILE" | head -n 1)
+    URL=$(curl -s http://localhost:4040/api/tunnels | grep -o 'https://[^"]*\.ngrok-free\.app' | head -n 1)
     ((COUNTER++))
     echo -n "."
 done
 echo ""
 
 if [ -z "$URL" ]; then
-    echo "Error: LocalTunnel URL not found. Check $LOG_FILE"
+    echo "Error: Ngrok URL not found. Check if ngrok is authenticated."
     exit 1
 fi
 
@@ -60,10 +62,8 @@ WEBHOOK_URL="$URL/api/telegram/webhook"
 
 # 6. Update .env file
 if grep -q '^TELEGRAM_WEBHOOK_URL=' "$ENV_PATH"; then
-    # Update existing line
     sed -i "s|^TELEGRAM_WEBHOOK_URL=.*|TELEGRAM_WEBHOOK_URL=$WEBHOOK_URL|" "$ENV_PATH"
 else
-    # Append new line
     echo "TELEGRAM_WEBHOOK_URL=$WEBHOOK_URL" >> "$ENV_PATH"
 fi
 
@@ -72,5 +72,5 @@ echo "Setting Webhook to: $WEBHOOK_URL"
 RESP=$(curl -s -X POST "https://api.telegram.org/bot$TOKEN/setWebhook" -F "url=$WEBHOOK_URL")
 
 echo "Response: $RESP"
-echo "Webhook successfully set!"
-echo "LocalTunnel PID: $(cat $PID_FILE)"
+echo "Webhook successfully set via Ngrok!"
+echo "Ngrok PID: $(cat $PID_FILE)"
