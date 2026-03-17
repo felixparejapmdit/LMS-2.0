@@ -11,8 +11,9 @@ while true; do
     # I-check kung ang URL ay empty
     if [[ $RESPONSE == *'"url":""'* ]]; then
         echo "[$(date)] Webhook is EMPTY. Restarting setup..."
-        # Gamitin ang pwsh para patakbuhin ang setup script na nandoon sa folder
-        pwsh -File "./setup_localtunnel.sh"
+        
+        # CORRECTED: Ginamit ang bash imbes na pwsh, at tinuro sa tamang .sh file
+        bash ./setup_localtunnel.sh
     else
         echo "[$(date)] Webhook is LIVE."
     fi
