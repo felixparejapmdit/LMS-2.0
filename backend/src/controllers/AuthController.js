@@ -57,18 +57,30 @@ const PAGE_FIELD_PRESETS = {
 };
 
 const withDefaultFieldPermissions = (pageName, raw = {}) => {
+    let data = raw;
+    try {
+        if (typeof raw === 'string') data = JSON.parse(raw);
+    } catch (e) {
+        data = {};
+    }
+
     const keys = PAGE_FIELD_PRESETS[pageName] || ['search', 'save_button'];
     const normalized = {};
+    const source = (data && typeof data === 'object') ? data : {};
+
     for (const key of keys) {
-        normalized[key] = Object.prototype.hasOwnProperty.call(raw || {}, key) ? raw[key] : true;
+        normalized[key] = Object.prototype.hasOwnProperty.call(source, key) ? source[key] : true;
     }
     return normalized;
 };
 
-const normalizePermissions = (perms) => perms.map((record) => ({
-    ...record.toJSON(),
-    field_permissions: withDefaultFieldPermissions(record.page_name, record.field_permissions)
-}));
+const normalizePermissions = (perms) => perms.map((record) => {
+    const data = record.toJSON();
+    return {
+        ...data,
+        field_permissions: withDefaultFieldPermissions(data.page_name, data.field_permissions)
+    };
+});
 
 class AuthController {
     static async login(req, res) {
@@ -82,7 +94,6 @@ class AuthController {
 
             console.log(`[LOGIN] Attempt started for: ${username}`);
 
-            // 1. Find user (Shared DB) - Start FIRST
             const user = await User.findOne({
                 where: sequelize.or(
                     { username: username },
@@ -99,9 +110,7 @@ class AuthController {
                 return res.status(401).json({ error: 'User not found' });
             }
 
-            // 2. Parallelize Directus Auth and Permissions Fetch
             const [directusAuth, dbPerms] = await Promise.all([
-                // Directus Auth
                 (async () => {
                     try {
                         const directusLoginStart = Date.now();
@@ -116,13 +125,11 @@ class AuthController {
                         throw new Error('Invalid credentials');
                     }
                 })(),
-                // Initial Perms Fetch
                 RolePermission.findAll({ where: { role_id: user.role } })
             ]);
 
             let perms = dbPerms;
 
-            // 3. Optimize Perms Sync (Only if needed)
             if (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) {
                 cachedPages = await SystemPage.findAll({ attributes: ['page_id'] });
                 cachedPagesTimestamp = Date.now();
@@ -152,7 +159,6 @@ class AuthController {
             const normalizedPerms = normalizePermissions(perms);
             setCachedPerms(user.role, normalizedPerms);
 
-            // 4. Record login (async)
             user.update({ islogin: true }).catch(() => { });
 
             console.log(`[LOGIN] Success for ${username} in ${Date.now() - startTime}ms`);
@@ -171,7 +177,6 @@ class AuthController {
     }
 
     static async getConfig(req, res) {
-        // Combined endpoint for App initialization (User + Permissions)
         try {
             const { userId } = req.query;
             if (!userId) return res.status(400).json({ error: 'User ID required' });

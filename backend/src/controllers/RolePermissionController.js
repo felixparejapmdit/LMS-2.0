@@ -31,11 +31,24 @@ const PAGE_FIELD_PRESETS = {
     'profile': ['save_button', 'password_field', 'avatar_upload', 'username_field']
 };
 
+/**
+ * Ensures field_permissions object contains all required keys for a page.
+ * If raw is a string, it attempts to parse it.
+ */
 const withDefaultFieldPermissions = (pageName, raw = {}) => {
+    let data = raw;
+    try {
+        if (typeof raw === 'string') data = JSON.parse(raw);
+    } catch (e) {
+        data = {};
+    }
+
     const keys = PAGE_FIELD_PRESETS[pageName] || ['search', 'save_button'];
     const normalized = {};
+    const source = (data && typeof data === 'object') ? data : {};
+    
     for (const key of keys) {
-        normalized[key] = Object.prototype.hasOwnProperty.call(raw || {}, key) ? raw[key] : true;
+        normalized[key] = Object.prototype.hasOwnProperty.call(source, key) ? source[key] : true;
     }
     return normalized;
 };
@@ -83,10 +96,13 @@ class RolePermissionController {
                 });
             }
 
-            const normalized = results.map((record) => ({
-                ...record.toJSON(),
-                field_permissions: withDefaultFieldPermissions(record.page_name, record.field_permissions)
-            }));
+            const normalized = results.map((record) => {
+                const data = record.toJSON();
+                return {
+                    ...data,
+                    field_permissions: withDefaultFieldPermissions(data.page_name, data.field_permissions)
+                };
+            });
             res.json(normalized);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -109,13 +125,16 @@ class RolePermissionController {
                 can_edit: !!p.can_edit,
                 can_delete: !!p.can_delete,
                 can_special: !!p.can_special,
+                // On SAVE, we trust the incoming field_permissions if it's already an object, 
+                // but we run it through normalization just in case new keys were added in code
                 field_permissions: withDefaultFieldPermissions(p.page_name, p.field_permissions)
             }));
 
-            // Using bulkCreate with updateOnDuplicate if supported, otherwise manual batched upsert
-            // For SQLite, bulkCreate with ignoreDuplicates/updateOnDuplicate is most efficient
-            await RolePermission.bulkCreate(toUpsert, {
-                updateOnDuplicate: ['can_view', 'can_create', 'can_edit', 'can_delete', 'can_special', 'field_permissions']
+            // Use transactional manual update for complex field_permissions if bulkCreate has issues with JSON updateOnDuplicate
+            await sequelize.transaction(async (t) => {
+                for (const item of toUpsert) {
+                    await RolePermission.upsert(item, { transaction: t });
+                }
             });
 
             res.json({ message: 'Permissions updated successfully' });
@@ -137,10 +156,17 @@ class RolePermissionController {
                                 WHERE users.role = Role.id
                             )`),
                             'user_count'
+                        ],
+                        [
+                            sequelize.literal(`(
+                                SELECT GROUP_CONCAT(COALESCE(u.first_name, u.email), ', ')
+                                FROM directus_users u
+                                WHERE u.role = Role.id
+                            )`),
+                            'user_names'
                         ]
                     ]
                 }
-                // Removed the include: RolePermission to speed up role listing
             });
             res.json(roles);
         } catch (error) {
