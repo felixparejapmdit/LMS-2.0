@@ -15,10 +15,14 @@ const getBackendUrl = () => {
 };
 
 const BACKEND_URL = getBackendUrl();
-const normalizeLayoutStyle = (style) => (style === "minimalist" ? "minimalist" : "minimalist");
+const normalizeLayoutStyle = (style) => {
+    const valid = ["grid", "minimalist", "notion", "default"];
+    return valid.includes(style) ? style : "minimalist";
+};
 const AUTH_USER_KEY = "auth_user";
 const AUTH_PERMS_KEY = "auth_permissions";
 const LAST_REFRESH_KEY = "auth_last_refresh";
+export { LAST_REFRESH_KEY };
 const REFRESH_THROTTLE_MS = 300000; // 5 minutes
 
 const readCachedJson = (key, fallback = null) => {
@@ -142,15 +146,29 @@ export const AuthProvider = ({ children }) => {
 
     const checkAuth = useCallback(async () => {
         if (authState.isGuest) {
-            dispatch({
-                type: 'INIT_SESSION',
-                payload: {
-                    user: { first_name: "Guest", last_name: "User", email: "guest@example.com", isGuest: true },
-                    permissions: [],
-                    permissionsLoaded: true,
-                    isGuest: true
-                }
-            });
+            try {
+                const response = await axios.get(`${BACKEND_URL}/auth/guest-config`);
+                const perms = response.data.permissions || [];
+                dispatch({
+                    type: 'INIT_SESSION',
+                    payload: {
+                        user: { first_name: "Guest", last_name: "User", email: "guest@example.com", isGuest: true },
+                        permissions: perms,
+                        permissionsLoaded: true,
+                        isGuest: true
+                    }
+                });
+            } catch (error) {
+                dispatch({
+                    type: 'INIT_SESSION',
+                    payload: {
+                        user: { first_name: "Guest", last_name: "User", email: "guest@example.com", isGuest: true },
+                        permissions: [],
+                        permissionsLoaded: true,
+                        isGuest: true
+                    }
+                });
+            }
             return;
         }
 
@@ -242,7 +260,7 @@ export const AuthProvider = ({ children }) => {
 
             localStorage.setItem(LAST_REFRESH_KEY, Date.now().toString());
 
-            if (me.layout_style) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
+            setLayoutStyle('minimalist');
             if (me.theme_preference) setTheme(me.theme_preference);
             if (me.font_family) setFontFamily(me.font_family);
 
@@ -253,11 +271,23 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const loginGuest = () => {
+    const loginGuest = async () => {
         localStorage.setItem("isGuest", "true");
+        let perms = [];
+        try {
+            const response = await axios.get(`${BACKEND_URL}/auth/guest-config`);
+            perms = response.data.permissions || [];
+        } catch (e) {
+            console.error("Failed to load guest permissions", e);
+        }
+
+        setLayoutStyle('minimalist');
         dispatch({
             type: 'LOGIN_GUEST',
-            payload: { user: { first_name: "Guest", last_name: "User", email: "guest@example.com", isGuest: true } }
+            payload: { 
+                user: { first_name: "Guest", last_name: "User", email: "guest@example.com", isGuest: true },
+                permissions: perms
+            }
         });
     };
 

@@ -125,13 +125,15 @@ export default function GuestSendLetter() {
     };
 
     const handleSend = async () => {
-        const invalidSender = formData.senders.find(s => !s || !validateFormat(s));
-        if (invalidSender !== undefined) {
-            alert("All Senders must follow the format: LASTNAME, FIRSTNAME");
+        // Only validate format if senders are provided
+        const filledSenders = formData.senders.filter(s => s && s.trim());
+        if (filledSenders.length === 0) {
+            alert("At least one sender name is required.");
             return;
         }
 
-        if (!validateFormat(formData.encoder)) {
+        // Encoder is optional for guest submissions
+        if (formData.encoder && !validateFormat(formData.encoder)) {
             alert("Encoder name must follow the format: LASTNAME, FIRSTNAME");
             return;
         }
@@ -145,9 +147,11 @@ export default function GuestSendLetter() {
             setLoading(true);
             let scannedCopyPath = null;
 
-            const senderStr = formData.senders.join('; ').trim();
+            // Filter out any blank sender entries before joining
+            const validSenders = formData.senders.filter(s => s && s.trim());
+            const senderStr = validSenders.join('; ').trim();
             if (!senderStr) {
-                alert("Sender name is required.");
+                alert("At least one sender name is required.");
                 setLoading(false);
                 return;
             }
@@ -180,11 +184,11 @@ export default function GuestSendLetter() {
                 global_status: 1,
                 encoder_id: user?.id,
                 letter_type: 'Non-Confidential',
-                attachment_id: (formData.selectedRefIds || []).join(','),
+                attachment_id: (formData.selectedRefIds && formData.selectedRefIds.length > 0) ? parseInt(formData.selectedRefIds[0]) : null,
                 scanned_copy: scannedCopyPath,
                 direction: 'Incoming',
                 kind: null,
-                assigned_dept: ""
+                assigned_dept: null
             });
 
             if (response.data?.lms_id) {
@@ -421,13 +425,12 @@ export default function GuestSendLetter() {
                                     {canSummaryField && <div className="space-y-3">
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between gap-2">
                                             <div className="flex items-center gap-2">
-                                                <MessageSquare className={`w-3 h-3 ${subTextColor}`} /> Subject
+                                                <MessageSquare className={`w-3 h-3 ${subTextColor}`} /> RE
                                             </div>
                                             <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
                                         </label>
                                         <textarea
                                             rows={4}
-                                            placeholder="Subject"
                                             value={formData.regarding}
                                             onChange={(e) => setFormData({ ...formData, regarding: e.target.value })}
                                             className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-base font-medium outline-none resize-none`}
@@ -505,7 +508,7 @@ export default function GuestSendLetter() {
                                             {/* Physical Attachment Selection */}
                                             {canAttachmentSelector && <div className="space-y-3">
                                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                                    Setup
+                                                    Attachment
                                                 </label>
                                                 <div className="space-y-3" ref={attachmentSearchRef}>
                                                     <div className="relative">

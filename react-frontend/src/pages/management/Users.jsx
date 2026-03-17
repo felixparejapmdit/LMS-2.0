@@ -60,7 +60,8 @@ export default function Users() {
         password: "",
         role: "",
         dept_id: "",
-        avatar: null
+        avatar: null,
+        telegram_chat_id: ""
     });
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -198,7 +199,8 @@ export default function Users() {
             password: "",
             role: roles.find(r => r.name === 'User')?.id || roles[0]?.id || "",
             dept_id: "",
-            avatar: null
+            avatar: null,
+            telegram_chat_id: ""
         });
         setPreviewUrl(null);
         setSelectedUser(null);
@@ -216,7 +218,8 @@ export default function Users() {
             password: "",
             role: user.role || "",
             dept_id: user.dept_id || "",
-            avatar: user.avatar || null
+            avatar: user.avatar || null,
+            telegram_chat_id: user.telegram_chat_id || ""
         });
         setPreviewUrl(user.avatar ? getAssetUrl(user.avatar) : null);
         setIsModalOpen(true);
@@ -561,6 +564,10 @@ export default function Users() {
                                             {departments.map(d => <option key={d.id} value={d.id}>{d.dept_name}</option>)}
                                         </select>
                                     </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Telegram Bot Chat ID</label>
+                                    <input type="text" value={formData.telegram_chat_id} onChange={e => setFormData({ ...formData, telegram_chat_id: e.target.value })} placeholder="e.g. 123456789" className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" />
                                 </div>
                                 {canSave && (
                                     <div className="pt-4">

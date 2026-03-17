@@ -133,6 +133,7 @@ export default function Sidebar() {
         { icon: CloudDownload, label: "Data Import", path: "/setup/data-import" },
         { icon: Building2, label: "Departments", path: "/setup/departments" },
         { icon: Tags, label: "Kinds", path: "/setup/letter-kinds" },
+        { icon: ShieldCheck, label: "Roles", path: "/setup/roles" },
         { icon: Activity, label: "Statuses", path: "/setup/statuses" },
         { icon: GitMerge, label: "Steps", path: "/setup/process-steps" },
         { icon: Box, label: "Trays", path: "/setup/trays" },

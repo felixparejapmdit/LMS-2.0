@@ -21,7 +21,8 @@ import {
   History,
   Send,
   Menu,
-  Star
+  Star,
+  X
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import useAccess from "../../hooks/useAccess";
@@ -33,9 +34,47 @@ export default function LetterDetail() {
   const access = useAccess();
   const [letter, setLetter] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pdfPanel, setPdfPanel] = useState({ isOpen: false, url: null, name: null });
   const canField = access?.canField || (() => true);
   const canPdf = canField("letter-detail", "pdf_button");
   const canBack = canField("letter-detail", "back_button");
+
+  // Local component for the PDF Preview Panel
+  const PdfPanel = ({ pdfPanel, setPdfPanel }) => {
+    if (!pdfPanel.isOpen) return null;
+    return (
+      <>
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[100]" onClick={() => setPdfPanel({ isOpen: false, url: null, name: null })} />
+        <div className="fixed right-0 top-0 h-full w-full max-w-3xl z-[110] flex flex-col bg-white dark:bg-[#111] shadow-2xl border-l border-gray-100 dark:border-[#222] animate-in slide-in-from-right duration-500">
+          <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 dark:border-[#222] shrink-0">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Scanned Copy</span>
+              <span className="text-sm font-black text-slate-900 dark:text-white uppercase truncate max-w-[400px]">{pdfPanel.name}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <a href={pdfPanel.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-blue-600 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors flex items-center gap-1.5">
+                <ExternalLink className="w-3 h-3" /> Open Tab
+              </a>
+              <button
+                onClick={() => setPdfPanel({ isOpen: false, url: null, name: null })}
+                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 bg-slate-900">
+            <iframe
+              src={`${pdfPanel.url}#toolbar=0`}
+              className="w-full h-full"
+              style={{ border: 'none' }}
+              title="PDF Preview"
+            />
+          </div>
+        </div>
+      </>
+    );
+  };
 
   // Helper: build browser-accessible URL from a stored file path (Windows absolute OR relative)
   const buildFileUrl = (rawPath) => {
@@ -88,7 +127,9 @@ export default function LetterDetail() {
 
   if (layoutStyle === 'grid') {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-[#0D0D0D] flex overflow-hidden font-sans">
+      <>
+        <PdfPanel pdfPanel={pdfPanel} setPdfPanel={setPdfPanel} />
+        <div className="min-h-screen bg-slate-50 dark:bg-[#0D0D0D] flex overflow-hidden font-sans">
         <Sidebar />
         <main className="flex-1 flex flex-col h-screen overflow-hidden">
           <header className="h-20 bg-white dark:bg-[#0D0D0D] border-b border-slate-200 dark:border-[#222] px-4 md:px-12 flex items-center justify-between shadow-sm sticky top-0 z-50">
@@ -220,21 +261,19 @@ export default function LetterDetail() {
                     const fileUrl = buildFileUrl(filePath);
                     const fileName = getFilename(filePath);
                     return canPdf && fileUrl ? (
-                      <a
-                        href={fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-2xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors group"
+                      <button
+                        onClick={() => setPdfPanel({ isOpen: true, url: fileUrl, name: fileName })}
+                        className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-2xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors group w-full text-left"
                       >
                         <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 flex-shrink-0">
                           <FileText className="w-5 h-5 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-black text-slate-900 dark:text-white uppercase truncate">{fileName}</p>
-                          <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest mt-0.5">Scanned Copy · Click to View</p>
+                          <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest mt-0.5">Scanned Copy · Click to Preview</p>
                         </div>
                         <ExternalLink className="w-4 h-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                      </a>
+                      </button>
                     ) : (
                       <div className="py-4 text-center">
                         <p className="text-[10px] text-slate-300 dark:text-slate-600 font-bold uppercase tracking-widest">No Documents Attached</p>
@@ -247,12 +286,15 @@ export default function LetterDetail() {
           </div>
         </main>
       </div>
+    </>
     );
   }
 
   if (layoutStyle === 'minimalist') {
     return (
-      <div className="min-h-screen bg-[#F9FAFB] dark:bg-[#0D0D0D] flex overflow-hidden font-sans">
+      <>
+        <PdfPanel pdfPanel={pdfPanel} setPdfPanel={setPdfPanel} />
+        <div className="min-h-screen bg-[#F9FAFB] dark:bg-[#0D0D0D] flex overflow-hidden font-sans">
         <Sidebar />
         <main className="flex-1 flex flex-col h-screen overflow-hidden">
           <header className="h-16 bg-white dark:bg-[#0D0D0D] border-b border-[#E5E5E5] dark:border-[#222] px-4 md:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 shrink-0">
@@ -361,16 +403,20 @@ export default function LetterDetail() {
                     {(() => {
                       const filePath = letter.scanned_copy || letter.attachment?.file_path;
                       const fileUrl = buildFileUrl(filePath);
+                      const fileName = getFilename(filePath);
                       return canPdf && fileUrl ? (
-                        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-transparent hover:border-gray-200 transition-all group">
+                        <button
+                          onClick={() => setPdfPanel({ isOpen: true, url: fileUrl, name: fileName })}
+                          className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-transparent hover:border-gray-200 transition-all group w-full text-left"
+                        >
                           <div className="w-10 h-10 bg-[#1A1A1B] text-white rounded-lg flex items-center justify-center">
                             <FileText className="w-5 h-5" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-[#1A1A1B] dark:text-white truncate">Scanned Letter</p>
-                            <p className="text-[9px] text-[#737373] uppercase tracking-widest mt-0.5">PDF Document</p>
+                            <p className="text-xs font-bold text-[#1A1A1B] dark:text-white truncate">{fileName}</p>
+                            <p className="text-[9px] text-[#737373] uppercase tracking-widest mt-0.5">PDF Document · Preview</p>
                           </div>
-                        </a>
+                        </button>
                       ) : (
                         <div className="py-4 text-center border border-dashed border-gray-100 rounded-2xl">
                           <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">No Electronic Copy</p>
@@ -384,12 +430,15 @@ export default function LetterDetail() {
           </div>
         </main>
       </div>
+    </>
     );
   }
 
   if (layoutStyle === 'notion') {
     return (
-      <div className="min-h-screen bg-white dark:bg-[#191919] flex overflow-hidden">
+      <>
+        <PdfPanel pdfPanel={pdfPanel} setPdfPanel={setPdfPanel} />
+        <div className="min-h-screen bg-white dark:bg-[#191919] flex overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto">
           <div className="w-full px-4 md:px-6 lg:px-8 pt-6 md:pt-10 pb-16 md:pb-24 relative">
@@ -419,9 +468,19 @@ export default function LetterDetail() {
                   </div>
                   {canPdf && (
                     <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-2 bg-white dark:bg-black rounded border border-gray-100 dark:border-[#333] shadow-sm">
-                        <ExternalLink className="w-4 h-4 text-gray-400" />
-                      </button>
+                      {(() => {
+                        const filePath = letter.scanned_copy || letter.attachment?.file_path;
+                        const fileUrl = buildFileUrl(filePath);
+                        const fileName = getFilename(filePath);
+                        return fileUrl && (
+                          <button 
+                            onClick={() => setPdfPanel({ isOpen: true, url: fileUrl, name: fileName })}
+                            className="p-2 bg-white dark:bg-black rounded border border-gray-100 dark:border-[#333] shadow-sm hover:bg-gray-50 transition-colors"
+                          >
+                            <ExternalLink className="w-4 h-4 text-gray-400" />
+                          </button>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -438,14 +497,17 @@ export default function LetterDetail() {
                     const fileUrl = buildFileUrl(filePath);
                     const fileName = getFilename(filePath);
                     return canPdf && fileUrl ? (
-                      <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors group">
+                      <button
+                        onClick={() => setPdfPanel({ isOpen: true, url: fileUrl, name: fileName })}
+                        className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors group w-full text-left"
+                      >
                         <FileText className="w-5 h-5 text-blue-500" />
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{fileName}</p>
-                          <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest">Scanned Copy</p>
+                          <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest">Scanned Copy · Preview</p>
                         </div>
                         <ExternalLink className="w-4 h-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </a>
+                      </button>
                     ) : (
                       <div className="p-12 border-2 border-dashed border-gray-50 dark:border-[#222] rounded-xl text-center">
                         <Paperclip className="w-8 h-8 text-gray-100 dark:text-gray-800 mx-auto mb-2" />
@@ -509,12 +571,15 @@ export default function LetterDetail() {
           </div>
         </main>
       </div>
+    </>
     );
   }
 
   // Default Layout
   return (
-    <div className="flex h-screen bg-neutral-50 dark:bg-[#0D0D0D] overflow-hidden font-sans">
+    <>
+      <PdfPanel pdfPanel={pdfPanel} setPdfPanel={setPdfPanel} />
+      <div className="flex h-screen bg-neutral-50 dark:bg-[#0D0D0D] overflow-hidden font-sans">
       <Sidebar />
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 bg-white dark:bg-[#0D0D0D] border-b border-gray-100 dark:border-[#222] px-4 md:px-8 flex items-center justify-between z-10 shrink-0">
@@ -643,16 +708,18 @@ export default function LetterDetail() {
                   const fileUrl = buildFileUrl(filePath);
                   const fileName = getFilename(filePath);
                   return canPdf && fileUrl ? (
-                    <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-2xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors group">
+                    <button
+                      onClick={() => setPdfPanel({ isOpen: true, url: fileUrl, name: fileName })}
+                      className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-2xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors group w-full text-left"
+                    >
                       <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 flex-shrink-0">
                         <FileText className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-black text-gray-900 dark:text-white uppercase truncate">{fileName}</p>
-                        <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest mt-0.5">Scanned Copy · Click to View</p>
+                        <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest mt-0.5">Scanned Copy · Click to Preview</p>
                       </div>
-                      <ExternalLink className="w-4 h-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                    </a>
+                    </button>
                   ) : (
                     <div className="py-4 text-center">
                       <p className="text-[10px] text-gray-300 dark:text-gray-600 font-bold uppercase tracking-widest">No Documents Attached</p>
@@ -682,5 +749,6 @@ export default function LetterDetail() {
         </div>
       </main>
     </div>
+    </>
   );
 }

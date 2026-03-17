@@ -120,17 +120,38 @@ export default function LetterTracker() {
 
     const handlePrintQR = (entry_id) => {
         const printWindow = window.open('', '_blank');
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${entry_id}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${entry_id}`;
 
         printWindow.document.write(`
             <html>
                 <head>
                     <title>Reference QR - ${entry_id}</title>
                     <style>
-                        body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; background: white; }
-                        .container { border: 2px solid #000; padding: 30px; border-radius: 20px; text-align: center; }
-                        img { width: 300px; height: 300px; }
-                        .ref { margin-top: 20px; font-size: 36px; font-weight: 900; }
+                        body { 
+                            margin: 0; 
+                            padding: 0; 
+                            font-family: sans-serif; 
+                            background: white; 
+                            display: flex;
+                            align-items: flex-start;
+                        }
+                        @page { size: auto; margin: 0mm; }
+                        .container { 
+                            display: flex; 
+                            align-items: center; 
+                            gap: 2mm; 
+                            padding: 2mm; 
+                        }
+                        img { 
+                            width: 9mm; 
+                            height: 9mm; 
+                            object-fit: contain;
+                        }
+                        .ref { 
+                            font-size: 8pt; 
+                            font-weight: 900; 
+                            white-space: nowrap;
+                        }
                     </style>
                 </head>
                 <body>

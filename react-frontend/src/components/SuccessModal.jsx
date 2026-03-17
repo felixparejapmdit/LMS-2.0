@@ -23,7 +23,7 @@ export default function SuccessModal({
 }) {
     const handlePrintQR = () => {
         const printWindow = window.open('', '_blank');
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${referenceNo}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${referenceNo}`;
 
         printWindow.document.write(`
             <html>
@@ -31,30 +31,34 @@ export default function SuccessModal({
                     <title>Reference QR - ${referenceNo}</title>
                     <style>
                         body { 
-                            display: flex; 
-                            flex-direction: column; 
-                            align-items: center; 
-                            justify-content: center; 
-                            height: 100vh; 
                             margin: 0; 
-                            font-family: 'Public Sans', sans-serif;
-                            background: white;
+                            padding: 0; 
+                            font-family: sans-serif; 
+                            background: white; 
+                            display: flex;
+                            align-items: flex-start;
                         }
-                        .container {
-                            border: 2px solid #000;
-                            padding: 30px;
-                            border-radius: 20px;
-                            text-align: center;
-                            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+                        @page { size: auto; margin: 0mm; }
+                        .container { 
+                            display: flex; 
+                            align-items: center; 
+                            gap: 2mm; 
+                            padding: 2mm; 
                         }
-                        img { width: 300px; height: 300px; }
-                        .ref { margin-top: 20px; font-size: 36px; font-weight: 900; letter-spacing: -0.02em; color: #000; }
-                        .label { font-size: 14px; color: #666; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 10px; }
+                        img { 
+                            width: 9mm; 
+                            height: 9mm; 
+                            object-fit: contain;
+                        }
+                        .ref { 
+                            font-size: 8pt; 
+                            font-weight: 900; 
+                            white-space: nowrap;
+                        }
                     </style>
                 </head>
                 <body>
                     <div class="container">
-                        <div class="label">Reference Code</div>
                         <img src="${qrUrl}" />
                         <div class="ref">${referenceNo}</div>
                     </div>

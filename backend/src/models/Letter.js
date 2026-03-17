@@ -49,6 +49,9 @@ const Letter = sequelize.define('Letter', {
     vemcode: {
         type: DataTypes.STRING
     },
+    aevm_number: {
+        type: DataTypes.STRING
+    },
     evemnote: {
         type: DataTypes.TEXT
     },

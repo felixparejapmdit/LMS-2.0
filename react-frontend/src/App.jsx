@@ -19,6 +19,7 @@ import LettersWithComments from "./pages/management/LettersWithComments";
 import LetterEndorsement from "./pages/management/LetterEndorsement";
 import LetterDetail from "./pages/management/LetterDetail";
 import RoleAccessMatrix from "./pages/management/RoleAccessMatrix";
+import Roles from "./pages/management/Roles";
 import Trays from "./pages/management/Trays";
 import Users from "./pages/management/Users";
 import Persons from "./pages/management/Persons";
@@ -112,6 +113,7 @@ function AppRoutes() {
         <Route path="/setup/statuses" element={<ProtectedRoute><Statuses /></ProtectedRoute>} />
         <Route path="/setup/attachments" element={<ProtectedRoute><Attachments /></ProtectedRoute>} />
         <Route path="/setup/role-matrix" element={<ProtectedRoute><RoleAccessMatrix /></ProtectedRoute>} />
+        <Route path="/setup/roles" element={<ProtectedRoute><Roles /></ProtectedRoute>} />
         <Route path="/setup/data-import" element={<ProtectedRoute><DataImport /></ProtectedRoute>} />
         <Route path="/master-table" element={<ProtectedRoute><MasterTable /></ProtectedRoute>} />
         <Route path="/letters-with-comments" element={<ProtectedRoute><LettersWithComments /></ProtectedRoute>} />

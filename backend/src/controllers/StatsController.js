@@ -137,7 +137,7 @@ class StatsController {
             const reviewName = reviewStep?.step_name || 'For Review';
             const signatureName = signatureStep?.step_name || 'For Signature';
 
-            const counts = { review: 0, atg_note: 0, signature: 0, vem: 0, pending: 0, hold: 0 };
+            const counts = { review: 0, atg_note: 0, signature: 0, vem: 0, pending: 0, hold: 0, empty_entry: 0 };
 
             allAssignments.forEach(a => {
                 const stepName = a.step?.step_name || '';
@@ -149,6 +149,11 @@ class StatsController {
                 const isVip = (a.letter?.tray_id === 0 || a.letter?.tray_id == null) &&
                     (a.letter?.global_status === 2 || letterStatus === 'ATG Note');
                 if (isVip) return;
+
+                const hasNoSenderOrSummary = !a.letter?.sender || a.letter.sender.trim() === '' || !a.letter?.summary || a.letter.summary.trim() === '';
+                if (hasNoSenderOrSummary && letterStatus !== 'Filed' && letterStatus !== 'Done') {
+                    counts.empty_entry++;
+                }
 
                 // Hold counts ANY hold status
                 if (letterStatus === 'Hold' || letterStatus === 'On Hold') {
@@ -186,7 +191,13 @@ class StatsController {
                 }]
             });
             const purelyUnassigned = unassignedLetters.filter(l => (l.assignments || []).length === 0);
-            counts.pending += purelyUnassigned.length;
+            purelyUnassigned.forEach(l => {
+                const hasNoSenderOrSummary = !l.sender || l.sender.trim() === '' || !l.summary || l.summary.trim() === '';
+                if (hasNoSenderOrSummary) {
+                    counts.empty_entry++;
+                }
+                counts.pending++;
+            });
 
             res.json(counts);
         } catch (error) {

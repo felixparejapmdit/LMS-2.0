@@ -20,11 +20,11 @@ export default function Login() {
     if (result.success) {
       const roleName = (result.user?.roleData?.name || result.user?.role || '').toString().toUpperCase();
       if (roleName === 'USER') {
-        navigate("/letter-tracker");
+        window.location.href = "/letter-tracker";
       } else if (roleName === 'VIP') {
-        navigate("/vip-view");
+        window.location.href = "/vip-view";
       } else {
-        navigate("/");
+        window.location.href = "/";
       }
     } else {
       setError(result.error || "Login failed. Please check your username and password.");
@@ -116,7 +116,7 @@ export default function Login() {
                 type="button"
                 onClick={() => {
                   loginGuest();
-                  navigate("/guest/send-letter");
+                  window.location.href = "/guest/send-letter";
                 }}
                 className="w-full py-4 bg-white dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 text-slate-400 hover:text-orange-500 text-[10px] font-black uppercase tracking-widest transition-all rounded-2xl flex items-center justify-center gap-3 group"
               >

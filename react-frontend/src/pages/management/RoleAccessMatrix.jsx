@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from "react";
+import { LAST_REFRESH_KEY } from "../../context/AuthContext";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -21,7 +22,8 @@ import {
     Info,
     FileCode,
     Search,
-    Menu
+    Menu,
+    X
 } from "lucide-react";
 import rolePermissionService from "../../services/rolePermissionService";
 import systemPageService from "../../services/systemPageService";
@@ -60,7 +62,7 @@ export default function RoleAccessMatrix() {
     const [saving, setSaving] = useState(false);
     const [selectedRoleId, setSelectedRoleId] = useState(null);
     const [matrix, setMatrix] = useState({}); // { [page_id]: permissions }
-    const [fieldModal, setFieldModal] = useState({ isOpen: false, pageId: null, fields: "" });
+    const [fieldModal, setFieldModal] = useState({ isOpen: false, pageId: null, fields: {} });
     const [isInstructionOpen, setIsInstructionOpen] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
     const [searchTerm, setSearchTerm] = useState("");
@@ -174,6 +176,7 @@ export default function RoleAccessMatrix() {
 
             // Reload auth context if current user role was updated
             if (user?.role === selectedRoleId || user?.roleData?.id === selectedRoleId) {
+                localStorage.removeItem(LAST_REFRESH_KEY); localStorage.removeItem("auth_permissions");
                 window.location.reload(); // Hard refresh to apply security locks globally
             }
         } catch (error) {
@@ -379,7 +382,7 @@ export default function RoleAccessMatrix() {
                                                                             setFieldModal({
                                                                                 isOpen: true,
                                                                                 pageId: page.page_id,
-                                                                                fields: JSON.stringify(currentFields, null, 2)
+                                                                                fields: currentFields
                                                                             });
                                                                         }}
                                                                         className={`w-9 h-9 rounded-xl md:rounded-[1rem] flex items-center justify-center transition-all mx-auto ${Object.keys(matrix[page.page_id]?.field_permissions || {}).length > 0
@@ -438,48 +441,90 @@ export default function RoleAccessMatrix() {
             {
                 fieldModal.isOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setFieldModal({ isOpen: false, pageId: null, fields: "" })} />
-                        <div className={`${cardBg} w-full max-w-lg rounded-[2.5rem] border shadow-2xl relative z-10 p-8`}>
-                            <div className="flex items-center justify-between mb-8">
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setFieldModal({ isOpen: false, pageId: null, fields: {} })} />
+                        <div className={`${cardBg} w-full max-w-lg rounded-[2.5rem] border shadow-2xl relative z-10 overflow-hidden`}>
+                            <div className="p-8 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Field Permissions</span>
+                                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Component Permissions</span>
                                     <h3 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>{fieldModal.pageId}</h3>
                                 </div>
-                                <button onClick={() => setFieldModal({ isOpen: false, pageId: null, fields: "" })} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl text-gray-400">
-                                    <X className="w-5 h-5" />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setFieldModal(prev => ({
+                                            ...prev,
+                                            fields: Object.fromEntries(Object.keys(prev.fields).map(k => [k, true]))
+                                        }))}
+                                        className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-green-600 bg-green-500/10 hover:bg-green-500/20 rounded-xl transition-colors"
+                                    >
+                                        Select All
+                                    </button>
+                                    <button
+                                        onClick={() => setFieldModal(prev => ({
+                                            ...prev,
+                                            fields: Object.fromEntries(Object.keys(prev.fields).map(k => [k, false]))
+                                        }))}
+                                        className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-red-500 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-colors"
+                                    >
+                                        Clear All
+                                    </button>
+                                    <button onClick={() => setFieldModal({ isOpen: false, pageId: null, fields: {} })} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl text-gray-400 ml-1">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="space-y-4">
-                                <p className="text-xs text-gray-500 font-medium italic">
-                                    Use JSON format to restrict specific components: <br />
-                                    <code>{`{ "delete_btn": false, "salary_field": false }`}</code>
-                                </p>
-                                <textarea
-                                    value={fieldModal.fields}
-                                    onChange={(e) => setFieldModal(prev => ({ ...prev, fields: e.target.value }))}
-                                    className="w-full h-64 p-4 rounded-2xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-mono text-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                                    placeholder={`{ "component_id": false }`}
-                                />
+                            <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                                <div className="grid grid-cols-1 gap-4">
+                                    {Object.keys(fieldModal.fields).map((fieldKey) => (
+                                        <div 
+                                            key={fieldKey}
+                                            onClick={() => {
+                                                setFieldModal(prev => ({
+                                                    ...prev,
+                                                    fields: {
+                                                        ...prev.fields,
+                                                        [fieldKey]: !prev.fields[fieldKey]
+                                                    }
+                                                }));
+                                            }}
+                                            className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group ${
+                                                fieldModal.fields[fieldKey] 
+                                                    ? 'border-blue-500/20 bg-blue-500/5 dark:bg-blue-500/10' 
+                                                    : 'border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 opacity-60'
+                                            }`}
+                                        >
+                                            <div className="flex flex-col">
+                                                <span className={`text-[10px] font-black uppercase tracking-widest ${fieldModal.fields[fieldKey] ? 'text-blue-500' : 'text-slate-400'}`}>Component ID</span>
+                                                <span className={`text-sm font-bold capitalize ${textColor}`}>{fieldKey.replace(/_/g, ' ')}</span>
+                                            </div>
+                                            <div className={`w-12 h-6 rounded-full p-1 transition-colors relative ${fieldModal.fields[fieldKey] ? 'bg-blue-600' : 'bg-slate-200 dark:bg-white/20'}`}>
+                                                <div className={`w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${fieldModal.fields[fieldKey] ? 'translate-x-6' : 'translate-x-0'}`} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {Object.keys(fieldModal.fields).length === 0 && (
+                                        <div className="py-12 text-center text-slate-400 font-medium italic">
+                                            No explicit components defined for this page.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            <div className="p-8 bg-slate-50/50 dark:bg-white/5 border-t border-gray-100 dark:border-white/10">
                                 <button
                                     onClick={() => {
-                                        try {
-                                            const parsed = JSON.parse(fieldModal.fields);
-                                            setMatrix(prev => ({
-                                                ...prev,
-                                                [fieldModal.pageId]: {
-                                                    ...prev[fieldModal.pageId],
-                                                    field_permissions: mergeFieldPermissions(fieldModal.pageId, parsed)
-                                                }
-                                            }));
-                                            setFieldModal({ isOpen: false, pageId: null, fields: "" });
-                                        } catch (e) {
-                                            alert("Invalid JSON format");
-                                        }
+                                        setMatrix(prev => ({
+                                            ...prev,
+                                            [fieldModal.pageId]: {
+                                                ...prev[fieldModal.pageId],
+                                                field_permissions: fieldModal.fields
+                                            }
+                                        }));
+                                        setFieldModal({ isOpen: false, pageId: null, fields: {} });
                                     }}
-                                    className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-blue-500/20"
+                                    className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
                                 >
-                                    Apply component configuration
+                                    <Check className="w-4 h-4" /> Save Configuration
                                 </button>
                             </div>
                         </div>
@@ -566,8 +611,3 @@ export default function RoleAccessMatrix() {
         </div>
     );
 }
-
-// Helper X icon if not imported
-const X = (props) => (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-);

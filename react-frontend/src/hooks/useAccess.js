@@ -81,6 +81,7 @@ export const useAccess = () => {
      */
     const canField = (pageName, fieldId) => {
         if (!permissions || permissions.length === 0) return true;
+        console.debug(`useAccess: checking ${pageName}.${fieldId}`, { permCount: permissions.length });
 
         const perm = permissions.find(p =>
             p.page_name === pageName ||

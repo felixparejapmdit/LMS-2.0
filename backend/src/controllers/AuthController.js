@@ -207,6 +207,29 @@ class AuthController {
             res.status(500).json({ error: error.message });
         }
     }
+
+    static async getGuestConfig(req, res) {
+        try {
+            const guestRole = await Role.findOne({
+                where: sequelize.where(
+                    sequelize.fn('LOWER', sequelize.col('name')),
+                    'guest'
+                )
+            });
+
+            if (!guestRole) {
+                return res.json({ permissions: [] });
+            }
+
+            const perms = await RolePermission.findAll({
+                where: { role_id: guestRole.id }
+            });
+
+            res.json({ permissions: normalizePermissions(perms) });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
 }
 
 module.exports = AuthController;

@@ -1,6 +1,15 @@
 const { RolePermission, Role, SystemPage, User } = require('../models/associations');
 const sequelize = require('../config/db');
 
+// Safe UUID v4 generator (works on all Node versions)
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
 const PAGE_FIELD_PRESETS = {
     'home': ['refresh_button', 'quick_new_letter_button', 'quick_trays_button'],
     'vip-view': ['step_selector', 'pdf_button', 'comment_box', 'submit_button', 'edit_button', 'delete_button', 'logout_button'],
@@ -28,7 +37,8 @@ const PAGE_FIELD_PRESETS = {
     'setup': ['department_field', 'dept_code_field', 'template_selector', 'add_button', 'delete_button', 'submit_button', 'next_button', 'back_button'],
     'letter-detail': ['pdf_button', 'back_button'],
     'department-letters': ['back_button', 'search', 'refresh_button', 'tab_filter', 'tray_selector'],
-    'profile': ['save_button', 'password_field', 'avatar_upload', 'username_field']
+    'profile': ['save_button', 'password_field', 'avatar_upload', 'username_field'],
+    'roles': ['add_button', 'edit_button', 'delete_button', 'save_button', 'refresh_button']
 };
 
 /**
@@ -177,8 +187,88 @@ class RolePermissionController {
 
     static async getRoles(req, res) {
         try {
-            const roles = await Role.findAll();
+            const roles = await Role.findAll({
+                attributes: {
+                    include: [
+                        [
+                            sequelize.literal(`(
+                                SELECT COUNT(*)
+                                FROM directus_users as users
+                                WHERE users.role = Role.id
+                            )`),
+                            'user_count'
+                        ]
+                    ]
+                }
+            });
             res.json(roles);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    static async createRole(req, res) {
+        try {
+            const { name } = req.body;
+            if (!name) return res.status(400).json({ error: 'Role name is required' });
+
+            const newRole = await Role.create({
+                id: generateUUID(),
+                name
+            });
+
+            // Initialize permissions for all pages
+            const pages = await SystemPage.findAll({ attributes: ['page_id'] });
+            if (pages.length > 0) {
+                const toCreate = pages.map(page => ({
+                    role_id: newRole.id,
+                    page_name: page.page_id,
+                    can_view: false,
+                    can_create: false,
+                    can_edit: false,
+                    can_delete: false,
+                    can_special: false,
+                    field_permissions: withDefaultFieldPermissions(page.page_id, {})
+                }));
+                await RolePermission.bulkCreate(toCreate);
+            }
+
+            res.json(newRole);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    static async updateRole(req, res) {
+        try {
+            const { id } = req.params;
+            const { name } = req.body;
+            
+            const role = await Role.findByPk(id);
+            if (!role) return res.status(404).json({ error: 'Role not found' });
+
+            await role.update({ name });
+            res.json(role);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    static async deleteRole(req, res) {
+        try {
+            const { id } = req.params;
+            
+            // Check if users are assigned to this role
+            const userCount = await User.count({ where: { role: id } });
+            if (userCount > 0) {
+                return res.status(400).json({ error: 'Cannot delete role that has assigned users' });
+            }
+
+            // Delete associated permissions first
+            await RolePermission.destroy({ where: { role_id: id } });
+            await Role.destroy({ where: { id } });
+            
+            res.json({ message: 'Role deleted successfully' });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }

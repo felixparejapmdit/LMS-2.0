@@ -8,7 +8,9 @@ const ALL_LETTER_ROLES = new Set([
     'SYSTEM ADMIN',
     'SYSTEMADMIN',
     'SUPER ADMIN',
-    'SUPERADMIN'
+    'SUPERADMIN',
+    'DEVELOPER',
+    'ROOT'
 ]);
 
 class LetterAssignmentController {
@@ -87,25 +89,21 @@ class LetterAssignmentController {
                         { '$letter.vemcode$': { [Op.and]: [{ [Op.ne]: '' }, { [Op.not]: null }] } }
                     ];
                 } else if (named_filter === 'pending') {
-                    // Pending: Status = Incoming AND No Process Step AND Not specifically Review/Signature
+                    // Pending: Status = Incoming AND No Process Step (restoring previous condition)
                     where['$letter.status.status_name$'] = 'Incoming';
                     where['$step.id$'] = null;
-
-                    const reviewStep = await ProcessStep.findByPk(2);
-                    const signatureStep = await ProcessStep.findByPk(1);
-                    const rName = reviewStep?.step_name || 'For Review';
-                    const sName = signatureStep?.step_name || 'For Signature';
-
-                    // Exclude any that might somehow still be labeled as Review/Signature in other ways if any
-                    if (!where[Op.and]) where[Op.and] = [];
-                    where[Op.and].push({
-                        [Op.not]: {
+                    where['$letter.tray_id$'] = { [Op.or]: [null, 0] };
+                } else if (named_filter === 'empty_entry') {
+                    // Empty Entry: Missing sender OR Missing summary, and not Concluded
+                    where[Op.and] = [
+                        { '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] } },
+                        {
                             [Op.or]: [
-                                { '$step.step_name$': rName },
-                                { '$step.step_name$': sName }
+                                { '$letter.sender$': { [Op.or]: ['', null] } },
+                                { '$letter.summary$': { [Op.or]: ['', null] } }
                             ]
                         }
-                    });
+                    ];
                 } else if (named_filter === 'hold') {
                     where['$letter.status.status_name$'] = { [Op.or]: ['Hold', 'On Hold'] };
                 }
@@ -114,13 +112,13 @@ class LetterAssignmentController {
             const letterInclude = {
                 model: Letter,
                 as: 'letter',
-                required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'pending' || named_filter === 'hold' || named_filter === 'vem' || named_filter === 'atg_note' || !!global_status || vip === 'true' || req.query.exclude_vip === 'true' || req.query.outbox === 'true'),
+                required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'pending' || named_filter === 'empty_entry' || named_filter === 'hold' || named_filter === 'vem' || named_filter === 'atg_note' || !!global_status || vip === 'true' || req.query.exclude_vip === 'true' || req.query.outbox === 'true'),
                 include: [
                     {
                         model: Status,
                         as: 'status',
                         attributes: ['status_name'],
-                        required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'pending' || named_filter === 'hold' || named_filter === 'atg_note' || req.query.outbox === 'true' || vip === 'true' || req.query.exclude_vip === 'true')
+                        required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'pending' || named_filter === 'empty_entry' || named_filter === 'hold' || named_filter === 'atg_note' || req.query.outbox === 'true' || vip === 'true' || req.query.exclude_vip === 'true')
                     },
                     { model: Tray, as: 'tray' },
                     { model: LetterKind, as: 'letterKind' },
@@ -184,8 +182,8 @@ class LetterAssignmentController {
                 subQuery: false
             });
 
-            // If named_filter is 'pending', also fetch letters with status 'Incoming' that have NO assignment record at all
-            if (named_filter === 'pending') {
+            // If named_filter is 'pending' or 'empty_entry', also fetch letters with status 'Incoming' that have NO assignment record at all
+            if (named_filter === 'pending' || named_filter === 'empty_entry') {
                 const incomingStatus = await Status.findOne({ where: { status_name: 'Incoming' } });
                 const unassignedLetters = await Letter.findAll({
                     where: {
@@ -200,7 +198,15 @@ class LetterAssignmentController {
                         { model: LetterAssignment, as: 'assignments', required: false }
                     ]
                 });
-                const purelyUnassigned = unassignedLetters.filter(l => (l.assignments || []).length === 0);
+                let purelyUnassigned = unassignedLetters.filter(l => (l.assignments || []).length === 0);
+                
+                // Further filter purelyUnassigned based on the named_filter
+                if (named_filter === 'pending') {
+                    // No additional filter for pending (restore previous behavior)
+                } else if (named_filter === 'empty_entry') {
+                    purelyUnassigned = purelyUnassigned.filter(l => !l.sender || l.sender.trim() === '' || !l.summary || l.summary.trim() === '');
+                }
+
                 const mappedMocks = purelyUnassigned.map(l => ({
                     id: `mock-${l.id}`,
                     letter_id: l.id,

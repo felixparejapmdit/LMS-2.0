@@ -76,6 +76,7 @@ export default function MasterTable() {
     const [endorseSuggestions, setEndorseSuggestions] = useState([]);
     const [showEndorseSuggestions, setShowEndorseSuggestions] = useState(false);
     const endorseRef = useRef(null);
+    const [validationError, setValidationError] = useState("");
     const [isCombining, setIsCombining] = useState(false);
     const [newFile, setNewFile] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -96,10 +97,6 @@ export default function MasterTable() {
         if (!file) return;
         if (file.type !== 'application/pdf') {
             alert("Please upload a PDF file.");
-            return;
-        }
-        if ((selectedLetter.attachment_id || selectedLetter.scanned_copy) && !isCombining) {
-            alert("Please check 'Combine PDF' if you wish to add this to the existing document.");
             return;
         }
         setNewFile(file);
@@ -205,7 +202,12 @@ export default function MasterTable() {
     }, []);
 
     const handleEdit = (letter) => {
-        setSelectedLetter({ ...letter });
+        const latestAssignment = letter.assignments?.sort((a, b) => b.id - a.id)[0];
+        setSelectedLetter({
+            ...letter,
+            currentStepId: letter.currentStepId || latestAssignment?.step_id
+        });
+        setValidationError("");
         setDrawerMode("edit");
         setIsDrawerOpen(true);
         setIsCombining(false);
@@ -282,6 +284,11 @@ export default function MasterTable() {
     };
 
     const handleUpdateDetails = async () => {
+        if (!selectedLetter.currentStepId) {
+            setValidationError("Please select a valid Stage (e.g. FOR REVIEW, FOR SIGNATURE, VEM LETTER) before saving.");
+            return;
+        }
+
         try {
             setLoading(true);
 
@@ -293,12 +300,11 @@ export default function MasterTable() {
                 formData.append('file', newFile);
                 formData.append('no_record', 'true');
 
-                if (isCombining) {
-                    if (selectedLetter.scanned_copy) {
-                        formData.append('existing_path', selectedLetter.scanned_copy);
-                    } else if (selectedLetter.attachment_id) {
-                        formData.append('combine_with', selectedLetter.attachment_id);
-                    }
+                // Auto-combine if there is an existing attachment
+                if (selectedLetter.scanned_copy) {
+                    formData.append('existing_path', selectedLetter.scanned_copy);
+                } else if (selectedLetter.attachment_id) {
+                    formData.append('combine_with', selectedLetter.attachment_id);
                 }
 
                 const uploadRes = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/upload`, formData, {
@@ -365,7 +371,7 @@ export default function MasterTable() {
             fetchData();
         } catch (error) {
             console.error("Update failed", error);
-            alert("Failed to update letter details.");
+            setValidationError("Failed to update letter details. Please check connection.");
         } finally {
             setLoading(false);
         }
@@ -389,14 +395,14 @@ export default function MasterTable() {
             const pathValue = letter.scanned_copy;
             const encodedPath = btoa(unescape(encodeURIComponent(pathValue)));
             // Prioritize current origin if VITE_API_URL is relative
-            const baseUrl = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith('http')) 
-                ? import.meta.env.VITE_API_URL 
+            const baseUrl = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith('http'))
+                ? import.meta.env.VITE_API_URL
                 : window.location.origin + (import.meta.env.VITE_API_URL || '/api');
-            
+
             window.open(`${baseUrl}/attachments/view-path?path=${encodedPath}`, '_blank');
         } else if (letter.attachment_id) {
-            const baseUrl = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith('http')) 
-                ? import.meta.env.VITE_API_URL 
+            const baseUrl = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith('http'))
+                ? import.meta.env.VITE_API_URL
                 : window.location.origin + (import.meta.env.VITE_API_URL || '/api');
             window.open(`${baseUrl}/attachments/view/${letter.attachment_id}`, '_blank');
         } else {
@@ -410,17 +416,38 @@ export default function MasterTable() {
             return;
         }
         const printWindow = window.open('', '_blank');
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${lms_id}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${lms_id}`;
 
         printWindow.document.write(`
             <html>
                 <head>
                     <title>Reference QR - ${lms_id}</title>
                     <style>
-                        body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; background: white; }
-                        .container { border: 2px solid #000; padding: 30px; border-radius: 20px; text-align: center; }
-                        img { width: 300px; height: 300px; }
-                        .ref { margin-top: 20px; font-size: 36px; font-weight: 900; }
+                        body { 
+                            margin: 0; 
+                            padding: 0; 
+                            font-family: sans-serif; 
+                            background: white; 
+                            display: flex;
+                            align-items: flex-start;
+                        }
+                        @page { size: auto; margin: 0mm; }
+                        .container { 
+                            display: flex; 
+                            align-items: center; 
+                            gap: 2mm; 
+                            padding: 2mm; 
+                        }
+                        img { 
+                            width: 9mm; 
+                            height: 9mm; 
+                            object-fit: contain;
+                        }
+                        .ref { 
+                            font-size: 8pt; 
+                            font-weight: 900; 
+                            white-space: nowrap;
+                        }
                     </style>
                 </head>
                 <body>
@@ -570,7 +597,7 @@ export default function MasterTable() {
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Step</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 whitespace-nowrap">Date</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Sender</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Info</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Letter Summary</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">History</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">QR</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">PDF</th>
@@ -661,8 +688,8 @@ export default function MasterTable() {
                                                         <Printer className="w-4 h-4" />
                                                     </button>
                                                 </td>
-                                                 <td className="p-5 text-center">
-                                                     {(isSuperAdmin || (canPdf && (letter.attachment_id || letter.scanned_copy))) ? (
+                                                <td className="p-5 text-center">
+                                                    {(isSuperAdmin || (canPdf && (letter.attachment_id || letter.scanned_copy))) ? (
                                                         <button
                                                             onClick={() => handleViewPDF(letter)}
                                                             className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all mx-auto"
@@ -727,7 +754,7 @@ export default function MasterTable() {
                                     {/* Workflow Step Selection (Radio Buttons) */}
                                     {canStepSelector && <div className="space-y-4">
                                         <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                                            <GitMerge className="w-3 h-3" /> Stage
+                                            <GitMerge className="w-3 h-3" /> Steps
                                         </label>
                                         <div className="flex flex-wrap gap-2 mt-2">
                                             {steps.map((step) => {
@@ -738,6 +765,7 @@ export default function MasterTable() {
                                                 return (
                                                     <label
                                                         key={step.id}
+                                                        onClick={() => setValidationError("")}
                                                         className={`flex-1 min-w-[120px] flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${isSelected ? 'bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-white dark:bg-white/5 border-gray-100 dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20'}`}
                                                     >
                                                         <input
@@ -745,7 +773,10 @@ export default function MasterTable() {
                                                             name="process_step"
                                                             className="hidden"
                                                             checked={isSelected}
-                                                            onChange={() => setSelectedLetter(prev => ({ ...prev, currentStepId: step.id }))}
+                                                            onChange={() => {
+                                                                setSelectedLetter(prev => ({ ...prev, currentStepId: step.id }));
+                                                                setValidationError("");
+                                                            }}
                                                         />
                                                         <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${isSelected ? 'border-white' : 'border-gray-300 dark:border-gray-600'}`}>
                                                             {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
@@ -786,7 +817,10 @@ export default function MasterTable() {
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tray</label>
                                         <select
                                             value={selectedLetter.tray_id || ""}
-                                            onChange={(e) => setSelectedLetter({ ...selectedLetter, tray_id: e.target.value === "" ? null : parseInt(e.target.value) })}
+                                            onChange={(e) => {
+                                                setSelectedLetter({ ...selectedLetter, tray_id: e.target.value === "" ? null : parseInt(e.target.value) });
+                                                setValidationError("");
+                                            }}
                                             style={{ backgroundColor: 'white', color: 'black' }}
                                             className="w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm"
                                         >
@@ -816,6 +850,7 @@ export default function MasterTable() {
                                             onChange={(e) => {
                                                 const newStatusId = parseInt(e.target.value);
                                                 setSelectedLetter(prev => ({ ...prev, global_status: e.target.value === "" ? null : newStatusId }));
+                                                setValidationError("");
                                             }}
                                             style={{ backgroundColor: 'white', color: 'black' }}
                                             className="w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm"
@@ -913,12 +948,22 @@ export default function MasterTable() {
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">VEM Code</label>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">VEM Number</label>
                                         <input
                                             type="text"
                                             className={`w-full px-4 py-3 rounded-xl border text-sm font-bold ${'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
                                             value={selectedLetter.vemcode || ""}
                                             onChange={(e) => setSelectedLetter({ ...selectedLetter, vemcode: e.target.value })}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">AEVM Number</label>
+                                        <input
+                                            type="text"
+                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-bold ${'bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white'}`}
+                                            value={selectedLetter.aevm_number || ""}
+                                            onChange={(e) => setSelectedLetter({ ...selectedLetter, aevm_number: e.target.value })}
                                         />
                                     </div>
 
@@ -959,17 +1004,12 @@ export default function MasterTable() {
                                                 <Paperclip className="w-3 h-3" /> Digital Attachment
                                             </label>
 
-                                            <div className="flex items-center gap-2">
-                                                <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest cursor-pointer flex items-center gap-1">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isCombining}
-                                                        onChange={(e) => setIsCombining(e.target.checked)}
-                                                        className="w-3 h-3 rounded text-indigo-500 focus:ring-0"
-                                                    />
-                                                    Combine PDF
-                                                </label>
-                                            </div>
+                                            {/* Auto-combining indicator */}
+                                            {(selectedLetter.attachment_id || selectedLetter.scanned_copy) && (
+                                                <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/30">
+                                                    Will Auto-Combine
+                                                </span>
+                                            )}
                                         </div>
 
                                         <div
@@ -1071,6 +1111,16 @@ export default function MasterTable() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Error Message */}
+                        {validationError && (
+                            <div className="px-8 mb-4 animate-in fade-in slide-in-from-top-1">
+                                <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-2xl flex items-center gap-3 text-red-600 dark:text-red-400 text-xs font-bold leading-relaxed shadow-sm">
+                                    <AlertCircle className="w-5 h-5 shrink-0" />
+                                    <span>{validationError}</span>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Drawer Footer */}
                         <div className={`p-8 border-t ${'border-gray-50 dark:border-[#222]'} flex items-center gap-3`}>

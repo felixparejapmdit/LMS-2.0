@@ -109,7 +109,7 @@ class LetterController {
         try {
             const {
                 sender, summary, encoder_id, encoder, assigned_dept, kind, global_status,
-                tray_id, attachment_id, letter_type, vemcode, evemnote, aevmnote, atgnote
+                tray_id, attachment_id, letter_type, vemcode, aevm_number, evemnote, aevmnote, atgnote
             } = req.body;
 
             // 1. Core Validation

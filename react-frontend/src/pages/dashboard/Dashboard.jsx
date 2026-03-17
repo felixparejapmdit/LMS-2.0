@@ -40,7 +40,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeStepTab, setActiveStepTab] = useState("review"); // named_filter
-  const [inboxStats, setInboxStats] = useState({ review: 0, signature: 0, vem: 0, pending: 0, hold: 0 });
+  const [inboxStats, setInboxStats] = useState({ review: 0, signature: 0, vem: 0, pending: 0, hold: 0, empty_entry: 0 });
   const [trays, setTrays] = useState([]);
   const [selectedTray, setSelectedTray] = useState(null); // Filter for ATG Note
   const canField = access?.canField || (() => true);
@@ -56,7 +56,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     signature: 'For Signature',
     vem: 'VEM Letter',
     pending: 'Pending',
-    hold: 'Hold'
+    hold: 'Hold',
+    empty_entry: 'Empty Entry'
   };
   const activeTabLabel = tabLabels[activeStepTab] || 'Letters';
 
@@ -217,7 +218,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                     { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                     { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
                     { id: 'pending', label: 'Pending', count: inboxStats.pending },
-                    { id: 'hold', label: 'Hold', count: inboxStats.hold }
+                    { id: 'hold', label: 'Hold', count: inboxStats.hold },
+                    { id: 'empty_entry', label: 'Empty Entry', count: inboxStats.empty_entry }
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -372,7 +374,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                     { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                     { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
                     { id: 'pending', label: 'Pending', count: inboxStats.pending },
-                    { id: 'hold', label: 'Hold', count: inboxStats.hold }
+                    { id: 'hold', label: 'Hold', count: inboxStats.hold },
+                    { id: 'empty_entry', label: 'Empty Entry', count: inboxStats.empty_entry }
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -531,7 +534,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                           { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                           { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
                           { id: 'pending', label: 'Pending', count: inboxStats.pending },
-                          { id: 'hold', label: 'Hold', count: inboxStats.hold }
+                          { id: 'hold', label: 'Hold', count: inboxStats.hold },
+                          { id: 'empty_entry', label: 'Empty Entry', count: inboxStats.empty_entry }
                         ].map(tab => (
                           <button
                             key={tab.id}
@@ -624,7 +628,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                 { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
                 { id: 'pending', label: 'Pending', count: inboxStats.pending },
-                { id: 'hold', label: 'Hold', count: inboxStats.hold }
+                { id: 'hold', label: 'Hold', count: inboxStats.hold },
+                { id: 'empty_entry', label: 'Empty Entry', count: inboxStats.empty_entry }
               ].map(tab => (
                 <button
                   key={tab.id}

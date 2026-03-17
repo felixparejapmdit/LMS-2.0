@@ -57,6 +57,7 @@ export default function NewLetter() {
         direction: "Incoming",
         letter_type: "Non-Confidential",
         vemcode: "",
+        aevm_number: "",
         evemnote: "",
         aevmnote: "",
         atgnote: "",
@@ -527,12 +528,23 @@ export default function NewLetter() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Reference</label>
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">VEM Number</label>
                                     <input
                                         type="text"
-                                        placeholder="Ref Code"
+                                        placeholder="VEM Number"
                                         value={formData.vemcode}
                                         onChange={e => setFormData({ ...formData, vemcode: e.target.value })}
+                                        className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">AEVM Number</label>
+                                    <input
+                                        type="text"
+                                        placeholder="AEVM Number"
+                                        value={formData.aevm_number}
+                                        onChange={e => setFormData({ ...formData, aevm_number: e.target.value })}
                                         className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                     />
                                 </div>
