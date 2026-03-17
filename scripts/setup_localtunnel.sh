@@ -46,7 +46,7 @@ MAX_RETRIES=15
 # Mas mabilis at accurate kunin ang URL via Ngrok local API kaysa sa logs
 while [ -z "$URL" ] && [ $COUNTER -lt $MAX_RETRIES ]; do
     sleep 2
-    URL=$(curl -s http://localhost:4040/api/tunnels | grep -o 'https://[^"]*\.ngrok-free\.app' | head -n 1)
+    URL=$(curl -s http://localhost:4040/api/tunnels | grep -o 'https://[^"]*\.ngrok-free\.[a-z]*' | head -n 1)
     ((COUNTER++))
     echo -n "."
 done
