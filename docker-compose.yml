@@ -8,7 +8,6 @@ services:
       - ./directus/database:/directus/database
       - ./directus/uploads:/directus/uploads
       - ./directus/extensions:/directus/extensions
-    user: "${DIRECTUS_UID:-1000}:${DIRECTUS_GID:-1000}" # Linux permissions (override in .env for Proxmox)
     networks:
       - lms-net
     environment:
@@ -28,13 +27,6 @@ services:
       DB_SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
       NODE_OPTIONS: "--max-old-space-size=2048"
     restart: unless-stopped
-    healthcheck:
-      # Use CMD-SHELL with fallback and a start_period to allow for migrations
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8055/server/ping || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 6
-      start_period: 90s
 
   backend:
     container_name: lms-backend
@@ -54,12 +46,13 @@ services:
       DB_PATH: "${DB_PATH:-/directus/database/data.db}"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
       TELEGRAM_WEBHOOK_URL: "${TELEGRAM_WEBHOOK_URL}"
+      # Match the service name for internal networking
       DIRECTUS_INTERNAL_URL: "http://directus:8055"
+      SQLITE_SQL_LOG_LEVEL: "warn"
       SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
       SQLITE_BUSY_TIMEOUT: "15000"
     depends_on:
-      directus:
-        condition: service_healthy
+      - directus
     restart: unless-stopped
 
   frontend:
