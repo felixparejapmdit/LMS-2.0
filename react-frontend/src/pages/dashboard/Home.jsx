@@ -202,7 +202,7 @@ export default function Home() {
                         <div className="mt-12 space-y-6">
                             <div className="flex items-center justify-between">
                                 <h2 className={`text-lg font-black uppercase tracking-tight text-orange-500`}>
-                                    Flagged
+                                    VIP View
                                 </h2>
                             </div>
                             {stats.atgLetters?.length === 0 ? (
@@ -356,7 +356,7 @@ export default function Home() {
                                     {stats.atgLetters?.length > 0 && (
                                         <div className="mt-12 space-y-6">
                                             <div className="flex items-center justify-between border-b border-[#E5E5E5] dark:border-[#222] pb-4">
-                                                <h2 className="text-xs font-black text-orange-500 uppercase tracking-[0.3em]">Flagged</h2>
+                                                <h2 className="text-xs font-black text-orange-500 uppercase tracking-[0.3em]">VIP View</h2>
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 {stats.atgLetters.map(assignment => (

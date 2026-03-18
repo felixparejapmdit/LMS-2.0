@@ -2,7 +2,7 @@ const { User, Role, RolePermission, Department, SystemPage } = require('../model
 const axios = require('axios');
 const sequelize = require('../config/db');
 
-const DIRECTUS_URL = process.env.DIRECTUS_INTERNAL_URL || 'http://directus:8055';
+const DIRECTUS_URL = process.env.DIRECTUS_INTERNAL_URL || 'http://localhost:8055';
 const PERMS_CACHE_TTL_MS = Number.parseInt(process.env.PERMS_CACHE_TTL_MS || '60000', 10);
 const permsCache = new Map();
 

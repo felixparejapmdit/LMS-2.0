@@ -95,6 +95,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
 
       const response = await axios.get(url);
       setAssignments(response.data);
+      if (view === 'inbox') fetchInboxStats();
     } catch (error) {
       console.error("Error fetching items:", error);
     } finally {
