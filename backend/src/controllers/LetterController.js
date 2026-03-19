@@ -1,4 +1,4 @@
-const { Letter, LetterAssignment, LetterLog, Person, User, ProcessStep, Status, Endorsement } = require('../models/associations');
+const { Letter, LetterAssignment, LetterLog, Person, User, ProcessStep, Status, Endorsement, Department, Tray, LetterKind, Comment } = require('../models/associations');
 const sequelize = require('../config/db');
 const { Op } = require('sequelize');
 
@@ -105,6 +105,11 @@ class LetterController {
     }
 
     static async create(req, res) {
+        // Set a high busy timeout to avoid contention with Directus
+        try {
+            await sequelize.query('PRAGMA busy_timeout = 15000');
+        } catch (e) { }
+
         const transaction = await sequelize.transaction();
         try {
             const {
@@ -112,11 +117,24 @@ class LetterController {
                 tray_id, attachment_id, letter_type, vemcode, aevm_number, evemnote, aevmnote, atgnote
             } = req.body;
 
-            // 1. Core Validation
-            if (!sender) return res.status(400).json({ error: 'Sender name is required.' });
-            if (!summary) return res.status(400).json({ error: 'Letter summary/regarding field is required.' });
+            const isUUID = (val) => {
+                if (!val) return false;
+                const s = "" + val;
+                const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                return regex.test(s);
+            };
 
-            // encoder_id is optional to support Guest Mode (where user object has no ID)
+            const validEncoderId = isUUID(encoder_id) ? encoder_id : null;
+
+            // 1. Core Validation
+            if (!sender) {
+                if (transaction) await transaction.rollback();
+                return res.status(400).json({ error: 'Sender name is required.' });
+            }
+            if (!summary) {
+                if (transaction) await transaction.rollback();
+                return res.status(400).json({ error: 'Letter summary/regarding field is required.' });
+            }
 
             // Generate IDs
             const now = new Date();
@@ -124,7 +142,7 @@ class LetterController {
             const shortYear = yearStr.slice(-2);
             const ymd = yearStr + (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0');
 
-            // Find counters via Max sequence to avoid reuse/collision after deletions
+            // Find counters via Max sequence
             const lastYearEntry = await Letter.findOne({
                 where: { lms_id: { [Op.like]: `LMS${shortYear}-%` } },
                 order: [['lms_id', 'DESC']],
@@ -156,10 +174,10 @@ class LetterController {
             const lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, '0')}`;
             const entry_id = `${ymd}${dailySequence.toString().padStart(3, '0')}`;
 
-            // Sanitize numeric fields (convert "" to null)
+            // Sanitize numeric fields
             const sanitizeInt = (val) => (val === "" || val === undefined || val === null) ? null : parseInt(val);
 
-            // find "Incoming" status ID dynamically or default to 1
+            // find "Incoming" status
             const incomingStatus = await Status.findOne({ where: { status_name: 'Incoming' }, transaction });
             const finalGlobalStatus = sanitizeInt(global_status) || incomingStatus?.id || 1;
 
@@ -176,22 +194,20 @@ class LetterController {
                 vemcode,
                 evemnote,
                 aevmnote,
-                atgnote
+                atgnote,
+                aevm_number,
+                encoder_id: validEncoderId // Ensure we use the validated UUID or null
             };
 
             const letter = await Letter.create(letterData, { transaction });
 
-            // Create entry in Person collection only if name doesn't already exist
-            // Multiple persons should be separated by semicolon (;) to preserve "Lastname, Firstname" format
+            // Sync to Person table
             const senderNames = sender.split(';').map(n => n.trim()).filter(n => n.length > 0 && n.includes(','));
-
-            // Also include the encoder name if provided as a formatted string (from GuestSendLetter)
             const namesToSync = [...senderNames];
             if (encoder && encoder.includes(',')) {
                 namesToSync.push(encoder.trim());
             }
 
-            // Deduplicate and sync to Person table
             for (const name of [...new Set(namesToSync)]) {
                 const existing = await Person.findOne({ where: { name }, transaction });
                 if (!existing) {
@@ -199,12 +215,8 @@ class LetterController {
                 }
             }
 
-            let targetStepId = null; // Initialize targetStepId outside the if block
-
-            // 2. If initial assignment provided, create assignment
+            let targetStepId = null;
             if (assigned_dept && assigned_dept !== "") {
-                // Find "For Signature" step for this department
-                // Match either "Signature" or "Endorsement" (common terminologies in the system DNA)
                 const sigStep = await ProcessStep.findOne({
                     where: {
                         dept_id: assigned_dept,
@@ -216,7 +228,6 @@ class LetterController {
                     transaction
                 });
 
-                // If not found by keyword, fallback to the very first step of that department
                 targetStepId = sigStep?.id;
                 if (!targetStepId) {
                     const fallbackStep = await ProcessStep.findOne({
@@ -230,26 +241,27 @@ class LetterController {
                     letter_id: letter.id,
                     department_id: assigned_dept,
                     step_id: targetStepId,
-                    assigned_by: encoder_id,
+                    assigned_by: validEncoderId,
                     status: 'Pending',
                     due_date: new Date(now.getTime() + 86400000 * 7)
                 }, { transaction });
             }
 
-            // 3. Log the action
             const stepName = (targetStepId) ? (await ProcessStep.findByPk(targetStepId, { transaction }))?.step_name || 'Workflow Step' : 'initial step';
             await LetterLog.create({
                 letter_id: letter.id,
-                user_id: encoder_id || null,
+                user_id: validEncoderId,
                 action_type: 'Created',
                 department_id: assigned_dept || null,
                 log_details: `Letter created and initially assigned to ${stepName}.`
             }, { transaction });
 
+
+
             await transaction.commit();
             res.status(201).json(letter);
         } catch (error) {
-            await transaction.rollback();
+            if (transaction) await transaction.rollback();
             console.error("Letter creation failed on backend:", error);
             res.status(400).json({ error: `Backend Error: ${error.message}` });
         }

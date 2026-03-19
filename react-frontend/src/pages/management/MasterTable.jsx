@@ -834,16 +834,28 @@ export default function MasterTable() {
                                     {canStatusDropdown && <div className="space-y-1">
                                         <div className="flex items-center justify-between gap-2">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-orange-500">Status</label>
-                                            {canEndorse && <button
-                                                type="button"
-                                                onClick={() => {
-                                                    // Quick action to set for ATG Dashboard
-                                                    setSelectedLetter(prev => ({ ...prev, tray_id: null, global_status: 2 }));
-                                                }}
-                                                className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 border border-indigo-100 dark:border-indigo-900/30 hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
-                                            >
-                                                To Dashboard
-                                            </button>}
+                                            <div className="flex items-center gap-2">
+                                                {canEndorse && <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        // Quick action to set for ATG Dashboard
+                                                        setSelectedLetter(prev => ({ ...prev, tray_id: null, global_status: 2 }));
+                                                    }}
+                                                    className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 border border-indigo-100 dark:border-indigo-900/30 hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                                                >
+                                                    To Dashboard
+                                                </button>}
+                                                {canDelete && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDelete(selectedLetter.id)}
+                                                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-500 border border-red-100 dark:border-red-900/30 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                )}
+                                            </div>
+
                                         </div>
                                         <select
                                             value={selectedLetter.global_status || ""}

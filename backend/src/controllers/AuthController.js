@@ -218,6 +218,7 @@ class AuthController {
             });
 
             if (!guestRole) {
+                // Return empty permissions instead of 500 if Guest role is missing from DB
                 return res.json({ permissions: [] });
             }
 
@@ -227,7 +228,8 @@ class AuthController {
 
             res.json({ permissions: normalizePermissions(perms) });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error("Guest config fetch failed:", error);
+            res.json({ permissions: [] }); // Graceful fallback
         }
     }
 }

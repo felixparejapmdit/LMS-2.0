@@ -44,7 +44,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   // Tab state synced with URL
   const activeStepTab = searchParams.get('tab') || 'review';
   const setActiveStepTab = (tab) => {
@@ -60,16 +60,34 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const [selectedTray, setSelectedTray] = useState(null); // Filter for ATG Note
   const canField = access?.canField || (() => true);
   const pageId = forcedDeptId ? "department-letters" : (view === "outbox" ? "outbox" : "inbox");
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [inboxFilter, setInboxFilter] = useState('all'); // Sort filter for ATG Note
   const canSearch = canField(pageId, "search");
   const canRefresh = canField(pageId, "refresh_button");
   const canTabFilter = canField(pageId, "tab_filter");
   const canTraySelector = canField(pageId, "tray_selector");
+
+  const toggleSelection = (e, id) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleSelectAll = () => {
+    const visibleIds = filteredBySteps.map(a => a.id);
+    if (selectedIds.length === visibleIds.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(visibleIds);
+    }
+  };
 
   const tabLabels = {
     review: 'For Review',
     atg_note: 'For ATG Note',
     signature: 'For Signature',
     vem: 'VEM Letter',
+    avem: 'AVEM Letter',
     pending: 'Pending',
     hold: 'Hold',
     empty_entry: 'Empty Entry'
@@ -143,12 +161,14 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       fetchSteps();
       if (view === 'inbox') fetchInboxStats();
       setSelectedTray(null); // Reset filter on tab change
+      setSelectedIds([]); // Clear selection when tab changes
+      setInboxFilter('all'); // Reset atg-note filter
     }
   }, [user?.id, view, activeStepTab]);
 
   const handleTrayUpdate = async (letterId, trayId, assignmentId) => {
     // Optimistic UI: Immediately hide from current view if it's moving
-    if (activeStepTab === 'review' || activeStepTab === 'signature') {
+    if (activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'vem' || activeStepTab === 'avem') {
       setAssignments(prev => prev.filter(a => a.id !== assignmentId));
     }
 
@@ -165,7 +185,78 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const filteredAssignments = canTraySelector && selectedTray
     ? assignments.filter(a => a.letter?.tray_id === selectedTray)
     : assignments;
-  
+
+  // Sorting/Filtering for ATG Note tab
+  const filteredBySteps = filteredAssignments.filter(a => {
+    if (activeStepTab === 'atg_note' && inboxFilter !== 'all') {
+      // Logic for sorting "atg_note" by "Signature" or "Review" intent
+      // Using step_id or some other property. 
+      // Steps: Signature=1, Review=2
+      if (inboxFilter === 'signature') return a.letter?.step_id === 1 || a.step_id === 1;
+      if (inboxFilter === 'review') return a.letter?.step_id === 2 || a.step_id === 2;
+    }
+    return true;
+  });
+
+  const handleBulkAction = async (action, data = null) => {
+    if (selectedIds.length === 0) return;
+    setLoading(true);
+    try {
+      const selectedAssignments = assignments.filter(a => selectedIds.includes(a.id));
+      const letterIds = selectedAssignments.map(a => a.letter?.id).filter(id => !!id);
+
+      // Optimistic Hide for certain actions
+      if (action === 'atg_incoming' || action === 'atg_note_step' || action === 'hold') {
+        setAssignments(prev => prev.filter(a => !selectedIds.includes(a.id)));
+      }
+
+      if (action === 'tray') {
+        await Promise.all(letterIds.map(id => letterService.update(id, { tray_id: data })));
+      } else if (action === 'hold') {
+        const holdStatusId = 7; // HOLD (from DB check)
+        const pendingStatusId = 8;
+        // Update both Letter global_status and Assignment status_id for consistency
+        await Promise.all(letterIds.map(id => letterService.update(id, { global_status: holdStatusId })));
+        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}`, { status: 'Hold', status_id: holdStatusId })));
+      } else if (action === 'atg_incoming') {
+        const incomingStatusId = 1; // Incoming
+        await Promise.all(letterIds.map(id => letterService.update(id, { global_status: incomingStatusId, tray_id: null })));
+        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}`, { status: 'Pending', status_id: 8, step_id: null })));
+      } else if (action === 'atg_note_step') {
+        const atgNoteStatusId = 2; // ATG Note
+        await Promise.all(letterIds.map(id => letterService.update(id, { global_status: atgNoteStatusId })));
+        // Usually moves back to ATG Note filter which needs global_status=2 or status=ATG Note
+        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}`, { status: 'Pending', status_id: 8, step_id: null })));
+      } else if (action === 'print') {
+        window.print();
+        setLoading(false);
+        return;
+      } else if (action === 'approve_signature' || action === 'approve_review') {
+        const stepIdMap = {
+          'approve_signature': 1,
+          'approve_review': 2
+        };
+        const newStepId = stepIdMap[action];
+        const activeStatusId = 8; // Assuming Pending/Active
+        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}`, { step_id: newStepId, status: 'Pending', status_id: activeStatusId })));
+      } else if (action === 'delete') {
+        if (!window.confirm(`Delete ${selectedIds.length} letters?`)) {
+          setLoading(false);
+          return;
+        }
+        await Promise.all(letterIds.map(id => letterService.delete(id)));
+      }
+
+      setSelectedIds([]);
+      fetchAssignments();
+      fetchInboxStats();
+    } catch (err) {
+      console.error("Bulk action failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleQuickAction = async (e, assignment, action) => {
     e.preventDefault();
     e.stopPropagation();
@@ -194,9 +285,9 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     try {
       // Optimistic Update
       setAssignments(prev => prev.filter(a => a.id !== assignment.id));
-      
+
       const isMock = assignment.id.toString().startsWith('mock-');
-      
+
       if (isMock) {
         // Find step for department info
         const targetStep = steps.find(s => s.id === newStepId);
@@ -263,7 +354,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const renderTrayActions = (assignment) => {
     if (!canTraySelector) return null;
     if (view !== 'inbox') return null;
-    if (!(activeStepTab === 'review' || activeStepTab === 'signature')) return null;
+    if (!(activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'vem' || activeStepTab === 'avem')) return null;
+
 
     if (!trays || trays.length === 0) {
       return (
@@ -331,6 +423,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                     { id: 'atg_note', label: 'For ATG Note', count: inboxStats.atg_note },
                     { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                     { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
+                    { id: 'avem', label: 'AVEM Letter', count: inboxStats.avem },
                     { id: 'pending', label: 'Pending', count: inboxStats.pending },
                     { id: 'hold', label: 'Hold', count: inboxStats.hold },
                     { id: 'empty_entry', label: 'Empty Entry', count: inboxStats.empty_entry }
@@ -368,8 +461,9 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                   <p className="text-sm text-[#737373] dark:text-gray-400">{assignments.length} letters.</p>
                 </div>
 
-                {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
+                {view === 'inbox' && canTraySelector && (activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'atg_note' || activeStepTab === 'vem' || activeStepTab === 'avem') && (
                   <div className="flex items-center gap-1 p-1 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-lg shadow-sm overflow-x-auto no-scrollbar">
+
                     <button
                       onClick={() => setSelectedTray(null)}
                       className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 ${!selectedTray ? 'bg-[#1A1A1B] text-white' : 'text-[#737373] hover:text-[#1A1A1B]'}`}
@@ -410,28 +504,152 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {filteredAssignments.map((assignment) => (
+                  {/* Bulk Actions Header */}
+                  <div className="flex flex-wrap items-center gap-2 p-3 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-2xl shadow-sm">
+                    <button
+                      onClick={handleSelectAll}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedIds.length > 0 ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500'}`}
+                    >
+                      {selectedIds.length === filteredBySteps.length && filteredBySteps.length > 0 ? 'Deselect All' : 'Check All'}
+                    </button>
+
+                    {(activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'vem' || activeStepTab === 'avem') && (
+                      <>
+                        {trays.map(t => (
+                          <button
+                            key={t.id}
+                            onClick={() => handleBulkAction('tray', t.id)}
+                            disabled={selectedIds.length === 0}
+                            className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-blue-200 text-blue-600 hover:bg-blue-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                          >
+                            {t.tray_no}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => handleBulkAction('hold')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-orange-200 text-orange-600 hover:bg-orange-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                        >
+                          Hold
+                        </button>
+                        <button
+                          onClick={() => handleBulkAction('print')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                        >
+                          Print Resumen
+                        </button>
+                      </>
+                    )}
+
+                    {(activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'atg_note' || activeStepTab === 'vem' || activeStepTab === 'avem') && (
+                      <>
+                        <button
+                          onClick={() => handleBulkAction('print')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                        >
+                          Print
+                        </button>
+                        <button
+                          onClick={() => handleBulkAction('hold')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-orange-200 text-orange-600 hover:bg-orange-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                        >
+                          Hold
+                        </button>
+                        <select
+                          value={inboxFilter}
+                          onChange={(e) => setInboxFilter(e.target.value)}
+                          className="ml-auto px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200 bg-white shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="all">Sort: All</option>
+                          <option value="review">For Review</option>
+                          <option value="signature">For Signature</option>
+                        </select>
+                      </>
+                    )}
+
+                    {activeStepTab === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleBulkAction('approve_signature')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-200 text-blue-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-blue-50' : 'opacity-40 pointer-events-none'}`}
+                        >
+                          Approve Signature
+                        </button>
+                        <button
+                          onClick={() => handleBulkAction('approve_review')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-200 text-emerald-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-emerald-50' : 'opacity-40 pointer-events-none'}`}
+                        >
+                          Approve Review
+                        </button>
+                        <button
+                          onClick={() => handleBulkAction('delete')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-200 text-red-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-red-50' : 'opacity-40 pointer-events-none'}`}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+
+                    {activeStepTab === 'hold' && (
+                      <>
+                        <button
+                          onClick={() => handleBulkAction('atg_incoming')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-200 text-blue-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-blue-50' : 'opacity-40 pointer-events-none'}`}
+                        >
+                          For Incoming
+                        </button>
+                        <button
+                          onClick={() => handleBulkAction('atg_note_step')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-orange-200 text-orange-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-orange-50' : 'opacity-40 pointer-events-none'}`}
+                        >
+                          For ATG Note
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {filteredBySteps.map((assignment) => (
                     assignment.letter && (
-                      <div key={assignment.id}>
-                        <LetterCard
-                          id={assignment.id}
-                          letterId={assignment.letter.id}
-                          atgId={assignment.letter.lms_id}
-                          sender={assignment.letter.sender}
-                          summary={assignment.letter.summary}
-                          status={assignment.status}
-                          step={assignment.step?.step_name}
-                          dueDate={assignment.due_date || assignment.letter.date_received}
-                          attachment={assignment.letter.attachment}
-                          tray={assignment.letter.tray}
-                          layout="minimalist"
-                          actions={
-                            <div className="flex items-center gap-2">
-                              {renderTrayActions(assignment)}
-                              {renderQuickActions(assignment)}
-                            </div>
-                          }
-                        />
+                      <div key={assignment.id} className="flex items-start gap-4 group">
+                        {view === 'inbox' && (
+                          <div className="flex-shrink-0 pt-4">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(assignment.id)}
+                              onChange={(e) => toggleSelection(e, assignment.id)}
+                              className="w-5 h-5 rounded-md border-2 border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer"
+                            />
+                          </div>
+                        )}
+                        <div className="w-full">
+                          <LetterCard
+                            id={assignment.id}
+                            letterId={assignment.letter.id}
+                            atgId={assignment.letter.lms_id}
+                            sender={assignment.letter.sender}
+                            summary={assignment.letter.summary}
+                            status={assignment.status}
+                            step={assignment.step?.step_name}
+                            dueDate={assignment.due_date || assignment.letter.date_received}
+                            attachment={assignment.letter.attachment}
+                            tray={assignment.letter.tray}
+                            layout="minimalist"
+                            actions={
+                              <div className="flex items-center gap-2">
+                                {renderTrayActions(assignment)}
+                                {renderQuickActions(assignment)}
+                              </div>
+                            }
+                          />
+                        </div>
                       </div>
                     )
                   ))}
@@ -492,6 +710,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                     { id: 'atg_note', label: 'For ATG Note', count: inboxStats.atg_note },
                     { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                     { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
+                    { id: 'avem', label: 'AVEM Letter', count: inboxStats.avem },
                     { id: 'pending', label: 'Pending', count: inboxStats.pending },
                     { id: 'hold', label: 'Hold', count: inboxStats.hold },
                     { id: 'empty_entry', label: 'Empty Entry', count: inboxStats.empty_entry }
@@ -530,7 +749,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                           <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">Total: {assignments.length}</p>
                         </div>
 
-                        {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
+                        {view === 'inbox' && canTraySelector && (activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'atg_note' || activeStepTab === 'vem' || activeStepTab === 'avem') && (
                           <div className="flex items-center gap-2 ml-4 border-l border-slate-200 dark:border-[#222] pl-6 overflow-x-auto no-scrollbar py-1">
                             <button
                               onClick={() => setSelectedTray(null)}
@@ -569,27 +788,154 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                       <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">No letters</p>
                     </div>
                   ) : (<div className="space-y-6">
-                    {filteredAssignments.map((assignment) => (
+                    {/* Bulk Actions Header */}
+                    {view === 'inbox' && (
+                      <div className="flex flex-wrap items-center gap-2 p-3 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-2xl shadow-sm mb-4">
+                        <button
+                          onClick={handleSelectAll}
+                          className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedIds.length > 0 ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500'}`}
+                        >
+                          {selectedIds.length === filteredBySteps.length && filteredBySteps.length > 0 ? 'Deselect All' : 'Check All'}
+                        </button>
+
+                        {(activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'vem' || activeStepTab === 'avem') && (
+                          <>
+                            {trays.map(t => (
+                              <button
+                                key={t.id}
+                                onClick={() => handleBulkAction('tray', t.id)}
+                                disabled={selectedIds.length === 0}
+                                className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-blue-200 text-blue-600 hover:bg-blue-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                              >
+                                {t.tray_no}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => handleBulkAction('hold')}
+                              disabled={selectedIds.length === 0}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-orange-200 text-orange-600 hover:bg-orange-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                            >
+                              Hold
+                            </button>
+                            <button
+                              onClick={() => handleBulkAction('print')}
+                              disabled={selectedIds.length === 0}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                            >
+                              Print Resumen
+                            </button>
+                          </>
+                        )}
+
+                        {(activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'atg_note' || activeStepTab === 'vem' || activeStepTab === 'avem') && (
+                          <>
+                            <button
+                              onClick={() => handleBulkAction('print')}
+                              disabled={selectedIds.length === 0}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                            >
+                              Print
+                            </button>
+                            <button
+                              onClick={() => handleBulkAction('hold')}
+                              disabled={selectedIds.length === 0}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-orange-200 text-orange-600 hover:bg-orange-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                            >
+                              Hold
+                            </button>
+                            <select
+                              value={inboxFilter}
+                              onChange={(e) => setInboxFilter(e.target.value)}
+                              className="ml-auto px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200 bg-white shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="all">Sort: All</option>
+                              <option value="review">For Review</option>
+                              <option value="signature">For Signature</option>
+                            </select>
+                          </>
+                        )}
+
+                        {activeStepTab === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => handleBulkAction('approve_signature')}
+                              disabled={selectedIds.length === 0}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-200 text-blue-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-blue-50' : 'opacity-40 pointer-events-none'}`}
+                            >
+                              Approve Signature
+                            </button>
+                            <button
+                              onClick={() => handleBulkAction('approve_review')}
+                              disabled={selectedIds.length === 0}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-200 text-emerald-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-emerald-50' : 'opacity-40 pointer-events-none'}`}
+                            >
+                              Approve Review
+                            </button>
+                            <button
+                              onClick={() => handleBulkAction('delete')}
+                              disabled={selectedIds.length === 0}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-200 text-red-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-red-50' : 'opacity-40 pointer-events-none'}`}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+
+                        {activeStepTab === 'hold' && (
+                          <>
+                            <button
+                              onClick={() => handleBulkAction('atg_incoming')}
+                              disabled={selectedIds.length === 0}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-200 text-blue-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-blue-50' : 'opacity-40 pointer-events-none'}`}
+                            >
+                              For Incoming
+                            </button>
+                            <button
+                              onClick={() => handleBulkAction('atg_note_step')}
+                              disabled={selectedIds.length === 0}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-orange-200 text-orange-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-orange-50' : 'opacity-40 pointer-events-none'}`}
+                            >
+                              For ATG Note
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {filteredBySteps.map((assignment) => (
                       assignment.letter && (
-                        <div key={assignment.id}>
-                          <LetterCard
-                            id={assignment.id}
-                            letterId={assignment.letter.id}
-                            atgId={assignment.letter.lms_id}
-                            sender={assignment.letter.sender}
-                            summary={assignment.letter.summary}
-                            status={assignment.status}
-                            step={assignment.step?.step_name}
-                            dueDate={assignment.due_date || assignment.letter.date_received}
-                            attachment={assignment.letter.attachment}
-                            layout="grid"
-                            actions={
-                              <div className="flex items-center gap-2">
-                                {renderTrayActions(assignment)}
-                                {renderQuickActions(assignment)}
-                              </div>
-                            }
-                          />
+                        <div key={assignment.id} className="flex items-start gap-4 group">
+                          {view === 'inbox' && (
+                            <div className="flex-shrink-0 pt-6">
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.includes(assignment.id)}
+                                onChange={(e) => toggleSelection(e, assignment.id)}
+                                className="w-5 h-5 rounded-md border-2 border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer"
+                              />
+                            </div>
+                          )}
+                          <div className="w-full">
+                            <LetterCard
+                              id={assignment.id}
+                              letterId={assignment.letter.id}
+                              atgId={assignment.letter.lms_id}
+                              sender={assignment.letter.sender}
+                              summary={assignment.letter.summary}
+                              status={assignment.status}
+                              step={assignment.step?.step_name}
+                              dueDate={assignment.due_date || assignment.letter.date_received}
+                              attachment={assignment.letter.attachment}
+                              tray={assignment.letter.tray}
+                              layout="grid"
+                              actions={
+                                <div className="flex items-center gap-2">
+                                  {renderTrayActions(assignment)}
+                                  {renderQuickActions(assignment)}
+                                </div>
+                              }
+                            />
+                          </div>
                         </div>
                       )
                     ))}
@@ -640,7 +986,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                         view === 'outgoing' ? 'Sent correspondence' : 'Outbox'}
                 </h1>
 
-                {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
+                {view === 'inbox' && canTraySelector && (activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'atg_note' || activeStepTab === 'vem' || activeStepTab === 'avem') && (
                   <div className="flex items-center gap-2 bg-gray-50 dark:bg-white/5 p-1 rounded-2xl border border-gray-100 dark:border-[#333] mb-4">
                     <button className="text-xs font-semibold text-gray-400 hover:text-gray-900 flex items-center gap-1 transition-colors">
                       <Filter className="w-3 h-3" /> Filter
@@ -657,6 +1003,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                           { id: 'atg_note', label: 'For ATG Note', count: inboxStats.atg_note },
                           { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                           { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
+                          { id: 'avem', label: 'AVEM Letter', count: inboxStats.avem },
                           { id: 'pending', label: 'Pending', count: inboxStats.pending },
                           { id: 'hold', label: 'Hold', count: inboxStats.hold },
                           { id: 'empty_entry', label: 'Empty Entry', count: inboxStats.empty_entry }
@@ -697,28 +1044,154 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredAssignments.map((assignment) => (
+                {/* Bulk Actions Header */}
+                {view === 'inbox' && (
+                  <div className="flex flex-wrap items-center gap-2 p-3 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-2xl shadow-sm mb-4">
+                    <button
+                      onClick={handleSelectAll}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedIds.length > 0 ? 'bg-orange-600 text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500'}`}
+                    >
+                      {selectedIds.length === filteredBySteps.length && filteredBySteps.length > 0 ? 'Deselect All' : 'Check All'}
+                    </button>
+
+                    {(activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'vem' || activeStepTab === 'avem') && (
+                      <>
+                        {trays.map(t => (
+                          <button
+                            key={t.id}
+                            onClick={() => handleBulkAction('tray', t.id)}
+                            disabled={selectedIds.length === 0}
+                            className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-orange-200 text-orange-600 hover:bg-orange-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                          >
+                            {t.tray_no}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => handleBulkAction('hold')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-orange-200 text-orange-600 hover:bg-orange-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                        >
+                          Hold
+                        </button>
+                        <button
+                          onClick={() => handleBulkAction('print')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                        >
+                          Print Resumen
+                        </button>
+                      </>
+                    )}
+
+                    {(activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'atg_note' || activeStepTab === 'vem' || activeStepTab === 'avem') && (
+                      <>
+                        <button
+                          onClick={() => handleBulkAction('print')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                        >
+                          Print
+                        </button>
+                        <button
+                          onClick={() => handleBulkAction('hold')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-orange-200 text-orange-600 hover:bg-orange-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                        >
+                          Hold
+                        </button>
+                        <select
+                          value={inboxFilter}
+                          onChange={(e) => setInboxFilter(e.target.value)}
+                          className="ml-auto px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200 bg-white shadow-sm outline-none focus:ring-2 focus:ring-orange-500"
+                        >
+                          <option value="all">Sort: All</option>
+                          <option value="review">For Review</option>
+                          <option value="signature">For Signature</option>
+                        </select>
+                      </>
+                    )}
+
+                    {activeStepTab === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleBulkAction('approve_signature')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-orange-200 text-orange-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-orange-50' : 'opacity-40 pointer-events-none'}`}
+                        >
+                          Approve Signature
+                        </button>
+                        <button
+                          onClick={() => handleBulkAction('approve_review')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-200 text-emerald-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-emerald-50' : 'opacity-40 pointer-events-none'}`}
+                        >
+                          Approve Review
+                        </button>
+                        <button
+                          onClick={() => handleBulkAction('delete')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-200 text-red-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-red-50' : 'opacity-40 pointer-events-none'}`}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+
+                    {activeStepTab === 'hold' && (
+                      <>
+                        <button
+                          onClick={() => handleBulkAction('atg_incoming')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-200 text-blue-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-blue-50' : 'opacity-40 pointer-events-none'}`}
+                        >
+                          For Incoming
+                        </button>
+                        <button
+                          onClick={() => handleBulkAction('atg_note_step')}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-orange-200 text-orange-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-orange-50' : 'opacity-40 pointer-events-none'}`}
+                        >
+                          For ATG Note
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {filteredBySteps.map((assignment) => (
                   assignment.letter && (
-                    <div key={assignment.id}>
-                      <LetterCard
-                        id={assignment.id}
-                        letterId={assignment.letter.id}
-                        atgId={assignment.letter.lms_id}
-                        sender={assignment.letter.sender}
-                        summary={assignment.letter.summary}
-                        status={assignment.status}
-                        step={assignment.step?.step_name}
-                        dueDate={assignment.due_date || assignment.letter.date_received}
-                        attachment={assignment.letter.attachment}
-                        tray={assignment.letter.tray}
-                        layout="notion"
-                        actions={
-                          <div className="flex items-center gap-2">
-                            {renderTrayActions(assignment)}
-                            {renderQuickActions(assignment)}
-                          </div>
-                        }
-                      />
+                    <div key={assignment.id} className="flex items-start gap-4 group">
+                      {view === 'inbox' && (
+                        <div className="flex-shrink-0 pt-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(assignment.id)}
+                            onChange={(e) => toggleSelection(e, assignment.id)}
+                            className="w-5 h-5 rounded-md border-2 border-slate-300 text-orange-600 focus:ring-orange-500 transition-all cursor-pointer"
+                          />
+                        </div>
+                      )}
+                      <div className="w-full">
+                        <LetterCard
+                          id={assignment.id}
+                          letterId={assignment.letter.id}
+                          atgId={assignment.letter.lms_id}
+                          sender={assignment.letter.sender}
+                          summary={assignment.letter.summary}
+                          status={assignment.status}
+                          step={assignment.step?.step_name}
+                          dueDate={assignment.due_date || assignment.letter.date_received}
+                          attachment={assignment.letter.attachment}
+                          tray={assignment.letter.tray}
+                          layout="notion"
+                          actions={
+                            <div className="flex items-center gap-2">
+                              {renderTrayActions(assignment)}
+                              {renderQuickActions(assignment)}
+                            </div>
+                          }
+                        />
+                      </div>
                     </div>
                   )
                 ))}
@@ -756,6 +1229,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 { id: 'atg_note', label: 'For ATG Note', count: inboxStats.atg_note },
                 { id: 'signature', label: 'For Signature', count: inboxStats.signature },
                 { id: 'vem', label: 'VEM Letter', count: inboxStats.vem },
+                { id: 'avem', label: 'AVEM Letter', count: inboxStats.avem },
                 { id: 'pending', label: 'Pending', count: inboxStats.pending },
                 { id: 'hold', label: 'Hold', count: inboxStats.hold },
                 { id: 'empty_entry', label: 'Empty Entry', count: inboxStats.empty_entry }
@@ -799,7 +1273,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                         view === 'outgoing' ? 'Sent' : 'Outbox'}
                 </h2>
 
-                {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
+                {view === 'inbox' && canTraySelector && (activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'atg_note' || activeStepTab === 'vem' || activeStepTab === 'avem') && (
                   <div className="flex items-center gap-2 bg-gray-50 dark:bg-white/5 p-1 rounded-2xl border border-gray-100 dark:border-[#333]">
                     <button
                       onClick={() => setSelectedTray(null)}
@@ -842,31 +1316,159 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <p className="text-gray-400 dark:text-gray-600 mt-1">No data.</p>
               </div>
             ) : (<div className="grid grid-cols-1 gap-4">
-              {filteredAssignments.map((assignment) => (
-                assignment.letter && (
-                  <div key={assignment.id}>
-                    <LetterCard
-                      id={assignment.id}
-                      letterId={assignment.letter.id}
-                      atgId={assignment.letter.lms_id}
-                      sender={assignment.letter.sender}
-                      summary={assignment.letter.summary}
-                      status={assignment.status}
-                      step={assignment.step?.step_name}
-                      dueDate={assignment.due_date || assignment.letter.date_received}
-                      attachment={assignment.letter.attachment}
-                      tray={assignment.letter.tray}
-                      layout={layoutStyle}
-                      actions={
-                        <div className="flex items-center gap-2">
-                          {renderTrayActions(assignment)}
-                          {renderQuickActions(assignment)}
+              {/* Bulk Actions Header */}
+              {view === 'inbox' && (
+                <div className="flex flex-wrap items-center gap-2 p-3 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-2xl shadow-sm mb-4">
+                  <button
+                    onClick={handleSelectAll}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedIds.length > 0 ? 'bg-orange-600 text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500'}`}
+                  >
+                    {selectedIds.length === filteredBySteps.length && filteredBySteps.length > 0 ? 'Deselect All' : 'Check All'}
+                  </button>
+
+                  {(activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'vem' || activeStepTab === 'avem') && (
+                    <>
+                      {trays.map(t => (
+                        <button
+                          key={t.id}
+                          onClick={() => handleBulkAction('tray', t.id)}
+                          disabled={selectedIds.length === 0}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-orange-200 text-orange-600 hover:bg-orange-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                        >
+                          {t.tray_no}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => handleBulkAction('hold')}
+                        disabled={selectedIds.length === 0}
+                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-orange-200 text-orange-600 hover:bg-orange-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                      >
+                        Hold
+                      </button>
+                      <button
+                        onClick={() => handleBulkAction('print')}
+                        disabled={selectedIds.length === 0}
+                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                      >
+                        Print Resumen
+                      </button>
+                    </>
+                  )}
+
+                  {(activeStepTab === 'review' || activeStepTab === 'signature' || activeStepTab === 'atg_note' || activeStepTab === 'vem' || activeStepTab === 'avem') && (
+                    <>
+                      <button
+                        onClick={() => handleBulkAction('print')}
+                        disabled={selectedIds.length === 0}
+                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                      >
+                        Print
+                      </button>
+                      <button
+                        onClick={() => handleBulkAction('hold')}
+                        disabled={selectedIds.length === 0}
+                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? 'border-orange-200 text-orange-600 hover:bg-orange-50' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+                      >
+                        Hold
+                      </button>
+                      <select
+                        value={inboxFilter}
+                        onChange={(e) => setInboxFilter(e.target.value)}
+                        className="ml-auto px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200 bg-white shadow-sm outline-none focus:ring-2 focus:ring-orange-500"
+                      >
+                        <option value="all">Sort: All</option>
+                        <option value="review">For Review</option>
+                        <option value="signature">For Signature</option>
+                      </select>
+                    </>
+                  )}
+
+                  {activeStepTab === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => handleBulkAction('approve_signature')}
+                        disabled={selectedIds.length === 0}
+                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-orange-200 text-orange-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-orange-50' : 'opacity-40 pointer-events-none'}`}
+                      >
+                        Approve Signature
+                      </button>
+                      <button
+                        onClick={() => handleBulkAction('approve_review')}
+                        disabled={selectedIds.length === 0}
+                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-200 text-emerald-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-emerald-50' : 'opacity-40 pointer-events-none'}`}
+                      >
+                        Approve Review
+                      </button>
+                      <button
+                        onClick={() => handleBulkAction('delete')}
+                        disabled={selectedIds.length === 0}
+                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-200 text-red-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-red-50' : 'opacity-40 pointer-events-none'}`}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+
+                  {activeStepTab === 'hold' && (
+                    <>
+                      <button
+                        onClick={() => handleBulkAction('atg_incoming')}
+                        disabled={selectedIds.length === 0}
+                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-200 text-blue-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-blue-50' : 'opacity-40 pointer-events-none'}`}
+                      >
+                        For Incoming
+                      </button>
+                      <button
+                        onClick={() => handleBulkAction('atg_note_step')}
+                        disabled={selectedIds.length === 0}
+                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-orange-200 text-orange-600 transition-all ${selectedIds.length > 0 ? 'hover:bg-orange-50' : 'opacity-40 pointer-events-none'}`}
+                      >
+                        For ATG Note
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {filteredBySteps.map((assignment) => (
+                  assignment.letter && (
+                    <div key={assignment.id} className="flex items-start gap-4 group">
+                      {view === 'inbox' && (
+                        <div className="flex-shrink-0 pt-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(assignment.id)}
+                            onChange={(e) => toggleSelection(e, assignment.id)}
+                            className="w-5 h-5 rounded-md border-2 border-slate-300 text-orange-600 focus:ring-orange-500 transition-all cursor-pointer"
+                          />
                         </div>
-                      }
-                    />
-                  </div>
-                )
-              ))}
+                      )}
+                      <div className="w-full">
+                        <LetterCard
+                          id={assignment.id}
+                          letterId={assignment.letter.id}
+                          atgId={assignment.letter.lms_id}
+                          sender={assignment.letter.sender}
+                          summary={assignment.letter.summary}
+                          status={assignment.status}
+                          step={assignment.step?.step_name}
+                          dueDate={assignment.due_date || assignment.letter.date_received}
+                          attachment={assignment.letter.attachment}
+                          tray={assignment.letter.tray}
+                          layout={layoutStyle}
+                          actions={
+                            <div className="flex items-center gap-2">
+                              {renderTrayActions(assignment)}
+                              {renderQuickActions(assignment)}
+                            </div>
+                          }
+                        />
+                      </div>
+                    </div>
+                  )
+                ))}
+              </div>
             </div>
             )}
           </div>

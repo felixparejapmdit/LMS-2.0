@@ -137,12 +137,13 @@ class StatsController {
             const reviewName = reviewStep?.step_name || 'For Review';
             const signatureName = signatureStep?.step_name || 'For Signature';
 
-            const counts = { review: 0, atg_note: 0, signature: 0, vem: 0, pending: 0, hold: 0, empty_entry: 0 };
+            const counts = { review: 0, atg_note: 0, signature: 0, vem: 0, avem: 0, pending: 0, hold: 0, empty_entry: 0 };
 
             allAssignments.forEach(a => {
                 const stepName = a.step?.step_name || '';
                 const letterStatus = a.letter?.status?.status_name || '';
                 const hasVem = a.letter?.vemcode && a.letter.vemcode.trim() !== '';
+                const hasAvem = a.letter?.aevm_number && a.letter.aevm_number.trim() !== '';
                 const hasTray = a.letter?.tray_id && a.letter.tray_id !== 0;
 
                 // Exclude VIP correctly: tray_id == 0 AND (global_status == 2 OR status == ATG Note)
@@ -166,17 +167,18 @@ class StatsController {
                         if (!hasTray && letterStatus !== 'Filed' && letterStatus !== 'Done') counts.review++;
                     } else if (stepName === signatureName) {
                         if (!hasTray && letterStatus !== 'Filed' && letterStatus !== 'Done') counts.signature++;
-                    } else if (stepName.includes('VEM') || hasVem) {
+                    } else if (stepName.includes('AEVM')) {
+                        counts.avem++;
+                    } else if (stepName.includes('VEM')) {
                         counts.vem++;
                     }
                 }
 
-                // ATG Note: Assigned Tray strictly > 0 and not "Filed"/"Done"
-                if (letterStatus !== 'Filed' && letterStatus !== 'Done' && hasTray) {
+                // ATG Note: Assigned Tray strictly > 0 OR global_status == 2 OR status == ATG Note
+                if (letterStatus !== 'Filed' && letterStatus !== 'Done' && (hasTray || a.letter?.global_status === 2 || letterStatus === 'ATG Note')) {
                     counts.atg_note++;
                 }
-            });      // Removed old pending count logic from assignments loop
-            // Pending is now exclusively for letters with NO process step (no assignment record)
+            });
 
             // Count letters that are Incoming (global_status=1) but have NO assignment record at all
             const unassignedLetters = await Letter.findAll({

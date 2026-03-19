@@ -25,6 +25,8 @@ services:
       PUBLIC_URL: "${DIRECTUS_PUBLIC_URL:-http://localhost:8055}"
       # WAL mode is significantly faster on Linux/Proxmox
       DB_SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
+      DB_SQLITE_BUSY_TIMEOUT: "15000"
+      DB_SQLITE_SYNCHRONOUS: "NORMAL"
       NODE_OPTIONS: "--max-old-space-size=2048"
     restart: unless-stopped
 
@@ -51,6 +53,7 @@ services:
       SQLITE_SQL_LOG_LEVEL: "warn"
       SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
       SQLITE_BUSY_TIMEOUT: "15000"
+      SQLITE_SYNCHRONOUS: "${SQLITE_SYNCHRONOUS:-NORMAL}"
     depends_on:
       - directus
     restart: unless-stopped

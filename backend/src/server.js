@@ -51,19 +51,6 @@ async function startServer() {
         await sequelize.authenticate();
         console.log('Database connected successfully.');
 
-        // Improve sqlite concurrency behavior when shared with Directus.
-        const sqliteBusyTimeout = Number.parseInt(process.env.SQLITE_BUSY_TIMEOUT || '10000', 10);
-        const journalModeEnv = (process.env.SQLITE_JOURNAL_MODE || 'DELETE').toUpperCase();
-        const synchronousEnv = (process.env.SQLITE_SYNCHRONOUS || 'FULL').toUpperCase();
-        const allowedJournalModes = new Set(['DELETE', 'WAL', 'TRUNCATE', 'PERSIST', 'MEMORY', 'OFF']);
-        const allowedSynchronous = new Set(['OFF', 'NORMAL', 'FULL', 'EXTRA']);
-        const sqliteJournalMode = allowedJournalModes.has(journalModeEnv) ? journalModeEnv : 'DELETE';
-        const sqliteSynchronous = allowedSynchronous.has(synchronousEnv) ? synchronousEnv : 'FULL';
-        await sequelize.query(`PRAGMA busy_timeout = ${Number.isFinite(sqliteBusyTimeout) ? sqliteBusyTimeout : 10000}`);
-        // Use DELETE mode for maximum compatibility on Windows shared volumes
-        await sequelize.query(`PRAGMA journal_mode = ${sqliteJournalMode}`);
-        await sequelize.query(`PRAGMA synchronous = ${sqliteSynchronous}`);
-
         // Helper to safely add columns (safer than sync({alter:true}) for SQLite)
         const ensureColumn = async (table, col, definition) => {
             try {

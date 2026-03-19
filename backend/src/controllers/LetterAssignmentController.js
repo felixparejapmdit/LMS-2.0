@@ -74,20 +74,32 @@ class LetterAssignmentController {
                         { '$letter.tray_id$': { [Op.or]: [null, 0] } }
                     ];
                 } else if (named_filter === 'atg_note') {
-                    // FOR ATG NOTE: Any Status(except Filed/Done), Tray strictly > 0
-                    where['$letter.tray_id$'] = { [Op.gt]: 0 };
+                    // FOR ATG NOTE: Any Status(except Filed/Done), Tray strictly > 0 OR global_status = 2 OR status = ATG Note
+                    where[Op.or] = [
+                        { '$letter.tray_id$': { [Op.gt]: 0 } },
+                        { '$letter.global_status$': 2 },
+                        { '$letter.status.status_name$': 'ATG Note' }
+                    ];
                     if (!where[Op.and]) where[Op.and] = [];
                     where[Op.and].push({
-                        [Op.or]: [
-                            { '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] } },
-                            { '$letter.status.status_name$': null }
-                        ]
+                        '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] }
                     });
                 } else if (named_filter === 'vem') {
-                    where[Op.or] = [
+                    where[Op.and] = [
+                        { status: 'Pending' },
                         { '$step.step_name$': { [Op.like]: '%VEM%' } },
-                        { '$letter.vemcode$': { [Op.and]: [{ [Op.ne]: '' }, { [Op.not]: null }] } }
+                        { '$step.step_name$': { [Op.notLike]: '%AEVM%' } },
+                        { '$step.step_name$': { [Op.notIn]: ['For Review', 'For Signature'] } },
+                        { '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] } }
                     ];
+                } else if (named_filter === 'avem') {
+                    where[Op.and] = [
+                        { status: 'Pending' },
+                        { '$step.step_name$': { [Op.like]: '%AEVM%' } },
+                        { '$step.step_name$': { [Op.notIn]: ['For Review', 'For Signature'] } },
+                        { '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] } }
+                    ];
+
                 } else if (named_filter === 'pending') {
                     // Pending: Status = Incoming AND No Process Step (restoring previous condition)
                     where['$letter.status.status_name$'] = 'Incoming';
@@ -112,13 +124,13 @@ class LetterAssignmentController {
             const letterInclude = {
                 model: Letter,
                 as: 'letter',
-                required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'pending' || named_filter === 'empty_entry' || named_filter === 'hold' || named_filter === 'vem' || named_filter === 'atg_note' || !!global_status || vip === 'true' || req.query.exclude_vip === 'true' || req.query.outbox === 'true'),
+                required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'pending' || named_filter === 'empty_entry' || named_filter === 'hold' || named_filter === 'vem' || named_filter === 'avem' || named_filter === 'atg_note' || !!global_status || vip === 'true' || req.query.exclude_vip === 'true' || req.query.outbox === 'true'),
                 include: [
                     {
                         model: Status,
                         as: 'status',
                         attributes: ['status_name'],
-                        required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'pending' || named_filter === 'empty_entry' || named_filter === 'hold' || named_filter === 'atg_note' || req.query.outbox === 'true' || vip === 'true' || req.query.exclude_vip === 'true')
+                        required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'pending' || named_filter === 'empty_entry' || named_filter === 'hold' || named_filter === 'vem' || named_filter === 'avem' || named_filter === 'atg_note' || req.query.outbox === 'true' || vip === 'true' || req.query.exclude_vip === 'true')
                     },
                     { model: Tray, as: 'tray' },
                     { model: LetterKind, as: 'letterKind' },
@@ -174,7 +186,7 @@ class LetterAssignmentController {
                     {
                         model: ProcessStep,
                         as: 'step',
-                        required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'vem')
+                        required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'vem' || named_filter === 'avem')
                     },
                     { model: Department, as: 'department' }
                 ],
