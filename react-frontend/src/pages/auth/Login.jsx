@@ -8,6 +8,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  
   const { login, loginGuest } = useAuth();
   const navigate = useNavigate();
 
@@ -27,7 +28,7 @@ export default function Login() {
         window.location.href = "/";
       }
     } else {
-      setError(result.error || "Login failed. Please check your username and password.");
+      setError(result.error || "Login failed. Please check your credentials.");
     }
     setLoading(false);
   };
@@ -82,7 +83,7 @@ export default function Login() {
             <div className="space-y-2.5">
               <label className="text-[9px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest ml-1">Password</label>
               <div className="relative group">
-                <div className="absolute left-5 top-1/2 -translate-y-1/2 transition-all duration-500 ease-in-out group-focus-within:left-[calc(100%-36px)]">
+                <div className="absolute left-5 top-1/2 -translate-y-1/2 transition-all duration-500 ease-in-out">
                   <Lock className="w-4 h-4 text-slate-300" />
                 </div>
                 <input

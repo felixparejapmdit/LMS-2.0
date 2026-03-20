@@ -86,15 +86,15 @@ class AuthController {
     static async login(req, res) {
         const startTime = Date.now();
         try {
-            const { username, password } = req.body;
+            const { username, password, provider } = req.body;
 
             if (!username || !password) {
                 return res.status(400).json({ error: 'Username and password are required' });
             }
 
-            console.log(`[LOGIN] Attempt started for: ${username}`);
+            console.log(`[LOGIN] Attempt started for: ${username} (provider: ${provider || 'default'})`);
 
-            const user = await User.findOne({
+            let user = await User.findOne({
                 where: sequelize.or(
                     { username: username },
                     { email: username }
@@ -105,29 +105,59 @@ class AuthController {
                 ]
             });
 
-            if (!user) {
-                console.warn(`[LOGIN] User not found: ${username}`);
-                return res.status(401).json({ error: 'User not found' });
-            }
-
-            const [directusAuth, dbPerms] = await Promise.all([
+            const [directusAuthResult] = await Promise.allSettled([
                 (async () => {
-                    try {
-                        const directusLoginStart = Date.now();
-                        const response = await axios.post(`${DIRECTUS_URL}/auth/login`, {
-                            email: user.email,
-                            password: password
-                        }, { timeout: 8000 });
-                        console.log(`[LOGIN] Directus auth took ${Date.now() - directusLoginStart}ms`);
-                        return response.data;
-                    } catch (err) {
-                        console.error(`[LOGIN] Directus auth failed for ${user.email}:`, err.message);
-                        throw new Error('Invalid credentials');
+                    const directusLoginStart = Date.now();
+                    const loginPayload = {
+                        email: user ? user.email : (username.includes('@') ? username : undefined),
+                        password: password
+                    };
+                    
+                    if (!loginPayload.email && !username.includes('@')) {
+                        loginPayload.email = username;
                     }
-                })(),
-                RolePermission.findAll({ where: { role_id: user.role } })
+
+                    if (provider) loginPayload.provider = provider;
+                    
+                    const response = await axios.post(`${DIRECTUS_URL}/auth/login`, loginPayload, { timeout: 8000 });
+                    console.log(`[LOGIN] Directus auth took ${Date.now() - directusLoginStart}ms`);
+                    return response.data;
+                })()
             ]);
 
+            if (directusAuthResult.status === 'rejected') {
+                console.error(`[LOGIN] Directus auth failed for ${username}:`, directusAuthResult.reason.message);
+                return res.status(401).json({ error: 'Invalid credentials' });
+            }
+
+            const directusAuth = directusAuthResult.value;
+
+            // If user wasn't in DB but Directus login succeeded, auto-provision
+            if (!user) {
+                try {
+                    console.log(`[LOGIN] User ${username} not in local DB, auto-provisioning...`);
+                    const token = directusAuth.data.access_token;
+                    const meRes = await axios.get(`${DIRECTUS_URL}/users/me?fields=*,role.*`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const me = meRes.data.data;
+                    
+                    user = await User.create({
+                        id: me.id,
+                        email: me.email,
+                        username: me.email ? me.email.split('@')[0] : username, 
+                        first_name: me.first_name || username,
+                        last_name: me.last_name || '',
+                        role: 1, // Default to USER role (adjust ID if needed)
+                        islogin: true
+                    });
+                } catch (syncErr) {
+                    console.error("[LOGIN] Failed to auto-provision user:", syncErr.message);
+                    return res.status(500).json({ error: "External authentication sync failed" });
+                }
+            }
+
+            const dbPerms = await RolePermission.findAll({ where: { role_id: user.role } });
             let perms = dbPerms;
 
             if (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) {

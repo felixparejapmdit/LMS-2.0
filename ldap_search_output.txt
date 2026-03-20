@@ -1,0 +1,5 @@
+[LDAP TEST] Connecting to: ldap://172.18.121.37:389
+[LDAP TEST] Admin bind successful
+[LDAP TEST] Search complete. Found 163 entries.
+[LDAP TEST] Could not find any entry matching: felix.pareja
+[LDAP TEST] Full detail for first 10 entries:

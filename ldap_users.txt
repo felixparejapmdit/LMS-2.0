@@ -1,0 +1,167 @@
+[LDAP TEST] Connecting to: ldap://172.18.121.37:389
+[LDAP TEST] Admin bind successful
+[LDAP TEST] Search complete. Found 163 entries.
+[LDAP TEST] Listing all Distinguished Names (DNs):
+ - dc=pmdmc,dc=net
+ - cn=VIP,dc=pmdmc,dc=net
+ - cn=VSS,dc=pmdmc,dc=net
+ - cn=ENews,dc=pmdmc,dc=net
+ - cn=samba,dc=pmdmc,dc=net
+ - ou=Hosts,dc=pmdmc,dc=net
+ - ou=Users,dc=pmdmc,dc=net
+ - cn=nsspam,dc=pmdmc,dc=net
+ - cn=PMD-IT,dc=pmdmc,dc=net
+ - ou=Groups,dc=pmdmc,dc=net
+ - ou=Idmaps,dc=pmdmc,dc=net
+ - cn=EVMedia,dc=pmdmc,dc=net
+ - ou=Aliases,dc=pmdmc,dc=net
+ - cn=Archiving,dc=pmdmc,dc=net
+ - cn=ATG Office,dc=pmdmc,dc=net
+ - cn=Team Leaders,dc=pmdmc,dc=net
+ - cn=Special Project,dc=pmdmc,dc=net
+ - cn=Office Chroniclers,dc=pmdmc,dc=net
+ - cn=Graphics and Design,dc=pmdmc,dc=net
+ - cn=Policarpio Sumbilong,dc=pmdmc,dc=net
+ - ou=INC Music Department,dc=pmdmc,dc=net
+ - uid=ATG,cn=VIP,dc=pmdmc,dc=net
+ - uid=rimmel.vispo,cn=VSS,dc=pmdmc,dc=net
+ - uid=chiesa,cn=ENews,dc=pmdmc,dc=net
+ - uid=rey.zamora,cn=ENews,dc=pmdmc,dc=net
+ - uid=scott.katz,cn=ENews,dc=pmdmc,dc=net
+ - uid=joel.eusebio,cn=ENews,dc=pmdmc,dc=net
+ - uid=ramil.palomar,cn=ENews,dc=pmdmc,dc=net
+ - uid=russel.capili,cn=ENews,dc=pmdmc,dc=net
+ - uid=rommel.rodelas,cn=ENews,dc=pmdmc,dc=net
+ - uid=rose.panoncillo,cn=ENews,dc=pmdmc,dc=net
+ - uid=matthew.quiambao,cn=ENews,dc=pmdmc,dc=net
+ - uid=sweetheart.rivera,cn=ENews,dc=pmdmc,dc=net
+ - uid=jreyes,ou=Users,dc=pmdmc,dc=net
+ - uid=jl.canque,cn=PMD-IT,dc=pmdmc,dc=net
+ - uid=mark.silva,cn=PMD-IT,dc=pmdmc,dc=net
+ - uid=kyrt.jurada,cn=PMD-IT,dc=pmdmc,dc=net
+ >>> FOUND MATCH: uid=felix.pareja,cn=PMD-IT,dc=pmdmc,dc=net
+ - uid=rolandkim.amaro,cn=PMD-IT,dc=pmdmc,dc=net
+ - uid=carlo.cuevas,cn=EVMedia,dc=pmdmc,dc=net
+ - uid=erbil.escano,cn=EVMedia,dc=pmdmc,dc=net
+ - uid=marco.suarez,cn=EVMedia,dc=pmdmc,dc=net
+ - uid=gerald.mallari,cn=EVMedia,dc=pmdmc,dc=net
+ - uid=sotero.valerajr,cn=EVMedia,dc=pmdmc,dc=net
+ - uid=mhelmarck.edralin,cn=EVMedia,dc=pmdmc,dc=net
+ - uid=jpastor,cn=Archiving,dc=pmdmc,dc=net
+ - uid=renz.coro,cn=Archiving,dc=pmdmc,dc=net
+ - uid=dandy.hina,cn=Archiving,dc=pmdmc,dc=net
+ - uid=john.monoy,cn=Archiving,dc=pmdmc,dc=net
+ - uid=al.arboleda,cn=Archiving,dc=pmdmc,dc=net
+ - uid=john.janson,cn=Archiving,dc=pmdmc,dc=net
+ - uid=ralph.dizon,cn=Archiving,dc=pmdmc,dc=net
+ - uid=elmer.mayuga,cn=Archiving,dc=pmdmc,dc=net
+ - uid=jeyvee.bidua,cn=Archiving,dc=pmdmc,dc=net
+ - uid=rex.pamatian,cn=Archiving,dc=pmdmc,dc=net
+ - uid=angel.panique,cn=Archiving,dc=pmdmc,dc=net
+ - uid=jeffrey.tasis,cn=Archiving,dc=pmdmc,dc=net
+ - uid=klyde.rumbaua,cn=Archiving,dc=pmdmc,dc=net
+ - uid=christian.dabu,cn=Archiving,dc=pmdmc,dc=net
+ - uid=june.saligumba,cn=Archiving,dc=pmdmc,dc=net
+ - uid=lovel.quinitio,cn=Archiving,dc=pmdmc,dc=net
+ - uid=raymond.arceta,cn=Archiving,dc=pmdmc,dc=net
+ - uid=steven.mananes,cn=Archiving,dc=pmdmc,dc=net
+ - uid=allan.valenzuela,cn=Archiving,dc=pmdmc,dc=net
+ - uid=michael.avellano,cn=Archiving,dc=pmdmc,dc=net
+ - uid=petronilo.catama,cn=Archiving,dc=pmdmc,dc=net
+ - uid=arichzel.estrella,cn=Archiving,dc=pmdmc,dc=net
+ - uid=christian.barrera,cn=Archiving,dc=pmdmc,dc=net
+ - uid=christopher.alignay,cn=Archiving,dc=pmdmc,dc=net
+ - uid=alexandra.villafuerte,cn=Archiving,dc=pmdmc,dc=net
+ - uid=mshohdy,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=chun-wei,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=jcordial,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=jm.hizon,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=jmaghirang,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=lee.umayam,cn=ATG Office,dc=pmdmc,dc=net
+ - cn=Poncia  Plato,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=cladio.arro,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=mark.rivera,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=mark.cresino,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=ruben.tamayo,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=harvey.mackay,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=israel.regala,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=adrian.te\c3\b1oso,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=armel.magbanua,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=jim.pagatpatan,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=joan.solitario,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=nicole.sanchez,cn=ATG Office,dc=pmdmc,dc=net
+ - cn=ATG Office Staff,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=aldrin.salvador,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=bernadeth.serra,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=Christian.deDios,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=cristine.soriano,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=laarni.eustaquio,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=nicole.dimatulac,cn=ATG Office,dc=pmdmc,dc=net
+ - cn=Patrick John Erice Bariring,cn=ATG Office,dc=pmdmc,dc=net
+ - uid=pcdiaz,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=rreyes,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=kdeleon,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=amagpile,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=dalferez,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=dpare\c3\b1a,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=rporcado,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=zpetorio,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=jalcantara,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=jsarmiento,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=kvdematera,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=mcenriquez,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=rdprestoza,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=claudioarro,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=cmcervantes,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=dvillamarzo,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=jcabacungan,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=rmmalabanan,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=ron.deguzman,cn=Team Leaders,dc=pmdmc,dc=net
+ - cn=Eugene Eustaquio,cn=Team Leaders,dc=pmdmc,dc=net
+ - uid=ntalag,cn=Special Project,dc=pmdmc,dc=net
+ - uid=kelset.inouye,cn=Special Project,dc=pmdmc,dc=net
+ - uid=kevin.marcelo,cn=Special Project,dc=pmdmc,dc=net
+ - uid=benjie.zamudio,cn=Special Project,dc=pmdmc,dc=net
+ - uid=remuel.marbebe,cn=Special Project,dc=pmdmc,dc=net
+ - uid=richard.deasis,cn=Special Project,dc=pmdmc,dc=net
+ - uid=willie.suratos,cn=Special Project,dc=pmdmc,dc=net
+ - uid=isaias.sandiego,cn=Special Project,dc=pmdmc,dc=net
+ - uid=joel.cabacungan,cn=Special Project,dc=pmdmc,dc=net
+ - uid=jilmark.regencia,cn=Special Project,dc=pmdmc,dc=net
+ - uid=pmd.it,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=user-b,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=user.a,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=atg.sfm,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=neu.stf,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=atg.lsws,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=admin.gnd,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=admin.trg,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=music.cdo,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=music.eis,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=music.pop,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=atg.office,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=music.arts,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=atg.evmedia,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=music.hymns,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=atg.subtitling,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=executive.news,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=admin.archiving,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=atg.security-group,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=music.organ-office,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=admin.building-admin,cn=Office Chroniclers,dc=pmdmc,dc=net
+ - uid=joel.valido,cn=Graphics and Design,dc=pmdmc,dc=net
+ - uid=kit.curilan,cn=Graphics and Design,dc=pmdmc,dc=net
+ - uid=adrian.amado,cn=Graphics and Design,dc=pmdmc,dc=net
+ - uid=rommel.david,cn=Graphics and Design,dc=pmdmc,dc=net
+ - uid=carmie.cleofas,cn=Graphics and Design,dc=pmdmc,dc=net
+ - uid=edgardo.maisip,cn=Graphics and Design,dc=pmdmc,dc=net
+ - uid=ivan.cervantes,cn=Graphics and Design,dc=pmdmc,dc=net
+ - uid=marjay.alarcon,cn=Graphics and Design,dc=pmdmc,dc=net
+ - uid=randolf.medrano,cn=Graphics and Design,dc=pmdmc,dc=net
+ - uid=marco.lardizabal,cn=Graphics and Design,dc=pmdmc,dc=net
+ - cn=Church Hymns,ou=INC Music Department,dc=pmdmc,dc=net
+ - cn=INC Popular Music Section,ou=INC Music Department,dc=pmdmc,dc=net
+ - uid=joon.deguia,cn=Church Hymns,ou=INC Music Department,dc=pmdmc,dc=net
+ - uid=jeff.yumul,cn=INC Popular Music Section,ou=INC Music Department,dc=pmdmc,dc=net
+ - uid=marvin.estrada,cn=INC Popular Music Section,ou=INC Music Department,dc=pmdmc,dc=net
+ - uid=raniel.mariano,cn=INC Popular Music Section,ou=INC Music Department,dc=pmdmc,dc=net

@@ -238,9 +238,9 @@ export const AuthProvider = ({ children }) => {
         }
     }, [authState.isGuest, logout]);
 
-    const login = async (username, password) => {
+    const login = async (username, password, provider = null) => {
         try {
-            const res = await axios.post(`${BACKEND_URL}/auth/login`, { username, password });
+            const res = await axios.post(`${BACKEND_URL}/auth/login`, { username, password, provider });
             if (!res.data.success) throw new Error(res.data.error || "Login failed");
 
             const { user: me, permissions: perms, directus_auth: directusAuth } = res.data;

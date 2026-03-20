@@ -1,0 +1,106 @@
+[07:24:34.922] INFO: Extensions loaded
+[07:24:34.931] INFO: Initializing bootstrap...
+[07:24:34.939] INFO: Database already initialized, skipping install
+[07:24:34.939] INFO: Running migrations...
+[07:24:34.958] INFO: Done
+2026-03-20T07:24:35: PM2 log: Launching in no daemon mode
+2026-03-20T07:24:35: PM2 log: App [directus:0] starting in -cluster mode-
+2026-03-20T07:24:38: PM2 log: App [directus:0] online
+[07:24:39.942] INFO: Extensions loaded
+[07:24:39.970] WARN: Spatialite isn't installed. Geometry type support will be limited.
+[07:24:39.972] ERROR: Invalid provider config
+2026-03-20T07:24:39: PM2 log: App name:directus id:0 disconnected
+2026-03-20T07:24:39: PM2 log: App [directus:0] exited with code [1] via signal [SIGINT]
+2026-03-20T07:24:44: PM2 log: 0 application online, retry = 3
+2026-03-20T07:24:46: PM2 log: 0 application online, retry = 2
+2026-03-20T07:24:48: PM2 log: 0 application online, retry = 1
+2026-03-20T07:24:50: PM2 log: 0 application online, retry = 0
+2026-03-20T07:24:50: PM2 log: PM2 successfully stopped
+[07:24:56.160] INFO: Extensions loaded
+[07:24:56.168] INFO: Initializing bootstrap...
+[07:24:56.173] INFO: Database already initialized, skipping install
+[07:24:56.173] INFO: Running migrations...
+[07:24:56.186] INFO: Done
+2026-03-20T07:24:56: PM2 log: Launching in no daemon mode
+2026-03-20T07:24:56: PM2 log: App [directus:0] starting in -cluster mode-
+2026-03-20T07:24:59: PM2 log: App [directus:0] online
+[07:25:01.424] INFO: Extensions loaded
+[07:25:01.450] WARN: Spatialite isn't installed. Geometry type support will be limited.
+[07:25:01.453] ERROR: Invalid provider config
+2026-03-20T07:25:01: PM2 log: App name:directus id:0 disconnected
+2026-03-20T07:25:01: PM2 log: App [directus:0] exited with code [1] via signal [SIGINT]
+2026-03-20T07:25:05: PM2 log: 0 application online, retry = 3
+2026-03-20T07:25:07: PM2 log: 0 application online, retry = 2
+2026-03-20T07:25:09: PM2 log: 0 application online, retry = 1
+2026-03-20T07:25:11: PM2 log: 0 application online, retry = 0
+2026-03-20T07:25:11: PM2 log: PM2 successfully stopped
+[07:25:16.412] INFO: Extensions loaded
+[07:25:16.419] INFO: Initializing bootstrap...
+[07:25:16.424] INFO: Database already initialized, skipping install
+[07:25:16.424] INFO: Running migrations...
+[07:25:16.440] INFO: Done
+2026-03-20T07:25:16: PM2 log: Launching in no daemon mode
+2026-03-20T07:25:16: PM2 log: App [directus:0] starting in -cluster mode-
+2026-03-20T07:25:19: PM2 log: App [directus:0] online
+[07:25:20.761] INFO: Extensions loaded
+[07:25:20.789] WARN: Spatialite isn't installed. Geometry type support will be limited.
+[07:25:20.791] ERROR: Invalid provider config
+2026-03-20T07:25:20: PM2 log: App name:directus id:0 disconnected
+2026-03-20T07:25:20: PM2 log: App [directus:0] exited with code [1] via signal [SIGINT]
+2026-03-20T07:25:25: PM2 log: 0 application online, retry = 3
+2026-03-20T07:25:27: PM2 log: 0 application online, retry = 2
+2026-03-20T07:25:29: PM2 log: 0 application online, retry = 1
+2026-03-20T07:25:31: PM2 log: 0 application online, retry = 0
+2026-03-20T07:25:31: PM2 log: PM2 successfully stopped
+[07:25:37.588] INFO: Extensions loaded
+[07:25:37.595] INFO: Initializing bootstrap...
+[07:25:37.602] INFO: Database already initialized, skipping install
+[07:25:37.603] INFO: Running migrations...
+[07:25:37.617] INFO: Done
+2026-03-20T07:25:37: PM2 log: Launching in no daemon mode
+2026-03-20T07:25:37: PM2 log: App [directus:0] starting in -cluster mode-
+2026-03-20T07:25:40: PM2 log: App [directus:0] online
+[07:25:41.888] INFO: Extensions loaded
+[07:25:41.916] WARN: Spatialite isn't installed. Geometry type support will be limited.
+[07:25:41.918] ERROR: Invalid provider config
+2026-03-20T07:25:41: PM2 log: App name:directus id:0 disconnected
+2026-03-20T07:25:41: PM2 log: App [directus:0] exited with code [1] via signal [SIGINT]
+2026-03-20T07:25:46: PM2 log: 0 application online, retry = 3
+2026-03-20T07:25:48: PM2 log: 0 application online, retry = 2
+2026-03-20T07:25:50: PM2 log: 0 application online, retry = 1
+2026-03-20T07:25:52: PM2 log: 0 application online, retry = 0
+2026-03-20T07:25:53: PM2 log: PM2 successfully stopped
+[07:25:59.102] INFO: Extensions loaded
+[07:25:59.110] INFO: Initializing bootstrap...
+[07:25:59.116] INFO: Database already initialized, skipping install
+[07:25:59.117] INFO: Running migrations...
+[07:25:59.136] INFO: Done
+2026-03-20T07:25:59: PM2 log: Launching in no daemon mode
+2026-03-20T07:25:59: PM2 log: App [directus:0] starting in -cluster mode-
+2026-03-20T07:26:02: PM2 log: App [directus:0] online
+[07:26:05.814] INFO: Extensions loaded
+[07:26:05.852] WARN: Spatialite isn't installed. Geometry type support will be limited.
+[07:26:05.856] ERROR: Invalid provider config
+2026-03-20T07:26:05: PM2 log: App name:directus id:0 disconnected
+2026-03-20T07:26:05: PM2 log: App [directus:0] exited with code [1] via signal [SIGINT]
+2026-03-20T07:26:08: PM2 log: 0 application online, retry = 3
+2026-03-20T07:26:10: PM2 log: 0 application online, retry = 2
+2026-03-20T07:26:12: PM2 log: 0 application online, retry = 1
+2026-03-20T07:26:14: PM2 log: 0 application online, retry = 0
+2026-03-20T07:26:14: PM2 log: PM2 successfully stopped
+[07:26:20.048] INFO: Extensions loaded
+[07:26:20.059] INFO: Initializing bootstrap...
+[07:26:20.065] INFO: Database already initialized, skipping install
+[07:26:20.066] INFO: Running migrations...
+[07:26:20.084] INFO: Done
+2026-03-20T07:26:20: PM2 log: Launching in no daemon mode
+2026-03-20T07:26:20: PM2 log: App [directus:0] starting in -cluster mode-
+2026-03-20T07:26:23: PM2 log: App [directus:0] online
+[07:26:25.589] INFO: Extensions loaded
+[07:26:25.620] WARN: Spatialite isn't installed. Geometry type support will be limited.
+[07:26:25.622] ERROR: Invalid provider config
+2026-03-20T07:26:25: PM2 log: App name:directus id:0 disconnected
+2026-03-20T07:26:25: PM2 log: App [directus:0] exited with code [1] via signal [SIGINT]
+2026-03-20T07:26:29: PM2 log: 0 application online, retry = 3
+2026-03-20T07:26:31: PM2 log: 0 application online, retry = 2
+2026-03-20T07:26:33: PM2 log: 0 application online, retry = 1
