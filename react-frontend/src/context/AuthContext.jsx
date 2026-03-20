@@ -19,11 +19,9 @@ const normalizeLayoutStyle = (style) => {
     const valid = ["grid", "minimalist", "notion", "default"];
     return valid.includes(style) ? style : "minimalist";
 };
-const AUTH_USER_KEY = "auth_user";
-const AUTH_PERMS_KEY = "auth_permissions";
-const LAST_REFRESH_KEY = "auth_last_refresh";
-export { LAST_REFRESH_KEY };
-const REFRESH_THROTTLE_MS = 300000; // 5 minutes
+import { AUTH_USER_KEY, AUTH_PERMS_KEY, LAST_REFRESH_KEY, REFRESH_THROTTLE_MS } from "./authConstants";
+// REMOVED RE-EXPORT TO IMPROVE HMR
+
 
 const readCachedJson = (key, fallback = null) => {
     try {
@@ -294,6 +292,18 @@ export const AuthProvider = ({ children }) => {
     // --- PERMISSION LOGIC (Memoized) ---
     const hasPermission = useCallback((pageId, action = 'can_view') => {
         if (authState.isGuest) return pageId === 'guest-send-letter';
+        
+        // Super Admin Bypass
+        const roleName = (authState.user?.roleData?.name || authState.user?.role || '').toString().toUpperCase();
+        const isSuperAdmin = roleName === 'ADMIN' || 
+               roleName === 'SUPER ADMIN' || 
+               roleName === 'DEVELOPER' || 
+               roleName === 'ROOT' ||
+               authState.user?.email === 'felixpareja07@gmail.com';
+        
+        console.log(`hasPermission: page=${pageId}, role=${roleName}, isSuperAdmin=${isSuperAdmin}`);
+        if (isSuperAdmin) return true;
+
         if (!authState.permissions || authState.permissions.length === 0) return false;
 
         const normalizePageId = (value = "") => value.toString().toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -415,8 +425,6 @@ export const useAuth = () => {
     const { user } = auth;
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
     const isSuperAdmin = roleName === 'ADMIN' ||
-        roleName === 'ADMINISTRATOR' ||
-        roleName === 'SYSTEM ADMIN' ||
         roleName === 'SUPER ADMIN' ||
         roleName === 'DEVELOPER' ||
         roleName === 'ROOT' ||
@@ -435,8 +443,6 @@ export const useSession = () => {
     const isSuperAdmin = useMemo(() => {
         const roleName = (context.user?.roleData?.name || context.user?.role || '').toString().toUpperCase();
         return roleName === 'ADMIN' || 
-               roleName === 'ADMINISTRATOR' || 
-               roleName === 'SYSTEM ADMIN' || 
                roleName === 'SUPER ADMIN' || 
                roleName === 'DEVELOPER' || 
                roleName === 'ROOT' ||

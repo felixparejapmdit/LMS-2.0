@@ -60,23 +60,27 @@ class LetterAssignmentController {
                 if (named_filter === 'review') {
                     // For Review: Not Done/Filed (IDs 9, 6), For Review step (ID 2), No tray
                     where[Op.and] = [
-                        { '$letter.global_status$': { [Op.in]: [1, 8] } }, // Allow Incoming(1) and Pending(8)
+                        { '$letter.global_status$': { [Op.notIn]: [6, 9] } },
                         { step_id: 2 },
                         { '$letter.tray_id$': { [Op.or]: [null, 0] } }
                     ];
                 } else if (named_filter === 'signature') {
                     // For Signature: Not Done/Filed, For Signature step (ID 1), No tray
                     where[Op.and] = [
-                        { '$letter.global_status$': { [Op.in]: [1, 8] } }, // Allow Incoming(1) and Pending(8)
+                        { '$letter.global_status$': { [Op.notIn]: [6, 9] } },
                         { step_id: 1 },
                         { '$letter.tray_id$': { [Op.or]: [null, 0] } }
                     ];
                 } else if (named_filter === 'atg_note') {
-                    // FOR ATG NOTE: Only Incoming (1) with tray
-                    where[Op.and] = [
-                        { '$letter.global_status$': 1 },
-                        { '$letter.tray_id$': { [Op.gt]: 0 } }
+                    // FOR ATG NOTE: global_status = 2 (ATG Note) or tray assigned
+                    where[Op.or] = [
+                        { '$letter.tray_id$': { [Op.gt]: 0 } },
+                        { '$letter.global_status$': 2 }
                     ];
+                    if (!where[Op.and]) where[Op.and] = [];
+                    where[Op.and].push({
+                        '$letter.global_status$': { [Op.notIn]: [6, 9] }
+                    });
                 } else if (named_filter === 'vem') {
                     // VEM: global_status 8 (Pending), VEM step
                     where[Op.and] = [
@@ -185,14 +189,13 @@ class LetterAssignmentController {
                 subQuery: false
             });
 
-            // If named_filter requires showing letters that have NO assignment record at all
-            if (named_filter === 'pending' || named_filter === 'empty_entry' || named_filter === 'atg_note') {
-                const validStatuses = [1]; // Incoming
-                if (named_filter === 'atg_note') validStatuses.push(2); // ATG Note
-
+            // If named_filter is 'pending' or 'empty_entry', also fetch letters with status 'Incoming' that have NO assignment record at all
+            if (named_filter === 'pending' || named_filter === 'empty_entry') {
+                const incomingStatus = await Status.findOne({ where: { status_name: 'Incoming' } });
                 const unassignedLetters = await Letter.findAll({
                     where: {
-                        global_status: { [Op.in]: validStatuses }
+                        global_status: incomingStatus?.id || 1,
+                        tray_id: { [Op.or]: [0, null] }
                     },
                     include: [
                         { model: Status, as: 'status' },
@@ -205,13 +208,10 @@ class LetterAssignmentController {
                 let purelyUnassigned = unassignedLetters.filter(l => (l.assignments || []).length === 0);
                 
                 // Further filter purelyUnassigned based on the named_filter
-                if (named_filter === 'atg_note') {
-                    purelyUnassigned = purelyUnassigned.filter(l => l.tray_id > 0 && l.global_status === 1);
-                } else {
-                    purelyUnassigned = purelyUnassigned.filter(l => !l.tray_id || l.tray_id === 0);
-                    if (named_filter === 'empty_entry') {
-                        purelyUnassigned = purelyUnassigned.filter(l => !l.sender || l.sender.trim() === '' || !l.summary || l.summary.trim() === '');
-                    }
+                if (named_filter === 'pending') {
+                    // No additional filter for pending (restore previous behavior)
+                } else if (named_filter === 'empty_entry') {
+                    purelyUnassigned = purelyUnassigned.filter(l => !l.sender || l.sender.trim() === '' || !l.summary || l.summary.trim() === '');
                 }
 
                 const mappedMocks = purelyUnassigned.map(l => ({
@@ -244,31 +244,7 @@ class LetterAssignmentController {
 
     static async update(req, res) {
         try {
-            let id = req.params.id;
-            
-            // Handle virtual 'mock-' IDs from Pending/Unassigned view
-            if (id.toString().startsWith('mock-')) {
-                const letterId = id.replace('mock-', '');
-                let { step_id, status_id, department_id } = req.body;
-                
-                // Infer department from step if missing
-                if (!department_id && step_id) {
-                    const step = await ProcessStep.findByPk(step_id);
-                    if (step) department_id = step.dept_id;
-                }
-
-                // Create a real assignment instead of updating
-                const newAssignment = await LetterAssignment.create({
-                    letter_id: letterId,
-                    step_id: step_id || null,
-                    status_id: status_id || 8, // Default to Pending
-                    department_id: department_id || null,
-                    assigned_by: req.query.user_id || null
-                });
-                return res.json(newAssignment);
-            }
-
-            const assignment = await LetterAssignment.findByPk(id);
+            const assignment = await LetterAssignment.findByPk(req.params.id);
             if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
             await assignment.update(req.body);
             res.json(assignment);

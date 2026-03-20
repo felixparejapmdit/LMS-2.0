@@ -12,8 +12,9 @@ class ProcessStepController {
                     [Op.or]: [
                         { [Op.like]: '%Review%' },
                         { [Op.like]: '%Signature%' },
-                        { [Op.like]: '%Endorsement%' },
-                        { [Op.like]: '%VEM%' }
+                        { [Op.like]: '%VEM%' },
+                        { [Op.like]: '%AVEM%' },
+                        { [Op.like]: '%AEVM%' }
                     ]
                 };
                 const atgStatus = await Status.findOne({ where: { status_name: 'ATG Note' } });

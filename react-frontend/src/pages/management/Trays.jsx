@@ -51,6 +51,7 @@ export default function Trays() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState("create"); // 'create' or 'edit'
     const [selectedTray, setSelectedTray] = useState(null);
+    const [trayLetters, setTrayLetters] = useState([]);
     const [isMenuOpen, setIsMenuOpen] = useState(null); // id of tray with open menu
 
     const [formData, setFormData] = useState({
@@ -236,7 +237,11 @@ export default function Trays() {
                                     return (
                                         <div
                                             key={tray.id}
-                                            className={`${cardBg} ${viewMode === 'grid' ? 'p-8 rounded-[2.5rem]' : 'p-4 rounded-2xl flex items-center justify-between'} border shadow-sm hover:shadow-xl hover:border-orange-200 dark:hover:border-orange-900/40 transition-all group cursor-pointer`}
+                                            onClick={() => {
+                                                setSelectedTray(tray);
+                                                setTrayLetters(tray.letters || []);
+                                            }}
+                                            className={`${cardBg} ${viewMode === 'grid' ? 'p-8 rounded-[2.5rem]' : 'p-4 rounded-2xl flex items-center justify-between'} border shadow-sm ${selectedTray?.id === tray.id ? 'ring-2 ring-orange-500 border-orange-500' : 'hover:shadow-xl hover:border-orange-200 dark:hover:border-orange-900/40'} transition-all group cursor-pointer`}
                                         >
                                             <div className={viewMode === 'grid' ? "space-y-6" : "flex items-center gap-6 overflow-hidden flex-1"}>
                                                 <div className="w-12 h-12 bg-orange-50 dark:bg-orange-900/10 rounded-2xl flex items-center justify-center text-orange-600 dark:text-orange-400 group-hover:scale-110 transition-transform shrink-0">
@@ -358,6 +363,72 @@ export default function Trays() {
                                     </div>
                                     <span className="text-xs font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest group-hover:text-orange-500">+ New Tray</span>
                                 </button>}
+                            </div>
+                        )}
+                        
+                        {/* Selected Tray Letters List */}
+                        {selectedTray && (
+                            <div className={`mt-12 p-8 rounded-[2.5rem] border ${cardBg} animate-in slide-in-from-bottom-5 duration-300`}>
+                                <div className="flex items-center justify-between mb-8">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/10 rounded-xl flex items-center justify-center text-orange-600">
+                                            <Archive className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h3 className={`text-lg font-black uppercase tracking-tight ${textColor}`}>{selectedTray.tray_no}</h3>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{trayLetters.length} Letters in this tray</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            setSelectedTray(null);
+                                            setTrayLetters([]);
+                                        }}
+                                        className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors"
+                                    >
+                                        <X className="w-5 h-5 text-gray-400" />
+                                    </button>
+                                </div>
+
+                                {trayLetters.length === 0 ? (
+                                    <div className="py-20 text-center border border-dashed border-gray-100 dark:border-[#222] rounded-2xl">
+                                        <p className="text-gray-400 font-medium">No letters assigned to this tray.</p>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left">
+                                            <thead>
+                                                <tr className="border-b dark:border-[#222]">
+                                                    <th className="py-4 px-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">LMS_ID</th>
+                                                    <th className="py-4 px-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Sender</th>
+                                                    <th className="py-4 px-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Summary</th>
+                                                    <th className="py-4 px-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                                                    <th className="py-4 px-2"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-50 dark:divide-[#1a1a1a]">
+                                                {trayLetters.map(letter => (
+                                                    <tr key={letter.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group border-b dark:border-[#1a1a1a]">
+                                                        <td className="py-4 px-2 text-xs font-black text-blue-600 uppercase">{letter.lms_id}</td>
+                                                        <td className={`py-4 px-2 text-xs font-bold ${textColor}`}>{letter.sender}</td>
+                                                        <td className="py-4 px-2 text-xs text-gray-500 line-clamp-1 max-w-xs" dangerouslySetInnerHTML={{ __html: letter.summary }}></td>
+                                                        <td className="py-4 px-2">
+                                                            <span className="px-2 py-1 bg-orange-50 dark:bg-orange-950/20 text-orange-600 text-[10px] font-bold rounded-lg uppercase tracking-tight">Active</span>
+                                                        </td>
+                                                        <td className="py-4 px-2 text-right">
+                                                            <button 
+                                                                onClick={() => navigate(`/letter/${letter.id}`)}
+                                                                className="p-2 hover:bg-white dark:hover:bg-[#222] rounded-lg transition-all text-gray-300 hover:text-orange-500 opacity-0 group-hover:opacity-100"
+                                                            >
+                                                                <ChevronRight className="w-4 h-4" />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

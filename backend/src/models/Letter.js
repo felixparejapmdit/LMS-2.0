@@ -78,7 +78,21 @@ const Letter = sequelize.define('Letter', {
     tableName: 'letters',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    updatedAt: 'updated_at',
+    hooks: {
+        afterUpdate: async (letter, options) => {
+            const { LetterAssignment } = sequelize.models;
+            if (LetterAssignment && letter.changed('global_status')) {
+                await LetterAssignment.update(
+                    { status_id: letter.global_status },
+                    { 
+                        where: { letter_id: letter.id },
+                        transaction: options.transaction 
+                    }
+                );
+            }
+        }
+    }
 });
 
 module.exports = Letter;

@@ -289,6 +289,15 @@ export default function MasterTable() {
             return;
         }
 
+        const isAtgOrIncoming = selectedLetter.global_status 
+            ? [1, 2].includes(selectedLetter.global_status) 
+            : ['Incoming', 'ATG Note'].includes(selectedLetter.status?.status_name);
+            
+        if (!isAtgOrIncoming && (!selectedLetter.tray_id || selectedLetter.tray_id <= 0)) {
+            alert("Please assign a tray first.");
+            return;
+        }
+
         try {
             setLoading(true);
 
@@ -343,7 +352,6 @@ export default function MasterTable() {
                         step_id: updatedLetter.currentStepId,
                         department_id: finalDepartmentId,
                         assigned_by: user?.id,
-                        status: 'Pending',
                         status_id: 8
                     });
                 }
@@ -639,7 +647,7 @@ export default function MasterTable() {
                                                 </td>
                                                 <td className="p-5 whitespace-nowrap">
                                                     <span className={`text-[10px] font-black px-2.5 py-1 rounded bg-slate-100 dark:bg-white/10 ${textColor}`}>
-                                                        {letter.lms_id || 'PENDING'}
+                                                        {letter.lms_id || 'PENDING'}{letter.tray?.tray_no ? <span className="text-orange-500 italic ml-1.5">({letter.tray.tray_no.toLowerCase()})</span> : ''}
                                                     </span>
                                                 </td>
                                                 <td className="p-5 whitespace-nowrap text-xs font-bold">
@@ -814,7 +822,9 @@ export default function MasterTable() {
                                 {/* Detailed Fields */}
                                 <div className="space-y-4 pt-4 px-2">
                                     {canDepartmentSelector && <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tray</label>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                            Tray {!(selectedLetter.global_status ? [1, 2].includes(selectedLetter.global_status) : ['Incoming', 'ATG Note'].includes(selectedLetter.status?.status_name)) && <span className="text-red-500">*</span>}
+                                        </label>
                                         <select
                                             value={selectedLetter.tray_id || ""}
                                             onChange={(e) => {

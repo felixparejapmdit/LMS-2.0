@@ -131,7 +131,7 @@ export default function LetterCard({
                 <div className="flex items-center gap-1.5">
                   <MapPin className="w-3 h-3 text-[#A3A3A3] dark:text-gray-500" />
                   <span className="text-[10px] font-medium text-[#737373] dark:text-gray-400">
-                    {tray?.tray_no || 'Pending'}
+                    {tray?.tray_no || status || 'Pending'}
                   </span>
                 </div>
                 {attachment && (

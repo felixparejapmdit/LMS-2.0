@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from "react";
-import { LAST_REFRESH_KEY } from "../../context/AuthContext";
+import { LAST_REFRESH_KEY } from "../../context/authConstants";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
 import {

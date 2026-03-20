@@ -86,7 +86,7 @@ export default function VIPView() {
             setLoading(true);
             try {
                 // Get assignments for this step to see which letters are here
-                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments?step_id=${selectedStepId}&status=Pending&vip=true`);
+                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments?step_id=${selectedStepId}&status_id=8&vip=true`);
 
                 // Extract letters from assignments with safer mapping
                 const letterList = response.data

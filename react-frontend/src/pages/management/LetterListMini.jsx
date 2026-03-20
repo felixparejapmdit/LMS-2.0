@@ -12,7 +12,7 @@ export default function LetterListMini({ deptId }) {
             setLoading(true);
             try {
                 // Fetch letters for this specific department
-                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments?department_id=${deptId}&status=Pending`);
+                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments?department_id=${deptId}&status_id=8`);
                 setLetters(response.data.slice(0, 5)); // Show only top 5 for "mini" view
             } catch (error) {
                 console.error("Failed to fetch mini letters:", error);

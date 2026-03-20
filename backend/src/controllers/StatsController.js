@@ -1,4 +1,4 @@
-const { LetterAssignment, Letter, Status, User, Person, ProcessStep, sequelize } = require('../models/associations');
+const { LetterAssignment, Letter, Status, User, Person, ProcessStep, Tray, sequelize } = require('../models/associations');
 const { Op } = require('sequelize');
 
 class StatsController {
@@ -31,7 +31,7 @@ class StatsController {
                 const statusName = a.letter?.status?.status_name || a.status || '';
 
                 if (statusName === 'Filed') archived++;
-                else if (activeStatuses.includes(statusName) || statusName === 'Pending') active++;
+                else if (activeStatuses.includes(statusName) || a.status_id === 8 || statusName === 'Pending') active++;
 
                 if (a.letter?.direction === 'Outgoing') outgoing++;
                 if (a.letter?.direction === 'Incoming') incoming++;
@@ -40,8 +40,7 @@ class StatsController {
             // Count letters that are Incoming (global_status=1) but have NO assignment record at all
             const unassignedLettersInDashboard = await Letter.findAll({
                 where: {
-                    global_status: 1,
-                    tray_id: { [Op.or]: [0, null] }
+                    global_status: 1
                 },
                 include: [{
                     model: LetterAssignment,
@@ -95,6 +94,46 @@ class StatsController {
                 a.letter?.status?.status_name === 'ATG Note'
             ).length;
 
+            const fiveDaysAgo = new Date();
+            fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+            
+            const overdueTasks = await Letter.findAll({
+                where: { 
+                    global_status: 8, // Pending
+                    [Op.or]: [
+                        { date_received: { [Op.lt]: fiveDaysAgo } },
+                        { '$status.status_name$': 'Pending' }
+                    ]
+                },
+                include: [
+                    { model: Status, as: 'status' },
+                    { model: Tray, as: 'tray' }
+                ],
+                order: [['date_received', 'ASC']],
+                limit: 10
+            });
+            
+            const overdueTasksClean = overdueTasks.filter(l => l.global_status === 8 && new Date(l.date_received || l.created_at) < fiveDaysAgo);
+
+            const { LetterLog } = require('../models/associations');
+            
+            const recentActivityLogs = await LetterLog.findAll({
+                include: [
+                    { model: User, as: 'user' },
+                    { model: Letter }
+                ],
+                order: [['timestamp', 'DESC'], ['id', 'DESC']],
+                limit: 8
+            }).catch(() => []); // Fail silently if logs fail
+
+            const distributionMap = {};
+            allAssignments.forEach(a => {
+                if(a.status === 'Pending' && a.step?.step_name) {
+                    distributionMap[a.step.step_name] = (distributionMap[a.step.step_name] || 0) + 1;
+                }
+            });
+            const taskDistribution = Object.entries(distributionMap).map(([name, count]) => ({ name, value: count }));
+
             res.json({
                 activeTasks: active,
                 archivedTasks: archived,
@@ -105,7 +144,10 @@ class StatsController {
                 onlineUsers: onlineUsersCount,
                 totalUsers,
                 totalPeople,
-                atgLettersCount
+                atgLettersCount,
+                overdueTasks: overdueTasksClean,
+                recentActivityLogs,
+                taskDistribution
             });
         } catch (error) {
             console.error('Stats Error:', error);
@@ -115,9 +157,25 @@ class StatsController {
 
     static async getInboxStats(req, res) {
         try {
-            const { department_id } = req.query;
+            const { department_id, user_id, role } = req.query;
             const where = {};
-            if (department_id && department_id !== 'null' && department_id !== 'undefined') {
+            
+            const normalizedRole = role ? role.toString().toUpperCase() : '';
+            const ALL_LETTER_ROLES = new Set([
+                'ADMIN', 'ADMINISTRATOR', 'SUPERUSER', 'SUPER USER',
+                'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN',
+                'DEVELOPER', 'ROOT'
+            ]);
+
+            // Role-based filtering identical to LetterAssignmentController
+            if (normalizedRole === 'USER' && user_id) {
+                const hasValidDepartment = department_id && department_id !== 'null' && department_id !== 'undefined' && department_id !== '';
+                const visibilityClauses = [{ '$letter.encoder_id$': user_id }];
+                if (hasValidDepartment) {
+                    visibilityClauses.push({ department_id: department_id });
+                }
+                where[Op.or] = visibilityClauses;
+            } else if (!ALL_LETTER_ROLES.has(normalizedRole) && department_id && department_id !== 'null' && department_id !== 'undefined') {
                 where[Op.or] = [
                     { department_id: department_id },
                     { department_id: null }
@@ -140,51 +198,45 @@ class StatsController {
             const counts = { review: 0, atg_note: 0, signature: 0, vem: 0, avem: 0, pending: 0, hold: 0, empty_entry: 0 };
 
             allAssignments.forEach(a => {
+                const stepId = a.step_id;
                 const stepName = a.step?.step_name || '';
-                const letterStatus = a.letter?.status?.status_name || '';
-                const hasVem = a.letter?.vemcode && a.letter.vemcode.trim() !== '';
-                const hasAvem = a.letter?.aevm_number && a.letter.aevm_number.trim() !== '';
-                const hasTray = a.letter?.tray_id && a.letter.tray_id !== 0;
+                const globalStatus = a.letter?.global_status;
+                const hasTray = a.letter?.tray_id && a.letter.tray_id > 0;
+                
+                const isVip = !hasTray && (globalStatus === 2 || a.letter?.status?.status_name === 'ATG Note');
 
-                // Exclude VIP correctly: tray_id == 0 AND (global_status == 2 OR status == ATG Note)
-                const isVip = (a.letter?.tray_id === 0 || a.letter?.tray_id == null) &&
-                    (a.letter?.global_status === 2 || letterStatus === 'ATG Note');
-                if (isVip) return;
-
-                const hasNoSenderOrSummary = !a.letter?.sender || a.letter.sender.trim() === '' || !a.letter?.summary || a.letter.summary.trim() === '';
-                if (hasNoSenderOrSummary && letterStatus !== 'Filed' && letterStatus !== 'Done') {
-                    counts.empty_entry++;
-                }
-
-                // Hold counts ANY hold status
-                if (letterStatus === 'Hold' || letterStatus === 'On Hold') {
-                    counts.hold++;
-                }
-
-                // Others must be Pending
-                if (a.status === 'Pending') {
-                    if (stepName === reviewName) {
-                        if (!hasTray && letterStatus !== 'Filed' && letterStatus !== 'Done') counts.review++;
-                    } else if (stepName === signatureName) {
-                        if (!hasTray && letterStatus !== 'Filed' && letterStatus !== 'Done') counts.signature++;
-                    } else if (stepName.includes('AEVM')) {
-                        counts.avem++;
-                    } else if (stepName.includes('VEM')) {
-                        counts.vem++;
-                    }
-                }
-
-                // ATG Note: Assigned Tray strictly > 0 OR global_status == 2 OR status == ATG Note
-                if (letterStatus !== 'Filed' && letterStatus !== 'Done' && (hasTray || a.letter?.global_status === 2 || letterStatus === 'ATG Note')) {
-                    counts.atg_note++;
+                // For Review
+                if ([1, 8].includes(globalStatus) && stepId === 2 && !hasTray && !isVip) counts.review++;
+                
+                // For Signature
+                if ([1, 8].includes(globalStatus) && stepId === 1 && !hasTray && !isVip) counts.signature++;
+                
+                // VEM
+                if (globalStatus === 8 && stepName.includes('VEM') && !stepName.includes('AEVM') && stepId !== 1 && stepId !== 2 && !isVip && globalStatus !== 7) counts.vem++;
+                
+                // AVEM
+                if (globalStatus === 8 && stepName.includes('AEVM') && stepId !== 1 && stepId !== 2 && !isVip && globalStatus !== 7) counts.avem++;
+                
+                // ATG Note (STRICTLY Incoming (1) and has tray)
+                if (globalStatus === 1 && hasTray) counts.atg_note++;
+                
+                // Pending (from assignments that somehow have no step and global_status 1)
+                if (globalStatus === 1 && !stepId && !hasTray && !isVip) counts.pending++;
+                
+                // Hold
+                if (globalStatus === 7 && !isVip) counts.hold++;
+                
+                // Empty Entry (from assignments)
+                if (globalStatus !== 6 && globalStatus !== 9 && !isVip) {
+                    const hasNoSenderOrSummary = !a.letter?.sender || a.letter?.sender?.trim() === '' || !a.letter?.summary || a.letter?.summary?.trim() === '';
+                    if (hasNoSenderOrSummary) counts.empty_entry++;
                 }
             });
 
-            // Count letters that are Incoming (global_status=1) but have NO assignment record at all
+            // Count letters that are purely unassigned
             const unassignedLetters = await Letter.findAll({
                 where: {
-                    global_status: 1,
-                    tray_id: { [Op.or]: [0, null] }
+                    global_status: 1
                 },
                 include: [{
                     model: LetterAssignment,
@@ -194,11 +246,17 @@ class StatsController {
             });
             const purelyUnassigned = unassignedLetters.filter(l => (l.assignments || []).length === 0);
             purelyUnassigned.forEach(l => {
-                const hasNoSenderOrSummary = !l.sender || l.sender.trim() === '' || !l.summary || l.summary.trim() === '';
-                if (hasNoSenderOrSummary) {
-                    counts.empty_entry++;
+                const hasTray = l.tray_id && l.tray_id > 0;
+                
+                if (hasTray) {
+                    counts.atg_note++;
+                } else {
+                    const hasNoSenderOrSummary = !l.sender || l.sender.trim() === '' || !l.summary || l.summary.trim() === '';
+                    if (hasNoSenderOrSummary) {
+                        counts.empty_entry++;
+                    }
+                    counts.pending++;
                 }
-                counts.pending++;
             });
 
             res.json(counts);

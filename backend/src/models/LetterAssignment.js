@@ -25,10 +25,7 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
     },
     status_id: {
         type: DataTypes.INTEGER,
-        defaultValue: 8
-    },
-    status: {
-        type: DataTypes.STRING
+        defaultValue: 8 // Default to Pending
     },
     endorsed: {
         type: DataTypes.ENUM('Yes', 'No', 'Pending'),
@@ -77,49 +74,32 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                     log_details: `Letter assigned to ${deptName} (Step: ${stepName}).`
                 }, { transaction: options.transaction });
 
+                // Synchronize Letter global_status
+                const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
+                if (letter && letter.global_status !== assignment.status_id) {
+                    await letter.update({ global_status: assignment.status_id }, { transaction: options.transaction });
+                }
+
                 // Telegram Notification
-                if (TelegramService) {
-                    const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
-                    if (letter) {
-                        const movementText = TelegramService.buildMovementText(letter, deptName, stepName);
+                if (TelegramService && letter) {
+                    const movementText = TelegramService.buildMovementText(letter, deptName, stepName);
+                    const recipients = await User.findAll({
+                        where: { role: { [Op.in]: ['VIP', 'Administrator'] } },
+                        transaction: options.transaction
+                    });
 
-                        // Recipients: configured staff (VIPs will be filtered out before sending)
-                        const recipients = await User.findAll({
-                            where: { role: { [Op.in]: ['VIP', 'Administrator'] } },
-                            transaction: options.transaction
-                        });
+                    if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
+                        const encoder = await User.findByPk(letter.encoder_id, { transaction: options.transaction });
+                        if (encoder && !TelegramService.isVipOnly(encoder)) recipients.push(encoder);
+                    }
 
-                        // Also notify the encoder if they are not already in recipients and not VIP
-                        if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
-                            const encoder = await User.findByPk(letter.encoder_id, { transaction: options.transaction });
-                            if (encoder && !TelegramService.isVipOnly(encoder)) recipients.push(encoder);
-                        }
+                    const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
+                    const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
+                    const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
 
-                        const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
-                        const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
-                        const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
-
-                        let filteredChatIds = chatIds;
-                        if (chatIds.length > 0) {
-                            const vipUsers = await User.findAll({
-                                where: { telegram_chat_id: { [Op.in]: chatIds } },
-                                include: [{ model: sequelize.models.Role, as: 'roleData' }],
-                                transaction: options.transaction
-                            });
-                            const vipChatIds = vipUsers
-                                .filter((userInstance) => TelegramService.isVipOnly(userInstance))
-                                .map((userInstance) => userInstance.telegram_chat_id);
-                            filteredChatIds = chatIds.filter((chatId) => !vipChatIds.includes(chatId));
-                        }
-
-                        for (const chatId of filteredChatIds) {
-                            const allowComment = false;
-                            const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, {
-                                allowComment,
-                                allowAcknowledge: !allowComment
-                            });
-                            await TelegramService.sendMessage(chatId, movementText, replyMarkup);
-                        }
+                    for (const chatId of chatIds) {
+                        const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, { allowComment: false, allowAcknowledge: true });
+                        await TelegramService.sendMessage(chatId, movementText, replyMarkup);
                     }
                 }
             } catch (err) {
@@ -131,8 +111,7 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
 
             if (!LetterLog || !Department || !ProcessStep) return;
 
-            // Log if assignment logic parameters strictly change
-            if (assignment.changed('status') || assignment.changed('status_id') || assignment.changed('endorsed') || assignment.changed('department_id') || assignment.changed('step_id')) {
+            if (assignment.changed('status_id') || assignment.changed('endorsed') || assignment.changed('department_id') || assignment.changed('step_id')) {
                 let deptName = 'Unknown Department';
                 let stepName = 'Unknown Step';
 
@@ -148,12 +127,19 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                 let actionType = 'Assigned';
                 let logDetails = `Letter assignment parameter updated in ${deptName} (Step: ${stepName}).`;
 
+                // Status definitions for logging
+                const DONE_ID = 9;
+                const HOLD_ID = 7;
+
                 if (assignment.changed('endorsed') && assignment.endorsed === 'Yes') {
                     actionType = 'Endorsed';
                     logDetails = `Letter effectively endorsed by ${deptName} (Step: ${stepName}).`;
-                } else if (assignment.changed('status') && assignment.status === 'Done') {
+                } else if (assignment.changed('status_id') && assignment.status_id === DONE_ID) {
                     actionType = 'Completed';
                     logDetails = `Step ${stepName} completed by ${deptName}.`;
+                } else if (assignment.changed('status_id') && assignment.status_id === HOLD_ID) {
+                    actionType = 'Hold';
+                    logDetails = `Letter placed on Hold by ${deptName}.`;
                 } else if (assignment.changed('department_id') || assignment.changed('step_id')) {
                     actionType = 'Assigned';
                     logDetails = `Letter routed to ${deptName} (Step: ${stepName}).`;
@@ -168,49 +154,32 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                         log_details: logDetails
                     }, { transaction: options.transaction });
 
+                    // Synchronize Letter global_status
+                    const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
+                    if (letter && letter.global_status !== assignment.status_id) {
+                        await letter.update({ global_status: assignment.status_id }, { transaction: options.transaction });
+                    }
+
                     // Telegram Notification
-                    if (TelegramService) {
-                        const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
-                        if (letter) {
-                            const movementText = TelegramService.buildMovementText(letter, deptName, stepName);
+                    if (TelegramService && letter) {
+                        const movementText = TelegramService.buildMovementText(letter, deptName, stepName);
+                        const recipients = await User.findAll({
+                            where: { role: { [Op.in]: ['VIP', 'Administrator'] } },
+                            transaction: options.transaction
+                        });
 
-                            // Recipients: configured staff (VIPs will be filtered out before sending)
-                            const recipients = await User.findAll({
-                                where: { role: { [Op.in]: ['VIP', 'Administrator'] } },
-                                transaction: options.transaction
-                            });
+                        if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
+                            const encoder = await User.findByPk(letter.encoder_id, { transaction: options.transaction });
+                            if (encoder && !TelegramService.isVipOnly(encoder)) recipients.push(encoder);
+                        }
 
-                            // Also notify the encoder if they are not already in recipients and not VIP
-                            if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
-                                const encoder = await User.findByPk(letter.encoder_id, { transaction: options.transaction });
-                                if (encoder && !TelegramService.isVipOnly(encoder)) recipients.push(encoder);
-                            }
+                        const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
+                        const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
+                        const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
 
-                            const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
-                            const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
-                            const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
-
-                            let filteredChatIds = chatIds;
-                            if (chatIds.length > 0) {
-                                const vipUsers = await User.findAll({
-                                    where: { telegram_chat_id: { [Op.in]: chatIds } },
-                                    include: [{ model: sequelize.models.Role, as: 'roleData' }],
-                                    transaction: options.transaction
-                                });
-                                const vipChatIds = vipUsers
-                                    .filter((userInstance) => TelegramService.isVipOnly(userInstance))
-                                    .map((userInstance) => userInstance.telegram_chat_id);
-                                filteredChatIds = chatIds.filter((chatId) => !vipChatIds.includes(chatId));
-                            }
-
-                            for (const chatId of filteredChatIds) {
-                                const allowComment = false;
-                                const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, {
-                                    allowComment,
-                                    allowAcknowledge: !allowComment
-                                });
-                                await TelegramService.sendMessage(chatId, movementText, replyMarkup);
-                            }
+                        for (const chatId of chatIds) {
+                            const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, { allowComment: false, allowAcknowledge: true });
+                            await TelegramService.sendMessage(chatId, movementText, replyMarkup);
                         }
                     }
                 } catch (err) {

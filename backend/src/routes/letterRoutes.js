@@ -4,6 +4,7 @@ const LetterController = require('../controllers/LetterController');
 
 router.get('/', LetterController.getAll);
 router.get('/preview/ids', LetterController.getPreviewIds);
+router.get('/lms-id/:lms_id', LetterController.getByLmsId);
 router.get('/:id', LetterController.getById);
 router.post('/', LetterController.create);
 router.put('/:id', LetterController.update);

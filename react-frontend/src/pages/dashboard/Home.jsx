@@ -23,7 +23,10 @@ import {
     ChevronRight,
     User,
     Users,
-    Plus
+    Plus,
+    History,
+    AlertTriangle,
+    PieChart
 } from "lucide-react";
 import useAccess from "../../hooks/useAccess";
 
@@ -40,7 +43,10 @@ export default function Home() {
         totalPeople: 0,
         recentTasks: [],
         atgLetters: [],
-        atgLettersCount: 0
+        atgLettersCount: 0,
+        overdueTasks: [],
+        recentActivityLogs: [],
+        taskDistribution: []
     });
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -118,6 +124,106 @@ export default function Home() {
             </div>
         </div>
     );
+
+    const SideWidgets = () => {
+        let totalStats = stats.taskDistribution?.reduce((s, d) => s + d.value, 0) || 1;
+        let angle = 0;
+        const colors = ['#3B82F6', '#F97316', '#10B981', '#6366F1', '#8B5CF6', '#EF4444'];
+        
+        return (
+            <div className="space-y-6">
+                {/* Visual Breakdown Donut Chart */}
+                <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
+                    <h3 className="text-xs font-black uppercase tracking-widest mb-6 flex items-center gap-2 text-gray-400">
+                        <PieChart className="w-4 h-4 text-indigo-500" /> Pipeline Stats
+                    </h3>
+                    {stats.taskDistribution?.length === 0 ? (
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-6">No data</p>
+                    ) : (
+                        <div className="flex flex-col items-center">
+                            <svg viewBox="0 0 100 100" className="w-32 h-32 -rotate-90 drop-shadow-sm">
+                                <circle cx="50" cy="50" r="40" fill="transparent" className="stroke-slate-100 dark:stroke-[#222]" strokeWidth="15" />
+                                {stats.taskDistribution.map((d, i) => {
+                                    const percentage = (d.value / totalStats);
+                                    const strokeDasharray = `${percentage * 251.2} 251.2`;
+                                    const strokeDashoffset = `-${angle * 251.2}`;
+                                    angle += percentage;
+                                    return (
+                                        <circle key={d.name} cx="50" cy="50" r="40" fill="transparent" stroke={colors[i % colors.length]} strokeWidth="15"
+                                            strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} className="transition-all duration-1000 ease-out" />
+                                    );
+                                })}
+                            </svg>
+                            <div className="mt-6 w-full space-y-2.5">
+                                {stats.taskDistribution.map((d, i) => (
+                                    <div key={d.name} className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{backgroundColor: colors[i % colors.length]}}></span>
+                                            <span className="text-gray-500 dark:text-gray-400 line-clamp-1 max-w-[120px]">{d.name}</span>
+                                        </div>
+                                        <span className="text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-white/5 px-2 py-0.5 rounded-lg">{d.value}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Overdue Deadlines */}
+                <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-red-100 dark:border-red-900/30' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'}`}>
+                    <h3 className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-red-600 dark:text-red-400">
+                        <AlertTriangle className="w-4 h-4" /> Urgent & Overdue
+                    </h3>
+                    {stats.overdueTasks?.length === 0 ? (
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-4">All clear</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {stats.overdueTasks?.map(t => (
+                                <Link to={`/letter/${t.id}`} key={t.id} className="flex items-center justify-between p-3 bg-white dark:bg-[#111] rounded-xl border border-red-100 dark:border-red-900/30 hover:border-red-300 transition-colors shadow-sm">
+                                    <div className="flex flex-col truncate w-[65%]">
+                                        <span className="text-xs font-black text-slate-800 dark:text-slate-200 truncate">{t.sender}</span>
+                                        <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest truncate">{t.lms_id}</span>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded-lg shadow-sm whitespace-nowrap">
+                                        {Math.floor((new Date() - new Date(t.date_received || t.created_at)) / (1000 * 60 * 60 * 24))} Days
+                                    </span>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Activity Feed */}
+                <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
+                    <h3 className="text-xs font-black uppercase tracking-widest mb-6 flex items-center gap-2 text-gray-400">
+                        <History className="w-4 h-4 text-blue-500" /> Recent Activity
+                    </h3>
+                    {stats.recentActivityLogs?.length === 0 ? (
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-6">No recent activity</p>
+                    ) : (
+                        <div className="relative pl-3.5 border-l-2 border-slate-100 dark:border-[#333] space-y-5 pt-1">
+                            {stats.recentActivityLogs?.map(log => {
+                                const minAgo = Math.floor((new Date() - new Date(log.timestamp)) / 60000);
+                                const timeStr = minAgo < 60 ? `${minAgo} min${minAgo !== 1 ? 's' : ''}` : minAgo < 1440 ? `${Math.floor(minAgo/60)} hr${Math.floor(minAgo/60) !== 1 ? 's' : ''}` : `${Math.floor(minAgo/1440)} d`;
+                                return (
+                                <div key={log.id} className="relative">
+                                    <div className={`absolute -left-[20px] top-1.5 w-2.5 h-2.5 rounded-full ${layoutStyle === 'notion' ? 'ring-white dark:ring-[#191919]' : 'ring-white dark:ring-[#141414]'} bg-blue-500 ring-4`}></div>
+                                    <p className="text-[10.5px] text-gray-600 dark:text-gray-400 leading-snug">
+                                        <span className="font-bold text-gray-900 dark:text-white mr-1">{log.user?.first_name || 'System'}</span>
+                                        {log.action_type}{' '}
+                                        {log.Letter?.lms_id && <span className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1 rounded">{log.Letter.lms_id}</span>}
+                                    </p>
+                                    <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mt-1.5">
+                                        {timeStr} ago
+                                    </p>
+                                </div>
+                            )})}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
 
     const renderDashboardContent = () => {
         if (loading) {
@@ -219,7 +325,7 @@ export default function Home() {
                                             atgId={assignment.letter?.lms_id}
                                             sender={assignment.letter?.sender}
                                             summary={assignment.letter?.summary}
-                                            status={assignment.status}
+                                            status={assignment.letter?.status?.status_name || 'ATG Note'}
                                             step={assignment.step?.step_name}
                                             dueDate={assignment.due_date || assignment.letter?.date_received}
                                             layout={layoutStyle}
@@ -271,6 +377,7 @@ export default function Home() {
                                 )}
                             </div>
                         </div>
+                        <SideWidgets />
                     </div>
                 </div>
             </div >
@@ -367,7 +474,7 @@ export default function Home() {
                                                         atgId={assignment.letter?.lms_id}
                                                         sender={assignment.letter?.sender}
                                                         summary={assignment.letter?.summary}
-                                                        status={assignment.status}
+                                                        status={assignment.letter?.status?.status_name || 'ATG Note'}
                                                         step={assignment.step?.step_name}
                                                         dueDate={assignment.due_date || assignment.letter?.date_received}
                                                         layout="minimalist"
@@ -396,6 +503,7 @@ export default function Home() {
                                             )}
                                         </div>
                                     </div>
+                                    <SideWidgets />
                                 </div>
                             </div>
                         </div>

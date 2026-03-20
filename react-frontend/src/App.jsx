@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 // Auth
@@ -18,6 +18,7 @@ import LetterTracker from "./pages/management/LetterTracker";
 import LettersWithComments from "./pages/management/LettersWithComments";
 import LetterEndorsement from "./pages/management/LetterEndorsement";
 import LetterDetail from "./pages/management/LetterDetail";
+import VemResumen from "./pages/management/VemResumen";
 import RoleAccessMatrix from "./pages/management/RoleAccessMatrix";
 import Roles from "./pages/management/Roles";
 import Trays from "./pages/management/Trays";
@@ -48,7 +49,7 @@ import systemPageService from "./services/systemPageService";
 import { getPageKeyFromPath, humanizePageId } from "./utils/pageAccess";
 
 const ProtectedRoute = ({ children }) => {
-  const { user, loading, hasPermission, permissionsLoaded, isGuest } = useSession();
+  const { user, loading, hasPermission, permissionsLoaded, isGuest, isSuperAdmin } = useSession();
   const location = useLocation();
   const pageKey = getPageKeyFromPath(location.pathname);
 
@@ -76,8 +77,8 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (hasPermission && !hasPermission(pageKey, 'can_view')) {
-    console.warn(`Access Denied for ${pageKey}`);
+  if (hasPermission && !isSuperAdmin && !hasPermission(pageKey, 'can_view')) {
+    console.warn(`Access Denied for ${pageKey}. User Role: ${user?.role || user?.roleData?.name}. isSuperAdmin: ${isSuperAdmin}`);
     const fallbackCandidates = ["/", "/dashboard", "/letter-tracker", "/inbox", "/vip-view", "/guest/send-letter"];
     const fallback = fallbackCandidates.find((path) => hasPermission(getPageKeyFromPath(path), 'can_view'));
     if (!fallback || fallback === location.pathname) {
@@ -90,6 +91,27 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function AppRoutes() {
+  const navigate = useRef(null);
+  
+  useEffect(() => {
+    let sequence = '';
+    const handleKeyDown = (e) => {
+        // Look for Ctrl+Y followed by X
+        if (e.ctrlKey && e.key.toLowerCase() === 'y') {
+            sequence = 'ctrl_y';
+            // Prevent default browser behavior for Ctrl+Y if necessary
+            // e.preventDefault(); 
+        } else if (sequence === 'ctrl_y' && e.key.toLowerCase() === 'x') {
+            window.location.href = '/vem-resumen';
+            sequence = '';
+        } else {
+            sequence = '';
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <Router>
       <Routes>
@@ -123,6 +145,7 @@ function AppRoutes() {
         <Route path="/spam" element={<ProtectedRoute><Spam /></ProtectedRoute>} />
         <Route path="/endorsements" element={<ProtectedRoute><LetterEndorsement /></ProtectedRoute>} />
         <Route path="/letter/:id" element={<ProtectedRoute><LetterDetail /></ProtectedRoute>} />
+        <Route path="/vem-resumen" element={<ProtectedRoute><VemResumen /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 

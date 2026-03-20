@@ -1,5 +1,11 @@
 
+const path = require('path');
+// Load local backend .env
 require('dotenv').config();
+
+// Also try loading root .env if it exists (for TELEGRAM variables etc.)
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+
 const axios = require('axios');
 const app = require('./app');
 const sequelize = require('./config/db');

@@ -37,7 +37,8 @@ class LetterController {
             });
             res.json(results);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error("[ERROR] LetterController.getAll:", error);
+            res.status(500).json({ error: error.message, stack: error.stack });
         }
     }
 
@@ -98,6 +99,25 @@ class LetterController {
                 ]
             });
             if (!result) return res.status(404).json({ error: 'Not found' });
+            res.json(result);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    static async getByLmsId(req, res) {
+        try {
+            const { lms_id } = req.params;
+            const result = await Letter.findOne({
+                where: { lms_id: { [Op.like]: lms_id } },
+                include: [
+                    'letterKind',
+                    'status',
+                    'attachment',
+                    'tray',
+                ]
+            });
+            if (!result) return res.status(404).json({ error: 'Letter not found' });
             res.json(result);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -242,7 +262,7 @@ class LetterController {
                     department_id: assigned_dept,
                     step_id: targetStepId,
                     assigned_by: validEncoderId,
-                    status: 'Pending',
+                    status_id: 8, // Explicitly set to Pending
                     due_date: new Date(now.getTime() + 86400000 * 7)
                 }, { transaction });
             }
@@ -262,8 +282,13 @@ class LetterController {
             res.status(201).json(letter);
         } catch (error) {
             if (transaction) await transaction.rollback();
-            console.error("Letter creation failed on backend:", error);
-            res.status(400).json({ error: `Backend Error: ${error.message}` });
+            console.error("Letter creation failed on backend - Detailed Info:", {
+                message: error.message,
+                stack: error.stack,
+                code: error.code,
+                name: error.name
+            });
+            res.status(400).json({ error: `Backend Error during creation: ${error.message}` });
         }
     }
 
