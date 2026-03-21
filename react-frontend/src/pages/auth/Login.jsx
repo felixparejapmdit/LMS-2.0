@@ -53,7 +53,7 @@ export default function Login() {
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">
                 LMS <span className="text-orange-600">2026</span>
               </h1>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Management System Portal</p>
+
             </div>
           </div>
 
@@ -75,7 +75,7 @@ export default function Login() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full pl-12 pr-6 py-3.5 sm:py-4 bg-[#f8fafc] dark:bg-white/[0.03] border-2 border-transparent rounded-2xl focus:border-orange-500/20 focus:bg-white dark:focus:bg-[#111] transition-all outline-none font-bold text-sm text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-gray-600 shadow-sm"
-                  placeholder="Your user ID"
+                  placeholder="Username"
                   required
                 />
               </div>
@@ -107,7 +107,7 @@ export default function Login() {
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  Secure Login
+                  Login
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
@@ -129,7 +129,7 @@ export default function Login() {
                 className="w-full py-4 bg-white dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 text-slate-400 hover:text-orange-600 hover:bg-orange-50/10 dark:hover:bg-orange-950/10 text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all rounded-2xl flex items-center justify-center gap-3 group"
               >
                 <ShieldCheck className="w-4 h-4 text-orange-500 opacity-40 group-hover:opacity-100 transition-opacity" />
-                Public Tracking Access
+                Guest Access
               </button>
             </div>
           </form>

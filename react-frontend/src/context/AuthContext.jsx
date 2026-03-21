@@ -314,7 +314,7 @@ export const AuthProvider = ({ children }) => {
             normalizePageId(p.page_name) === normalizePageId(pageId)
         );
         return perm ? !!perm[action] : false;
-    }, [authState.permissions, authState.isGuest]);
+    }, [authState.permissions, authState.isGuest, authState.user]);
 
     // --- UI ACTIONS ---
     const toggleTheme = async () => {

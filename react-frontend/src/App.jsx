@@ -82,7 +82,7 @@ const ProtectedRoute = ({ children }) => {
 
   if (hasPermission && !isSuperAdmin && !hasPermission(pageKey, 'can_view')) {
     console.warn(`Access Denied for ${pageKey}. User Role: ${user?.role || user?.roleData?.name}. isSuperAdmin: ${isSuperAdmin}`);
-    const fallbackCandidates = ["/", "/dashboard", "/letter-tracker", "/inbox", "/vip-view", "/guest/send-letter"];
+    const fallbackCandidates = ["/", "/dashboard", "/letter-tracker", "/inbox", "/guest/send-letter"];
     const fallback = fallbackCandidates.find((path) => hasPermission(getPageKeyFromPath(path), 'can_view'));
     if (!fallback || fallback === location.pathname) {
       return <Navigate to="/login" replace />;

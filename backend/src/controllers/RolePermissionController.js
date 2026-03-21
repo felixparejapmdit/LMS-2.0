@@ -1,4 +1,5 @@
-const { RolePermission, Role, SystemPage, User, Department, sequelize } = require('../models/associations');
+const { RolePermission, Role, SystemPage, User, Department } = require('../models/associations');
+const sequelize = require('../config/db');
 const { Op } = require('sequelize');
 
 // Safe UUID v4 generator (works on all Node versions)
