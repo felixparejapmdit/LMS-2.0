@@ -1,11 +1,15 @@
-const { ProcessStep, LetterAssignment, Letter, Status } = require('../models/associations');
+const { ProcessStep, LetterAssignment, Letter, Status, Department } = require('../models/associations');
 const { Op } = require('sequelize');
 
 class ProcessStepController {
     static async getAll(req, res) {
         try {
-            const { vip } = req.query;
+            const { vip, dept_id } = req.query;
             const stepWhere = {};
+            
+            if (dept_id && dept_id !== 'all') {
+                stepWhere.dept_id = (dept_id === 'null' || dept_id === 'undefined') ? null : dept_id;
+            }
             let atgStatusId = null;
             if (vip === 'true') {
                 stepWhere.step_name = {
@@ -29,7 +33,6 @@ class ProcessStepController {
                 attributes: ['id']
             }];
 
-            // If VIP view, only count letters with tray_id 0 and (global_status: 2 OR status name: 'ATG Note')
             if (vip === 'true') {
                 const atgStatusFilter = atgStatusId
                     ? {
@@ -61,14 +64,12 @@ class ProcessStepController {
 
             const steps = await ProcessStep.findAll({
                 where: stepWhere,
-                include: includeCfg,
-                subQuery: false // Important for joined filtered queries
+                include: [...includeCfg, { model: Department, as: 'department' }],
+                subQuery: false
             });
 
             const stepsWithCount = steps.map(step => {
                 const stepData = step.toJSON();
-                // Filter out assignments that don't have a letter (due to the nested filter)
-                // This is because with required: false on associations, children might be empty
                 stepData.count = stepData.assignments?.filter(a => a.letter !== undefined).length || 0;
                 delete stepData.assignments;
                 return stepData;

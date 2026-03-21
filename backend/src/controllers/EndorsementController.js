@@ -85,11 +85,11 @@ class EndorsementController {
     // CREATE endorsement
     static async create(req, res) {
         try {
-            const { letter_id, endorsed_to, endorsed_by, notes } = req.body;
+            const { letter_id, endorsed_to, endorsed_by, notes, dept_id } = req.body;
             if (!letter_id || !endorsed_to) {
                 return res.status(400).json({ error: 'letter_id and endorsed_to are required.' });
             }
-            const record = await Endorsement.create({ letter_id, endorsed_to, endorsed_by, notes });
+            const record = await Endorsement.create({ letter_id, endorsed_to, endorsed_by, notes, dept_id });
             res.status(201).json(record);
         } catch (error) {
             res.status(400).json({ error: error.message });

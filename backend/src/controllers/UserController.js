@@ -4,9 +4,10 @@ const argon2 = require('argon2');
 class UserController {
     static async getAll(req, res) {
         try {
-            const { username } = req.query;
+            const { username, dept_id } = req.query;
             const where = {};
             if (username) where.username = username;
+            if (dept_id) where.dept_id = dept_id;
 
             const users = await User.findAll({
                 where,

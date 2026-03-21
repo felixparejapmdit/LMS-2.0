@@ -17,6 +17,10 @@ const Attachment = sequelize.define('Attachment', {
     },
     description: {
         type: DataTypes.TEXT
+    },
+    dept_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true
     }
 }, {
     tableName: 'ref_attachments',

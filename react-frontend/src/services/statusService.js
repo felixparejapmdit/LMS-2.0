@@ -4,8 +4,8 @@ import API_BASE from '../config/apiConfig';
 const API_URL = `${API_BASE}/statuses`;
 
 const statusService = {
-    getAll: async () => {
-        const response = await axios.get(API_URL);
+    getAll: async (params = {}) => {
+        const response = await axios.get(API_URL, { params });
         return response.data;
     },
     getById: async (id) => {

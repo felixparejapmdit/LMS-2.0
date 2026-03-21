@@ -4,9 +4,8 @@ import API_BASE from '../config/apiConfig';
 const API_URL = `${API_BASE}/process-steps`;
 
 const processStepService = {
-    getAll: async (deptId = null) => {
-        const url = deptId ? `${API_URL}?department_id=${deptId}` : API_URL;
-        const response = await axios.get(url);
+    getAll: async (params = {}) => {
+        const response = await axios.get(API_URL, { params });
         return response.data;
     },
     getById: async (id) => {

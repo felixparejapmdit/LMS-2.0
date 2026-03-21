@@ -1,21 +1,29 @@
-const { Tray, Letter } = require('../models/associations');
+const { Tray, Letter, Department } = require('../models/associations');
 const { Op } = require('sequelize');
 
 class TrayController {
     static async getAll(req, res) {
         try {
-            const { department_id } = req.query;
+            const { dept_id } = req.query;
             const where = {};
-            if (department_id) {
-                where[Op.or] = [
-                    { dept_id: department_id },
-                    { dept_id: null }
-                ];
+            
+            if (dept_id && dept_id !== 'all') {
+                if (dept_id === 'null' || dept_id === 'undefined') {
+                    where.dept_id = null;
+                } else {
+                    where[Op.or] = [
+                        { dept_id: dept_id },
+                        { dept_id: null }
+                    ];
+                }
             }
 
             const trays = await Tray.findAll({
                 where,
-                include: [{ model: Letter, as: 'letters' }]
+                include: [
+                    { model: Letter, as: 'letters' },
+                    { model: Department, as: 'department' }
+                ]
             });
             res.json(trays);
         } catch (error) {

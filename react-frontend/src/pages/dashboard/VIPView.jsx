@@ -265,7 +265,7 @@ export default function VIPView() {
                         </div>
                         <div>
                             <h1 className={`text-2xl md:text-3xl font-black tracking-tighter uppercase ${textColor}`}>
-                                LMS <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-500">2.0</span>
+                                LMS <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-500">2026</span>
                             </h1>
                             <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] mt-1">
                                 <Clock className="w-3 h-3 text-blue-500" />
@@ -465,7 +465,7 @@ export default function VIPView() {
             {isModalOpen && selectedLetter && (
                 <div className="fixed inset-y-0 right-0 z-[1000] flex justify-end pointer-events-none w-full">
                     {/* Note: No backdrop here to allow clicking the table on the left */}
-                    
+
                     <div className="relative w-full md:w-[80vw] lg:w-[70vw] xl:w-[65vw] h-full bg-white dark:bg-[#0c0c0c] flex flex-col lg:flex-row shadow-[-40px_0_80px_rgba(0,0,0,0.1)] dark:shadow-[-40px_0_80px_rgba(0,0,0,0.7)] animate-in slide-in-from-right duration-500 pointer-events-auto border-l border-slate-200 dark:border-[#222]">
                         {/* LEFT COLUMN: INFO & COMMENTS */}
                         <div className="w-full lg:w-[400px] xl:w-[450px] flex flex-col border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-[#222] bg-slate-50/50 dark:bg-[#0A0A0A] shrink-0 h-1/2 lg:h-full">

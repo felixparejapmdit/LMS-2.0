@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-    Plus, 
-    Trash2, 
-    Edit2, 
-    Printer, 
-    ArrowLeft, 
-    ArrowRight, 
+import {
+    Plus,
+    Trash2,
+    Edit2,
+    Printer,
+    ArrowLeft,
+    ArrowRight,
     Search,
     Loader2,
     X,
@@ -26,7 +26,7 @@ export default function VemResumen() {
     const [lmsIdInput, setLmsIdInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    
+
     // Signatories State
     const [courierName, setCourierName] = useState('');
     const [notation, setNotation] = useState('');
@@ -50,7 +50,7 @@ export default function VemResumen() {
     const handleAddLetter = async (e) => {
         e.preventDefault();
         if (!lmsIdInput.trim()) return;
-        
+
         setLoading(true);
         setError('');
         try {
@@ -96,11 +96,11 @@ export default function VemResumen() {
 
             <main className="flex-1 overflow-y-auto print:overflow-visible">
                 <div className="max-w-6xl mx-auto p-4 md:p-12 print:p-0 print:max-w-none">
-                    
+
                     {/* Header: Action Buttons */}
                     <div className="flex items-center justify-between mb-8 print:hidden">
                         <div className="flex items-center gap-3">
-                            <button 
+                            <button
                                 onClick={handleBack}
                                 className="p-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all shadow-sm"
                                 title="Back"
@@ -110,21 +110,21 @@ export default function VemResumen() {
                             <h1 className={`text-2xl font-black uppercase tracking-tight ${textColor}`}>VEM Resumen</h1>
                         </div>
                         <div className="flex items-center gap-3">
-                            <button 
+                            <button
                                 onClick={() => setIsAddModalOpen(true)}
                                 className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 text-xs font-black rounded-2xl transition-all shadow-sm hover:shadow-md uppercase tracking-widest"
                             >
                                 <Plus className="w-4 h-4" />
                                 Add Letter
                             </button>
-                            <button 
+                            <button
                                 onClick={handlePrint}
                                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white text-xs font-black rounded-2xl transition-all shadow-lg shadow-blue-500/20 hover:bg-blue-700 uppercase tracking-widest"
                             >
                                 <Printer className="w-4 h-4" />
                                 Print
                             </button>
-                            <button 
+                            <button
                                 onClick={handleForward}
                                 className="flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white text-xs font-black rounded-2xl transition-all shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 uppercase tracking-widest"
                             >
@@ -136,7 +136,7 @@ export default function VemResumen() {
 
                     {/* The Report Document View */}
                     <div className={`${cardBg} shadow-2xl rounded-[3rem] p-12 border min-h-[1000px] flex flex-col print:shadow-none print:border-none print:p-0 print:rounded-none`}>
-                        
+
                         {/* Document Header */}
                         <div className="flex justify-between items-start mb-12 pb-8 border-b dark:border-white/10">
                             <div className="flex items-center gap-6">
@@ -144,7 +144,7 @@ export default function VemResumen() {
                                     <span className="text-2xl font-black">L</span>
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">LMS 2.0 RESUMEN</h2>
+                                    <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">LMS 2026 RESUMEN</h2>
                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Correspondence Summary Report</p>
                                 </div>
                             </div>
@@ -194,21 +194,21 @@ export default function VemResumen() {
                                                     </div>
                                                 </td>
                                                 <td className="py-8 px-4">
-                                                    <div 
+                                                    <div
                                                         className="text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed max-w-xl"
                                                         dangerouslySetInnerHTML={{ __html: letter.summary }}
                                                     />
                                                 </td>
                                                 <td className="py-8 px-4 print:hidden">
                                                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button 
+                                                        <button
                                                             onClick={() => navigate(`/letter/${letter.id}`)}
                                                             className="p-2 hover:bg-white dark:hover:bg-white/10 rounded-xl text-slate-400 hover:text-blue-500 transition-all border border-transparent hover:border-blue-100 shadow-sm"
                                                             title="Edit/View"
                                                         >
                                                             <Edit2 className="w-4 h-4" />
                                                         </button>
-                                                        <button 
+                                                        <button
                                                             onClick={() => handleDelete(letter.id)}
                                                             className="p-2 hover:bg-white dark:hover:bg-white/10 rounded-xl text-slate-400 hover:text-red-500 transition-all border border-transparent hover:border-red-100 shadow-sm"
                                                             title="Delete"
@@ -250,7 +250,7 @@ export default function VemResumen() {
                                 <div className="flex flex-col gap-8">
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Pangalan ng nagdala</span>
-                                        <input 
+                                        <input
                                             type="text"
                                             value={courierName}
                                             onChange={(e) => setCourierName(e.target.value)}
@@ -263,7 +263,7 @@ export default function VemResumen() {
                                 <div className="flex flex-col gap-8">
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Notasyon</span>
-                                        <textarea 
+                                        <textarea
                                             value={notation}
                                             onChange={(e) => setNotation(e.target.value)}
                                             placeholder="Write notations here..."
@@ -275,7 +275,7 @@ export default function VemResumen() {
                             </div>
 
                             <div className="mt-20 text-center">
-                                <p className="text-[10px] font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.5em]">LMS 2.0 OFFICIAL DOCUMENT</p>
+                                <p className="text-[10px] font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.5em]">LMS 2026 OFFICIAL DOCUMENT</p>
                             </div>
                         </div>
                     </div>
@@ -293,7 +293,7 @@ export default function VemResumen() {
                             </div>
                             <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">Quick Add</h3>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-8">Enter the LMS ID to fetch details</p>
-                            
+
                             <form onSubmit={handleAddLetter} className="space-y-6">
                                 {error && (
                                     <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 rounded-2xl text-xs font-bold uppercase border border-red-100 dark:border-red-500/20">
@@ -301,8 +301,8 @@ export default function VemResumen() {
                                         {error}
                                     </div>
                                 )}
-                                
-                                <input 
+
+                                <input
                                     autoFocus
                                     type="text"
                                     placeholder="LMS26-00000"
@@ -312,14 +312,14 @@ export default function VemResumen() {
                                 />
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    <button 
+                                    <button
                                         type="button"
                                         onClick={() => setIsAddModalOpen(false)}
                                         className="py-4 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest text-xs rounded-2xl transition-all hover:bg-slate-200 dark:hover:bg-white/10"
                                     >
                                         Cancel
                                     </button>
-                                    <button 
+                                    <button
                                         type="submit"
                                         disabled={loading}
                                         className="py-4 bg-blue-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl shadow-blue-500/20 hover:bg-blue-700 flex items-center justify-center gap-2"

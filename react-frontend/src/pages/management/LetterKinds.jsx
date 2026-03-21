@@ -14,15 +14,18 @@ import {
     X,
     Edit2,
     Trash2,
+    Building2,
+    Filter
 } from "lucide-react";
 import letterKindService from "../../services/letterKindService";
+import departmentService from "../../services/departmentService";
 
 export default function LetterKinds() {
     const access = useAccess();
     const context = useAuth();
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
-    const { layoutStyle, setIsMobileMenuOpen } = context;
+    const { user, layoutStyle, setIsMobileMenuOpen } = context;
     const canField = access?.canField || (() => true);
     const canAdd = canField("letter-kinds", "add_button");
     const canEdit = canField("letter-kinds", "edit_button");
@@ -30,6 +33,7 @@ export default function LetterKinds() {
     const canSave = canField("letter-kinds", "save_button");
     const canRefresh = canField("letter-kinds", "refresh_button");
     const canViewToggle = canField("letter-kinds", "view_toggle");
+    
     const [kinds, setKinds] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -41,16 +45,36 @@ export default function LetterKinds() {
 
     const [formData, setFormData] = useState({
         kind_name: "",
-        description: ""
+        description: "",
+        dept_id: ""
     });
+    const [departments, setDepartments] = useState([]);
+    const [deptFilter, setDeptFilter] = useState("all");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+
+    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
+    const isSuperAdmin = ['ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER'].includes(roleName);
 
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
-            const data = await letterKindService.getAll();
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+            const params = isSuperAdmin 
+                ? (deptFilter !== 'all' ? { dept_id: deptFilter } : {}) 
+                : { dept_id: userDeptId };
+            
+            const data = await letterKindService.getAll(params);
             setKinds(Array.isArray(data) ? data : []);
+
+            if (isSuperAdmin && departments.length === 0) {
+                try {
+                    const depts = await departmentService.getAll();
+                    setDepartments(depts);
+                } catch (err) {
+                    console.error("Failed to fetch departments", err);
+                }
+            }
         } catch (error) {
             console.error("Fetch failed", error);
             setError("Failed to fetch data.");
@@ -62,17 +86,20 @@ export default function LetterKinds() {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [deptFilter]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSubmitting(true);
         setError("");
         try {
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+            const finalDeptId = isSuperAdmin ? (formData.dept_id || null) : userDeptId;
+            
             if (modalMode === 'create') {
-                await letterKindService.create(formData);
+                await letterKindService.create({ ...formData, dept_id: finalDeptId });
             } else {
-                await letterKindService.update(selectedKind.id, formData);
+                await letterKindService.update(selectedKind.id, { ...formData, dept_id: finalDeptId });
             }
             setIsModalOpen(false);
             fetchData();
@@ -85,7 +112,7 @@ export default function LetterKinds() {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this letter kind?")) return;
+        if (!window.confirm("Are you sure you want to delete this kind?")) return;
         try {
             await letterKindService.delete(id);
             fetchData();
@@ -98,7 +125,7 @@ export default function LetterKinds() {
     const openCreateModal = () => {
         if (!canAdd) return;
         setModalMode("create");
-        setFormData({ kind_name: "", description: "" });
+        setFormData({ kind_name: "", description: "", dept_id: "" });
         setSelectedKind(null);
         setIsModalOpen(true);
     };
@@ -108,7 +135,8 @@ export default function LetterKinds() {
         setModalMode("edit");
         setFormData({
             kind_name: item.kind_name || "",
-            description: item.description || ""
+            description: item.description || "",
+            dept_id: item.dept_id || ""
         });
         setSelectedKind(item);
         setIsModalOpen(true);
@@ -128,7 +156,17 @@ export default function LetterKinds() {
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1 relative">
-                        <h3 className={`font-black uppercase tracking-tight truncate ${textColor}`}>{item.kind_name}</h3>
+                        <div>
+                            <h3 className={`font-black uppercase tracking-tight truncate ${textColor}`}>{item.kind_name}</h3>
+                            {isSuperAdmin && (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                    <Building2 className="w-3 h-3 text-slate-400" />
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                        {item.department?.dept_name || "Administrator's Default"}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
                         <div className="relative">
                             <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(isMenuOpen === item.id ? null : item.id); }} className="p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors">
                                 <MoreVertical className="w-4 h-4 text-gray-400" />
@@ -141,7 +179,7 @@ export default function LetterKinds() {
                             )}
                         </div>
                     </div>
-                    <p className="text-xs text-gray-500 font-medium line-clamp-1">{item.description || 'No description'}</p>
+                    <p className="text-xs text-gray-500 font-medium line-clamp-1">{item.description || "No description"}</p>
                 </div>
             </div>
             {viewMode === 'list' && (
@@ -181,8 +219,24 @@ export default function LetterKinds() {
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 custom-scrollbar">
                     <div className="max-w-[100vw] mx-auto">
                         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
-                            <div>
-                                <h2 className={`text-3xl font-bold ${textColor}`}>Letter Kinds</h2>
+                            <div className="flex flex-col md:flex-row md:items-center gap-6">
+                                <h2 className={`text-3xl font-bold ${textColor}`}>Reference Kinds</h2>
+                                {isSuperAdmin && (
+                                    <div className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-[#141414] rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm">
+                                        <Filter className="w-3.5 h-3.5 text-slate-400" />
+                                        <select 
+                                            value={deptFilter}
+                                            onChange={e => setDeptFilter(e.target.value)}
+                                            className="bg-transparent text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 outline-none cursor-pointer"
+                                        >
+                                            <option value="all">All Departments</option>
+                                            <option value="null">Admin Defaults</option>
+                                            {departments.map(d => (
+                                                <option key={d.id} value={d.id}>{d.dept_name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                             {canViewToggle && (
                                 <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222]">
@@ -214,15 +268,30 @@ export default function LetterKinds() {
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 {error && <div className="text-red-500">{error}</div>}
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kind Name (e.g., Letter, Card, Pass)</label>
-                                    <input type="text" required value={formData.kind_name} onChange={e => setFormData({ ...formData, kind_name: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" />
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kind Name</label>
+                                    <input type="text" required value={formData.kind_name} onChange={e => setFormData({ ...formData, kind_name: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold placeholder:text-slate-300" placeholder="e.g. LETTER, ORDER, MEMO..." />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Description</label>
-                                    <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" rows={3}></textarea>
+                                    <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" rows={3} placeholder="Optional description..."></textarea>
                                 </div>
+                                {isSuperAdmin && (
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Assigned Department</label>
+                                        <select 
+                                            value={formData.dept_id || ""} 
+                                            onChange={e => setFormData({ ...formData, dept_id: e.target.value })} 
+                                            className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold appearance-none outline-none focus:ring-2 focus:ring-purple-500/20"
+                                        >
+                                            <option value="">Administrator Default</option>
+                                            {departments.map(d => (
+                                                <option key={d.id} value={d.id}>{d.dept_name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                                 <div className="pt-4">
-                                    {canSave && <button disabled={submitting} className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Letter Kind"}</button>}
+                                    {canSave && <button disabled={submitting} className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Kind"}</button>}
                                 </div>
                             </form>
                         </div>

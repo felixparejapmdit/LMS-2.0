@@ -15,6 +15,8 @@ const Person = require('./Person');
 const RolePermission = require('./RolePermission');
 const SystemPage = require('./SystemPage');
 const Endorsement = require('./Endorsement');
+const UserDeptAccess = require('./UserDeptAccess');
+const sequelize = require('../config/db');
 
 // --- Letter Relationships ---
 Letter.belongsTo(LetterKind, { foreignKey: 'kind', as: 'letterKind' });
@@ -63,11 +65,21 @@ Tray.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 Status.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 LetterKind.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 ProcessStep.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
+Attachment.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
+Role.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
+Letter.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
+Department.hasMany(Letter, { foreignKey: 'dept_id', as: 'letters' });
 
 // --- Endorsements ---
 Letter.hasMany(Endorsement, { foreignKey: 'letter_id', as: 'endorsements' });
 Endorsement.belongsTo(Letter, { foreignKey: 'letter_id', as: 'letter' });
 Endorsement.belongsTo(User, { foreignKey: 'endorsed_by', as: 'endorser' });
+
+// --- Interdepartment Access ---
+User.hasMany(UserDeptAccess, { foreignKey: 'user_id', as: 'deptAccess' });
+UserDeptAccess.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+UserDeptAccess.belongsTo(Department, { foreignKey: 'department_id', as: 'department' });
+Department.hasMany(UserDeptAccess, { foreignKey: 'department_id', as: 'userAccess' });
 
 module.exports = {
     Letter,
@@ -86,5 +98,7 @@ module.exports = {
     Person,
     RolePermission,
     SystemPage,
-    Endorsement
+    Endorsement,
+    UserDeptAccess,
+    sequelize
 };

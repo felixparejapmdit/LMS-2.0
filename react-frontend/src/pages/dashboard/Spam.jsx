@@ -296,7 +296,7 @@ export default function Spam() {
 
                                         {canSubmit && person.telegram && (
                                             <a
-                                                href={`https://t.me/${person.telegram.replace('@', '')}?text=${encodeURIComponent('Hello, I am contacting you from LMS 2.0')}`}
+                                                href={`https://t.me/${person.telegram.replace('@', '')}?text=${encodeURIComponent('Hello, I am contacting you from LMS 2026')}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="w-full mt-6 py-3 rounded-[1.25rem] bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20"

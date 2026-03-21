@@ -25,6 +25,8 @@ export const PAGE_NAME_OVERRIDES = {
     setup: "Setup Wizard",
     "letter-detail": "Letter Detail",
     "department-letters": "Department Letters",
+    "inter-dept": "Interdepartment Management",
+    "dept-viewer": "Department Viewer",
     profile: "Profile",
 };
 
@@ -55,6 +57,8 @@ export const BASE_SYSTEM_PAGES = [
     { page_id: "setup", page_name: PAGE_NAME_OVERRIDES.setup },
     { page_id: "letter-detail", page_name: PAGE_NAME_OVERRIDES["letter-detail"] },
     { page_id: "department-letters", page_name: PAGE_NAME_OVERRIDES["department-letters"] },
+    { page_id: "inter-dept", page_name: PAGE_NAME_OVERRIDES["inter-dept"] },
+    { page_id: "dept-viewer", page_name: PAGE_NAME_OVERRIDES["dept-viewer"] },
     { page_id: "profile", page_name: PAGE_NAME_OVERRIDES.profile },
 ];
 

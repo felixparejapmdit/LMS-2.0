@@ -33,7 +33,7 @@ export default function Users() {
     const context = useAuth();
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
-    const { layoutStyle, setIsMobileMenuOpen } = context;
+    const { user, layoutStyle, setIsMobileMenuOpen } = context;
     const canField = access?.canField || (() => true);
     const [users, setUsers] = useState([]);
     const [departments, setDepartments] = useState([]);
@@ -61,7 +61,8 @@ export default function Users() {
         role: "",
         dept_id: "",
         avatar: null,
-        telegram_chat_id: ""
+        telegram_chat_id: "",
+        interdepartment: false
     });
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -120,13 +121,19 @@ export default function Users() {
         return () => window.removeEventListener('paste', handlePaste);
     }, [isModalOpen]);
 
+    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
+    const isSuperAdmin = ['ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER'].includes(roleName);
+
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+            const params = isSuperAdmin ? {} : { dept_id: userDeptId };
+            
             const [usersData, deptsData, rolesRes] = await Promise.all([
-                userService.getAll(),
+                userService.getAll(params),
                 departmentService.getAll(),
-                axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/role-permissions/roles`)
+                axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/role-permissions/roles?dept_id=${userDeptId}`)
             ]);
             setUsers(Array.isArray(usersData) ? usersData : []);
             setDepartments(Array.isArray(deptsData) ? deptsData : []);
@@ -159,8 +166,8 @@ export default function Users() {
             if (modalMode === 'edit' && !dataToSubmit.password) {
                 delete dataToSubmit.password; // Don't send empty password on edit
             }
-            if (!dataToSubmit.dept_id) {
-                dataToSubmit.dept_id = null;
+            if (!dataToSubmit.dept_id || !isSuperAdmin) {
+                dataToSubmit.dept_id = user?.dept_id?.id ?? user?.dept_id;
             }
 
             if (modalMode === 'create') {
@@ -200,7 +207,8 @@ export default function Users() {
             role: roles.find(r => r.name === 'User')?.id || roles[0]?.id || "",
             dept_id: "",
             avatar: null,
-            telegram_chat_id: ""
+            telegram_chat_id: "",
+            interdepartment: false
         });
         setPreviewUrl(null);
         setSelectedUser(null);
@@ -219,7 +227,8 @@ export default function Users() {
             role: user.role || "",
             dept_id: user.dept_id || "",
             avatar: user.avatar || null,
-            telegram_chat_id: user.telegram_chat_id || ""
+            telegram_chat_id: user.telegram_chat_id || "",
+            interdepartment: user.interdepartment || false
         });
         setPreviewUrl(user.avatar ? getAssetUrl(user.avatar) : null);
         setIsModalOpen(true);
@@ -238,7 +247,8 @@ export default function Users() {
             userItem.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
         const matchesRole = !selectedRole || (userItem.roleData?.name || userItem.role) === selectedRole;
-        const matchesDept = !selectedDepartment || userItem.dept_id === selectedDepartment;
+        const matchesDept = !selectedDepartment || 
+            (selectedDepartment === 'null' ? (userItem.dept_id === null || userItem.dept_id === undefined) : userItem.dept_id == selectedDepartment);
 
         return matchesSearch && matchesRole && matchesDept;
     });
@@ -389,13 +399,14 @@ export default function Users() {
                                         {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                                     </select>
                                 )}
-                                {canDepartmentFilter && (
+                                {isSuperAdmin && canDepartmentFilter && (
                                     <select
                                         value={selectedDepartment}
                                         onChange={(e) => setSelectedDepartment(e.target.value)}
                                         className="px-4 py-3 rounded-2xl border bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all min-w-[150px] font-bold text-gray-500"
                                     >
                                         <option value="">All Departments</option>
+                                        <option value="null">Admin Defaults</option>
                                         {departments.map(d => <option key={d.id} value={d.id}>{d.dept_name}</option>)}
                                     </select>
                                 )}
@@ -473,10 +484,10 @@ export default function Users() {
             </main>
 
             {isModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
-                    <div className={`${cardBg} w-full max-w-lg rounded-[2.5rem] border shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 overflow-hidden`}>
-                        <div className="p-8">
+                    <div className={`${cardBg} w-full h-full md:h-auto md:max-h-[90vh] md:max-w-xl md:rounded-[2.5rem] border-0 md:border shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col`}>
+                        <div className="p-6 md:p-8 flex-1 overflow-y-auto custom-scrollbar">
                             <div className="flex items-center justify-between mb-8">
                                 <h3 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>{modalMode === 'create' ? 'Create User' : 'Edit User'}</h3>
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
@@ -557,17 +568,33 @@ export default function Users() {
                                             {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                         </select>
                                     </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Department</label>
-                                        <select value={formData.dept_id} onChange={e => setFormData({ ...formData, dept_id: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold">
-                                            <option value="">None</option>
-                                            {departments.map(d => <option key={d.id} value={d.id}>{d.dept_name}</option>)}
-                                        </select>
-                                    </div>
+                                    {isSuperAdmin && (
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Department</label>
+                                            <select value={formData.dept_id} onChange={e => setFormData({ ...formData, dept_id: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold">
+                                                <option value="">None / Default</option>
+                                                {departments.map(d => <option key={d.id} value={d.id}>{d.dept_name}</option>)}
+                                            </select>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Telegram Bot Chat ID</label>
                                     <input type="text" value={formData.telegram_chat_id} onChange={e => setFormData({ ...formData, telegram_chat_id: e.target.value })} placeholder="e.g. 123456789" className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" />
+                                </div>
+                                <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-gray-100 dark:border-[#333] transition-all hover:border-blue-500/30 group">
+                                    <div className="relative flex items-center">
+                                        <input 
+                                            type="checkbox" 
+                                            id="interdepartment"
+                                            checked={formData.interdepartment} 
+                                            onChange={e => setFormData({ ...formData, interdepartment: e.target.checked })}
+                                            className="w-5 h-5 rounded-lg border-2 border-gray-300 text-blue-600 focus:ring-blue-500/20 transition-all cursor-pointer accent-blue-600" 
+                                        />
+                                    </div>
+                                    <label htmlFor="interdepartment" className="flex-1 cursor-pointer">
+                                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1 group-hover:text-blue-500 transition-colors">Interdepartment Access</div>
+                                        <div className="text-[9px] text-gray-400 font-medium">Allow viewing letters from multiple departments</div>
+                                    </label>
                                 </div>
                                 {canSave && (
                                     <div className="pt-4">

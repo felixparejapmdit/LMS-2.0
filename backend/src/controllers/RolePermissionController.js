@@ -1,5 +1,5 @@
-const { RolePermission, Role, SystemPage, User } = require('../models/associations');
-const sequelize = require('../config/db');
+const { RolePermission, Role, SystemPage, User, Department, sequelize } = require('../models/associations');
+const { Op } = require('sequelize');
 
 // Safe UUID v4 generator (works on all Node versions)
 function generateUUID() {
@@ -38,7 +38,7 @@ const PAGE_FIELD_PRESETS = {
     'letter-detail': ['pdf_button', 'back_button'],
     'department-letters': ['back_button', 'search', 'refresh_button', 'tab_filter', 'tray_selector'],
     'profile': ['save_button', 'password_field', 'avatar_upload', 'username_field'],
-    'roles': ['add_button', 'edit_button', 'delete_button', 'save_button', 'refresh_button']
+    'roles': ['add_button', 'edit_button', 'delete_button', 'save_button', 'refresh_button', 'view_toggle']
 };
 
 /**
@@ -166,17 +166,10 @@ class RolePermissionController {
                                 WHERE users.role = Role.id
                             )`),
                             'user_count'
-                        ],
-                        [
-                            sequelize.literal(`(
-                                SELECT GROUP_CONCAT(COALESCE(u.first_name, u.email), ', ')
-                                FROM directus_users u
-                                WHERE u.role = Role.id
-                            )`),
-                            'user_names'
                         ]
                     ]
-                }
+                },
+                include: [{ model: RolePermission, as: 'permissions' }]
             });
             res.json(roles);
         } catch (error) {
@@ -199,7 +192,8 @@ class RolePermissionController {
                             'user_count'
                         ]
                     ]
-                }
+                },
+                include: [{ model: Department, as: 'department' }]
             });
             res.json(roles);
         } catch (error) {
@@ -209,12 +203,13 @@ class RolePermissionController {
 
     static async createRole(req, res) {
         try {
-            const { name } = req.body;
+            const { name, dept_id } = req.body;
             if (!name) return res.status(400).json({ error: 'Role name is required' });
 
             const newRole = await Role.create({
                 id: generateUUID(),
-                name
+                name,
+                dept_id
             });
 
             // Initialize permissions for all pages
@@ -242,12 +237,18 @@ class RolePermissionController {
     static async updateRole(req, res) {
         try {
             const { id } = req.params;
-            const { name } = req.body;
+            const { name, dept_id } = req.body;
             
             const role = await Role.findByPk(id);
             if (!role) return res.status(404).json({ error: 'Role not found' });
 
-            await role.update({ name });
+            const updateData = {};
+            if (name !== undefined) updateData.name = name;
+            if (dept_id !== undefined) {
+                updateData.dept_id = (dept_id === 'null' || dept_id === "" || dept_id === null) ? null : dept_id;
+            }
+
+            await role.update(updateData);
             res.json(role);
         } catch (error) {
             res.status(500).json({ error: error.message });

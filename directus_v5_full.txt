@@ -1,0 +1,47 @@
+[07:27:11.121] INFO: Extensions loaded
+[07:27:11.127] INFO: Initializing bootstrap...
+[07:27:11.134] INFO: Database already initialized, skipping install
+[07:27:11.135] INFO: Running migrations...
+[07:27:11.148] INFO: Done
+2026-03-20T07:27:11: PM2 log: Launching in no daemon mode
+2026-03-20T07:27:11: PM2 log: App [directus:0] starting in -cluster mode-
+2026-03-20T07:27:14: PM2 log: App [directus:0] online
+[07:27:15.350] INFO: Extensions loaded
+[07:27:15.374] WARN: Spatialite isn't installed. Geometry type support will be limited.
+[07:27:15.459] INFO: Server started at http://0.0.0.0:8055
+[07:27:42] GET / 302 6ms
+[07:27:42] GET /admin 304 3ms
+[07:27:43] GET /extensions/sources/index.js 200 38ms
+[07:27:43] POST /auth/refresh 200 183ms
+[07:27:44] GET /auth?sessionOnly 304 21ms
+[07:27:44] GET /server/info 304 44ms
+[07:27:44] GET /users/me?fields%5B%5D=email&fields%5B%5D=first_name&fields%5B%5D=last_name&fields%5B%5D=last_page 304 22ms
+[07:27:49] GET /roles/me?fields%5B%5D=id 304 57ms
+[07:27:49] GET /users/me?fields%5B%5D=*&fields%5B%5D=role.id 200 84ms
+[07:27:49] GET /policies/me/globals 304 87ms
+[07:27:49] GET /permissions/me 304 13ms
+[07:27:51] GET /fields 304 1.3s
+[07:27:51] GET /presets?filter%5Buser%5D%5B_eq%5D=f4f2a398-bb10-4a64-9c7c-0b551b9adf1d&limit=-1 304 51ms
+[07:27:51] GET /presets?filter%5Brole%5D%5B_eq%5D=ec986bba-2c97-47a8-968f-f8a163e5f014&filter%5Buser%5D%5B_null%5D=true&limit=-1 304 80ms
+[07:27:51] GET /presets?filter%5Brole%5D%5B_null%5D=true&filter%5Buser%5D%5B_null%5D=true&limit=-1 304 85ms
+[07:27:51] GET /settings 304 91ms
+[07:27:51] GET /collections 304 129ms
+[07:27:51] GET /dashboards?fields%5B%5D=*&sort%5B%5D=name&limit=-1 304 97ms
+[07:27:51] GET /panels?fields%5B%5D=*&sort%5B%5D=dashboard&limit=-1 304 96ms
+[07:27:51] GET /notifications?filter%5B_and%5D%5B0%5D%5Brecipient%5D%5B_eq%5D=f4f2a398-bb10-4a64-9c7c-0b551b9adf1d&filter%5B_and%5D%5B1%5D%5Bstatus%5D%5B_eq%5D=inbox&aggregate%5Bcount%5D=id 304 85ms
+[07:27:51] GET /relations 304 327ms
+[07:27:51] GET /flows?fields%5B%5D=*&fields%5B%5D=operations.*&limit=-1 304 256ms
+[07:27:51] GET /translations?fields%5B%5D=language&fields%5B%5D=key&fields%5B%5D=value&filter%5Blanguage%5D%5B_eq%5D=en-US&limit=-1 304 28ms
+[07:27:51] GET /users/me?fields%5B%5D=email&fields%5B%5D=first_name&fields%5B%5D=last_name&fields%5B%5D=last_page 304 25ms
+[07:27:52] GET /users/me?fields%5B%5D=avatar.modified_on 304 77ms
+[07:27:52] GET /roles?limit=-1&fields%5B%5D=id&fields%5B%5D=name&fields%5B%5D=description&fields%5B%5D=icon&fields%5B%5D=users&fields%5B%5D=children.name&fields%5B%5D=children.id&deep%5Busers%5D%5B_aggregate%5D%5Bcount%5D=id&deep%5Busers%5D%5B_groupBy%5D%5B0%5D=role&deep%5Busers%5D%5B_sort%5D=role&deep%5Busers%5D%5B_limit%5D=-1&sort=name 304 89ms
+[07:27:53] PATCH /users/me/track/page 204 23ms
+[07:28:31] GET /users/me?fields=id 304 25ms
+[07:28:50] POST /auth/login 200 510ms
+[07:28:50] GET /assets/b19343c0-7e62-4e57-9109-dccecd9dee15?access_token=--redacted-- 200 68ms
+[07:28:53] POST /auth/logout 400 17ms
+[07:29:00] POST /auth/login 401 504ms
+[07:34:04] POST /auth/logout 400 9ms
+[07:34:30] POST /auth/login 200 506ms
+[07:34:30] GET /assets/b19343c0-7e62-4e57-9109-dccecd9dee15?access_token=--redacted-- 200 125ms
+[07:34:33] POST /auth/logout 400 8ms

@@ -37,7 +37,9 @@ import {
   CloudDownload,
   UserCircle,
   LayoutDashboard,
-  Users
+  Users,
+  Eye,
+  Settings2
 } from "lucide-react";
 import { directusUrl, getAssetUrl } from "../hooks/useDirectus";
 import systemPageService from "../services/systemPageService";
@@ -117,6 +119,7 @@ export default function Sidebar() {
     { icon: Send, label: "Outbox", path: "/outbox" },
     { icon: AlertCircle, label: "Spam", path: "/spam" },
     { icon: TableIcon, label: "Master Table", path: "/master-table" },
+    { icon: Eye, label: "Dept Viewer", path: "/dept-viewer", hidden: !user?.interdepartment && !hasPermission('dept-viewer') },
     { icon: MessageSquare, label: "Letters with Comment", path: "/letters-with-comments" },
     { icon: Search, label: "Letter Tracker", path: "/letter-tracker" },
     { icon: FileUp, label: "Upload PDF Files", path: "/upload-pdf" },
@@ -127,6 +130,7 @@ export default function Sidebar() {
       path: "#",
       children: [
         { icon: Settings, label: "Access Matrix", path: "/setup/role-matrix" },
+        { icon: ShieldCheck, label: "Unit Access Matrix", path: "/setup/dept-matrix", hidden: (user?.roleData?.name || user?.role || '').toString().toUpperCase() !== 'ACCESS MANAGER' },
         { icon: LayoutDashboard, label: "App Settings", path: "/settings" },
         { icon: Paperclip, label: "Attachments", path: "/setup/attachments" },
         { icon: UserIcon, label: "Contacts", path: "/setup/persons" },
@@ -138,6 +142,7 @@ export default function Sidebar() {
         { icon: GitMerge, label: "Steps", path: "/setup/process-steps" },
         { icon: Box, label: "Trays", path: "/setup/trays" },
         { icon: Users, label: "Users", path: "/setup/users" },
+        { icon: Settings2, label: "Inter-Dept Management", path: "/setup/inter-dept", hidden: !hasPermission('inter-dept') },
       ]
     },
     ...(isSuperAdmin ? [
@@ -244,7 +249,7 @@ export default function Sidebar() {
               </div>
               {(isSidebarExpanded || isMobileMenuOpen) && (
                 <div className="flex flex-col animate-in fade-in slide-in-from-left-2 transition-all">
-                  <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tighter leading-none">LMS 2.0</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tighter leading-none">LMS 2026</span>
                 </div>
               )}
             </div>
@@ -269,13 +274,17 @@ export default function Sidebar() {
                     }
                   }}
                   title={!isSidebarExpanded ? item.label : ""}
-                  className={({ isActive }) => `
-                  flex items-center gap-4 p-3 rounded-2xl transition-all duration-300 group/item relative
-                  ${isActive && !item.children && item.path !== "#"
-                      ? "bg-slate-700 text-white shadow-sm"
-                      : "text-slate-500 hover:text-white hover:bg-slate-700"}
-                  ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
-                `}
+                  className={({ isActive }) => {
+                    const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
+                    const activeBg = isAccessManager ? "bg-sky-500" : "bg-slate-700";
+                    const hoverBg = isAccessManager ? "hover:bg-sky-600" : "hover:bg-slate-700";
+                    return `
+                    flex items-center gap-4 p-3 rounded-2xl transition-all duration-300 group/item relative
+                    ${isActive && !item.children && item.path !== "#"
+                        ? `${activeBg} text-white shadow-lg shadow-sky-500/20`
+                        : `text-slate-500 hover:text-white ${hoverBg}`}
+                    ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
+                  `}}
                 >
                   <item.icon className="w-6 h-6 transition-transform group-hover/item:scale-110 shrink-0" />
                   {(isSidebarExpanded || isMobileMenuOpen) && (
@@ -293,12 +302,17 @@ export default function Sidebar() {
                         key={child.path}
                         to={child.path}
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className={({ isActive }) => `
-                        flex items-center gap-3 p-2 rounded-xl transition-all duration-300
-                        ${isActive
-                            ? "bg-slate-700 text-white"
-                            : "text-slate-400 hover:text-white hover:bg-slate-700"}
-                        `}
+                        className={({ isActive }) => {
+                          const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
+                          const activeBg = isAccessManager ? "bg-sky-500" : "bg-slate-700";
+                          const hoverBg = isAccessManager ? "hover:bg-sky-600" : "hover:bg-slate-700";
+                          return `
+                          flex items-center gap-3 p-2 rounded-xl transition-all duration-300
+                          ${isActive
+                              ? `${activeBg} text-white`
+                              : `text-slate-400 hover:text-white ${hoverBg}`}
+                          `
+                        }}
                       >
                         <child.icon className="w-5 h-5 shrink-0" />
                         <span className="text-[10px] font-black tracking-widest">{child.label}</span>
@@ -377,7 +391,7 @@ export default function Sidebar() {
               </div>
               {(isSidebarExpanded || isMobileMenuOpen) && (
                 <div className="flex flex-col animate-in fade-in slide-in-from-left-2 transition-all">
-                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300 tracking-tight leading-none truncate">LMS 2.0</span>
+                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300 tracking-tight leading-none truncate">LMS 2026</span>
 
                 </div>
               )}
@@ -512,7 +526,7 @@ export default function Sidebar() {
                 )}
               </button>
               {(isSidebarExpanded || isMobileMenuOpen) && (
-                <span className="text-sm font-bold text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] truncate">LMS 2.0</span>
+                <span className="text-sm font-bold text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] truncate">LMS 2026</span>
               )}
             </div>
           </div>
@@ -532,13 +546,19 @@ export default function Sidebar() {
                       toggleSubmenu(item.label);
                     }
                   }}
-                  className={({ isActive }) => `
+                  className={({ isActive }) => {
+                    const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
+                    const activeBg = isAccessManager ? "bg-sky-500" : "bg-slate-700";
+                    const hoverBg = isAccessManager ? "hover:bg-sky-100 dark:hover:bg-sky-900/20" : "hover:bg-slate-700";
+                    const hoverText = isAccessManager ? "hover:text-sky-600 dark:hover:text-sky-400" : "hover:text-white";
+                    
+                    return `
                     flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200
                     ${isActive && !item.children && item.path !== "#"
-                      ? "bg-slate-700 text-white font-medium"
-                      : "text-[#737373] dark:text-[#A3A3A3] hover:text-white hover:bg-slate-700"}
+                      ? `${activeBg} text-white font-medium shadow-sm`
+                      : `text-[#737373] dark:text-[#A3A3A3] ${hoverBg} ${hoverText}`}
                     ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
-                  `}
+                  `}}
                 >
                   <item.icon className={`w-4 h-4 shrink-0 transition-colors`} />
                   {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-sm">{item.label}</span>}
@@ -553,10 +573,14 @@ export default function Sidebar() {
                       <NavLink
                         key={child.path}
                         to={child.path}
-                        className={({ isActive }) => `
+                        className={({ isActive }) => {
+                          const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
+                          const activeColor = isAccessManager ? "text-sky-600" : "text-[#1A1A1B]";
+                          const hoverBg = isAccessManager ? "hover:bg-sky-50 dark:hover:bg-sky-900/10" : "hover:bg-gray-200";
+                          return `
                           flex items-center gap-3 px-4 py-1.5 text-xs transition-colors rounded-md
-                          ${isActive ? "text-[#1A1A1B] font-bold" : "text-[#A3A3A3] hover:text-[#1A1A1B] hover:bg-gray-200"}
-                        `}
+                          ${isActive ? `${activeColor} font-bold` : `text-[#A3A3A3] hover:text-sky-600 ${hoverBg}`}
+                        `                }}
                       >
                         <child.icon className="w-3.5 h-3.5 shrink-0" />
                         <span>{child.label}</span>
@@ -614,7 +638,7 @@ export default function Sidebar() {
             </div>
             {(isSidebarExpanded || isMobileMenuOpen) && (
               <div className="flex flex-col animate-in fade-in slide-in-from-left-2 transition-all">
-                <span className="text-sm font-bold text-slate-800 dark:text-white tracking-tighter leading-none">LMS 2.0</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-white tracking-tighter leading-none">LMS 2026</span>
 
               </div>
             )}

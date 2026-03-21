@@ -55,6 +55,10 @@ const User = sequelize.define('User', {
     },
     telegram_chat_id: {
         type: DataTypes.STRING
+    },
+    interdepartment: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 }, {
     tableName: 'directus_users',

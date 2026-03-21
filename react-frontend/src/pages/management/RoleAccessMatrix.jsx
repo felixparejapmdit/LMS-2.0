@@ -87,7 +87,6 @@ export default function RoleAccessMatrix() {
                 systemPageService.getAll()
             ]);
             setRoles(rolesData);
-
             const pageMap = new Map();
             (pagesData || []).forEach((page) => pageMap.set(page.page_id, page));
 
@@ -298,7 +297,6 @@ export default function RoleAccessMatrix() {
                                     ))}
                                 </div>
                             )}
-
                             {canSearch && (
                                 <div className="relative group min-w-[350px]">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

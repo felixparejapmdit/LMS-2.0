@@ -24,7 +24,7 @@ import API_BASE from "../../config/apiConfig";
 import useAccess from "../../hooks/useAccess";
 
 export default function Settings() {
-    const { user, login, layoutStyle, toggleLayoutStyle, fontFamily, changeFontFamily, setIsMobileMenuOpen } = useAuth();
+    const { user, login, layoutStyle, toggleLayoutStyle, fontFamily, changeFontFamily, fontSize, changeFontSize, setIsMobileMenuOpen } = useAuth();
     const access = useAccess();
     const [loading, setLoading] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -144,7 +144,7 @@ export default function Settings() {
                                         {[
                                             { name: 'Inter', family: 'Inter' },
                                             { name: 'Public Sans', family: 'Public Sans' },
-                                            { name: 'Geist', family: 'system-ui' },
+                                            { name: 'Geist', family: 'Geist, system-ui' },
                                             { name: 'Plus Jakarta Sans', family: 'Plus Jakarta Sans' },
                                             { name: 'Outfit', family: 'Outfit' }
                                         ].map((font) => (
@@ -159,6 +159,24 @@ export default function Settings() {
                                                     {fontFamily === font.name && <div className="w-2 h-2 bg-orange-500 rounded-full"></div>}
                                                 </div>
                                                 <p className="text-[10px] text-gray-400">Abc 123</p>
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <h4 className={`text-sm font-bold flex items-center gap-2 mt-10 mb-6 ${textColor}`}>
+                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                                        Font Size
+                                    </h4>
+
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {['12px', '14px', '16px', '18px'].map((size) => (
+                                            <button
+                                                key={size}
+                                                onClick={() => changeFontSize(size)}
+                                                className={`p-4 rounded-xl border-2 transition-all text-center ${fontSize === size ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 dark:border-[#333] hover:border-gray-200'}`}
+                                            >
+                                                <span className={`text-sm font-bold ${textColor}`} style={{ fontSize: size }}>{size}</span>
+                                                {fontSize === size && <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mx-auto mt-2"></div>}
                                             </button>
                                         ))}
                                     </div>

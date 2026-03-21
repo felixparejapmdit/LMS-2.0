@@ -4,8 +4,8 @@ import API_BASE from '../config/apiConfig';
 const API_URL = `${API_BASE}/role-permissions`;
 
 const rolePermissionService = {
-    getRolesWithPermissions: async () => {
-        const response = await axios.get(`${API_URL}/roles-with-permissions`);
+    getRolesWithPermissions: async (params = {}) => {
+        const response = await axios.get(`${API_URL}/roles-with-permissions`, { params });
         return response.data;
     },
 
@@ -14,18 +14,18 @@ const rolePermissionService = {
         return response.data;
     },
 
-    getRoles: async () => {
-        const response = await axios.get(`${API_URL}/roles`);
+    getRoles: async (params = {}) => {
+        const response = await axios.get(`${API_URL}/roles`, { params });
         return response.data;
     },
 
-    createRole: async (name) => {
-        const response = await axios.post(`${API_URL}/roles`, { name });
+    createRole: async (data) => {
+        const response = await axios.post(`${API_URL}/roles`, data);
         return response.data;
     },
 
-    updateRole: async (id, name) => {
-        const response = await axios.put(`${API_URL}/roles/${id}`, { name });
+    updateRole: async (id, data) => {
+        const response = await axios.put(`${API_URL}/roles/${id}`, data);
         return response.data;
     },
 

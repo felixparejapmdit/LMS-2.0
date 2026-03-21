@@ -99,7 +99,7 @@ export default function SetupWizard() {
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="space-y-2">
                             <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Your Platform. Your DNA.</h2>
-                            <p className="text-slate-400 font-medium">LMS 2.0 is now pluggable. Let's build your department's core infrastructure in under 2 minutes.</p>
+                            <p className="text-slate-400 font-medium">LMS 2026 is now pluggable. Let's build your department's core infrastructure in under 2 minutes.</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                             <div className="p-6 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-3xl space-y-3">

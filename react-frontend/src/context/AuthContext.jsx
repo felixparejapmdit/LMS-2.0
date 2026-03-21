@@ -16,8 +16,7 @@ const getBackendUrl = () => {
 
 const BACKEND_URL = getBackendUrl();
 const normalizeLayoutStyle = (style) => {
-    const valid = ["grid", "minimalist", "notion", "default"];
-    return valid.includes(style) ? style : "minimalist";
+    return "minimalist";
 };
 import { AUTH_USER_KEY, AUTH_PERMS_KEY, LAST_REFRESH_KEY, REFRESH_THROTTLE_MS } from "./authConstants";
 // REMOVED RE-EXPORT TO IMPROVE HMR
@@ -109,8 +108,9 @@ export const AuthProvider = ({ children }) => {
         if (stored) return stored;
         return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     });
-    const [layoutStyle, setLayoutStyle] = useState(normalizeLayoutStyle(localStorage.getItem("layoutStyle") || "minimalist"));
+    const [layoutStyle, setLayoutStyle] = useState("minimalist");
     const [fontFamily, setFontFamily] = useState(localStorage.getItem("fontFamily") || "Outfit");
+    const [fontSize, setFontSize] = useState(localStorage.getItem("fontSize") || "14px");
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(localStorage.getItem("isSidebarExpanded") !== "false");
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -293,7 +293,6 @@ export const AuthProvider = ({ children }) => {
     const hasPermission = useCallback((pageId, action = 'can_view') => {
         if (authState.isGuest) return pageId === 'guest-send-letter';
         
-        // Super Admin Bypass
         const roleName = (authState.user?.roleData?.name || authState.user?.role || '').toString().toUpperCase();
         const isSuperAdmin = roleName === 'ADMIN' || 
                roleName === 'SUPER ADMIN' || 
@@ -301,7 +300,10 @@ export const AuthProvider = ({ children }) => {
                roleName === 'ROOT' ||
                authState.user?.email === 'felixpareja07@gmail.com';
         
-        console.log(`hasPermission: page=${pageId}, role=${roleName}, isSuperAdmin=${isSuperAdmin}`);
+        // Access Manager Role (Previously bypassed, now follows matrix)
+        const isAccessManager = roleName === 'ACCESS MANAGER';
+        
+        console.log(`hasPermission: page=${pageId}, role=${roleName}, isSuperAdmin=${isSuperAdmin}, isAccessManager=${isAccessManager}`);
         if (isSuperAdmin) return true;
 
         if (!authState.permissions || authState.permissions.length === 0) return false;
@@ -324,17 +326,21 @@ export const AuthProvider = ({ children }) => {
     };
 
     const toggleLayoutStyle = (style) => {
-        const normalized = normalizeLayoutStyle(style);
+        const normalized = "minimalist";
         setLayoutStyle(normalized);
-        if (authState.user?.id && !authState.isGuest) {
-            axios.put(`${BACKEND_URL}/users/${authState.user.id}`, { layout_style: normalized }).catch(() => { });
-        }
     };
 
     const changeFontFamily = (font) => {
         setFontFamily(font);
         if (authState.user?.id && !authState.isGuest) {
             axios.put(`${BACKEND_URL}/users/${authState.user.id}`, { font_family: font }).catch(() => { });
+        }
+    };
+
+    const changeFontSize = (size) => {
+        setFontSize(size);
+        if (authState.user?.id && !authState.isGuest) {
+            axios.put(`${BACKEND_URL}/users/${authState.user.id}`, { font_size: size }).catch(() => { });
         }
     };
 
@@ -370,6 +376,11 @@ export const AuthProvider = ({ children }) => {
     }, [fontFamily]);
 
     useEffect(() => {
+        document.body.style.fontSize = fontSize;
+        localStorage.setItem("fontSize", fontSize);
+    }, [fontSize]);
+
+    useEffect(() => {
         localStorage.setItem("isSidebarExpanded", isSidebarExpanded);
     }, [isSidebarExpanded]);
 
@@ -380,9 +391,9 @@ export const AuthProvider = ({ children }) => {
             try {
                 const response = await axios.get(`${BACKEND_URL}/users/${authState.user.id}`);
                 const me = response.data;
-                if (me.layout_style && normalizeLayoutStyle(me.layout_style) !== layoutStyle) setLayoutStyle(normalizeLayoutStyle(me.layout_style));
                 if (me.theme_preference && me.theme_preference !== theme) setTheme(me.theme_preference);
                 if (me.font_family && me.font_family !== fontFamily) setFontFamily(me.font_family);
+                if (me.font_size && me.font_size !== fontSize) setFontSize(me.font_size);
             } catch (error) { /* silence */ }
         };
         const interval = setInterval(syncPrefs, 60000);
@@ -402,9 +413,10 @@ export const AuthProvider = ({ children }) => {
         theme, toggleTheme,
         layoutStyle, toggleLayoutStyle,
         fontFamily, changeFontFamily,
+        fontSize, changeFontSize,
         isSidebarExpanded, toggleSidebar,
         isMobileMenuOpen, setIsMobileMenuOpen
-    }), [theme, layoutStyle, fontFamily, isSidebarExpanded, isMobileMenuOpen]);
+    }), [theme, layoutStyle, fontFamily, fontSize, isSidebarExpanded, isMobileMenuOpen]);
 
     return (
         <AuthContext.Provider value={authContextValue}>

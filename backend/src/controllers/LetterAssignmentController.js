@@ -26,15 +26,20 @@ class LetterAssignmentController {
                 atgStatusId = atgStatus?.id || null;
             }
 
-            // Role-based filtering for USER role
+            // Role-based filtering
             if (normalizedRole === 'USER' && user_id) {
-                const hasValidDepartment = department_id && department_id !== 'null' && department_id !== 'undefined' && department_id !== '';
+                const hasValidDepartment = department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined' && department_id !== '';
                 const visibilityClauses = [{ '$letter.encoder_id$': user_id }];
                 if (hasValidDepartment) {
                     visibilityClauses.push({ department_id: department_id });
                 }
                 where[Op.or] = visibilityClauses;
-            } else if (!ALL_LETTER_ROLES.has(normalizedRole) && department_id && department_id !== 'null' && department_id !== 'undefined' && req.query.outbox !== 'true') {
+            } else if (ALL_LETTER_ROLES.has(normalizedRole)) {
+                // Administrators can filter by department explicitly
+                if (department_id && department_id !== 'all') {
+                    where.department_id = (department_id === 'null' || department_id === 'undefined') ? null : department_id;
+                }
+            } else if (department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined' && req.query.outbox !== 'true') {
                 // Default department filtering for non-USER or when explicitly requested
                 where[Op.or] = [
                     { department_id: department_id },

@@ -634,8 +634,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
           <div className="w-full space-y-8 md:space-y-10 lg:space-y-12">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-[#E5E5E5] dark:border-[#222] pb-6">
               <div>
-                <p className="text-[10px] text-[#737373] dark:text-gray-400 font-black uppercase tracking-[0.3em] mb-1">Corespendence Management</p>
-                <h2 className={`text-4xl font-black ${textColor} tracking-tight uppercase`}>{activeTabLabel}</h2>
+
+                <h2 className={`text-3xl font-black ${textColor} tracking-tight uppercase`}>{activeTabLabel}</h2>
                 <div className="mt-4 flex items-center gap-3">
                   <span className="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest border border-blue-100 dark:border-blue-900/30">
                     Total: {filteredBySteps.length}

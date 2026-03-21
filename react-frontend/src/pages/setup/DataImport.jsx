@@ -220,7 +220,7 @@ export default function DataImport() {
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 text-orange-500">
-                                <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-orange-50 dark:bg-orange-500/10 rounded-full border border-orange-100 dark:border-orange-500/20">LMS 2.0 Core</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-orange-50 dark:bg-orange-500/10 rounded-full border border-orange-100 dark:border-orange-500/20">LMS 2026 Core</span>
                             </div>
                         </div>
 

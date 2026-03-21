@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from "react";
 import Sidebar from "../../components/Sidebar";
-import { useUI } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import { 
     Plus, 
     Search, 
@@ -13,22 +12,30 @@ import {
     Save, 
     X,
     ShieldAlert,
-    Menu
+    Menu,
+    Building2,
+    Filter,
+    LayoutGrid,
+    List
 } from "lucide-react";
 import rolePermissionService from "../../services/rolePermissionService";
+import departmentService from "../../services/departmentService";
 import useAccess from "../../hooks/useAccess";
 
 export default function Roles() {
-    const { layoutStyle, setIsMobileMenuOpen } = useUI();
+    const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
     const access = useAccess();
 
     const [roles, setRoles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [currentRole, setCurrentRole] = useState({ id: null, name: "" });
+    const [currentRole, setCurrentRole] = useState({ id: null, name: "", dept_id: "" });
+    const [departments, setDepartments] = useState([]);
+    const [deptFilter, setDeptFilter] = useState("all");
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
+    const [viewMode, setViewMode] = useState("grid");
 
     const canField = access?.canField || (() => true);
     const canAdd = canField("roles", "add_button");
@@ -36,18 +43,28 @@ export default function Roles() {
     const canDelete = canField("roles", "delete_button");
     const canSave = canField("roles", "save_button");
     const canRefresh = canField("roles", "refresh_button");
+    const canViewToggle = canField("roles", "view_toggle");
 
-    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
-    const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
-    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#111] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
-    const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
+    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
+    const isSuperAdmin = ['ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER'].includes(roleName);
 
     const fetchRoles = async () => {
         setLoading(true);
         try {
-            const data = await rolePermissionService.getRoles();
-            setRoles(data);
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+            const params = isSuperAdmin 
+                ? (deptFilter !== 'all' ? { dept_id: deptFilter } : {}) 
+                : { dept_id: userDeptId };
+            
+            const data = await rolePermissionService.getRoles(params);
+            setRoles(Array.isArray(data) ? data : []);
+
+            if (isSuperAdmin && departments.length === 0) {
+                const depts = await departmentService.getAll();
+                setDepartments(depts);
+            }
         } catch (error) {
+            console.error("Fetch failed", error);
             setMessage({ type: "error", text: "Failed to load roles" });
         } finally {
             setLoading(false);
@@ -56,21 +73,26 @@ export default function Roles() {
 
     useEffect(() => {
         fetchRoles();
-    }, []);
+    }, [deptFilter]);
 
     const handleSave = async () => {
         if (!currentRole.name.trim()) return;
         setIsSaving(true);
         try {
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+            const finalDeptId = isSuperAdmin ? (currentRole.dept_id || null) : userDeptId;
+            
             if (currentRole.id) {
-                await rolePermissionService.updateRole(currentRole.id, currentRole.name);
+                const updateData = { name: currentRole.name };
+                if (isSuperAdmin) updateData.dept_id = finalDeptId;
+                await rolePermissionService.updateRole(currentRole.id, updateData);
                 setMessage({ type: "success", text: "Role updated successfully" });
             } else {
-                await rolePermissionService.createRole(currentRole.name);
+                await rolePermissionService.createRole({ name: currentRole.name, dept_id: finalDeptId });
                 setMessage({ type: "success", text: "Role created successfully" });
             }
             setIsModalOpen(false);
-            setCurrentRole({ id: null, name: "" });
+            setCurrentRole({ id: null, name: "", dept_id: "" });
             fetchRoles();
         } catch (error) {
             setMessage({ type: "error", text: error.response?.data?.error || "Failed to save role" });
@@ -93,9 +115,20 @@ export default function Roles() {
         }
     };
 
-    const filteredRoles = roles.filter(role => 
-        role.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
+    const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
+    const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#111] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+    const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
+
+    const filteredRoles = roles.filter(role => {
+        const matchesSearch = role.name?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesDept = !deptFilter || deptFilter === 'all' 
+            ? true 
+            : (deptFilter === 'null' 
+                ? (role.dept_id === null || role.dept_id === undefined || role.dept_id === "") 
+                : role.dept_id == deptFilter);
+        return matchesSearch && matchesDept;
+    });
 
     return (
         <div className={`h-screen ${pageBg} flex font-sans transition-colors duration-300 overflow-hidden`}>
@@ -126,7 +159,7 @@ export default function Roles() {
                         )}
                         {canAdd && (
                             <button 
-                                onClick={() => { setCurrentRole({ id: null, name: "" }); setIsModalOpen(true); }}
+                                onClick={() => { setCurrentRole({ id: null, name: "", dept_id: "" }); setIsModalOpen(true); }}
                                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-500/20 flex items-center gap-2 transition-all active:scale-95 group"
                             >
                                 <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
@@ -138,47 +171,156 @@ export default function Roles() {
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-10">
                     <div className="max-w-6xl mx-auto space-y-8">
-                        {/* Search Section */}
-                        <div className={`${cardBg} rounded-[2.5rem] border shadow-2xl p-6 relative overflow-hidden group`}>
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full -translate-y-32 translate-x-32 blur-3xl" />
-                            <div className="relative flex items-center gap-4">
-                                <Search className="w-5 h-5 text-slate-400" />
-                                <input 
-                                    type="text"
-                                    placeholder="Search roles by name..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="flex-1 bg-transparent border-none outline-none text-sm font-medium placeholder:text-slate-400"
-                                />
+                        {/* Search & Filter Section */}
+                        <div className="flex flex-col md:flex-row gap-4 items-center">
+                            <div className={`flex-1 ${cardBg} rounded-[2.5rem] border shadow-2xl p-6 relative overflow-hidden group w-full`}>
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full -translate-y-32 translate-x-32 blur-3xl" />
+                                <div className="relative flex items-center gap-4">
+                                    <Search className="w-5 h-5 text-slate-400" />
+                                    <input 
+                                        type="text"
+                                        placeholder="Search roles by name..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="flex-1 bg-transparent border-none outline-none text-sm font-medium placeholder:text-slate-400"
+                                    />
+                                </div>
                             </div>
+                            {isSuperAdmin && (
+                                <div className={`${cardBg} rounded-[2.5rem] border shadow-2xl p-6 relative overflow-hidden group shrink-0 min-w-[250px]`}>
+                                    <div className="relative flex items-center gap-3">
+                                        <Filter className="w-4 h-4 text-slate-400" />
+                                        <select 
+                                            value={deptFilter}
+                                            onChange={e => setDeptFilter(e.target.value)}
+                                            className="bg-transparent text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 outline-none cursor-pointer w-full"
+                                        >
+                                            <option value="all">All Departments</option>
+                                            <option value="null">Admin Defaults</option>
+                                            {departments.map(d => (
+                                                <option key={d.id} value={d.id}>{d.dept_name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+                            {canViewToggle && (
+                                <div className={`${cardBg} rounded-[2.5rem] border shadow-2xl p-2 relative overflow-hidden flex items-center gap-1 shrink-0`}>
+                                    <button 
+                                        onClick={() => setViewMode("grid")} 
+                                        className={`p-3 rounded-2xl transition-all ${viewMode === 'grid' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"}`}
+                                    >
+                                        <LayoutGrid className="w-4 h-4" />
+                                    </button>
+                                    <button 
+                                        onClick={() => setViewMode("list")} 
+                                        className={`p-3 rounded-2xl transition-all ${viewMode === 'list' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"}`}
+                                    >
+                                        <List className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* List Section */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
                             {loading ? (
                                 [...Array(6)].map((_, i) => (
-                                    <div key={i} className={`${cardBg} rounded-[2.5rem] border shadow-sm p-8 space-y-4 animate-pulse`}>
-                                        <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/5" />
-                                        <div className="space-y-2">
-                                            <div className="h-4 w-1/2 bg-slate-100 dark:bg-white/5 rounded-full" />
-                                            <div className="h-3 w-1/3 bg-slate-100 dark:bg-white/5 rounded-full" />
+                                    <div key={i} className={`${cardBg} rounded-[2.5rem] border shadow-sm ${viewMode === 'grid' ? 'p-8 space-y-4' : 'p-6 flex items-center justify-between'} animate-pulse`}>
+                                        <div className="flex items-center gap-4 flex-1">
+                                            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/5 shrink-0" />
+                                            <div className="space-y-2 flex-1">
+                                                <div className="h-4 w-1/2 bg-slate-100 dark:bg-white/5 rounded-full" />
+                                                <div className="h-3 w-1/3 bg-slate-100 dark:bg-white/5 rounded-full" />
+                                            </div>
                                         </div>
                                     </div>
                                 ))
                             ) : filteredRoles.length > 0 ? (
                                 filteredRoles.map((role) => (
-                                    <div key={role.id} className={`${cardBg} rounded-[2.5rem] border hover:border-blue-500/30 shadow-sm hover:shadow-2xl hover:shadow-blue-500/5 transition-all p-8 space-y-6 group relative overflow-hidden`}>
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -translate-y-16 translate-x-16 blur-2xl group-hover:bg-blue-500/10 transition-colors" />
+                                    <div key={role.id} className={`${cardBg} ${viewMode === 'grid' ? 'p-8 rounded-[2.5rem] flex-col space-y-6' : 'p-6 rounded-2xl flex-row items-center justify-between'} border hover:border-blue-500/30 shadow-sm hover:shadow-2xl hover:shadow-blue-500/5 transition-all flex group relative overflow-hidden`}>
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -translate-y-16 translate-x-16 blur-2xl group-hover:bg-blue-500/10 transition-colors pointer-events-none" />
                                         
-                                        <div className="flex items-start justify-between relative">
-                                            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-sm group-hover:scale-110 transition-transform">
+                                        <div className={`flex ${viewMode === 'grid' ? 'items-start justify-between w-full' : 'items-center gap-6 flex-1 min-w-0'}`}>
+                                            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-sm group-hover:scale-110 transition-transform shrink-0">
                                                 <ShieldCheck className="w-6 h-6" />
                                             </div>
-                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            
+                                            <div className={`flex-1 min-w-0 ${viewMode === 'grid' ? 'hidden' : 'block'}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <h3 className={`text-sm font-black uppercase tracking-tight truncate ${textColor}`}>{role.name}</h3>
+                                                    {isSuperAdmin && (
+                                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 shrink-0">
+                                                            <Building2 className="w-2.5 h-2.5 text-slate-400" />
+                                                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[100px]">
+                                                                {role.department?.dept_name || "Admin"}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-3 mt-1">
+                                                    <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                                        <Users className="w-2.5 h-2.5" />
+                                                        {role.userCount || 0} users
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-300 uppercase tracking-widest font-mono">
+                                                        ID: {role.id.substring(0, 8)}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {viewMode === 'grid' && (
+                                                <div className="flex gap-2 relative z-10">
+                                                    {canEdit && (
+                                                        <button 
+                                                            onClick={() => { setCurrentRole({ id: role.id, name: role.name, dept_id: role.dept_id || "" }); setIsModalOpen(true); }}
+                                                            className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-blue-500 transition-colors"
+                                                        >
+                                                            <Edit3 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    {canDelete && (
+                                                        <button 
+                                                            onClick={() => handleDelete(role.id)}
+                                                            className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {viewMode === 'grid' ? (
+                                            <>
+                                                <div className="space-y-1 relative">
+                                                    <h3 className={`text-lg font-black uppercase tracking-tight ${textColor}`}>{role.name}</h3>
+                                                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                        <Users className="w-3 h-3" />
+                                                        {role.userCount || 0} users assigned
+                                                    </div>
+                                                    {isSuperAdmin && (
+                                                        <div className="flex items-center gap-1.5 mt-2">
+                                                            <Building2 className="w-3 h-3 text-slate-400" />
+                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                                                {role.department?.dept_name || "Administrator's Default"}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="pt-4 border-t border-gray-50 dark:border-white/5 flex items-center justify-between text-[8px] font-black uppercase tracking-widest text-slate-300">
+                                                    <span>Role ID</span>
+                                                    <span className="font-mono text-[9px] text-blue-400 bg-blue-500/5 px-2 py-0.5 rounded-lg">{role.id.substring(0, 8)}...</span>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="flex items-center gap-2 relative z-10 shrink-0">
                                                 {canEdit && (
                                                     <button 
-                                                        onClick={() => { setCurrentRole({ id: role.id, name: role.name }); setIsModalOpen(true); }}
-                                                        className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-blue-500 transition-colors"
+                                                        onClick={() => { setCurrentRole({ id: role.id, name: role.name, dept_id: role.dept_id || "" }); setIsModalOpen(true); }}
+                                                        className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all active:scale-95"
+                                                        title="Edit Role"
                                                     >
                                                         <Edit3 className="w-4 h-4" />
                                                     </button>
@@ -186,26 +328,14 @@ export default function Roles() {
                                                 {canDelete && (
                                                     <button 
                                                         onClick={() => handleDelete(role.id)}
-                                                        className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-red-500 transition-colors"
+                                                        className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all active:scale-95"
+                                                        title="Delete Role"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 )}
                                             </div>
-                                        </div>
-
-                                        <div className="space-y-1 relative">
-                                            <h3 className={`text-lg font-black uppercase tracking-tight ${textColor}`}>{role.name}</h3>
-                                            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                                <Users className="w-3 h-3" />
-                                                {role.user_count || 0} users assigned
-                                            </div>
-                                        </div>
-
-                                        <div className="pt-4 border-t border-gray-50 dark:border-white/5 flex items-center justify-between text-[8px] font-black uppercase tracking-widest text-slate-300">
-                                            <span>Role ID</span>
-                                            <span className="font-mono text-[9px] text-blue-400 bg-blue-500/5 px-2 py-0.5 rounded-lg">{role.id.substring(0, 8)}...</span>
-                                        </div>
+                                        )}
                                     </div>
                                 ))
                             ) : (
@@ -260,10 +390,28 @@ export default function Roles() {
                                         autoFocus
                                     />
                                 </div>
-                                <p className="text-[9px] text-slate-400 font-medium italic ml-1">
-                                    Names are auto-converted to uppercase.
-                                </p>
                             </div>
+
+                            {isSuperAdmin && (
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                        Assigned Department
+                                    </label>
+                                    <div className="relative group">
+                                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <select 
+                                            value={currentRole.dept_id || ""} 
+                                            onChange={e => setCurrentRole(prev => ({ ...prev, dept_id: e.target.value }))} 
+                                            className="w-full pl-12 pr-6 py-4 rounded-2xl border border-gray-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 text-sm font-bold appearance-none outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                                        >
+                                            <option value="">Administrator Default</option>
+                                            {departments.map(d => (
+                                                <option key={d.id} value={d.id}>{d.dept_name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
 
                             <button
                                 onClick={handleSave}
@@ -280,4 +428,3 @@ export default function Roles() {
         </div>
     );
 }
-

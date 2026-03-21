@@ -20,9 +20,12 @@ import LetterEndorsement from "./pages/management/LetterEndorsement";
 import LetterDetail from "./pages/management/LetterDetail";
 import VemResumen from "./pages/management/VemResumen";
 import RoleAccessMatrix from "./pages/management/RoleAccessMatrix";
+import DeptAccessMatrix from "./pages/management/DeptAccessMatrix";
 import Roles from "./pages/management/Roles";
 import Trays from "./pages/management/Trays";
 import Users from "./pages/management/Users";
+import InterDeptManagement from "./pages/management/InterDeptManagement";
+import DepartmentViewer from "./pages/management/DepartmentViewer";
 import Persons from "./pages/management/Persons";
 import Departments from "./pages/management/Departments";
 import DepartmentLetters from "./pages/management/DepartmentLetters";
@@ -127,6 +130,8 @@ function AppRoutes() {
         <Route path="/setup" element={<ProtectedRoute><SetupWizard /></ProtectedRoute>} />
         <Route path="/setup/trays" element={<ProtectedRoute><Trays /></ProtectedRoute>} />
         <Route path="/setup/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+        <Route path="/setup/inter-dept" element={<ProtectedRoute><InterDeptManagement /></ProtectedRoute>} />
+        <Route path="/dept-viewer" element={<ProtectedRoute><DepartmentViewer /></ProtectedRoute>} />
         <Route path="/setup/persons" element={<ProtectedRoute><Persons /></ProtectedRoute>} />
         <Route path="/setup/departments" element={<ProtectedRoute><Departments /></ProtectedRoute>} />
         <Route path="/departments/:deptId/letters" element={<ProtectedRoute><DepartmentLetters /></ProtectedRoute>} />
@@ -135,6 +140,7 @@ function AppRoutes() {
         <Route path="/setup/statuses" element={<ProtectedRoute><Statuses /></ProtectedRoute>} />
         <Route path="/setup/attachments" element={<ProtectedRoute><Attachments /></ProtectedRoute>} />
         <Route path="/setup/role-matrix" element={<ProtectedRoute><RoleAccessMatrix /></ProtectedRoute>} />
+        <Route path="/setup/dept-matrix" element={<ProtectedRoute><DeptAccessMatrix /></ProtectedRoute>} />
         <Route path="/setup/roles" element={<ProtectedRoute><Roles /></ProtectedRoute>} />
         <Route path="/setup/data-import" element={<ProtectedRoute><DataImport /></ProtectedRoute>} />
         <Route path="/master-table" element={<ProtectedRoute><MasterTable /></ProtectedRoute>} />

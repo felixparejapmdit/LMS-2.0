@@ -22,7 +22,7 @@ class CommentController {
 
     static async create(req, res) {
         try {
-            const { letter_id, user_id, comment_body } = req.body;
+            const { letter_id, user_id, comment_body, dept_id } = req.body;
             console.log('[CommentController.create] Incoming payload:', req.body);
             if (!letter_id || !user_id || !comment_body) {
                 return res.status(400).json({ error: 'letter_id, user_id, and comment_body are required.' });
@@ -31,6 +31,7 @@ class CommentController {
                 letter_id,
                 user_id,
                 comment_body,
+                dept_id: dept_id || null,
                 created_at: new Date()
             });
             console.log('[CommentController.create] SUCCESS:', comment.id);

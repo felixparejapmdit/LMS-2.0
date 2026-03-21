@@ -101,11 +101,12 @@ export default function NewLetter() {
     useEffect(() => {
         const fetchRefs = async () => {
             try {
-                const kindsData = await letterKindService.getAll();
+                const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+                const kindsData = await letterKindService.getAll({ dept_id: userDeptId });
                 const deptsData = await departmentService.getAll();
-                const statusesData = await statusService.getAll();
-                const traysData = await trayService.getAllTrays().catch(() => []);
-                const attachmentsData = await attachmentService.getAll().catch(() => []);
+                const statusesData = await statusService.getAll({ dept_id: userDeptId });
+                const traysData = await trayService.getAllTrays({ dept_id: userDeptId }).catch(() => []);
+                const attachmentsData = await attachmentService.getAll({ dept_id: userDeptId }).catch(() => []);
                 const previews = await letterService.getPreviewIds().catch(() => null);
 
                 setKinds(kindsData);
@@ -123,7 +124,6 @@ export default function NewLetter() {
                 }
 
                 // Default to user's department
-                const userDeptId = user?.dept_id?.id || user?.dept_id || "";
                 if (userDeptId) {
                     setFormData(prev => ({ ...prev, assigned_dept: userDeptId }));
                 }
@@ -282,7 +282,8 @@ export default function NewLetter() {
                 ...formData,
                 attachment_id: Number.isNaN(attachmentId) ? null : attachmentId,
                 scanned_copy: scannedCopyPath,
-                encoder_id: user.id
+                encoder_id: user.id,
+                dept_id: user.dept_id?.id || user.dept_id
             });
 
             if (created?.lms_id) {

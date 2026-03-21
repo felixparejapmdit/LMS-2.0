@@ -4,9 +4,20 @@ const { Op } = require('sequelize');
 class StatsController {
     static async getDashboardStats(req, res) {
         try {
-            const { department_id } = req.query;
+            const { department_id, role } = req.query;
             const where = {};
-            if (department_id && department_id !== 'null' && department_id !== 'undefined') {
+            const normalizedRole = role ? role.toString().toUpperCase() : '';
+            const ALL_LETTER_ROLES = new Set([
+                'ADMIN', 'ADMINISTRATOR', 'SUPERUSER', 'SUPER USER',
+                'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN',
+                'DEVELOPER', 'ROOT'
+            ]);
+
+            if (ALL_LETTER_ROLES.has(normalizedRole)) {
+                if (department_id && department_id !== 'all') {
+                    where.department_id = (department_id === 'null' || department_id === 'undefined') ? null : department_id;
+                }
+            } else if (department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
                 where[Op.or] = [
                     { department_id: department_id },
                     { department_id: null }
@@ -169,13 +180,17 @@ class StatsController {
 
             // Role-based filtering identical to LetterAssignmentController
             if (normalizedRole === 'USER' && user_id) {
-                const hasValidDepartment = department_id && department_id !== 'null' && department_id !== 'undefined' && department_id !== '';
+                const hasValidDepartment = department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined' && department_id !== '';
                 const visibilityClauses = [{ '$letter.encoder_id$': user_id }];
                 if (hasValidDepartment) {
                     visibilityClauses.push({ department_id: department_id });
                 }
                 where[Op.or] = visibilityClauses;
-            } else if (!ALL_LETTER_ROLES.has(normalizedRole) && department_id && department_id !== 'null' && department_id !== 'undefined') {
+            } else if (ALL_LETTER_ROLES.has(normalizedRole)) {
+                if (department_id && department_id !== 'all') {
+                    where.department_id = (department_id === 'null' || department_id === 'undefined') ? null : department_id;
+                }
+            } else if (department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
                 where[Op.or] = [
                     { department_id: department_id },
                     { department_id: null }

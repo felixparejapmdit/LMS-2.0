@@ -666,7 +666,7 @@ export default function GuestSendLetter() {
 
                 {/* Modern Footer Branding */}
                 <footer className={`h-auto md:h-16 py-6 md:py-0 ${headerBg} border-t px-4 md:px-12 flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase tracking-widest`}>
-                    <span>&copy; 2026 LMS 2.0</span>
+                    <span>&copy; 2026 LMS 2026</span>
                 </footer>
             </div>
 

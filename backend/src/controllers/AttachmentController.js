@@ -1,4 +1,4 @@
-const { Attachment } = require('../models/associations');
+const { Attachment, Department } = require('../models/associations');
 const path = require('path');
 const fs = require('fs');
 
@@ -101,7 +101,8 @@ class AttachmentController {
             const result = await Attachment.create({
                 attachment_name: finalFileName,
                 file_path: finalFilePath,
-                description: req.body.description || (combine_with || existing_path ? 'Combined document' : 'Uploaded file')
+                description: req.body.description || (combine_with || existing_path ? 'Combined document' : 'Uploaded file'),
+                dept_id: req.body.dept_id || null
             });
             res.status(201).json(result);
         } catch (error) {
@@ -112,7 +113,17 @@ class AttachmentController {
 
     static async getAll(req, res) {
         try {
-            const results = await Attachment.findAll();
+            const { dept_id } = req.query;
+            const where = {};
+            
+            if (dept_id && dept_id !== 'all') {
+                where.dept_id = (dept_id === 'null' || dept_id === 'undefined') ? null : dept_id;
+            }
+            
+            const results = await Attachment.findAll({ 
+                where,
+                include: [{ model: Department, as: 'department' }]
+            });
             res.json(results);
         } catch (error) {
             res.status(500).json({ error: error.message });

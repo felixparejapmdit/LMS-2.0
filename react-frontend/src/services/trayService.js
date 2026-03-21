@@ -4,10 +4,9 @@ import API_BASE from '../config/apiConfig';
 const API_URL = `${API_BASE}/trays`;
 
 class TrayService {
-    async getAllTrays(deptId = null) {
+    async getAllTrays(params = {}) {
         try {
-            const url = deptId ? `${API_URL}?department_id=${deptId}` : API_URL;
-            const response = await axios.get(url);
+            const response = await axios.get(API_URL, { params });
             return response.data;
         } catch (error) {
             console.error('Error in TrayService.getAllTrays:', error);

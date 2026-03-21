@@ -73,6 +73,9 @@ const Letter = sequelize.define('Letter', {
     show_atg: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+    },
+    dept_id: {
+        type: DataTypes.INTEGER
     }
 }, {
     tableName: 'letters',

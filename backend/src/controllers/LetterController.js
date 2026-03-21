@@ -15,10 +15,17 @@ class LetterController {
                 const visibilityClauses = [{ encoder_id: user_id }];
                 if (hasValidDepartment) {
                     visibilityClauses.push({ '$assignments.department_id$': department_id });
+                    visibilityClauses.push({ dept_id: department_id });
                 }
-
-                // USER can only see their own letters or letters assigned to their department.
                 where[Op.or] = visibilityClauses;
+            } else if (normalizedRole === 'ACCESS MANAGER' && department_id) {
+                where[Op.or] = [
+                    { dept_id: department_id },
+                    { '$assignments.department_id$': department_id }
+                ];
+            } else if (req.query.dept_id && req.query.dept_id !== 'all') {
+                // If Administrator or other role explicitly provides dept_id
+                where.dept_id = (req.query.dept_id === 'null' || req.query.dept_id === 'undefined') ? null : req.query.dept_id;
             }
 
             const results = await Letter.findAll({
@@ -134,7 +141,7 @@ class LetterController {
         try {
             const {
                 sender, summary, encoder_id, encoder, assigned_dept, kind, global_status,
-                tray_id, attachment_id, letter_type, vemcode, aevm_number, evemnote, aevmnote, atgnote
+                tray_id, attachment_id, letter_type, vemcode, aevm_number, evemnote, aevmnote, atgnote, dept_id
             } = req.body;
 
             const isUUID = (val) => {

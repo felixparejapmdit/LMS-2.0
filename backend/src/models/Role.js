@@ -8,6 +8,10 @@ const Role = sequelize.define('Role', {
     },
     name: {
         type: DataTypes.STRING
+    },
+    dept_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true
     }
 }, {
     tableName: 'directus_roles',

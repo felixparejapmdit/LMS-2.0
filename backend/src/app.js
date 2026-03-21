@@ -18,6 +18,7 @@ const systemPageRoutes = require('./routes/systemPageRoutes');
 const pdfSyncRoutes = require('./routes/pdfSyncRoutes');
 const telegramRoutes = require('./routes/telegramRoutes');
 const authRoutes = require('./routes/authRoutes');
+const interDeptRoutes = require('./routes/interDeptRoutes');
 
 const path = require('path');
 
@@ -101,6 +102,7 @@ apiRouter.use('/endorsements', endorsementRoutes);
 apiRouter.use('/role-permissions', rolePermissionRoutes);
 apiRouter.use('/system-pages', systemPageRoutes);
 apiRouter.use('/telegram', telegramRoutes);
+apiRouter.use('/inter-dept', interDeptRoutes);
 apiRouter.use('/import', require('./routes/importRoutes'));
 
 // Mount the apiRouter

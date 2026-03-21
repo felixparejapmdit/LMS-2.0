@@ -12,8 +12,8 @@ export default function LetterListMini({ deptId }) {
             setLoading(true);
             try {
                 // Fetch letters for this specific department
-                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments?department_id=${deptId}&status_id=8`);
-                setLetters(response.data.slice(0, 5)); // Show only top 5 for "mini" view
+                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments?department_id=${deptId}`);
+                setLetters(response.data); 
             } catch (error) {
                 console.error("Failed to fetch mini letters:", error);
             } finally {
@@ -40,7 +40,7 @@ export default function LetterListMini({ deptId }) {
     return (
         <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
             <div className="flex items-center justify-between px-2 mb-4 border-b border-gray-100 dark:border-white/5 pb-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Active Workflow (Recent 5)</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Assigned Correspondence</span>
                 <Link to={`/departments/${deptId}/letters`} className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-500 transition-colors flex items-center gap-1">
                     Deep Dive <ChevronRight className="w-2 h-2" />
                 </Link>
