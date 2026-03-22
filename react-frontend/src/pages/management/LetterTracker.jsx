@@ -75,8 +75,9 @@ export default function LetterTracker() {
         // 1. Data Visibility Filter based on Role
         const roleName = user?.roleData?.name?.toString().toUpperCase() || '';
         const isUserRole = roleName === 'USER';
+        const isAccessManager = roleName === 'ACCESS MANAGER';
 
-        if (isUserRole && !isSuperAdmin) {
+        if ((isUserRole || isAccessManager) && !isSuperAdmin) {
             const isOwner = letter.encoder_id === user.id;
             // Check if letter belongs to user's department via assignments
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;

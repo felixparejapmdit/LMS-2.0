@@ -34,7 +34,7 @@ export default function Trays() {
 
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
-    const { user, layoutStyle, setIsMobileMenuOpen } = context;
+    const { user, layoutStyle, setIsMobileMenuOpen, refreshSetupStatus } = context;
     const canField = access?.canField || (() => true);
     const canAdd = canField("trays", "add_button");
     const canEdit = canField("trays", "edit_button");
@@ -112,6 +112,7 @@ export default function Trays() {
             setIsModalOpen(false);
             setFormData({ tray_no: "", description: "", capacity: 100, dept_id: "" });
             fetchTrays();
+            if (refreshSetupStatus) refreshSetupStatus();
         } catch (err) {
             console.error("CRUD Error:", err);
             setError("Failed to save tray.");
@@ -125,6 +126,7 @@ export default function Trays() {
         try {
             await trayService.deleteTray(id);
             fetchTrays();
+            if (refreshSetupStatus) refreshSetupStatus();
         } catch (err) {
             console.error("Delete failed:", err);
             alert("Delete failed.");

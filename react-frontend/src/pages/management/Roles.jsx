@@ -23,7 +23,7 @@ import departmentService from "../../services/departmentService";
 import useAccess from "../../hooks/useAccess";
 
 export default function Roles() {
-    const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const { user, layoutStyle, setIsMobileMenuOpen, refreshSetupStatus } = useAuth();
     const access = useAccess();
 
     const [roles, setRoles] = useState([]);
@@ -46,18 +46,40 @@ export default function Roles() {
     const canViewToggle = canField("roles", "view_toggle");
 
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    const isSuperAdmin = ['ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER'].includes(roleName);
+    const isSuperAdmin = ['ADMINISTRATOR', 'ADMIN', 'SYSTEM ADMIN', 'SUPERUSER', 'DEVELOPER', 'ROOT'].includes(roleName);
+
+    // Names that must NEVER appear in Access Manager view
+    const ADMIN_ROLE_NAMES = ['ADMINISTRATOR', 'ADMIN', 'SUPER ADMIN', 'SUPERUSER', 'DEVELOPER', 'ROOT', 'SYSTEM ADMIN'];
 
     const fetchRoles = async () => {
         setLoading(true);
         try {
-            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
-            const params = isSuperAdmin 
-                ? (deptFilter !== 'all' ? { dept_id: deptFilter } : {}) 
-                : { dept_id: userDeptId };
-            
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id ?? null;
+
+            let params;
+            if (isSuperAdmin) {
+                // Administrator: filter by deptFilter selection (no admin exclusion — they see everything)
+                params = deptFilter !== 'all' ? { dept_id: deptFilter } : {};
+            } else {
+                // Access Manager: must have a valid dept_id, exclude admin-level roles
+                if (!userDeptId) {
+                    // No dept assigned → show nothing
+                    setRoles([]);
+                    setLoading(false);
+                    return;
+                }
+                params = { dept_id: userDeptId, exclude_admin: 'true' };
+            }
+
             const data = await rolePermissionService.getRoles(params);
-            setRoles(Array.isArray(data) ? data : []);
+            const rawRoles = Array.isArray(data) ? data : [];
+
+            // Client-side safety net: strip admin-level roles from Access Manager view
+            const safeRoles = isSuperAdmin
+                ? rawRoles
+                : rawRoles.filter(r => !ADMIN_ROLE_NAMES.includes((r.name || '').toUpperCase()));
+
+            setRoles(safeRoles);
 
             if (isSuperAdmin && departments.length === 0) {
                 const depts = await departmentService.getAll();
@@ -73,7 +95,7 @@ export default function Roles() {
 
     useEffect(() => {
         fetchRoles();
-    }, [deptFilter]);
+    }, [deptFilter, user?.dept_id, user?.roleData?.name]);
 
     const handleSave = async () => {
         if (!currentRole.name.trim()) return;
@@ -94,6 +116,7 @@ export default function Roles() {
             setIsModalOpen(false);
             setCurrentRole({ id: null, name: "", dept_id: "" });
             fetchRoles();
+            if (refreshSetupStatus) refreshSetupStatus();
         } catch (error) {
             setMessage({ type: "error", text: error.response?.data?.error || "Failed to save role" });
         } finally {
@@ -108,6 +131,7 @@ export default function Roles() {
             await rolePermissionService.deleteRole(roleId);
             setMessage({ type: "success", text: "Role deleted successfully" });
             fetchRoles();
+            if (refreshSetupStatus) refreshSetupStatus();
         } catch (error) {
             setMessage({ type: "error", text: error.response?.data?.error || "Failed to delete role" });
         } finally {

@@ -473,9 +473,12 @@ export default function MasterTable() {
     };
 
     const filteredLetters = letters.filter(l => {
-        // Data Visibility Filter for USER role
+        // Data Visibility Filter
         const roleName = user?.roleData?.name?.toString().toUpperCase() || '';
-        if (roleName === 'USER' && !isSuperAdmin) {
+        const isUserRole = roleName === 'USER';
+        const isAccessManager = roleName === 'ACCESS MANAGER';
+
+        if ((isUserRole || isAccessManager) && !isSuperAdmin) {
             const isOwner = l.encoder_id === user.id;
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
             const isInDept = l.assignments?.some(a => (a.department_id?.id ?? a.department_id) === userDeptId);

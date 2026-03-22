@@ -1,4 +1,4 @@
-const { RolePermission, Role, SystemPage, User, Department } = require('../models/associations');
+const { RolePermission, Role, SystemPage, User, Department, Attachment, LetterKind, Status, ProcessStep, Tray } = require('../models/associations');
 const sequelize = require('../config/db');
 const { Op } = require('sequelize');
 
@@ -34,7 +34,7 @@ const PAGE_FIELD_PRESETS = {
     'process-steps': ['add_button', 'edit_button', 'delete_button', 'save_button', 'refresh_button', 'view_toggle'],
     'trays': ['add_button', 'edit_button', 'delete_button', 'save_button', 'refresh_button', 'view_toggle', 'navigate_button'],
     'users': ['search', 'add_button', 'edit_button', 'delete_button', 'save_button', 'refresh_button', 'view_toggle', 'role_filter', 'department_filter', 'avatar_upload'],
-    'role-matrix': ['search', 'save_button', 'edit_field', 'allow_all_button', 'restrict_button', 'role_selector'],
+    'role-matrix': ['search', 'save_button', 'edit_field', 'allow_all_button', 'restrict_button', 'role_selector', 'department_filter'],
     'setup': ['department_field', 'dept_code_field', 'template_selector', 'add_button', 'delete_button', 'submit_button', 'next_button', 'back_button'],
     'letter-detail': ['pdf_button', 'back_button'],
     'department-letters': ['back_button', 'search', 'refresh_button', 'tab_filter', 'tray_selector'],
@@ -157,7 +157,30 @@ class RolePermissionController {
 
     static async getRolesWithPermissions(req, res) {
         try {
+            const { dept_id, exclude_admin } = req.query;
+
+            // Roles that should NEVER be visible to non-admin users
+            const ADMIN_ROLE_NAMES = ['ADMINISTRATOR', 'ADMIN', 'SUPER ADMIN', 'SUPERUSER', 'DEVELOPER', 'ROOT', 'SYSTEM ADMIN'];
+
+            // Build where clause for dept_id filtering
+            const where = {};
+            if (dept_id !== undefined) {
+                if (dept_id === 'null' || dept_id === '') {
+                    where.dept_id = null;
+                } else {
+                    where.dept_id = parseInt(dept_id, 10) || dept_id;
+                }
+            }
+
+            // When dept_id filter is active OR exclude_admin=true, exclude system admin roles
+            if (dept_id !== undefined || exclude_admin === 'true') {
+                where.name = {
+                    [Op.notIn]: ADMIN_ROLE_NAMES
+                };
+            }
+
             const roles = await Role.findAll({
+                where,
                 attributes: {
                     include: [
                         [
@@ -167,10 +190,21 @@ class RolePermissionController {
                                 WHERE users.role = Role.id
                             )`),
                             'user_count'
+                        ],
+                        [
+                            sequelize.literal(`(
+                                SELECT group_concat(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, ''), ', ')
+                                FROM directus_users u
+                                WHERE u.role = Role.id
+                            )`),
+                            'user_names'
                         ]
                     ]
                 },
-                include: [{ model: RolePermission, as: 'permissions' }]
+                include: [
+                    { model: RolePermission, as: 'permissions' },
+                    { model: Department, as: 'department' }
+                ]
             });
             res.json(roles);
         } catch (error) {
@@ -181,7 +215,29 @@ class RolePermissionController {
 
     static async getRoles(req, res) {
         try {
+            const { dept_id, exclude_admin } = req.query;
+
+            // Roles that should NEVER be visible to non-admin users
+            const ADMIN_ROLE_NAMES = ['ADMINISTRATOR', 'ADMIN', 'SUPER ADMIN', 'SUPERUSER', 'DEVELOPER', 'ROOT', 'SYSTEM ADMIN'];
+
+            const where = {};
+            if (dept_id !== undefined) {
+                if (dept_id === 'null' || dept_id === '') {
+                    where.dept_id = null;
+                } else {
+                    where.dept_id = parseInt(dept_id, 10) || dept_id;
+                }
+            }
+
+            // When dept_id filter is active OR exclude_admin=true, exclude system admin roles
+            if (dept_id !== undefined || exclude_admin === 'true') {
+                where.name = {
+                    [Op.notIn]: ADMIN_ROLE_NAMES
+                };
+            }
+
             const roles = await Role.findAll({
+                where,
                 attributes: {
                     include: [
                         [
@@ -251,6 +307,43 @@ class RolePermissionController {
 
             await role.update(updateData);
             res.json(role);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    static async checkSetupStatus(req, res) {
+        try {
+            const { dept_id } = req.query;
+            if (!dept_id) return res.status(400).json({ error: 'dept_id is required' });
+
+            const where = { dept_id: parseInt(dept_id, 10) };
+
+            const [attachments, kinds, roles, statuses, steps, trays] = await Promise.all([
+                Attachment.count({ where }),
+                LetterKind.count({ where }),
+                Role.count({ where }),
+                Status.count({ where }),
+                ProcessStep.count({ where }),
+                Tray.count({ where })
+            ]);
+
+            res.json({
+                attachments,
+                kinds,
+                roles,
+                statuses,
+                steps,
+                trays,
+                isSetupComplete: (
+                    attachments > 0 && 
+                    kinds > 0 && 
+                    roles > 0 && 
+                    statuses > 0 && 
+                    steps > 0 && 
+                    trays > 0
+                )
+            });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }

@@ -25,7 +25,7 @@ export default function Statuses() {
     const context = useAuth();
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
-    const { user, layoutStyle, setIsMobileMenuOpen } = context;
+    const { user, layoutStyle, setIsMobileMenuOpen, refreshSetupStatus } = context;
     const canField = access?.canField || (() => true);
     const canAdd = canField("statuses", "add_button");
     const canEdit = canField("statuses", "edit_button");
@@ -102,6 +102,7 @@ export default function Statuses() {
             }
             setIsModalOpen(false);
             fetchData();
+            if (refreshSetupStatus) refreshSetupStatus();
         } catch (err) {
             console.error("CRUD Error:", err);
             setError("Failed to save status.");
@@ -115,6 +116,7 @@ export default function Statuses() {
         try {
             await statusService.delete(id);
             fetchData();
+            if (refreshSetupStatus) refreshSetupStatus();
         } catch (err) {
             console.error("Delete failed:", err);
             alert("Delete failed.");

@@ -25,7 +25,7 @@ export default function Attachments() {
     const context = useAuth();
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
-    const { user, layoutStyle, setIsMobileMenuOpen } = context;
+    const { user, layoutStyle, setIsMobileMenuOpen, refreshSetupStatus } = context;
     const canField = access?.canField || (() => true);
     const canAdd = canField("attachments", "add_button");
     const canEdit = canField("attachments", "edit_button");
@@ -103,6 +103,7 @@ export default function Attachments() {
             }
             setIsModalOpen(false);
             fetchData();
+            if (refreshSetupStatus) refreshSetupStatus();
         } catch (err) {
             console.error("CRUD Error:", err);
             setError("Failed to save attachment.");
@@ -116,6 +117,7 @@ export default function Attachments() {
         try {
             await attachmentService.delete(id);
             fetchData();
+            if (refreshSetupStatus) refreshSetupStatus();
         } catch (err) {
             console.error("Delete failed:", err);
             alert("Delete failed.");

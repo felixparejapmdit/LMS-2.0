@@ -26,6 +26,9 @@ class LetterAssignmentController {
                 atgStatusId = atgStatus?.id || null;
             }
 
+            const isAccessManager = normalizedRole === 'ACCESS MANAGER';
+            const isAdmin = ALL_LETTER_ROLES.has(normalizedRole);
+
             // Role-based filtering
             if (normalizedRole === 'USER' && user_id) {
                 const hasValidDepartment = department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined' && department_id !== '';
@@ -34,7 +37,7 @@ class LetterAssignmentController {
                     visibilityClauses.push({ department_id: department_id });
                 }
                 where[Op.or] = visibilityClauses;
-            } else if (ALL_LETTER_ROLES.has(normalizedRole)) {
+            } else if (isAdmin) {
                 // Administrators can filter by department explicitly
                 if (department_id && department_id !== 'all') {
                     where.department_id = (department_id === 'null' || department_id === 'undefined') ? null : department_id;
@@ -45,6 +48,8 @@ class LetterAssignmentController {
                     { department_id: department_id },
                     { department_id: null }
                 ];
+            } else if (isAccessManager) {
+                // If Access Manager without department_id specified (mandatory for this role) 
             }
 
             if (step_id && step_id !== 'null') where.step_id = step_id;
@@ -195,10 +200,18 @@ class LetterAssignmentController {
                 const validStatuses = [1]; // Incoming
                 if (named_filter === 'atg_note') validStatuses.push(2); // ATG Note
 
+                const unassignedWhere = {
+                    global_status: { [Op.in]: validStatuses }
+                };
+                if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
+                    unassignedWhere[Op.or] = [
+                        { dept_id: department_id },
+                        { dept_id: null }
+                    ];
+                }
+
                 const unassignedLetters = await Letter.findAll({
-                    where: {
-                        global_status: { [Op.in]: validStatuses }
-                    },
+                    where: unassignedWhere,
                     include: [
                         { model: Status, as: 'status' },
                         { model: Tray, as: 'tray' },

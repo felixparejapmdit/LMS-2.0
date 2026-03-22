@@ -63,6 +63,11 @@ const authReducer = (state, action) => {
                 isGuest: action.payload.isGuest || false,
                 loading: false
             };
+        case 'SET_SETUP_STATUS':
+            return {
+                ...state,
+                isSetupComplete: action.payload
+            };
         case 'UPDATE_USER':
             return { ...state, user: action.payload };
         case 'SET_PERMISSIONS':
@@ -100,6 +105,7 @@ export const AuthProvider = ({ children }) => {
         loading: true,
         permissions: [],
         permissionsLoaded: false,
+        isSetupComplete: true, // Default to true for everyone else
     });
 
     // 2. UI STATE (Preferences, Sidebar)
@@ -228,6 +234,20 @@ export const AuthProvider = ({ children }) => {
                     isGuest: false
                 }
             });
+
+            // If Access Manager, check setup status
+            const roleName = (me.roleData?.name || me.role || '').toString().toUpperCase();
+            if (roleName === 'ACCESS MANAGER') {
+                try {
+                    const deptId = me.dept_id?.id || me.dept_id;
+                    const setup = await axios.get(`${BACKEND_URL}/role-permissions/setup-status?dept_id=${deptId}`);
+                    dispatch({ type: 'SET_SETUP_STATUS', payload: !!setup.data?.isSetupComplete });
+                } catch (e) {
+                    console.error("Failed to check setup status", e);
+                }
+            } else {
+                dispatch({ type: 'SET_SETUP_STATUS', payload: true });
+            }
         } catch (error) {
             const status = error.status || error.response?.status;
             if (status === 401 || error.message?.includes('401')) {
@@ -258,6 +278,20 @@ export const AuthProvider = ({ children }) => {
 
             localStorage.setItem(LAST_REFRESH_KEY, Date.now().toString());
 
+            // Check setup status for Access Manager
+            const roleName = (me.roleData?.name || me.role || '').toString().toUpperCase();
+            if (roleName === 'ACCESS MANAGER') {
+                try {
+                    const deptId = me.dept_id?.id || me.dept_id;
+                    const setup = await axios.get(`${BACKEND_URL}/role-permissions/setup-status?dept_id=${deptId}`);
+                    dispatch({ type: 'SET_SETUP_STATUS', payload: !!setup.data?.isSetupComplete });
+                } catch (e) {
+                    console.error("Failed to check setup status", e);
+                }
+            } else {
+                dispatch({ type: 'SET_SETUP_STATUS', payload: true });
+            }
+
             setLayoutStyle('minimalist');
             if (me.theme_preference) setTheme(me.theme_preference);
             if (me.font_family) setFontFamily(me.font_family);
@@ -282,7 +316,7 @@ export const AuthProvider = ({ children }) => {
         setLayoutStyle('minimalist');
         dispatch({
             type: 'LOGIN_GUEST',
-            payload: { 
+            payload: {
                 user: { first_name: "Guest", last_name: "User", email: "guest@example.com", isGuest: true },
                 permissions: perms
             }
@@ -292,17 +326,17 @@ export const AuthProvider = ({ children }) => {
     // --- PERMISSION LOGIC (Memoized) ---
     const hasPermission = useCallback((pageId, action = 'can_view') => {
         if (authState.isGuest) return pageId === 'guest-send-letter';
-        
+
         const roleName = (authState.user?.roleData?.name || authState.user?.role || '').toString().toUpperCase();
-        const isSuperAdmin = roleName === 'ADMIN' || 
-               roleName === 'SUPER ADMIN' || 
-               roleName === 'DEVELOPER' || 
-               roleName === 'ROOT' ||
-               authState.user?.email === 'felixpareja07@gmail.com';
-        
+        const isSuperAdmin = roleName === 'ADMIN' ||
+            roleName === 'SUPER ADMIN' ||
+            roleName === 'DEVELOPER' ||
+            roleName === 'ROOT' ||
+            authState.user?.email === 'felixpareja07@gmail.com';
+
         // Access Manager Role (Previously bypassed, now follows matrix)
         const isAccessManager = roleName === 'ACCESS MANAGER';
-        
+
         console.log(`hasPermission: page=${pageId}, role=${roleName}, isSuperAdmin=${isSuperAdmin}, isAccessManager=${isAccessManager}`);
         if (isSuperAdmin) return true;
 
@@ -400,14 +434,31 @@ export const AuthProvider = ({ children }) => {
         return () => clearInterval(interval);
     }, [authState.user?.id, authState.isGuest, layoutStyle, theme]);
 
+    const refreshSetupStatus = useCallback(async () => {
+        if (!authState.user) return;
+        try {
+            const roleName = (authState.user.roleData?.name || authState.user.role || '').toString().toUpperCase();
+            if (roleName === 'ACCESS MANAGER') {
+                const deptId = authState.user.dept_id?.id || authState.user.dept_id;
+                const setup = await axios.get(`${BACKEND_URL}/role-permissions/setup-status?dept_id=${deptId}`);
+                dispatch({ type: 'SET_SETUP_STATUS', payload: !!setup.data?.isSetupComplete });
+            } else {
+                dispatch({ type: 'SET_SETUP_STATUS', payload: true });
+            }
+        } catch (e) {
+            console.error("Failed to refresh setup status", e);
+        }
+    }, [authState.user]);
+
     // --- MEMOIZED VALUES ---
     const authContextValue = useMemo(() => ({
         ...authState,
         login,
         logout,
         loginGuest,
-        hasPermission
-    }), [authState, hasPermission, logout]);
+        hasPermission,
+        refreshSetupStatus
+    }), [authState, hasPermission, logout, refreshSetupStatus]);
 
     const uiContextValue = useMemo(() => ({
         theme, toggleTheme,
@@ -450,15 +501,15 @@ export const useAuth = () => {
 export const useSession = () => {
     const context = useContext(AuthContext);
     if (!context) throw new Error("useSession must be used within AuthProvider");
-    
+
     // Memoize the super admin calculation so it doesn't change on every useSession call
     const isSuperAdmin = useMemo(() => {
         const roleName = (context.user?.roleData?.name || context.user?.role || '').toString().toUpperCase();
-        return roleName === 'ADMIN' || 
-               roleName === 'SUPER ADMIN' || 
-               roleName === 'DEVELOPER' || 
-               roleName === 'ROOT' ||
-               context.user?.email === 'felixpareja07@gmail.com';
+        return roleName === 'ADMIN' ||
+            roleName === 'SUPER ADMIN' ||
+            roleName === 'DEVELOPER' ||
+            roleName === 'ROOT' ||
+            context.user?.email === 'felixpareja07@gmail.com';
     }, [context.user]);
 
     return { ...context, isSuperAdmin };

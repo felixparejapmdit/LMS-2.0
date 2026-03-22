@@ -89,8 +89,16 @@ class DashboardController {
             }
         });
 
+        const unassignedWhere = { global_status: 1, tray_id: { [Op.or]: [0, null] } };
+        if (department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
+            unassignedWhere[Op.or] = [
+                { dept_id: department_id },
+                { dept_id: null }
+            ];
+        }
+
         const unassignedLetters = await Letter.findAll({
-            where: { global_status: 1, tray_id: { [Op.or]: [0, null] } },
+            where: unassignedWhere,
             include: [{ model: LetterAssignment, as: 'assignments', required: false }]
         });
         const purelyUnassigned = unassignedLetters.filter(l => (l.assignments || []).length === 0);

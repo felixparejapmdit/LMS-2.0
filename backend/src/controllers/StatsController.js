@@ -1,19 +1,23 @@
 const { LetterAssignment, Letter, Status, User, Person, ProcessStep, Tray, sequelize } = require('../models/associations');
 const { Op } = require('sequelize');
 
+const ALL_LETTER_ROLES = new Set([
+    'ADMIN', 'ADMINISTRATOR', 'SUPERUSER', 'SUPER USER',
+    'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN',
+    'DEVELOPER', 'ROOT'
+]);
+
 class StatsController {
     static async getDashboardStats(req, res) {
         try {
-            const { department_id, role } = req.query;
+            const { department_id, role, user_id } = req.query;
             const where = {};
             const normalizedRole = role ? role.toString().toUpperCase() : '';
-            const ALL_LETTER_ROLES = new Set([
-                'ADMIN', 'ADMINISTRATOR', 'SUPERUSER', 'SUPER USER',
-                'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN',
-                'DEVELOPER', 'ROOT'
-            ]);
 
-            if (ALL_LETTER_ROLES.has(normalizedRole)) {
+            const isAccessManager = normalizedRole === 'ACCESS MANAGER';
+            const isAdmin = ALL_LETTER_ROLES.has(normalizedRole);
+
+            if (isAdmin) {
                 if (department_id && department_id !== 'all') {
                     where.department_id = (department_id === 'null' || department_id === 'undefined') ? null : department_id;
                 }
@@ -22,6 +26,10 @@ class StatsController {
                     { department_id: department_id },
                     { department_id: null }
                 ];
+            } else if (isAccessManager) {
+                // If it's an Access Manager but no department_id is passed (though it should be),
+                // we still want to limit them if we had their dept_id from session, but for now 
+                // we rely on the passed department_id.
             }
 
             const allAssignments = await LetterAssignment.findAll({
@@ -49,10 +57,17 @@ class StatsController {
             });
 
             // Count letters that are Incoming (global_status=1) but have NO assignment record at all
+            // MUST respect department filter for Access Managers
+            const unassignedWhere = { global_status: 1 };
+            if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
+                unassignedWhere[Op.or] = [
+                    { dept_id: department_id },
+                    { dept_id: null }
+                ];
+            }
+
             const unassignedLettersInDashboard = await Letter.findAll({
-                where: {
-                    global_status: 1
-                },
+                where: unassignedWhere,
                 include: [{
                     model: LetterAssignment,
                     as: 'assignments',
@@ -63,10 +78,17 @@ class StatsController {
             active += purelyUnassignedInDashboard.length;
             incoming += purelyUnassignedInDashboard.length;
 
-            // Priority Workflow: last 5 Incoming letters (queried directly from letters table
-            // so newly received letters without an assignment are also shown)
+            // Priority Workflow: last 5 Incoming letters
+            const recentTasksWhere = { global_status: 1 };
+            if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
+                recentTasksWhere[Op.or] = [
+                    { dept_id: department_id },
+                    { dept_id: null }
+                ];
+            }
+
             const recentTasks = await Letter.findAll({
-                where: { global_status: 1 }, // 1 = Incoming
+                where: recentTasksWhere, // Filter by department
                 include: [
                     { model: Status, as: 'status' },
                     'letterKind',
@@ -78,7 +100,13 @@ class StatsController {
             });
 
             // ATG Letters: Filter manually after fetch to avoid complex join issues in SQLite
+            const atgWhere = {};
+            if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
+                atgWhere[Op.or] = [{ department_id: department_id }, { department_id: null }];
+            }
+
             const allPossibleAtg = await LetterAssignment.findAll({
+                where: atgWhere,
                 include: [
                     {
                         model: Letter,
@@ -97,8 +125,13 @@ class StatsController {
                 a.letter?.status?.status_name === 'ATG Note'
             ).slice(0, 10);
 
-            const onlineUsersCount = await User.count({ where: { islogin: true } });
-            const totalUsers = await User.count();
+            const userWhere = {};
+            if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
+                userWhere.dept_id = department_id;
+            }
+
+            const onlineUsersCount = await User.count({ where: { ...userWhere, islogin: true } });
+            const totalUsers = await User.count({ where: userWhere });
             const totalPeople = await Person.count();
             const atgLettersCount = allPossibleAtg.filter(a =>
                 a.letter?.global_status === 2 ||
@@ -108,14 +141,26 @@ class StatsController {
             const fiveDaysAgo = new Date();
             fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
             
+            const overdueWhere = { 
+                global_status: 8, // Pending
+                [Op.or]: [
+                    { date_received: { [Op.lt]: fiveDaysAgo } },
+                    { '$status.status_name$': 'Pending' }
+                ]
+            };
+            if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
+                overdueWhere[Op.and] = [
+                    {
+                        [Op.or]: [
+                            { dept_id: department_id },
+                            { dept_id: null }
+                        ]
+                    }
+                ];
+            }
+
             const overdueTasks = await Letter.findAll({
-                where: { 
-                    global_status: 8, // Pending
-                    [Op.or]: [
-                        { date_received: { [Op.lt]: fiveDaysAgo } },
-                        { '$status.status_name$': 'Pending' }
-                    ]
-                },
+                where: overdueWhere,
                 include: [
                     { model: Status, as: 'status' },
                     { model: Tray, as: 'tray' }
@@ -128,7 +173,13 @@ class StatsController {
 
             const { LetterLog } = require('../models/associations');
             
+            const logWhere = {};
+            if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
+                logWhere['$letter.dept_id$'] = { [Op.or]: [department_id, null] };
+            }
+
             const recentActivityLogs = await LetterLog.findAll({
+                where: logWhere,
                 include: [
                     { model: User, as: 'user' },
                     { model: Letter }
@@ -171,12 +222,8 @@ class StatsController {
             const { department_id, user_id, role } = req.query;
             const where = {};
             
-            const normalizedRole = role ? role.toString().toUpperCase() : '';
-            const ALL_LETTER_ROLES = new Set([
-                'ADMIN', 'ADMINISTRATOR', 'SUPERUSER', 'SUPER USER',
-                'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN',
-                'DEVELOPER', 'ROOT'
-            ]);
+            const isAccessManager = normalizedRole === 'ACCESS MANAGER';
+            const isAdmin = ALL_LETTER_ROLES.has(normalizedRole);
 
             // Role-based filtering identical to LetterAssignmentController
             if (normalizedRole === 'USER' && user_id) {
@@ -186,7 +233,7 @@ class StatsController {
                     visibilityClauses.push({ department_id: department_id });
                 }
                 where[Op.or] = visibilityClauses;
-            } else if (ALL_LETTER_ROLES.has(normalizedRole)) {
+            } else if (isAdmin) {
                 if (department_id && department_id !== 'all') {
                     where.department_id = (department_id === 'null' || department_id === 'undefined') ? null : department_id;
                 }
@@ -195,6 +242,9 @@ class StatsController {
                     { department_id: department_id },
                     { department_id: null }
                 ];
+            } else if (isAccessManager) {
+                // If it's an Access Manager but no department_id is passed, we rely on the frontend
+                // but we could also enforce it here if we fetched the user's dept.
             }
 
             const allAssignments = await LetterAssignment.findAll({
@@ -249,10 +299,17 @@ class StatsController {
             });
 
             // Count letters that are purely unassigned
+            // MUST respect department filter for Access Managers
+            const unassignedWhere = { global_status: 1 };
+            if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
+                unassignedWhere[Op.or] = [
+                    { dept_id: department_id },
+                    { dept_id: null }
+                ];
+            }
+
             const unassignedLetters = await Letter.findAll({
-                where: {
-                    global_status: 1
-                },
+                where: unassignedWhere,
                 include: [{
                     model: LetterAssignment,
                     as: 'assignments',

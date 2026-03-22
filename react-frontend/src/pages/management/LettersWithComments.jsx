@@ -41,7 +41,14 @@ export default function LettersWithComments() {
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
-            const data = await letterService.getAll();
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+            const roleName = user?.roleData?.name || user?.role || '';
+            const data = await letterService.getAll({
+                user_id: user?.id,
+                role: roleName,
+                department_id: userDeptId,
+                full_name: `${user?.first_name} ${user?.last_name}`.trim()
+            });
             // Filter only letters that have comments
             const lettersWithComments = (Array.isArray(data) ? data : []).filter(l => l.comments && l.comments.length > 0);
             setLetters(lettersWithComments);
@@ -64,9 +71,12 @@ export default function LettersWithComments() {
     };
 
     const filteredLetters = letters.filter(l => {
-        // Data Visibility Filter for USER role
+        // Data Visibility Filter
         const roleName = user?.roleData?.name?.toString().toUpperCase() || '';
-        if (roleName === 'USER' && !isSuperAdmin) {
+        const isUserRole = roleName === 'USER';
+        const isAccessManager = roleName === 'ACCESS MANAGER';
+
+        if ((isUserRole || isAccessManager) && !isSuperAdmin) {
             const isOwner = l.encoder_id === user.id;
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
             const isInDept = l.assignments?.some(a => (a.department_id?.id ?? a.department_id) === userDeptId);

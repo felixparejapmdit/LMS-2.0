@@ -25,7 +25,7 @@ export default function ProcessSteps() {
     const context = useAuth();
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
-    const { user, layoutStyle, setIsMobileMenuOpen } = context;
+    const { user, layoutStyle, setIsMobileMenuOpen, refreshSetupStatus } = context;
     const canField = access?.canField || (() => true);
     const canAdd = canField("process-steps", "add_button");
     const canEdit = canField("process-steps", "edit_button");
@@ -103,6 +103,7 @@ export default function ProcessSteps() {
             }
             setIsModalOpen(false);
             fetchData();
+            if (refreshSetupStatus) refreshSetupStatus();
         } catch (err) {
             console.error("CRUD Error:", err);
             setError("Failed to save process step.");
@@ -116,6 +117,7 @@ export default function ProcessSteps() {
         try {
             await processStepService.delete(id);
             fetchData();
+            if (refreshSetupStatus) refreshSetupStatus();
         } catch (err) {
             console.error("Delete failed:", err);
             alert("Delete failed.");

@@ -37,7 +37,7 @@ import useAccess from "../../hooks/useAccess";
 
 export default function NewLetter() {
     const navigate = useNavigate();
-    const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const { user, layoutStyle, setIsMobileMenuOpen, isSetupComplete } = useAuth();
     const access = useAccess();
 
     const [loading, setLoading] = useState(false);
@@ -82,7 +82,6 @@ export default function NewLetter() {
     const canSenderField = canField("new-letter", "sender_field");
     const canSummaryField = canField("new-letter", "summary_field");
     const canStatusDropdown = canField("new-letter", "status_dropdown");
-    const canDepartmentSelector = canField("new-letter", "department_selector");
     const canAttachmentSelector = canField("new-letter", "attachment_selector");
     const canAttachmentUpload = canField("new-letter", "attachment_upload");
     const canKindDropdown = canField("new-letter", "kind_dropdown");
@@ -133,6 +132,16 @@ export default function NewLetter() {
         };
         fetchRefs();
     }, [user]);
+
+    // Inaccessibility check for Access Manager
+    useEffect(() => {
+        if (!user) return;
+        const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
+        if (roleName === 'ACCESS MANAGER' && !isSetupComplete) {
+            alert("Please complete your department setup (Attachments, Kinds, Roles, Statuses, Steps, and Trays) before creating new letters.");
+            navigate('/');
+        }
+    }, [user, isSetupComplete, navigate]);
 
     // Handle outside clicks to close suggestions
     useEffect(() => {
@@ -565,22 +574,7 @@ export default function NewLetter() {
                                 )}
 
 
-                                {canDepartmentSelector && (
-                                    <div className={`space-y-2 pt-4 border-t ${'border-gray-50 dark:border-[#222]'}`}>
-                                        <label className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${'text-gray-700 dark:text-gray-300'}`}>
-                                            <Building2 className="w-3 h-3" />
-                                            Department
-                                        </label>
-                                        <select
-                                            value={formData.assigned_dept}
-                                            onChange={e => setFormData({ ...formData, assigned_dept: e.target.value })}
-                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20 text-blue-700 dark:text-blue-400'}`}
-                                        >
-                                            <option value="">No Department</option>
-                                            {departments.map(d => <option key={d.id} value={d.id}>{d.dept_name}</option>)}
-                                        </select>
-                                    </div>
-                                )}
+
                             </section>
 
                             {/* Authority Notes */}

@@ -40,6 +40,10 @@ const rolePermissionService = {
             permissions
         });
         return response.data;
+    },
+    getSetupStatus: async (dept_id) => {
+        const response = await axios.get(`${API_URL}/setup-status`, { params: { dept_id } });
+        return response.data;
     }
 };
 

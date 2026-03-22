@@ -73,10 +73,19 @@ export default function VIPView() {
         }
     };
 
+    // Check Page-Level Access
+    useEffect(() => {
+        if (!access.canView("vip-view")) {
+            navigate("/");
+        }
+    }, [access, navigate]);
+
     // Fetch Steps on mount
     useEffect(() => {
-        fetchSteps();
-    }, []);
+        if (access.canView("vip-view")) {
+            fetchSteps();
+        }
+    }, [access]);
 
     // Fetch Letters for Selected Step
     useEffect(() => {

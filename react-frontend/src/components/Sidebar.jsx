@@ -46,7 +46,7 @@ import systemPageService from "../services/systemPageService";
 import { getPageKeyFromPath, humanizePageId } from "../utils/pageAccess";
 
 export default function Sidebar() {
-  const { user, logout, isSuperAdmin, hasPermission } = useSession();
+  const { user, logout, isSuperAdmin, hasPermission, isSetupComplete } = useSession();
   const { theme, toggleTheme, layoutStyle, isSidebarExpanded, toggleSidebar, isMobileMenuOpen, setIsMobileMenuOpen } = useUI();
   const navigate = useNavigate();
   const location = useLocation();
@@ -199,7 +199,11 @@ export default function Sidebar() {
       }
       if (item.path === "#") return item;
       const key = getPageKeyFromPath(item.path);
-      return hasPermission(key) ? item : null;
+      
+      const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
+      const isDisabled = (item.label === "New Letter" && isAccessManager && !isSetupComplete);
+
+      return hasPermission(key) ? { ...item, isDisabled } : null;
     })
     .filter(Boolean);
 
@@ -278,6 +282,15 @@ export default function Sidebar() {
                     const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
                     const activeBg = isAccessManager ? "bg-sky-500" : "bg-slate-700";
                     const hoverBg = isAccessManager ? "hover:bg-sky-600" : "hover:bg-slate-700";
+                    
+                    if (item.isDisabled) {
+                        return `
+                        flex items-center gap-4 p-3 rounded-2xl transition-all duration-300 group/item relative
+                        opacity-40 grayscale cursor-not-allowed pointer-events-none select-none
+                        ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
+                        `;
+                    }
+
                     return `
                     flex items-center gap-4 p-3 rounded-2xl transition-all duration-300 group/item relative
                     ${isActive && !item.children && item.path !== "#"
@@ -288,7 +301,10 @@ export default function Sidebar() {
                 >
                   <item.icon className="w-6 h-6 transition-transform group-hover/item:scale-110 shrink-0" />
                   {(isSidebarExpanded || isMobileMenuOpen) && (
-                    <span className="text-xs font-black tracking-widest">{item.label}</span>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black tracking-widest">{item.label}</span>
+                      {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase">Complete Setup First</span>}
+                    </div>
                   )}
                   {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
                     <ChevronRight className={`w-4 h-4 ml-auto transition-transform duration-300 ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
@@ -413,21 +429,36 @@ export default function Sidebar() {
                     if (item.children) {
                       e.preventDefault();
                       toggleSubmenu(item.label);
+                    } else if (item.isDisabled) {
+                      e.preventDefault();
                     } else {
                       // setIsMobileMenuOpen(false);
                     }
                   }}
                   title={!isSidebarExpanded ? item.label : ""}
-                  className={({ isActive }) => `
+                  className={({ isActive }) => {
+                    if (item.isDisabled) {
+                        return `
+                        flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all duration-200 relative
+                        opacity-40 grayscale cursor-not-allowed pointer-events-none select-none
+                        ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
+                        `;
+                    }
+                    return `
                   flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all duration-200 relative
                   ${isActive && !item.children && item.path !== "#"
                       ? "bg-gray-200 dark:bg-[#333] text-gray-900 dark:text-white font-semibold"
                       : "text-gray-500 dark:text-gray-400 hover:bg-gray-200/70 dark:hover:bg-white/5"}
                   ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
-                `}
+                `}}
                 >
                   <item.icon className="w-4 h-4 shrink-0" />
-                  {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-sm truncate">{item.label}</span>}
+                  {(isSidebarExpanded || isMobileMenuOpen) && (
+                    <div className="flex flex-col truncate">
+                        <span className="text-sm">{item.label}</span>
+                        {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
+                    </div>
+                  )}
                   {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
                     <ChevronRight className={`w-3 h-3 ml-auto transition-transform duration-300 ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
                   )}
@@ -544,6 +575,8 @@ export default function Sidebar() {
                     if (item.children) {
                       e.preventDefault();
                       toggleSubmenu(item.label);
+                    } else if (item.isDisabled) {
+                      e.preventDefault();
                     }
                   }}
                   className={({ isActive }) => {
@@ -552,6 +585,14 @@ export default function Sidebar() {
                     const hoverBg = isAccessManager ? "hover:bg-sky-100 dark:hover:bg-sky-900/20" : "hover:bg-slate-700";
                     const hoverText = isAccessManager ? "hover:text-sky-600 dark:hover:text-sky-400" : "hover:text-white";
                     
+                    if (item.isDisabled) {
+                        return `
+                        flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200
+                        opacity-40 grayscale cursor-not-allowed pointer-events-none select-none
+                        ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
+                        `;
+                    }
+
                     return `
                     flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200
                     ${isActive && !item.children && item.path !== "#"
@@ -561,7 +602,12 @@ export default function Sidebar() {
                   `}}
                 >
                   <item.icon className={`w-4 h-4 shrink-0 transition-colors`} />
-                  {(isSidebarExpanded || isMobileMenuOpen) && <span className="text-sm">{item.label}</span>}
+                  {(isSidebarExpanded || isMobileMenuOpen) && (
+                    <div className="flex flex-col truncate">
+                        <span className="text-sm">{item.label}</span>
+                        {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
+                    </div>
+                  )}
                   {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
                     <ChevronRight className={`w-3 h-3 ml-auto transition-transform ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
                   )}
@@ -658,22 +704,33 @@ export default function Sidebar() {
                   if (item.children) {
                     e.preventDefault();
                     toggleSubmenu(item.label);
+                  } else if (item.isDisabled) {
+                    e.preventDefault();
                   }
                 }}
                 title={!isSidebarExpanded ? item.label : ""}
-                className={({ isActive }) => `
+                className={({ isActive }) => {
+                    if (item.isDisabled) {
+                        return `
+                        flex items-center gap-3 p-3 rounded-xl transition-all duration-200 relative
+                        opacity-40 grayscale cursor-not-allowed pointer-events-none select-none
+                        ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
+                        `;
+                    }
+                    return `
                 flex items-center gap-3 p-3 rounded-xl transition-all duration-200 relative
                 ${isActive && !item.children && item.path !== "#"
                     ? "bg-orange-100 text-orange-600 border border-orange-200 shadow-sm"
                     : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"}
                 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
-              `}
+              `}}
               >
                 <item.icon className="w-5 h-5 transition-transform shrink-0" />
                 {(isSidebarExpanded || isMobileMenuOpen) && (
-                  <span className="text-xs font-bold tracking-wide">
-                    {item.label}
-                  </span>
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold tracking-wide">{item.label}</span>
+                        {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
+                    </div>
                 )}
                 {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
                   <ChevronRight className={`w-4 h-4 ml-auto transition-transform duration-300 ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
