@@ -35,25 +35,101 @@ import { getFieldPresetForPage } from "../../utils/fieldPresets";
 import useAccess from "../../hooks/useAccess";
 
 
-const ACTIONS = [
-    { id: "can_view", label: "View", icon: Eye },
-    { id: "can_create", label: "Create", icon: Plus },
-    { id: "can_edit", label: "Edit", icon: Edit3 },
-    { id: "can_delete", label: "Delete", icon: Trash2 },
-    { id: "can_special", label: "Special", icon: Zap },
-    { id: "field_permissions", label: "Fields", icon: Settings }
-];
+const ActionCell = React.memo(({ pageId, action, value, onToggle, canEditField, matrix, setFieldModal }) => {
+    if (action.id === 'field_permissions') {
+        const hasPermissions = Object.keys(matrix[pageId]?.field_permissions || {}).length > 0;
+        return (
+            <td className="p-3 text-center">
+                <button
+                    disabled={!canEditField}
+                    onClick={() => {
+                        const currentFields = mergeFieldPermissions(pageId, matrix[pageId]?.field_permissions || {});
+                        setFieldModal({
+                            isOpen: true,
+                            pageId: pageId,
+                            fields: currentFields
+                        });
+                    }}
+                    className={`w-9 h-9 rounded-xl md:rounded-[1rem] flex items-center justify-center transition-all mx-auto ${hasPermissions
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                        : "bg-slate-100 dark:bg-white/5 text-gray-300 dark:text-gray-700 hover:text-blue-500"
+                        } ${!canEditField ? 'opacity-40 pointer-events-none' : ''}`}
+                >
+                    <Settings className="w-3 h-3" />
+                </button>
+            </td>
+        );
+    }
 
-const mergeFieldPermissions = (pageId, existing = {}) => {
-    const defaults = getFieldPresetForPage(pageId);
-    const projected = {};
-    Object.keys(defaults).forEach((key) => {
-        projected[key] = Object.prototype.hasOwnProperty.call(existing || {}, key)
-            ? existing[key]
-            : true;
-    });
-    return projected;
-};
+    return (
+        <td className="p-3 text-center">
+            <button
+                onClick={() => onToggle(pageId, action.id)}
+                className={`w-7 h-7 rounded-lg md:rounded-xl flex items-center justify-center transition-all mx-auto ${value
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                    : "bg-slate-100 dark:bg-white/5 text-gray-300 dark:text-gray-700 hover:text-blue-500"
+                    }`}
+            >
+                {value ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+            </button>
+        </td>
+    );
+});
+
+const PageRow = React.memo(({ index, page, matrix, onToggle, onToggleAll, canEditField, canAllowAll, canRestrict, setFieldModal, textColor }) => {
+    const pagePermissions = matrix[page.page_id] || {};
+
+    return (
+        <tr className="hover:bg-slate-50/50 dark:hover:bg-white/2 transition-colors">
+            <td className="p-3 text-[11px] font-black text-gray-400 font-mono">
+                {(index + 1).toString().padStart(2, '0')}
+            </td>
+            <td className="p-3">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/10 flex items-center justify-center text-blue-600 shrink-0">
+                        <Layout className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <span className={`text-[10px] font-black uppercase tracking-tight truncate ${textColor}`}>{page.page_name}</span>
+                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest truncate">{page.page_id}</span>
+                    </div>
+                </div>
+            </td>
+            {ACTIONS.map(action => (
+                <ActionCell
+                    key={action.id}
+                    pageId={page.page_id}
+                    action={action}
+                    value={pagePermissions[action.id]}
+                    onToggle={onToggle}
+                    canEditField={canEditField}
+                    matrix={matrix}
+                    setFieldModal={setFieldModal}
+                />
+            ))}
+            <td className="p-3">
+                <div className="flex justify-end gap-1.5 flex-wrap md:flex-nowrap">
+                    {canAllowAll && (
+                        <button
+                            onClick={() => onToggleAll(page.page_id, true)}
+                            className="px-3 py-1.5 rounded-lg bg-green-500/10 text-green-500 text-[8px] font-black uppercase tracking-widest hover:bg-green-500 hover:text-white transition-all shadow-sm active:scale-95 whitespace-nowrap"
+                        >
+                            Allow
+                        </button>
+                    )}
+                    {canRestrict && (
+                        <button
+                            onClick={() => onToggleAll(page.page_id, false)}
+                            className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 text-[8px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-95 whitespace-nowrap"
+                        >
+                            Deny
+                        </button>
+                    )}
+                </div>
+            </td>
+        </tr>
+    );
+});
 
 export default function RoleAccessMatrix() {
     const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
@@ -114,31 +190,17 @@ export default function RoleAccessMatrix() {
             }
 
             const [rolesData, pagesData] = await Promise.all([
-                rolePermissionService.getRolesWithPermissions(params),
+                rolePermissionService.getRoles(params),
                 systemPageService.getAll()
             ]);
             setAllRoles(rolesData);
 
-            const pageMap = new Map();
-            (pagesData || []).forEach((page) => pageMap.set(page.page_id, page));
-
-            // Backfill pages found in role permissions but not yet in system_pages
-            (rolesData || []).forEach((role) => {
-                (role.permissions || []).forEach((perm) => {
-                    if (!perm?.page_name || pageMap.has(perm.page_name)) return;
-                    pageMap.set(perm.page_name, {
-                        page_id: perm.page_name,
-                        page_name: humanizePageId(perm.page_name)
-                    });
-                });
-            });
-
-            const sortedPages = Array.from(pageMap.values()).sort((a, b) => a.page_name.localeCompare(b.page_name));
+            const sortedPages = (pagesData || []).sort((a, b) => a.page_name.localeCompare(b.page_name));
             setPages(sortedPages);
         } catch (error) {
             console.error("Failed to fetch initial data", error);
         }
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         fetchInitialData();
@@ -268,12 +330,14 @@ export default function RoleAccessMatrix() {
         );
     });
 
-    const categorizedPages = filteredPages.reduce((acc, page) => {
-        const cat = getPageCategory(page.page_id);
-        if (!acc[cat]) acc[cat] = [];
-        acc[cat].push(page);
-        return acc;
-    }, {});
+    const categorizedPages = React.useMemo(() => {
+        return filteredPages.reduce((acc, page) => {
+            const cat = getPageCategory(page.page_id);
+            if (!acc[cat]) acc[cat] = [];
+            acc[cat].push(page);
+            return acc;
+        }, {});
+    }, [filteredPages]);
 
     const CATEGORY_ORDER = [
         'System',
@@ -556,75 +620,19 @@ export default function RoleAccessMatrix() {
                                                     </td>
                                                 </tr>
                                                 {categorizedPages[category].map((page, index) => (
-                                                    <tr key={page.page_id} className="hover:bg-slate-50/50 dark:hover:bg-white/2 transition-colors">
-                                                        <td className="p-3 text-[11px] font-black text-gray-400 font-mono">
-                                                            {(index + 1).toString().padStart(2, '0')}
-                                                        </td>
-                                                        <td className="p-3">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/10 flex items-center justify-center text-blue-600 shrink-0">
-                                                                    <Layout className="w-4 h-4" />
-                                                                </div>
-                                                                <div className="flex flex-col min-w-0">
-                                                                    <span className={`text-[10px] font-black uppercase tracking-tight truncate ${textColor}`}>{page.page_name}</span>
-                                                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest truncate">{page.page_id}</span>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        {ACTIONS.map(action => (
-                                                            <td key={action.id} className="p-3 text-center">
-                                                                {action.id === 'field_permissions' ? (
-                                                                    <button
-                                                                        disabled={!canEditField}
-                                                                        onClick={() => {
-                                                                            const currentFields = mergeFieldPermissions(page.page_id, matrix[page.page_id]?.field_permissions || {});
-                                                                            setFieldModal({
-                                                                                isOpen: true,
-                                                                                pageId: page.page_id,
-                                                                                fields: currentFields
-                                                                            });
-                                                                        }}
-                                                                        className={`w-9 h-9 rounded-xl md:rounded-[1rem] flex items-center justify-center transition-all mx-auto ${Object.keys(matrix[page.page_id]?.field_permissions || {}).length > 0
-                                                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                                                                            : "bg-slate-100 dark:bg-white/5 text-gray-300 dark:text-gray-700 hover:text-blue-500"
-                                                                            } ${!canEditField ? 'opacity-40 pointer-events-none' : ''}`}
-                                                                    >
-                                                                        <Settings className="w-3 h-3" />
-                                                                    </button>
-                                                                ) : (
-                                                                    <button
-                                                                        onClick={() => handleToggle(page.page_id, action.id)}
-                                                                        className={`w-7 h-7 rounded-lg md:rounded-xl flex items-center justify-center transition-all mx-auto ${matrix[page.page_id]?.[action.id]
-                                                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                                                                            : "bg-slate-100 dark:bg-white/5 text-gray-300 dark:text-gray-700 hover:text-blue-500"
-                                                                            }`}
-                                                                    >
-                                                                        {matrix[page.page_id]?.[action.id] ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                                                                    </button>
-                                                                )}
-                                                            </td>
-                                                        ))}
-                                                        <td className="p-3">
-                                                            <div className="flex justify-end gap-1.5 flex-wrap md:flex-nowrap">
-                                                                {canAllowAll && (
-                                                                    <button
-                                                                        onClick={() => handleToggleAll(page.page_id, true)}
-                                                                        className="px-3 py-1.5 rounded-lg bg-green-500/10 text-green-500 text-[8px] font-black uppercase tracking-widest hover:bg-green-500 hover:text-white transition-all shadow-sm active:scale-95 whitespace-nowrap"
-                                                                    >
-                                                                        Allow
-                                                                    </button>
-                                                                )}
-                                                                {canRestrict && (
-                                                                    <button
-                                                                        onClick={() => handleToggleAll(page.page_id, false)}
-                                                                        className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 text-[8px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-95 whitespace-nowrap"
-                                                                    >
-                                                                        Deny
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
+                                                    <PageRow
+                                                        key={`${selectedRoleId}-${page.page_id}`}
+                                                        index={index}
+                                                        page={page}
+                                                        matrix={matrix}
+                                                        onToggle={handleToggle}
+                                                        onToggleAll={handleToggleAll}
+                                                        canEditField={canEditField}
+                                                        canAllowAll={canAllowAll}
+                                                        canRestrict={canRestrict}
+                                                        setFieldModal={setFieldModal}
+                                                        textColor={textColor}
+                                                    />
                                                 ))}
                                             </React.Fragment>
                                         ))}
