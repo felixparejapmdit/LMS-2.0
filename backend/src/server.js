@@ -105,9 +105,22 @@ async function startServer() {
             await sequelize.query("CREATE UNIQUE INDEX IF NOT EXISTS role_page_unique ON role_permissions (role_id, page_name)");
         } catch (idxErr) { }
 
-        // Start listening
-        app.listen(PORT, () => {
-            console.log(`Server is running on port ${PORT}`);
+        // Start listening on all network interfaces (bind to 0.0.0.0)
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`\x1b[32m✔\x1b[0m Server is running on port ${PORT}`);
+            
+            // Log local network IPs to help the user connect from other devices
+            const os = require('os');
+            const interfaces = os.networkInterfaces();
+            console.log('Available on your network:');
+            console.log(`  - Local:   http://localhost:${PORT}`);
+            for (const name of Object.keys(interfaces)) {
+                for (const iface of interfaces[name]) {
+                    if (iface.family === 'IPv4' && !iface.internal) {
+                        console.log(`  - Network: http://${iface.address}:${PORT}`);
+                    }
+                }
+            }
         });
 
         setupTelegramWebhook().catch(() => { });
