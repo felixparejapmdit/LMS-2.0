@@ -49,21 +49,36 @@ export default function DepartmentViewer() {
         }
     }, [selectedDeptId, currentPage]);
 
-    const fetchAssignedDepartments = async () => {
+    const fetchAssignedDepartments = async (retryCount = 0) => {
+        if (!user?.id) return;
+        
         try {
             const res = await axios.get(`${API_BASE}/inter-dept/users/${user.id}`);
-            // Extract unique departments from mapping
-            const depts = res.data.map(mapping => mapping.department);
-            setAssignedDepts(depts);
             
-            // Auto-select first if available
-            if (depts.length > 0) {
-                setSelectedDeptId(depts[0].id.toString());
+            if (Array.isArray(res.data)) {
+                // Extract unique departments from mapping
+                const depts = res.data.map(mapping => mapping.department).filter(Boolean);
+                setAssignedDepts(depts);
+                
+                // Auto-select first if available
+                if (depts.length > 0 && !selectedDeptId) {
+                    const firstDept = depts[0];
+                    if (firstDept && firstDept.id) {
+                        setSelectedDeptId(firstDept.id.toString());
+                    }
+                }
             }
         } catch (error) {
-            console.error("Fetch depts error:", error);
+            console.error("Fetch depts error:", error.message);
+            // Simple retry for aborted requests or transient network issues (up to 2 times)
+            if (retryCount < 2 && (error.code === 'ECONNABORTED' || error.message.includes('aborted'))) {
+                console.log(`Retrying fetch depts... (${retryCount + 1})`);
+                setTimeout(() => fetchAssignedDepartments(retryCount + 1), 1000);
+            }
         } finally {
-            setLoading(false);
+            if (retryCount === 0 || retryCount >= 2) {
+                setLoading(false);
+            }
         }
     };
 
