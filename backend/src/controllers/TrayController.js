@@ -4,7 +4,7 @@ const { Op } = require('sequelize');
 class TrayController {
     static async getAll(req, res) {
         try {
-            const { dept_id } = req.query;
+            const { dept_id, include_letters } = req.query;
             const where = {};
             
             if (dept_id && dept_id !== 'all') {
@@ -18,15 +18,22 @@ class TrayController {
                 }
             }
 
+            const include = [
+                { model: Department, as: 'department' }
+            ];
+
+            // Only join letters if explicitly requested (it's very heavy)
+            if (include_letters === 'true') {
+                include.push({ model: Letter, as: 'letters', attributes: ['id'] });
+            }
+
             const trays = await Tray.findAll({
                 where,
-                include: [
-                    { model: Letter, as: 'letters' },
-                    { model: Department, as: 'department' }
-                ]
+                include
             });
             res.json(trays);
         } catch (error) {
+            console.error("[ERROR] TrayController.getAll:", error.message);
             res.status(500).json({ error: error.message });
         }
     }

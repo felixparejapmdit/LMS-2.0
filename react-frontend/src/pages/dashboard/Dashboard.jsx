@@ -162,12 +162,13 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   };
 
   const fetchTrays = async () => {
+    if (!user?.id) return;
     try {
       const deptId = forcedDeptId ?? (user?.dept_id?.id ?? user?.dept_id ?? null);
-      const data = await trayService.getAllTrays(deptId);
+      const data = await trayService.getAllTrays({ dept_id: deptId });
       setTrays(data);
     } catch (error) {
-      console.error("Error fetching trays:", error);
+      console.error("Error fetching trays:", error.message);
     }
   };
 

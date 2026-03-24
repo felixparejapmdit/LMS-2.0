@@ -5,8 +5,16 @@ const API_URL = `${API_BASE}/letters`;
 
 class LetterService {
     async getAll(params = {}) {
-        const response = await axios.get(API_URL, { params });
-        return response.data;
+        try {
+            const options = {
+                params: (params && typeof params === 'object') ? params : {}
+            };
+            const response = await axios.get(API_URL, options);
+            return response.data;
+        } catch (error) {
+            console.error('Error in LetterService.getAll:', error.message);
+            throw error;
+        }
     }
 
     async getByLmsId(lms_id) {

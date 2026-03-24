@@ -6,10 +6,14 @@ const API_URL = `${API_BASE}/trays`;
 class TrayService {
     async getAllTrays(params = {}) {
         try {
-            const response = await axios.get(API_URL, { params });
+            // Safety: Ensure params is an object before passing to axios.get
+            const options = {
+                params: (params && typeof params === 'object') ? params : {}
+            };
+            const response = await axios.get(API_URL, options);
             return response.data;
         } catch (error) {
-            console.error('Error in TrayService.getAllTrays:', error);
+            console.error('Error in TrayService.getAllTrays:', error.message);
             throw error;
         }
     }

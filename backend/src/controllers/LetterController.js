@@ -1,32 +1,38 @@
-const { Letter, LetterAssignment, LetterLog, Person, User, ProcessStep, Status, Endorsement, Department, Tray, LetterKind, Comment } = require('../models/associations');
+const { Letter, LetterAssignment, LetterLog, Person, User, ProcessStep, Status, Endorsement, Department, Tray, LetterKind, Comment, Attachment } = require('../models/associations');
 const sequelize = require('../config/db');
 const { Op } = require('sequelize');
 
 class LetterController {
     static async getAll(req, res) {
         try {
-            const { user_id, role, department_id, page = 1, limit = 50 } = req.query;
+            const { user_id, role, department_id, dept_id, page = 1, limit = 50 } = req.query;
             const where = {};
             
             const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
             const offset = (parseInt(page) - 1) * parseInt(limit);
             const queryLimit = parseInt(limit);
 
+            const isSpecificDept = (department_id || dept_id) && 
+                                   (department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') &&
+                                   (dept_id !== 'all' && dept_id !== 'null' && dept_id !== 'undefined');
+            
+            const targetDeptId = department_id || dept_id;
+
             if (normalizedRole === 'USER' && user_id) {
-                const hasValidDepartment = department_id && department_id !== 'null' && department_id !== 'undefined' && department_id !== '';
                 const visibilityClauses = [{ encoder_id: user_id }];
-                if (hasValidDepartment) {
-                    visibilityClauses.push({ '$assignments.department_id$': department_id });
-                    visibilityClauses.push({ dept_id: department_id });
+                if (isSpecificDept) {
+                    visibilityClauses.push({ '$assignments.department_id$': targetDeptId });
+                    visibilityClauses.push({ dept_id: targetDeptId });
                 }
                 where[Op.or] = visibilityClauses;
-            } else if (normalizedRole === 'ACCESS MANAGER' && department_id) {
+            } else if (normalizedRole === 'ACCESS MANAGER' && targetDeptId) {
                 where[Op.or] = [
-                    { dept_id: department_id },
-                    { '$assignments.department_id$': department_id }
+                    { dept_id: targetDeptId },
+                    { '$assignments.department_id$': targetDeptId }
                 ];
-            } else if (req.query.dept_id && req.query.dept_id !== 'all') {
-                where.dept_id = (req.query.dept_id === 'null' || req.query.dept_id === 'undefined') ? null : req.query.dept_id;
+            } else if (isSpecificDept) {
+                // For other roles (like Administrator) filtering by dept
+                where.dept_id = targetDeptId;
             }
 
             const { count, rows } = await Letter.findAndCountAll({
@@ -46,7 +52,7 @@ class LetterController {
                 order: [['created_at', 'DESC']],
                 limit: queryLimit,
                 offset: offset,
-                distinct: true // Important when using includes with findAndCountAll
+                distinct: true
             });
 
             res.json({
@@ -57,8 +63,12 @@ class LetterController {
                 totalPages: Math.ceil(count / queryLimit)
             });
         } catch (error) {
-            console.error("[ERROR] LetterController.getAll:", error);
-            res.status(500).json({ error: error.message });
+            console.error("[ERROR] LetterController.getAll (Detailed):", {
+                message: error.message,
+                stack: error.stack,
+                query: req.query
+            });
+            res.status(500).json({ error: "Letter lookup failed: " + error.message });
         }
     }
 

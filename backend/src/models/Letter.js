@@ -68,7 +68,7 @@ const Letter = sequelize.define('Letter', {
         type: DataTypes.INTEGER
     },
     attachment_id: {
-        type: DataTypes.STRING
+        type: DataTypes.INTEGER
     },
     show_atg: {
         type: DataTypes.BOOLEAN,
