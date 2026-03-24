@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import LetterCard from "../../components/LetterCard";
 import axios from "axios";
@@ -130,7 +130,7 @@ export default function Home() {
         let totalStats = stats.taskDistribution?.reduce((s, d) => s + d.value, 0) || 1;
         let angle = 0;
         const colors = ['#3B82F6', '#F97316', '#10B981', '#6366F1', '#8B5CF6', '#EF4444'];
-        
+
         return (
             <div className="space-y-6">
                 {/* Visual Breakdown Donut Chart */}
@@ -159,7 +159,7 @@ export default function Home() {
                                 {stats.taskDistribution.map((d, i) => (
                                     <div key={d.name} className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
                                         <div className="flex items-center gap-2">
-                                            <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{backgroundColor: colors[i % colors.length]}}></span>
+                                            <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: colors[i % colors.length] }}></span>
                                             <span className="text-gray-500 dark:text-gray-400 line-clamp-1 max-w-[120px]">{d.name}</span>
                                         </div>
                                         <span className="text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-white/5 px-2 py-0.5 rounded-lg">{d.value}</span>
@@ -205,20 +205,21 @@ export default function Home() {
                         <div className="relative pl-3.5 border-l-2 border-slate-100 dark:border-[#333] space-y-5 pt-1">
                             {stats.recentActivityLogs?.map(log => {
                                 const minAgo = Math.floor((new Date() - new Date(log.timestamp)) / 60000);
-                                const timeStr = minAgo < 60 ? `${minAgo} min${minAgo !== 1 ? 's' : ''}` : minAgo < 1440 ? `${Math.floor(minAgo/60)} hr${Math.floor(minAgo/60) !== 1 ? 's' : ''}` : `${Math.floor(minAgo/1440)} d`;
+                                const timeStr = minAgo < 60 ? `${minAgo} min${minAgo !== 1 ? 's' : ''}` : minAgo < 1440 ? `${Math.floor(minAgo / 60)} hr${Math.floor(minAgo / 60) !== 1 ? 's' : ''}` : `${Math.floor(minAgo / 1440)} d`;
                                 return (
-                                <div key={log.id} className="relative">
-                                    <div className={`absolute -left-[20px] top-1.5 w-2.5 h-2.5 rounded-full ${layoutStyle === 'notion' ? 'ring-white dark:ring-[#191919]' : 'ring-white dark:ring-[#141414]'} bg-blue-500 ring-4`}></div>
-                                    <p className="text-[10.5px] text-gray-600 dark:text-gray-400 leading-snug">
-                                        <span className="font-bold text-gray-900 dark:text-white mr-1">{log.user?.first_name || 'System'}</span>
-                                        {log.action_type}{' '}
-                                        {log.Letter?.lms_id && <span className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1 rounded">{log.Letter.lms_id}</span>}
-                                    </p>
-                                    <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mt-1.5">
-                                        {timeStr} ago
-                                    </p>
-                                </div>
-                            )})}
+                                    <div key={log.id} className="relative">
+                                        <div className={`absolute -left-[20px] top-1.5 w-2.5 h-2.5 rounded-full ${layoutStyle === 'notion' ? 'ring-white dark:ring-[#191919]' : 'ring-white dark:ring-[#141414]'} bg-blue-500 ring-4`}></div>
+                                        <p className="text-[10.5px] text-gray-600 dark:text-gray-400 leading-snug">
+                                            <span className="font-bold text-gray-900 dark:text-white mr-1">{log.user?.first_name || 'System'}</span>
+                                            {log.action_type}{' '}
+                                            {log.Letter?.lms_id && <span className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1 rounded">{log.Letter.lms_id}</span>}
+                                        </p>
+                                        <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mt-1.5">
+                                            {timeStr} ago
+                                        </p>
+                                    </div>
+                                )
+                            })}
                         </div>
                     )}
                 </div>

@@ -222,6 +222,7 @@ class StatsController {
             const { department_id, user_id, role } = req.query;
             const where = {};
             
+            const normalizedRole = role ? role.toString().toUpperCase() : '';
             const isAccessManager = normalizedRole === 'ACCESS MANAGER';
             const isAdmin = ALL_LETTER_ROLES.has(normalizedRole);
 

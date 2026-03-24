@@ -272,10 +272,28 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const renderQuickActions = (assignment) => {
     if (activeStepTab !== 'pending') return null;
     return (
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
-        <button onClick={(e) => handleQuickAction(e, assignment, 'review')} className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white border border-emerald-100"><FileEdit className="w-3.5 h-3.5" /></button>
-        <button onClick={(e) => handleQuickAction(e, assignment, 'signature')} className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-100"><PenTool className="w-3.5 h-3.5" /></button>
-        <button onClick={(e) => handleQuickAction(e, assignment, 'delete')} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border border-red-100"><Trash2 className="w-3.5 h-3.5" /></button>
+      <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-300">
+        <button 
+          onClick={(e) => handleQuickAction(e, assignment, 'review')} 
+          title="Move to For Review"
+          className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white border border-emerald-100 transition-colors"
+        >
+          <FileEdit className="w-3.5 h-3.5" />
+        </button>
+        <button 
+          onClick={(e) => handleQuickAction(e, assignment, 'signature')} 
+          title="Move to For Signature"
+          className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-100 transition-colors"
+        >
+          <PenTool className="w-3.5 h-3.5" />
+        </button>
+        <button 
+          onClick={(e) => handleQuickAction(e, assignment, 'delete')} 
+          title="Delete Document"
+          className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border border-red-100 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
     );
   };
@@ -325,6 +343,36 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         <button onClick={handleSelectAll} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedIds.length > 0 ? (isGrid ? 'bg-blue-600' : 'bg-orange-600') + ' text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-400'}`}>
           {selectedIds.length === filteredBySteps.length && filteredBySteps.length > 0 ? 'Deselect All' : 'Check All'}
         </button>
+
+        {activeStepTab === 'pending' && (
+          <div className="flex items-center gap-1.5 ml-1 border-l pl-2 border-slate-200 dark:border-white/10">
+            <button
+              onClick={() => handleBulkAction('approve_review')}
+              disabled={selectedIds.length === 0}
+              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-all ${selectedIds.length === 0 ? 'opacity-30 pointer-events-none' : 'hover:scale-105 shadow-sm shadow-emerald-100'}`}
+              title="Move to For Review"
+            >
+              For Review
+            </button>
+            <button
+              onClick={() => handleBulkAction('approve_signature')}
+              disabled={selectedIds.length === 0}
+              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-200 text-blue-600 hover:bg-blue-50 transition-all ${selectedIds.length === 0 ? 'opacity-30 pointer-events-none' : 'hover:scale-105 shadow-sm shadow-blue-100'}`}
+              title="Move to For Signature"
+            >
+              For Signature
+            </button>
+            <button
+              onClick={() => handleBulkAction('delete')}
+              disabled={selectedIds.length === 0}
+              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-200 text-red-600 hover:bg-red-50 transition-all ${selectedIds.length === 0 ? 'opacity-30 pointer-events-none' : 'hover:scale-105 shadow-sm shadow-red-100'}`}
+              title="Delete Selected"
+            >
+              Delete
+            </button>
+          </div>
+        )}
+
         {showTrays && trays.map(t => (
           <button key={t.id} onClick={() => handleBulkAction('tray', t.id)} disabled={selectedIds.length === 0} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedIds.length > 0 ? (isGrid ? 'border-blue-200 text-blue-600 hover:bg-blue-50' : 'border-orange-200 text-orange-600 hover:bg-orange-50') : 'bg-gray-50 text-gray-300 pointer-events-none'}`}>{t.tray_no}</button>
         ))}

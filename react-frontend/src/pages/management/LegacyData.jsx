@@ -33,7 +33,18 @@ export default function LegacyData() {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedLetter, setSelectedLetter] = useState(null);
     const [isTrackDrawerOpen, setIsTrackDrawerOpen] = useState(false);
-    
+    const [isPdfDrawerOpen, setIsPdfDrawerOpen] = useState(false);
+    const [selectedPdfUrl, setSelectedPdfUrl] = useState("");
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 25;
+
+    // Filter State
+    const [filterMonth, setFilterMonth] = useState("");
+    const [filterYear, setFilterYear] = useState("");
+    const [filterStatus, setFilterStatus] = useState("");
+
     // Use permissions from letter-tracker as requested "copy features"
     const canSearch = canField("legacy-data", "search") || canField("letter-tracker", "search");
     const canPdf = canField("legacy-data", "pdf_button") || canField("letter-tracker", "pdf_button");
@@ -49,9 +60,18 @@ export default function LegacyData() {
     const fetchLetters = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
-            const data = await letterService.getLegacyData();
-            const filtered = Array.isArray(data) ? data : [];
-            setLetters(filtered);
+            const response = await letterService.getLegacyData();
+            // Handle various response formats (direct array, or nested in .data or .letters)
+            let data = [];
+            if (Array.isArray(response)) {
+                data = response;
+            } else if (response && Array.isArray(response.data)) {
+                data = response.data;
+            } else if (response && Array.isArray(response.letters)) {
+                data = response.letters;
+            }
+
+            setLetters(data);
         } catch (error) {
             console.error("Failed to fetch legacy letters:", error);
         } finally {
@@ -66,15 +86,60 @@ export default function LegacyData() {
 
     const filteredLetters = letters.filter(letter => {
         // Search Filter
-        if (!searchTerm) return true;
-
         const s = searchTerm.toLowerCase();
-        return (
-            (letter.lms_id || letter.entry_id || '').toString().toLowerCase().includes(s) ||
-            (letter.sender || '').toLowerCase().includes(s) ||
-            (letter.summary || '').toLowerCase().includes(s)
-        );
+        const legacyId = (letter.atg_id || letter.lms_id || letter.entry_id || letter.id || '').toString().toLowerCase();
+        const sender = (letter.sender || '').toLowerCase();
+        const summary = (letter.letsum || letter.summary || letter.subject || '').toLowerCase();
+        
+        const matchesSearch = !searchTerm || legacyId.includes(s) || sender.includes(s) || summary.includes(s);
+
+        // Date filtration
+        const dateStr = letter.date_rec || letter.date_received;
+        let dateObj = null;
+        if (dateStr) {
+            dateObj = new Date(dateStr);
+        }
+
+        const matchesMonth = !filterMonth || (dateObj && !isNaN(dateObj) && (dateObj.getMonth() + 1).toString() === filterMonth);
+        const matchesYear = !filterYear || (dateObj && !isNaN(dateObj) && dateObj.getFullYear().toString() === filterYear);
+
+        // Status filtration
+        const status = letter.status || letter.status_name || 'ARCHIVED';
+        const matchesStatus = !filterStatus || status === filterStatus;
+
+        return matchesSearch && matchesMonth && matchesYear && matchesStatus;
     });
+
+    const totalPages = Math.ceil(filteredLetters.length / itemsPerPage);
+    const paginatedLetters = filteredLetters.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    // Derived Filters
+    const uniqueYears = [...new Set(letters.map(l => {
+        const d = l.date_rec || l.date_received;
+        if (!d) return null;
+        const dateObj = new Date(d);
+        return isNaN(dateObj) ? null : dateObj.getFullYear();
+    }).filter(Boolean))].sort((a, b) => b - a);
+
+    const uniqueStatuses = [...new Set(letters.map(l => l.status || l.status_name || 'ARCHIVED'))].sort();
+
+    const months = [
+        { val: "1", label: "January" }, { val: "2", label: "February" }, { val: "3", label: "March" },
+        { val: "4", label: "April" }, { val: "5", label: "May" }, { val: "6", label: "June" },
+        { val: "7", label: "July" }, { val: "8", label: "August" }, { val: "9", label: "September" },
+        { val: "10", label: "October" }, { val: "11", label: "November" }, { val: "12", label: "December" }
+    ];
+
+    const resetFilters = () => {
+        setSearchTerm("");
+        setFilterMonth("");
+        setFilterYear("");
+        setFilterStatus("");
+        setCurrentPage(1);
+    };
 
     const handleTrackOpen = (letter) => {
         setSelectedLetter(letter);
@@ -82,11 +147,15 @@ export default function LegacyData() {
     };
 
     const handleViewPDF = (letter) => {
-        if (!letter.attachment_path) {
-            alert("No PDF attachment found for this record.");
+        const path = letter.file_name || letter.attachment_path || letter.scanned_copy;
+        if (!path) {
+            alert("This document does not have an attached PDF file.");
             return;
         }
-        window.open(letter.attachment_path, '_blank');
+        
+        const fullPath = path.startsWith('http') ? path : `http://172.18.162.84/${path}`;
+        setSelectedPdfUrl(fullPath);
+        setIsPdfDrawerOpen(true);
     };
 
     const handlePrintQR = (entry_id) => {
@@ -149,8 +218,8 @@ export default function LegacyData() {
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Historical Data Bank</span>
-                            <h1 className={`text-xl font-bold tracking-tighter uppercase font-outfit ${textColor}`}>Legacy Data Viewer</h1>
+                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Previous System Records</span>
+                             <h1 className={`text-xl font-bold tracking-tighter uppercase font-outfit ${textColor}`}>Archived Documents</h1>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -165,21 +234,61 @@ export default function LegacyData() {
                         {/* Summary & Search */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
-                                <h2 className={`text-2xl font-bold uppercase tracking-tight ${textColor}`}>Old Records System</h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Archived data from the previous system (v1.0)</p>
+                             <div>
+                                 <h2 className={`text-2xl font-bold uppercase tracking-tight ${textColor}`}>Archived Records</h2>
+                                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Letters and documents from the old system</p>
+                             </div>
                             </div>
-                            {canSearch && (
-                                <div className="relative group min-w-[300px]">
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search reference, sender..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className={`w-full pl-12 pr-4 py-3 rounded-xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}
-                                    />
-                                </div>
-                            )}
+                             {canSearch && (
+                                 <div className="flex flex-wrap items-center gap-3">
+                                     <select
+                                         value={filterMonth}
+                                         onChange={(e) => { setFilterMonth(e.target.value); setCurrentPage(1); }}
+                                         className={`pl-4 pr-10 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all outline-none appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em] ${cardBg}`}
+                                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
+                                     >
+                                         <option value="">All Months</option>
+                                         {months.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
+                                     </select>
+
+                                     <select
+                                         value={filterYear}
+                                         onChange={(e) => { setFilterYear(e.target.value); setCurrentPage(1); }}
+                                         className={`pl-4 pr-10 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all outline-none appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em] ${cardBg}`}
+                                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
+                                     >
+                                         <option value="">All Years</option>
+                                         {uniqueYears.map(y => <option key={y} value={y.toString()}>{y}</option>)}
+                                     </select>
+
+                                     <select
+                                         value={filterStatus}
+                                         onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+                                         className={`pl-4 pr-10 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all outline-none appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em] ${cardBg}`}
+                                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
+                                     >
+                                         <option value="">All Statuses</option>
+                                         {uniqueStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                                     </select>
+
+                                     <div className="relative group min-w-[250px]">
+                                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                         <input
+                                             type="text"
+                                             placeholder="Search reference, sender..."
+                                             value={searchTerm}
+                                             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                             className={`w-full pl-12 pr-4 py-3 rounded-xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${cardBg}`}
+                                         />
+                                     </div>
+                                     
+                                     {(searchTerm || filterMonth || filterYear || filterStatus) && (
+                                         <button onClick={resetFilters} className="p-3 text-xs font-bold text-orange-500 hover:bg-orange-50 rounded-xl transition-all uppercase tracking-widest">
+                                             Reset
+                                         </button>
+                                     )}
+                                 </div>
+                             )}
                         </div>
 
                         {/* Table Container */}
@@ -188,7 +297,7 @@ export default function LegacyData() {
                                 <table className="w-full text-left border-collapse min-w-[1000px]">
                                     <thead>
                                         <tr className={`border-b ${'border-gray-50 dark:border-[#222] bg-gray-50/50'}`}>
-                                            <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Legacy ID</th>
+                                            <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">ID</th>
                                             <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Date Received</th>
                                             <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Sender</th>
                                             <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Letter Summary</th>
@@ -201,30 +310,37 @@ export default function LegacyData() {
                                     <tbody className="divide-y divide-gray-50 dark:divide-[#222]">
                                         {loading ? (
                                             <tr><td colSpan="8" className="p-20 text-center"><Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto" /></td></tr>
-                                        ) : filteredLetters.length === 0 ? (
+                                        ) : paginatedLetters.length === 0 ? (
                                             <tr><td colSpan="8" className="p-20 text-center text-gray-400 font-bold uppercase tracking-widest">No matching records found</td></tr>
-                                        ) : filteredLetters.map((letter, idx) => (
+                                        ) : paginatedLetters.map((letter, idx) => (
                                             <tr key={idx} className="hover:bg-gray-50/80 dark:hover:bg-white/5 transition-colors group">
                                                 <td className="px-5 py-4 whitespace-nowrap">
                                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 ${textColor}`}>
-                                                        {letter.lms_id || letter.entry_id}
+                                                        {letter.atg_id || letter.lms_id || letter.entry_id || letter.id}
                                                     </span>
                                                 </td>
                                                 <td className="px-5 py-4 whitespace-nowrap">
                                                     <div className="flex flex-col">
-                                                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{letter.date_received ? new Date(letter.date_received).toLocaleDateString() : 'N/A'}</span>
-                                                        <span className="text-[10px] text-orange-500 font-bold">{letter.date_received ? new Date(letter.date_received).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : ''}</span>
+                                                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                                            {letter.date_rec || letter.date_received ? new Date(letter.date_rec || letter.date_received).toLocaleDateString() : 'N/A'}
+                                                        </span>
+                                                        <span className="text-[10px] text-orange-500 font-bold">
+                                                            {letter.date_rec || letter.date_received ? (
+                                                                // Handle potential custom date formats if necessary
+                                                                new Date(letter.date_rec || letter.date_received).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+                                                            ) : ''}
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 <td className="px-5 py-4 text-xs font-bold text-slate-700 dark:text-slate-200 uppercase truncate max-w-[150px]">
                                                     {letter.sender}
                                                 </td>
                                                 <td className="px-5 py-4 max-w-xs">
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium line-clamp-1">{letter.summary || letter.subject}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium line-clamp-1">{letter.letsum || letter.summary || letter.subject}</p>
                                                 </td>
                                                 <td className="px-5 py-4 text-center">
                                                     <span className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest bg-gray-50 text-gray-600 border border-gray-100`}>
-                                                        {letter.status_name || 'ARCHIVED'}
+                                                        {letter.status || letter.status_name || 'ARCHIVED'}
                                                     </span>
                                                 </td>
                                                 <td className="px-5 py-4 text-center">
@@ -235,7 +351,7 @@ export default function LegacyData() {
                                                 <td className="px-5 py-4 text-center">
                                                     <div className="flex justify-center">
                                                         <button
-                                                            onClick={() => handlePrintQR(letter.lms_id || letter.entry_id)}
+                                                            onClick={() => handlePrintQR(letter.atg_id || letter.lms_id || letter.entry_id)}
                                                             className="p-2 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all border border-blue-100 dark:border-blue-900/20 shadow-sm"
                                                             title="Print QR Code"
                                                         >
@@ -245,7 +361,7 @@ export default function LegacyData() {
                                                 </td>
                                                 <td className="px-5 py-4 text-center">
                                                     <div className="flex justify-center">
-                                                        {canPdf && (letter.attachment_path || letter.scanned_copy) ? (
+                                                        {canPdf && (letter.file_name || letter.attachment_path || letter.scanned_copy) ? (
                                                             <button onClick={() => handleViewPDF(letter)} className="p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-3.5 h-3.5" /></button>
                                                         ) : <span className="text-gray-300">-</span>}
                                                     </div>
@@ -254,13 +370,94 @@ export default function LegacyData() {
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
-                        </div>
+                             </div>
+                         </div>
+                         
+                         {/* Pagination */}
+                         {!loading && totalPages > 1 && (
+                             <div className="flex items-center justify-between px-2">
+                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                     Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredLetters.length)} of {filteredLetters.length} entries
+                                 </p>
+                                 <div className="flex items-center gap-2">
+                                     <button
+                                         disabled={currentPage === 1}
+                                         onClick={() => setCurrentPage(prev => prev - 1)}
+                                         className={`p-2 rounded-lg border transition-all ${currentPage === 1 ? 'opacity-50 cursor-not-allowed bg-gray-50 text-gray-300' : 'hover:bg-orange-500 hover:text-white text-slate-600 border-gray-200 bg-white'}`}
+                                     >
+                                         <ChevronRight className="w-4 h-4 rotate-180" />
+                                     </button>
+
+                                     <div className="flex items-center gap-1">
+                                         {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                                             let pageNum;
+                                             if (totalPages <= 5) pageNum = i + 1;
+                                             else if (currentPage <= 3) pageNum = i + 1;
+                                             else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                                             else pageNum = currentPage - 2 + i;
+
+                                             return (
+                                                 <button
+                                                     key={pageNum}
+                                                     onClick={() => setCurrentPage(pageNum)}
+                                                     className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === pageNum ? 'bg-orange-500 text-white shadow-lg' : 'hover:bg-gray-100 text-slate-600 border border-gray-100 bg-white'}`}
+                                                 >
+                                                     {pageNum}
+                                                 </button>
+                                             );
+                                         })}
+                                     </div>
+
+                                     <button
+                                         disabled={currentPage === totalPages}
+                                         onClick={() => setCurrentPage(prev => prev + 1)}
+                                         className={`p-2 rounded-lg border transition-all ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed bg-gray-50 text-gray-300' : 'hover:bg-orange-500 hover:text-white text-slate-600 border-gray-200 bg-white'}`}
+                                     >
+                                         <ChevronRight className="w-4 h-4" />
+                                     </button>
+                                 </div>
+                             </div>
+                         )}
                     </div>
                 </div>
             </main>
 
-            {/* TRACK DRAWER */}
+            {/* PDF VIEWER DRAWER (LEFT SIDE) */}
+            {isPdfDrawerOpen && (
+                <div className="fixed inset-0 z-[100] flex justify-start">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsPdfDrawerOpen(false)} />
+                    <div className={`w-full max-w-4xl ${cardBg} h-full relative z-10 animate-in slide-in-from-left duration-500 flex flex-col border-r shadow-2xl`}>
+                        <div className="p-4 border-b flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="p-2 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-500">
+                                    <FileText className="w-5 h-5" />
+                                </div>
+                                <h2 className={`text-md font-bold uppercase tracking-tight ${textColor}`}>Document Preview</h2>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => window.open(selectedPdfUrl, '_blank')}
+                                    className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-all font-bold text-[10px] uppercase flex items-center gap-1"
+                                >
+                                    <Printer className="w-4 h-4" /> Open Original
+                                </button>
+                                <button onClick={() => setIsPdfDrawerOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl text-gray-400">
+                                    <ChevronRight className="w-6 h-6 rotate-180" />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex-1 bg-slate-100 dark:bg-black overflow-hidden relative">
+                            <iframe
+                                src={selectedPdfUrl}
+                                className="w-full h-full border-none"
+                                title="PDF Document Viewer"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* TRACK DRAWER (RIGHT SIDE) */}
             {
                 isTrackDrawerOpen && selectedLetter && (
                     <div className="fixed inset-0 z-[100] flex justify-end">
@@ -271,10 +468,10 @@ export default function LegacyData() {
                                     <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/10 flex items-center justify-center text-indigo-500">
                                         <GitMerge className="w-6 h-6" />
                                     </div>
-                                    <div>
-                                        <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Legacy Log Track</h2>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedLetter.lms_id || selectedLetter.entry_id}</p>
-                                    </div>
+                                     <div>
+                                         <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Document History</h2>
+                                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedLetter.atg_id || selectedLetter.lms_id || selectedLetter.entry_id || selectedLetter.id}</p>
+                                     </div>
                                 </div>
                                 <button onClick={() => setIsTrackDrawerOpen(false)} className="p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl text-gray-400"><ChevronRight className="w-6 h-6" /></button>
                             </div>
@@ -283,25 +480,25 @@ export default function LegacyData() {
                                 <div className="relative pl-8 space-y-12 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-white/5">
                                     {/* Entry Point */}
                                     <div className="relative">
-                                        <div className="absolute -left-9 w-6 h-6 rounded-full bg-orange-500 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
-                                        <div>
-                                            <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Original Registration</p>
-                                            <h4 className={`text-sm font-bold mt-1 ${textColor}`}>Letter Registered by {selectedLetter.encoder_name || 'Legacy User'}</h4>
-                                            <p className="text-xs text-gray-500 mt-2 line-clamp-3">{selectedLetter.summary || selectedLetter.subject}</p>
-                                            <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{selectedLetter.date_received ? new Date(selectedLetter.date_received).toLocaleString() : 'N/A'}</p>
+                                         <div className="absolute -left-9 w-6 h-6 rounded-full bg-orange-500 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
+                                         <div>
+                                             <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Entry Registered</p>
+                                             <h4 className={`text-sm font-bold mt-1 ${textColor}`}>Saved by {selectedLetter.encoder || selectedLetter.encoder_name || 'Legacy User'}</h4>
+                                            <p className="text-xs text-gray-500 mt-2 line-clamp-3">{selectedLetter.letsum || selectedLetter.summary || selectedLetter.subject}</p>
+                                            <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{selectedLetter.date_rec || selectedLetter.date_received ? new Date(selectedLetter.date_rec || selectedLetter.date_received).toLocaleString() : 'N/A'}</p>
                                         </div>
                                     </div>
 
                                     {/* Map legacy logs if available */}
-                                    {selectedLetter.logs?.map((log, i) => (
+                                    {(selectedLetter.comments || selectedLetter.logs)?.map((log, i) => (
                                         <div key={i} className="relative">
                                             <div className={`absolute -left-9 w-6 h-6 rounded-full border-4 border-white dark:border-[#141414] shadow-sm z-10 bg-indigo-500`} />
                                             <div>
                                                 <p className={`text-[10px] font-black uppercase tracking-widest text-indigo-500`}>
-                                                    {log.action_type || 'Update'}
+                                                    {log.action_type || log.type || 'Comment'}
                                                 </p>
-                                                <h4 className={`text-sm font-bold mt-1 ${textColor}`}>{log.log_details || log.action_taken}</h4>
-                                                <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{log.timestamp ? new Date(log.timestamp).toLocaleString() : ''}</p>
+                                                <h4 className={`text-sm font-bold mt-1 ${textColor}`}>{log.content || log.log_details || log.action_taken}</h4>
+                                                <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{log.date_sent || log.timestamp ? new Date(log.date_sent || log.timestamp).toLocaleString() : ''}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -309,10 +506,10 @@ export default function LegacyData() {
                                     {/* Final Status */}
                                     <div className="relative pt-4">
                                         <div className="absolute -left-9 w-6 h-6 rounded-full bg-slate-200 dark:bg-white/10 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
-                                        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
-                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Legacy Disposition</p>
+                                         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Final Outcome</p>
                                             <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-500 text-white`}>
-                                                {selectedLetter.status_name || 'ARCHIVED'}
+                                                {selectedLetter.status || selectedLetter.status_name || 'ARCHIVED'}
                                             </span>
                                         </div>
                                     </div>
