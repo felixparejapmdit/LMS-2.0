@@ -122,6 +122,7 @@ export default function Sidebar() {
     { icon: Eye, label: "Dept Viewer", path: "/dept-viewer", hidden: !user?.interdepartment && !hasPermission('dept-viewer') },
     { icon: MessageSquare, label: "Letters with Comment", path: "/letters-with-comments" },
     { icon: Search, label: "Letter Tracker", path: "/letter-tracker" },
+    { icon: TableIcon, label: "Legacy Data", path: "/legacy-data" },
     { icon: FileUp, label: "Upload PDF Files", path: "/upload-pdf" },
     { icon: Send, label: "Send A Letter", path: "/guest/send-letter" },
     {

@@ -18,6 +18,7 @@ import LetterTracker from "./pages/management/LetterTracker";
 import LettersWithComments from "./pages/management/LettersWithComments";
 import LetterEndorsement from "./pages/management/LetterEndorsement";
 import LetterDetail from "./pages/management/LetterDetail";
+import LegacyData from "./pages/management/LegacyData";
 import VemResumen from "./pages/management/VemResumen";
 import RoleAccessMatrix from "./pages/management/RoleAccessMatrix";
 import DeptAccessMatrix from "./pages/management/DeptAccessMatrix";
@@ -146,6 +147,7 @@ function AppRoutes() {
         <Route path="/master-table" element={<ProtectedRoute><MasterTable /></ProtectedRoute>} />
         <Route path="/letters-with-comments" element={<ProtectedRoute><LettersWithComments /></ProtectedRoute>} />
         <Route path="/letter-tracker" element={<ProtectedRoute><LetterTracker /></ProtectedRoute>} />
+        <Route path="/legacy-data" element={<ProtectedRoute><LegacyData /></ProtectedRoute>} />
         <Route path="/upload-pdf" element={<ProtectedRoute><UploadPDFFiles /></ProtectedRoute>} />
         <Route path="/guest/send-letter" element={<ProtectedRoute><GuestSendLetter /></ProtectedRoute>} />
         <Route path="/spam" element={<ProtectedRoute><Spam /></ProtectedRoute>} />
