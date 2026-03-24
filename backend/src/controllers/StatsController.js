@@ -43,29 +43,21 @@ class StatsController {
 
             const activeStatuses = ['Incoming', 'Review', 'Forwarded', 'Endorsed', 'Pending'];
             
-            // 3. Optimized SQL Counts (Preserving your exact conditions)
+            // 3. Optimized SQL Counts (Simplified for SQLite compatibility)
             const [activeTasks, archivedTasks, incomingLetters, outgoingLetters] = await Promise.all([
-                // Active Tasks: global_status 1/8 OR listed active status names
+                // Active Tasks: global_status 1 (Incoming), 8 (Pending), 2 (ATG)
                 Letter.count({ 
                     where: { 
                         ...baseLetterWhere,
-                        [Op.or]: [
-                            { global_status: [1, 8] },
-                            { '$status.status_name$': { [Op.in]: activeStatuses } }
-                        ]
-                    },
-                    include: [{ model: Status, as: 'status', required: false }]
+                        global_status: [1, 2, 8]
+                    }
                 }),
-                // Archived Tasks: global_status 9 OR 'Filed'
+                // Archived Tasks: global_status 9 (Filed)
                 Letter.count({ 
                     where: { 
                         ...baseLetterWhere,
-                        [Op.or]: [
-                            { global_status: 9 },
-                            { '$status.status_name$': 'Filed' }
-                        ]
-                    },
-                    include: [{ model: Status, as: 'status', required: false }]
+                        global_status: 9
+                    }
                 }),
                 Letter.count({ where: { ...baseLetterWhere, direction: 'Incoming' } }),
                 Letter.count({ where: { ...baseLetterWhere, direction: 'Outgoing' } })
@@ -74,7 +66,7 @@ class StatsController {
             // 4. Priority Workflow Letters (Incoming only)
             const recentTasks = await Letter.findAll({
                 where: { ...baseLetterWhere, global_status: 1 },
-                include: [{ model: Status, as: 'status' }, 'letterKind', 'attachment', 'tray'],
+                include: [{ model: Status, as: 'status', required: false }, 'letterKind', 'attachment', 'tray'],
                 limit: 5,
                 order: [['created_at', 'DESC']]
             });
@@ -82,10 +74,7 @@ class StatsController {
             // 5. ATG Note / VIP Letters (Status 2 OR 'ATG Note')
             const atgWhere = {
                 ...baseLetterWhere,
-                [Op.or]: [
-                    { global_status: 2 },
-                    { '$status.status_name$': 'ATG Note' }
-                ]
+                global_status: 2
             };
 
             const [atgLetters, atgLettersCount] = await Promise.all([
@@ -95,7 +84,7 @@ class StatsController {
                     limit: 10,
                     order: [['created_at', 'DESC']]
                 }),
-                Letter.count({ where: atgWhere, include: [{ model: Status, as: 'status' }] })
+                Letter.count({ where: atgWhere })
             ]);
 
             // 6. Overdue (Older than 5 days AND Pending)
@@ -118,14 +107,20 @@ class StatsController {
             // 7. Recent Log Activity
             const logWhere = {};
             if (isSpecificDept && !isAdmin) {
-                logWhere['$letter.dept_id$'] = { [Op.or]: [department_id, null] };
+                logWhere['$Letter.dept_id$'] = { [Op.or]: [department_id, null] };
             }
             const recentActivityLogs = await LetterLog.findAll({
                 where: logWhere,
-                include: [{ model: User, as: 'user' }, { model: Letter, as: 'letter' }],
+                include: [
+                    { model: User, as: 'user' }, 
+                    { model: Letter } // Removed "as: 'letter'" because it's not aliased in associations.js
+                ],
                 order: [['timestamp', 'DESC'], ['id', 'DESC']],
                 limit: 8
-            }).catch(() => []);
+            }).catch((err) => {
+                console.error("[STATS LOG ERROR]", err.message);
+                return [];
+            });
 
             // 8. Task Distribution Map
             const distributionWhere = {};
