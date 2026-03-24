@@ -100,9 +100,11 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   };
   const activeTabLabel = tabLabels[activeStepTab] || 'Letters';
 
-  const fetchAssignments = async (showRefresh = false) => {
+  const fetchAssignments = async (showRefresh = false, retryCount = 0) => {
+    if (!user?.id) return;
     if (showRefresh) setRefreshing(true);
-    setLoading(true);
+    if (retryCount === 0) setLoading(true);
+    
     try {
       const deptId = forcedDeptId ?? (user?.dept_id?.id ?? user?.dept_id ?? null);
       const roleName = user?.roleData?.role_name || user?.role || '';
@@ -133,10 +135,17 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       
       if (view === 'inbox') fetchInboxStats();
     } catch (error) {
-      console.error("Error fetching items:", error);
+      console.error("Error fetching items:", error.message);
+      // Retry logic for Brave/Aborted requests
+      if (retryCount < 2 && (error.code === 'ECONNABORTED' || error.message?.includes('aborted'))) {
+        console.log(`Retrying fetch assignments... (${retryCount + 1})`);
+        setTimeout(() => fetchAssignments(showRefresh, retryCount + 1), 1000);
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (retryCount === 0 || retryCount >= 2) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 

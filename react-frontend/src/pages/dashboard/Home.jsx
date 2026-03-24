@@ -56,18 +56,33 @@ export default function Home() {
     const canQuickNewLetter = canField("home", "quick_new_letter_button");
     const canQuickTrays = canField("home", "quick_trays_button");
 
-    const fetchStats = async (showRefresh = false) => {
+    const fetchStats = async (showRefresh = false, retryCount = 0) => {
+        if (!user?.id) return;
         if (showRefresh) setRefreshing(true);
+        
         try {
             const deptId = user?.dept_id?.id ?? user?.dept_id ?? null;
             const roleName = user?.roleData?.name || user?.role || '';
-            const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/stats/dashboard?department_id=${deptId}&role=${roleName}`);
+            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+            const response = await axios.get(`${baseUrl}/stats/dashboard`, {
+                params: {
+                    department_id: deptId,
+                    role: roleName
+                }
+            });
             setStats(response.data);
         } catch (error) {
-            console.error("Error fetching stats:", error);
+            console.error("Error fetching stats:", error.message);
+            // Retry for aborted/network issues specifically for Brave stability
+            if (retryCount < 2 && (error.code === 'ECONNABORTED' || error.message.includes('aborted'))) {
+                console.log(`Retrying fetch stats... (${retryCount + 1})`);
+                setTimeout(() => fetchStats(showRefresh, retryCount + 1), 1000);
+            }
         } finally {
-            setLoading(false);
-            setRefreshing(false);
+            if (retryCount === 0 || retryCount >= 2) {
+                setLoading(false);
+                setRefreshing(false);
+            }
         }
     };
 

@@ -82,8 +82,10 @@ export default function DepartmentViewer() {
         }
     };
 
-    const fetchLetters = async (deptId, page = 1) => {
-        setLettersLoading(true);
+    const fetchLetters = async (deptId, page = 1, retryCount = 0) => {
+        if (!deptId) return;
+        if (retryCount === 0) setLettersLoading(true);
+        
         try {
             const roleName = user?.roleData?.name || user?.role || '';
             const res = await axios.get(`${API_BASE}/letter-assignments`, {
@@ -102,9 +104,16 @@ export default function DepartmentViewer() {
                 setLetters(Array.isArray(res.data) ? res.data : []);
             }
         } catch (error) {
-            console.error("Fetch letters error:", error);
+            console.error("Fetch letters error:", error.message);
+            // Retry logic for Brave/Aborted requests
+            if (retryCount < 2 && (error.code === 'ECONNABORTED' || error.message?.includes('aborted'))) {
+                console.log(`Retrying fetch letters... (${retryCount + 1})`);
+                setTimeout(() => fetchLetters(deptId, page, retryCount + 1), 1000);
+            }
         } finally {
-            setLettersLoading(false);
+            if (retryCount === 0 || retryCount >= 2) {
+                setLettersLoading(false);
+            }
         }
     };
 

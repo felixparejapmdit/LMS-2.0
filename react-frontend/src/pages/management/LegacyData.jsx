@@ -57,8 +57,10 @@ export default function LegacyData() {
     const pageBg = layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
     const headerBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222] shadow-sm';
 
-    const fetchLetters = async (isRefreshing = false) => {
-        if (isRefreshing) setRefreshing(true);
+    const fetchLetters = async (isRefreshing = false, retryCount = 0) => {
+        if (isRefreshing || retryCount > 0) setRefreshing(true);
+        if (retryCount === 0 && !isRefreshing) setLoading(true);
+
         try {
             const response = await letterService.getLegacyData();
             // Handle various response formats (direct array, or nested in .data or .letters)
@@ -73,10 +75,17 @@ export default function LegacyData() {
 
             setLetters(data);
         } catch (error) {
-            console.error("Failed to fetch legacy letters:", error);
+            console.error("Failed to fetch legacy letters:", error.message);
+            // Retry logic for Brave/Aborted requests
+            if (retryCount < 2 && (error.code === 'ECONNABORTED' || error.message?.includes('aborted'))) {
+                console.log(`Retrying fetch legacy data... (${retryCount + 1})`);
+                setTimeout(() => fetchLetters(isRefreshing, retryCount + 1), 1000);
+            }
         } finally {
-            setLoading(false);
-            setRefreshing(false);
+            if (retryCount === 0 || retryCount >= 2) {
+                setLoading(false);
+                setRefreshing(false);
+            }
         }
     };
 

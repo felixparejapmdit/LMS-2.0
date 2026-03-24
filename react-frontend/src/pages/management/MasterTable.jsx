@@ -125,8 +125,11 @@ export default function MasterTable() {
         "Show to ATG Dashboard"
     ];
 
-    const fetchData = async (isRefreshing = false) => {
-        if (isRefreshing) setRefreshing(true);
+    const fetchData = async (isRefreshing = false, retryCount = 0) => {
+        if (!user?.id) return;
+        if (isRefreshing || retryCount > 0) setRefreshing(true);
+        if (retryCount === 0 && !isRefreshing) setLoading(true);
+
         try {
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
             const roleName = user?.roleData?.name || user?.role || '';
@@ -147,32 +150,29 @@ export default function MasterTable() {
                 setLetters(Array.isArray(response) ? response : []);
             }
 
-            const depts = await departmentService.getAll();
-            setDepartments(depts);
+            // Fetch reference data with individual safety catches
+            const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+            
+            departmentService.getAll().then(setDepartments).catch(() => {});
+            statusService.getAll().then(setStatuses).catch(() => {});
+            axios.get(`${apiBase}/process-steps`).then(res => setSteps(res.data)).catch(() => {});
+            letterKindService.getAll().then(setLetterKinds).catch(() => {});
+            axios.get(`${apiBase}/persons`).then(res => setPersons(Array.isArray(res.data) ? res.data : [])).catch(() => {});
+            axios.get(`${apiBase}/trays`).then(res => setTrays(res.data)).catch(() => {});
+            axios.get(`${apiBase}/attachments`).then(res => setAttachments(res.data)).catch(() => {});
 
-            const stats = await statusService.getAll();
-            setStatuses(stats);
-
-            const stepsData = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/process-steps`);
-            setSteps(stepsData.data);
-
-
-            const kindsData = await letterKindService.getAll().catch(() => []);
-            setLetterKinds(kindsData);
-
-            const personsData = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons`).catch(() => ({ data: [] }));
-            setPersons(Array.isArray(personsData.data) ? personsData.data : []);
-
-            const traysData = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/trays`);
-            setTrays(traysData.data);
-
-            const attachmentsData = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments`);
-            setAttachments(attachmentsData.data);
         } catch (error) {
-            console.error("Fetch failed", error);
+            console.error("Fetch failed:", error.message);
+            // Retry logic for Brave/Aborted requests
+            if (retryCount < 2 && (error.code === 'ECONNABORTED' || error.message?.includes('aborted'))) {
+                console.log(`Retrying fetch data... (${retryCount + 1})`);
+                setTimeout(() => fetchData(isRefreshing, retryCount + 1), 1000);
+            }
         } finally {
-            setLoading(false);
-            setRefreshing(false);
+            if (retryCount === 0 || retryCount >= 2) {
+                setLoading(false);
+                setRefreshing(false);
+            }
         }
     };
 

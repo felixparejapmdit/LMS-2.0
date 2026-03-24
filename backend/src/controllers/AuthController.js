@@ -166,48 +166,54 @@ class AuthController {
                 }
             }
 
-            // Optimization: Get permissions and pages in parallel
-            const [perms, systemPages] = await Promise.all([
-                RolePermission.findAll({ where: { role_id: user.role } }),
-                (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) 
-                    ? SystemPage.findAll({ attributes: ['page_id'] }) 
-                    : Promise.resolve(cachedPages)
-            ]);
-            lap('Permission & Page Fetch');
+            // Optimization: Try cache first for permissions
+            let normalizedPerms = getCachedPerms(user.role);
+            let finalPerms = [];
 
-            if (!cachedPages || cachedPages !== systemPages) {
-                cachedPages = systemPages;
-                cachedPagesTimestamp = Date.now();
-            }
+            if (!normalizedPerms) {
+                const [perms, systemPages] = await Promise.all([
+                    RolePermission.findAll({ where: { role_id: user.role } }),
+                    (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) 
+                        ? SystemPage.findAll({ attributes: ['page_id'] }) 
+                        : Promise.resolve(cachedPages)
+                ]);
+                lap('Permission & Page Fetch');
 
-            let finalPerms = perms;
-            if (perms.length < systemPages.length) {
-                const existingPageNames = new Set(perms.map(r => r.page_name));
-                const missingPages = systemPages.filter(p => !existingPageNames.has(p.page_id));
-                
-                if (missingPages.length > 0) {
-                    console.log(`[LOGIN] Syncing ${missingPages.length} missing permissions...`);
-                    const toCreate = missingPages.map(page => ({
-                        role_id: user.role,
-                        page_name: page.page_id,
-                        can_view: false,
-                        can_create: false,
-                        can_edit: false,
-                        can_delete: false,
-                        can_special: false,
-                        field_permissions: withDefaultFieldPermissions(page.page_id, {})
-                    }));
-                    await RolePermission.bulkCreate(toCreate, { ignoreDuplicates: true });
-                    finalPerms = await RolePermission.findAll({ where: { role_id: user.role } });
-                    lap('Missing Permission Sync');
+                if (!cachedPages || cachedPages !== systemPages) {
+                    cachedPages = systemPages;
+                    cachedPagesTimestamp = Date.now();
                 }
-            }
 
-            const normalizedPerms = normalizePermissions(finalPerms);
-            setCachedPerms(user.role, normalizedPerms);
+                finalPerms = perms;
+                if (perms.length < systemPages.length) {
+                    const existingPageNames = new Set(perms.map(r => r.page_name));
+                    const missingPages = systemPages.filter(p => !existingPageNames.has(p.page_id));
+                    
+                    if (missingPages.length > 0) {
+                        console.log(`[LOGIN] Syncing ${missingPages.length} missing permissions for role ${user.role}...`);
+                        const toCreate = missingPages.map(page => ({
+                            role_id: user.role,
+                            page_name: page.page_id,
+                            can_view: false,
+                            can_create: false,
+                            can_edit: false,
+                            can_delete: false,
+                            can_special: false,
+                            field_permissions: withDefaultFieldPermissions(page.page_id, {})
+                        }));
+                        await RolePermission.bulkCreate(toCreate, { ignoreDuplicates: true });
+                        finalPerms = await RolePermission.findAll({ where: { role_id: user.role } });
+                        lap('Missing Permission Sync');
+                    }
+                }
+                normalizedPerms = normalizePermissions(finalPerms);
+                setCachedPerms(user.role, normalizedPerms);
+            } else {
+                lap('Permission Cache Hit');
+            }
 
             // Fire-and-forget update
-            user.update({ islogin: true }).catch(() => { });
+            User.update({ islogin: true }, { where: { id: user.id } }).catch(() => { });
 
             lap('Final Prep');
             console.log(`[LOGIN] Total successful auth for ${username} in ${Date.now() - startTime}ms`);
