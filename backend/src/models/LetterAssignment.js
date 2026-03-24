@@ -80,27 +80,32 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                     await letter.update({ global_status: assignment.status_id }, { transaction: options.transaction });
                 }
 
-                // Telegram Notification
                 if (TelegramService && letter) {
-                    const movementText = TelegramService.buildMovementText(letter, deptName, stepName);
-                    const recipients = await User.findAll({
-                        where: { role: { [Op.in]: ['VIP', 'Administrator'] } },
-                        transaction: options.transaction
+                    // Telegram Notification - Non-blocking
+                    setImmediate(async () => {
+                        try {
+                            const movementText = TelegramService.buildMovementText(letter, deptName, stepName);
+                            const recipients = await User.findAll({
+                                where: { role: { [Op.in]: ['VIP', 'Administrator'] } }
+                            });
+
+                            if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
+                                const encoder = await User.findByPk(letter.encoder_id);
+                                if (encoder && !TelegramService.isVipOnly(encoder)) recipients.push(encoder);
+                            }
+
+                            const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
+                            const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
+                            const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
+
+                            for (const chatId of chatIds) {
+                                const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, { allowComment: false, allowAcknowledge: true });
+                                await TelegramService.sendMessage(chatId, movementText, replyMarkup);
+                            }
+                        } catch (bgErr) {
+                            console.error("Background Telegram error (create):", bgErr.message);
+                        }
                     });
-
-                    if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
-                        const encoder = await User.findByPk(letter.encoder_id, { transaction: options.transaction });
-                        if (encoder && !TelegramService.isVipOnly(encoder)) recipients.push(encoder);
-                    }
-
-                    const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
-                    const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
-                    const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
-
-                    for (const chatId of chatIds) {
-                        const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, { allowComment: false, allowAcknowledge: true });
-                        await TelegramService.sendMessage(chatId, movementText, replyMarkup);
-                    }
                 }
             } catch (err) {
                 console.error("Hook afterCreate LetterLog/Telegram error:", err);
@@ -127,7 +132,6 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                 let actionType = 'Assigned';
                 let logDetails = `Letter assignment parameter updated in ${deptName} (Step: ${stepName}).`;
 
-                // Status definitions for logging
                 const DONE_ID = 9;
                 const HOLD_ID = 7;
 
@@ -154,33 +158,37 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                         log_details: logDetails
                     }, { transaction: options.transaction });
 
-                    // Synchronize Letter global_status
                     const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
                     if (letter && letter.global_status !== assignment.status_id) {
                         await letter.update({ global_status: assignment.status_id }, { transaction: options.transaction });
                     }
 
-                    // Telegram Notification
                     if (TelegramService && letter) {
-                        const movementText = TelegramService.buildMovementText(letter, deptName, stepName);
-                        const recipients = await User.findAll({
-                            where: { role: { [Op.in]: ['VIP', 'Administrator'] } },
-                            transaction: options.transaction
+                        // Telegram Notification - Non-blocking
+                        setImmediate(async () => {
+                            try {
+                                const movementText = TelegramService.buildMovementText(letter, deptName, stepName);
+                                const recipients = await User.findAll({
+                                    where: { role: { [Op.in]: ['VIP', 'Administrator'] } }
+                                });
+
+                                if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
+                                    const encoder = await User.findByPk(letter.encoder_id);
+                                    if (encoder && !TelegramService.isVipOnly(encoder)) recipients.push(encoder);
+                                }
+
+                                const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
+                                const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
+                                const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
+
+                                for (const chatId of chatIds) {
+                                    const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, { allowComment: false, allowAcknowledge: true });
+                                    await TelegramService.sendMessage(chatId, movementText, replyMarkup);
+                                }
+                            } catch (bgErr) {
+                                console.error("Background Telegram error (update):", bgErr.message);
+                            }
                         });
-
-                        if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
-                            const encoder = await User.findByPk(letter.encoder_id, { transaction: options.transaction });
-                            if (encoder && !TelegramService.isVipOnly(encoder)) recipients.push(encoder);
-                        }
-
-                        const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
-                        const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
-                        const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
-
-                        for (const chatId of chatIds) {
-                            const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, { allowComment: false, allowAcknowledge: true });
-                            await TelegramService.sendMessage(chatId, movementText, replyMarkup);
-                        }
                     }
                 } catch (err) {
                     console.error("Hook afterUpdate LetterLog/Telegram error:", err);

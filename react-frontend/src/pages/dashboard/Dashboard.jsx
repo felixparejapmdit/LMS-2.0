@@ -57,6 +57,10 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const [lmsIdInput, setLmsIdInput] = useState('');
   const [isAddingLetter, setIsAddingLetter] = useState(false);
   const [modalError, setModalError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [recordsPerPage] = useState(30);
 
   const activeStepTab = searchParams.get('tab') || 'review';
   const setActiveStepTab = (tab) => {
@@ -113,9 +117,20 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       } else if (view === 'outbox') {
         url += '&global_status=8&outbox=true&exclude_vip=true';
       }
+      
+      url += `&page=${currentPage}&limit=${recordsPerPage}`;
 
       const response = await axios.get(url);
-      setAssignments(response.data);
+      const resData = response.data;
+
+      if (resData && typeof resData === 'object' && resData.data) {
+        setAssignments(resData.data);
+        setTotalPages(resData.totalPages || 1);
+        setTotalRecords(resData.total || resData.data.length);
+      } else {
+        setAssignments(Array.isArray(resData) ? resData : []);
+      }
+      
       if (view === 'inbox') fetchInboxStats();
     } catch (error) {
       console.error("Error fetching items:", error);
@@ -170,7 +185,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       const assignInterval = setInterval(() => { fetchAssignments(); }, 30000);
       return () => { clearInterval(statsInterval); clearInterval(assignInterval); }
     }
-  }, [user?.id, view, activeStepTab]);
+  }, [user?.id, view, activeStepTab, currentPage]);
 
   useEffect(() => {
     if (isPrintModalOpen) {
@@ -773,6 +788,34 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                       </div>
                     </div>
                   ))}
+                </div>
+
+                {/* Pagination */}
+                <div className="flex items-center justify-between bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] p-4 rounded-2xl shadow-sm">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#737373]">
+                    Showing {assignments.length} / {totalRecords} Records
+                  </span>
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === 1 ? 'opacity-30 cursor-not-allowed text-gray-400' : 'bg-gray-100 dark:bg-white/5 text-[#1A1A1B] dark:text-white hover:bg-[#1A1A1B] hover:text-white pointer-events-auto cursor-pointer'}`}
+                    >
+                      Previous
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded flex items-center justify-center bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B] text-[10px] font-black">{currentPage}</span>
+                      <span className="text-[10px] font-black text-[#737373] uppercase tracking-widest mx-1">of</span>
+                      <span className="text-[10px] font-black text-[#1A1A1B] dark:text-white">{totalPages}</span>
+                    </div>
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === totalPages ? 'opacity-30 cursor-not-allowed text-gray-400' : 'bg-gray-100 dark:bg-white/5 text-[#1A1A1B] dark:text-white hover:bg-[#1A1A1B] hover:text-white pointer-events-auto cursor-pointer'}`}
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

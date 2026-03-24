@@ -85,6 +85,14 @@ const normalizePermissions = (perms) => perms.map((record) => {
 class AuthController {
     static async login(req, res) {
         const startTime = Date.now();
+        let currentStepTime = startTime;
+        
+        const lap = (name) => {
+            const now = Date.now();
+            console.log(`[LOGIN Perf] ${name}: ${now - currentStepTime}ms (Total: ${now - startTime}ms)`);
+            currentStepTime = now;
+        };
+
         try {
             const { username, password, provider } = req.body;
 
@@ -92,7 +100,7 @@ class AuthController {
                 return res.status(400).json({ error: 'Username and password are required' });
             }
 
-            console.log(`[LOGIN] Attempt started for: ${username} (provider: ${provider || 'default'})`);
+            console.log(`[LOGIN] Attempt started for: ${username}`);
 
             let user = await User.findOne({
                 where: sequelize.or(
@@ -104,10 +112,10 @@ class AuthController {
                     { model: Role, as: 'roleData' }
                 ]
             });
+            lap('Local User Lookup');
 
             const [directusAuthResult] = await Promise.allSettled([
                 (async () => {
-                    const directusLoginStart = Date.now();
                     const loginPayload = {
                         email: user ? user.email : (username.includes('@') ? username : undefined),
                         password: password
@@ -119,11 +127,11 @@ class AuthController {
 
                     if (provider) loginPayload.provider = provider;
                     
-                    const response = await axios.post(`${DIRECTUS_URL}/auth/login`, loginPayload, { timeout: 8000 });
-                    console.log(`[LOGIN] Directus auth took ${Date.now() - directusLoginStart}ms`);
+                    const response = await axios.post(`${DIRECTUS_URL}/auth/login`, loginPayload, { timeout: 10000 });
                     return response.data;
                 })()
             ]);
+            lap('Directus Auth API');
 
             if (directusAuthResult.status === 'rejected') {
                 console.error(`[LOGIN] Directus auth failed for ${username}:`, directusAuthResult.reason.message);
@@ -135,7 +143,7 @@ class AuthController {
             // If user wasn't in DB but Directus login succeeded, auto-provision
             if (!user) {
                 try {
-                    console.log(`[LOGIN] User ${username} not in local DB, auto-provisioning...`);
+                    console.log(`[LOGIN] User ${username} auto-provisioning...`);
                     const token = directusAuth.data.access_token;
                     const meRes = await axios.get(`${DIRECTUS_URL}/users/me?fields=*,role.*`, {
                         headers: { Authorization: `Bearer ${token}` }
@@ -148,26 +156,34 @@ class AuthController {
                         username: me.email ? me.email.split('@')[0] : username, 
                         first_name: me.first_name || username,
                         last_name: me.last_name || '',
-                        role: 1, // Default to USER role (adjust ID if needed)
+                        role: 1,
                         islogin: true
                     });
+                    lap('User Provisioning');
                 } catch (syncErr) {
-                    console.error("[LOGIN] Failed to auto-provision user:", syncErr.message);
+                    console.error("[LOGIN] Provisioning failed:", syncErr.message);
                     return res.status(500).json({ error: "External authentication sync failed" });
                 }
             }
 
-            const dbPerms = await RolePermission.findAll({ where: { role_id: user.role } });
-            let perms = dbPerms;
+            // Optimization: Get permissions and pages in parallel
+            const [perms, systemPages] = await Promise.all([
+                RolePermission.findAll({ where: { role_id: user.role } }),
+                (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) 
+                    ? SystemPage.findAll({ attributes: ['page_id'] }) 
+                    : Promise.resolve(cachedPages)
+            ]);
+            lap('Permission & Page Fetch');
 
-            if (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) {
-                cachedPages = await SystemPage.findAll({ attributes: ['page_id'] });
+            if (!cachedPages || cachedPages !== systemPages) {
+                cachedPages = systemPages;
                 cachedPagesTimestamp = Date.now();
             }
 
-            if (perms.length < cachedPages.length) {
+            let finalPerms = perms;
+            if (perms.length < systemPages.length) {
                 const existingPageNames = new Set(perms.map(r => r.page_name));
-                const missingPages = cachedPages.filter(p => !existingPageNames.has(p.page_id));
+                const missingPages = systemPages.filter(p => !existingPageNames.has(p.page_id));
                 
                 if (missingPages.length > 0) {
                     console.log(`[LOGIN] Syncing ${missingPages.length} missing permissions...`);
@@ -182,16 +198,19 @@ class AuthController {
                         field_permissions: withDefaultFieldPermissions(page.page_id, {})
                     }));
                     await RolePermission.bulkCreate(toCreate, { ignoreDuplicates: true });
-                    perms = await RolePermission.findAll({ where: { role_id: user.role } });
+                    finalPerms = await RolePermission.findAll({ where: { role_id: user.role } });
+                    lap('Missing Permission Sync');
                 }
             }
 
-            const normalizedPerms = normalizePermissions(perms);
+            const normalizedPerms = normalizePermissions(finalPerms);
             setCachedPerms(user.role, normalizedPerms);
 
+            // Fire-and-forget update
             user.update({ islogin: true }).catch(() => { });
 
-            console.log(`[LOGIN] Success for ${username} in ${Date.now() - startTime}ms`);
+            lap('Final Prep');
+            console.log(`[LOGIN] Total successful auth for ${username} in ${Date.now() - startTime}ms`);
 
             res.json({
                 success: true,
@@ -201,7 +220,7 @@ class AuthController {
             });
 
         } catch (error) {
-            console.error(`[LOGIN] Failure in ${Date.now() - startTime}ms:`, error.message);
+            console.error(`[LOGIN] Total failure after ${Date.now() - startTime}ms:`, error.message);
             res.status(error.message === 'Invalid credentials' ? 401 : 500).json({ error: error.message });
         }
     }

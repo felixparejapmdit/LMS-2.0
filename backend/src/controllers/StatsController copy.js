@@ -14,11 +14,10 @@ class StatsController {
             const { department_id, role, user_id } = req.query;
             const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
             const isAdmin = ALL_LETTER_ROLES.has(normalizedRole);
-            const isAccessManager = normalizedRole === 'ACCESS MANAGER';
             
             console.log(`[STATS] Dashboard lookup for role: "${normalizedRole}", dept: "${department_id}"`);
 
-            // 1. User & People Stats (Fast)
+            // 1. Online & Total Users (Fast Count)
             const userWhere = {};
             if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
                 userWhere.dept_id = department_id;
@@ -29,23 +28,19 @@ class StatsController {
                 Person.count()
             ]);
 
-            // 2. Base Letter Filter (Matches your original Department logic)
+            // 2. Letter Counts (Active, Archived, Incoming, Outgoing)
             const baseLetterWhere = {};
-            const isSpecificDept = department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined';
-            
-            if (isAdmin) {
-                // Admins only filter if they explicitly select a department
-                if (isSpecificDept) baseLetterWhere.dept_id = department_id;
-            } else if (isSpecificDept) {
-                // Others (like Access Managers) only see their department OR system entries
-                baseLetterWhere[Op.or] = [{ dept_id: department_id }, { dept_id: null }];
+            if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
+                baseLetterWhere[Op.or] = [
+                    { dept_id: department_id },
+                    { dept_id: null }
+                ];
             }
 
             const activeStatuses = ['Incoming', 'Review', 'Forwarded', 'Endorsed', 'Pending'];
             
-            // 3. Optimized SQL Counts (Preserving your exact conditions)
             const [activeTasks, archivedTasks, incomingLetters, outgoingLetters] = await Promise.all([
-                // Active Tasks: global_status 1/8 OR listed active status names
+                // Active: Pending/Incoming statuses
                 Letter.count({ 
                     where: { 
                         ...baseLetterWhere,
@@ -56,7 +51,7 @@ class StatsController {
                     },
                     include: [{ model: Status, as: 'status', required: false }]
                 }),
-                // Archived Tasks: global_status 9 OR 'Filed'
+                // Archived: Filed
                 Letter.count({ 
                     where: { 
                         ...baseLetterWhere,
@@ -67,11 +62,12 @@ class StatsController {
                     },
                     include: [{ model: Status, as: 'status', required: false }]
                 }),
+                // Directional
                 Letter.count({ where: { ...baseLetterWhere, direction: 'Incoming' } }),
                 Letter.count({ where: { ...baseLetterWhere, direction: 'Outgoing' } })
             ]);
 
-            // 4. Priority Workflow Letters (Incoming only)
+            // 3. Recent Tasks (Workflow Priority)
             const recentTasks = await Letter.findAll({
                 where: { ...baseLetterWhere, global_status: 1 },
                 include: [{ model: Status, as: 'status' }, 'letterKind', 'attachment', 'tray'],
@@ -79,14 +75,16 @@ class StatsController {
                 order: [['created_at', 'DESC']]
             });
 
-            // 5. ATG Note / VIP Letters (Status 2 OR 'ATG Note')
+            // 4. ATG / VIP Letters
             const atgWhere = {
-                ...baseLetterWhere,
                 [Op.or]: [
                     { global_status: 2 },
                     { '$status.status_name$': 'ATG Note' }
                 ]
             };
+            if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
+                atgWhere[Op.or] = [{ dept_id: department_id }, { dept_id: null }];
+            }
 
             const [atgLetters, atgLettersCount] = await Promise.all([
                 Letter.findAll({
@@ -98,26 +96,23 @@ class StatsController {
                 Letter.count({ where: atgWhere, include: [{ model: Status, as: 'status' }] })
             ]);
 
-            // 6. Overdue (Older than 5 days AND Pending)
+            // 5. Overdue Tasks
             const fiveDaysAgo = new Date();
             fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
             const overdueTasks = await Letter.findAll({
                 where: {
                     ...baseLetterWhere,
                     global_status: 8,
-                    [Op.or]: [
-                        { date_received: { [Op.lt]: fiveDaysAgo } },
-                        { created_at: { [Op.lt]: fiveDaysAgo } }
-                    ]
+                    date_received: { [Op.lt]: fiveDaysAgo }
                 },
                 include: [{ model: Status, as: 'status' }, 'tray'],
                 order: [['date_received', 'ASC']],
                 limit: 10
             });
 
-            // 7. Recent Log Activity
+            // 6. Recent Activity Logs
             const logWhere = {};
-            if (isSpecificDept && !isAdmin) {
+            if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
                 logWhere['$letter.dept_id$'] = { [Op.or]: [department_id, null] };
             }
             const recentActivityLogs = await LetterLog.findAll({
@@ -127,13 +122,15 @@ class StatsController {
                 limit: 8
             }).catch(() => []);
 
-            // 8. Task Distribution Map
+            // 7. Task Distribution (Keep current findAll logic as it's complex for step names, but limited to assignments)
             const distributionWhere = {};
-            if (isSpecificDept) distributionWhere.department_id = department_id;
-            
+            if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
+                distributionWhere.department_id = department_id;
+            }
             const distAssignments = await LetterAssignment.findAll({
                 where: distributionWhere,
-                attributes: ['id'],
+                include: [{ model: ProcessStep, as: 'step' }],
+                attributes: ['id', 'status_id'],
                 include: [{ model: ProcessStep, as: 'step', attributes: ['step_name'] }]
             });
             const distributionMap = {};
