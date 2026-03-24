@@ -314,6 +314,706 @@ collections:
       versioning: false
     schema:
       name: ref_trays
-fields: []
+  - collection: trays
+    meta:
+      accountability: all
+      archive_app_filter: true
+      archive_field: null
+      archive_value: null
+      collapse: open
+      collection: trays
+      color: null
+      display_template: null
+      group: null
+      hidden: false
+      icon: null
+      item_duplication_fields: null
+      note: null
+      preview_url: null
+      singleton: false
+      sort: null
+      sort_field: null
+      translations: null
+      unarchive_value: null
+      versioning: false
+    schema:
+      name: trays
+fields:
+  - collection: letter_assignments
+    field: letter
+    type: string
+    meta:
+      collection: letter_assignments
+      conditions: null
+      display: null
+      display_options: null
+      field: letter
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 1
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: letter
+      table: letter_assignments
+      data_type: char
+      default_value: null
+      max_length: 36
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: letters
+      foreign_key_column: id
+  - collection: letter_assignments
+    field: department
+    type: integer
+    meta:
+      collection: letter_assignments
+      conditions: null
+      display: null
+      display_options: null
+      field: department
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 2
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: department
+      table: letter_assignments
+      data_type: integer
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: ref_departments
+      foreign_key_column: id
+  - collection: letter_assignments
+    field: step
+    type: integer
+    meta:
+      collection: letter_assignments
+      conditions: null
+      display: null
+      display_options: null
+      field: step
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 3
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: step
+      table: letter_assignments
+      data_type: integer
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: ref_process_steps
+      foreign_key_column: id
+  - collection: letter_logs
+    field: letter
+    type: string
+    meta:
+      collection: letter_logs
+      conditions: null
+      display: null
+      display_options: null
+      field: letter
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 1
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: letter
+      table: letter_logs
+      data_type: char
+      default_value: null
+      max_length: 36
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: letters
+      foreign_key_column: id
+  - collection: letter_logs
+    field: user
+    type: string
+    meta:
+      collection: letter_logs
+      conditions: null
+      display: null
+      display_options: null
+      field: user
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 2
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: user
+      table: letter_logs
+      data_type: char
+      default_value: null
+      max_length: 36
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: directus_users
+      foreign_key_column: id
+  - collection: letters
+    field: atg_id
+    type: string
+    meta:
+      collection: letters
+      conditions: null
+      display: null
+      display_options: null
+      field: atg_id
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 1
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: atg_id
+      table: letters
+      data_type: varchar
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: letters
+    field: endorsed
+    type: string
+    meta:
+      collection: letters
+      conditions: null
+      display: null
+      display_options: null
+      field: endorsed
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: null
+      options:
+        choices:
+          - text: 'Yes'
+            value: 'Yes'
+          - text: 'No'
+            value: 'No'
+          - text: Pending
+            value: Pending
+      readonly: false
+      required: false
+      searchable: true
+      sort: 2
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: endorsed
+      table: letters
+      data_type: varchar
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: link_letters
+    field: main_letter
+    type: string
+    meta:
+      collection: link_letters
+      conditions: null
+      display: null
+      display_options: null
+      field: main_letter
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 1
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: main_letter
+      table: link_letters
+      data_type: char
+      default_value: null
+      max_length: 36
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: letters
+      foreign_key_column: id
+  - collection: link_letters
+    field: attached_letter
+    type: string
+    meta:
+      collection: link_letters
+      conditions: null
+      display: null
+      display_options: null
+      field: attached_letter
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 2
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: attached_letter
+      table: link_letters
+      data_type: char
+      default_value: null
+      max_length: 36
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: letters
+      foreign_key_column: id
+  - collection: trays
+    field: id
+    type: integer
+    meta:
+      collection: trays
+      conditions: null
+      display: null
+      display_options: null
+      field: id
+      group: null
+      hidden: true
+      interface: numeric
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 1
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: id
+      table: trays
+      data_type: integer
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: true
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: trays
+    field: letter
+    type: string
+    meta:
+      collection: trays
+      conditions: null
+      display: null
+      display_options: null
+      field: letter
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 2
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: letter
+      table: trays
+      data_type: char
+      default_value: null
+      max_length: 36
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: letters
+      foreign_key_column: id
+  - collection: trays
+    field: tray_no
+    type: string
+    meta:
+      collection: trays
+      conditions: null
+      display: null
+      display_options: null
+      field: tray_no
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 3
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: tray_no
+      table: trays
+      data_type: varchar
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
 systemFields: []
-relations: []
+relations:
+  - collection: letter_assignments
+    field: letter
+    related_collection: letters
+    meta:
+      junction_field: null
+      many_collection: letter_assignments
+      many_field: letter
+      one_allowed_collections: null
+      one_collection: letters
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: letter_assignments
+      column: letter
+      foreign_key_table: letters
+      foreign_key_column: id
+      constraint_name: null
+      on_update: NO ACTION
+      on_delete: NO ACTION
+  - collection: letter_assignments
+    field: department
+    related_collection: ref_departments
+    meta:
+      junction_field: null
+      many_collection: letter_assignments
+      many_field: department
+      one_allowed_collections: null
+      one_collection: ref_departments
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: letter_assignments
+      column: department
+      foreign_key_table: ref_departments
+      foreign_key_column: id
+      constraint_name: null
+      on_update: NO ACTION
+      on_delete: NO ACTION
+  - collection: letter_assignments
+    field: step
+    related_collection: ref_process_steps
+    meta:
+      junction_field: null
+      many_collection: letter_assignments
+      many_field: step
+      one_allowed_collections: null
+      one_collection: ref_process_steps
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: letter_assignments
+      column: step
+      foreign_key_table: ref_process_steps
+      foreign_key_column: id
+      constraint_name: null
+      on_update: NO ACTION
+      on_delete: NO ACTION
+  - collection: letter_logs
+    field: letter
+    related_collection: letters
+    meta:
+      junction_field: null
+      many_collection: letter_logs
+      many_field: letter
+      one_allowed_collections: null
+      one_collection: letters
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: letter_logs
+      column: letter
+      foreign_key_table: letters
+      foreign_key_column: id
+      constraint_name: null
+      on_update: NO ACTION
+      on_delete: NO ACTION
+  - collection: letter_logs
+    field: user
+    related_collection: directus_users
+    meta:
+      junction_field: null
+      many_collection: letter_logs
+      many_field: user
+      one_allowed_collections: null
+      one_collection: directus_users
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: letter_logs
+      column: user
+      foreign_key_table: directus_users
+      foreign_key_column: id
+      constraint_name: null
+      on_update: NO ACTION
+      on_delete: NO ACTION
+  - collection: letters
+    field: scanned_copy
+    related_collection: directus_files
+    meta:
+      junction_field: null
+      many_collection: letters
+      many_field: scanned_copy
+      one_allowed_collections: null
+      one_collection: directus_files
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: letters
+      column: scanned_copy
+      foreign_key_table: directus_files
+      foreign_key_column: id
+      constraint_name: null
+      on_update: NO ACTION
+      on_delete: NO ACTION
+  - collection: link_letters
+    field: main_letter
+    related_collection: letters
+    meta:
+      junction_field: null
+      many_collection: link_letters
+      many_field: main_letter
+      one_allowed_collections: null
+      one_collection: letters
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: link_letters
+      column: main_letter
+      foreign_key_table: letters
+      foreign_key_column: id
+      constraint_name: null
+      on_update: NO ACTION
+      on_delete: NO ACTION
+  - collection: link_letters
+    field: attached_letter
+    related_collection: letters
+    meta:
+      junction_field: null
+      many_collection: link_letters
+      many_field: attached_letter
+      one_allowed_collections: null
+      one_collection: letters
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: link_letters
+      column: attached_letter
+      foreign_key_table: letters
+      foreign_key_column: id
+      constraint_name: null
+      on_update: NO ACTION
+      on_delete: NO ACTION
+  - collection: trays
+    field: letter
+    related_collection: letters
+    meta:
+      junction_field: null
+      many_collection: trays
+      many_field: letter
+      one_allowed_collections: null
+      one_collection: letters
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: tray_info
+      sort_field: null
+    schema:
+      table: trays
+      column: letter
+      foreign_key_table: letters
+      foreign_key_column: id
+      constraint_name: null
+      on_update: NO ACTION
+      on_delete: NO ACTION
