@@ -35,6 +35,26 @@ import { getFieldPresetForPage } from "../../utils/fieldPresets";
 import useAccess from "../../hooks/useAccess";
 
 
+const ACTIONS = [
+    { id: "can_view", label: "View", icon: Eye },
+    { id: "can_create", label: "Create", icon: Plus },
+    { id: "can_edit", label: "Edit", icon: Edit3 },
+    { id: "can_delete", label: "Delete", icon: Trash2 },
+    { id: "can_special", label: "Special", icon: Zap },
+    { id: "field_permissions", label: "Fields", icon: Settings }
+];
+
+const mergeFieldPermissions = (pageId, existing = {}) => {
+    const defaults = getFieldPresetForPage(pageId);
+    const projected = {};
+    Object.keys(defaults).forEach((key) => {
+        projected[key] = Object.prototype.hasOwnProperty.call(existing || {}, key)
+            ? existing[key]
+            : true;
+    });
+    return projected;
+};
+
 const ActionCell = React.memo(({ pageId, action, value, onToggle, canEditField, matrix, setFieldModal }) => {
     if (action.id === 'field_permissions') {
         const hasPermissions = Object.keys(matrix[pageId]?.field_permissions || {}).length > 0;
