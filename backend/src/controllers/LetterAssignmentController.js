@@ -15,9 +15,14 @@ const ALL_LETTER_ROLES = new Set([
 
 class LetterAssignmentController {
     static async getAll(req, res) {
+        const startTime = Date.now();
         try {
-            const { department_id, step_id, status, vip, global_status, named_filter, user_id, role } = req.query;
+            const { department_id, step_id, status, vip, global_status, named_filter, user_id, role, page = 1, limit = 50 } = req.query;
+            const offset = (parseInt(page) - 1) * parseInt(limit);
+            const queryLimit = parseInt(limit);
             const where = {};
+            
+            console.log(`[ASSIGNMENTS] Lookup started: role="${role}", dept="${department_id}", filter="${named_filter}"`);
 
             const normalizedRole = role ? role.toString().toUpperCase() : '';
             let atgStatusId = null;
@@ -180,7 +185,7 @@ class LetterAssignmentController {
                 };
             }
 
-            let assignments = await LetterAssignment.findAll({
+            const { count: realCount, rows: realRows } = await LetterAssignment.findAndCountAll({
                 where,
                 include: [
                     letterInclude,
@@ -192,8 +197,13 @@ class LetterAssignmentController {
                     { model: Department, as: 'department' }
                 ],
                 order: [['created_at', 'DESC']],
-                subQuery: false
+                limit: queryLimit,
+                offset: offset,
+                distinct: true
             });
+
+            let finalAssignments = realRows;
+            let totalCount = realCount;
 
             // If named_filter requires showing letters that have NO assignment record at all
             if (named_filter === 'pending' || named_filter === 'empty_entry' || named_filter === 'atg_note') {
@@ -241,10 +251,18 @@ class LetterAssignmentController {
                     department: null,
                     created_at: l.created_at
                 }));
-                assignments = [...assignments, ...mappedMocks];
+                finalAssignments = [...finalAssignments, ...mappedMocks];
+                totalCount += mappedMocks.length;
             }
 
-            res.json(assignments);
+            console.log(`[ASSIGNMENTS] Fetch complete in ${Date.now() - startTime}ms. Found ${totalCount} records.`);
+            res.json({
+                data: finalAssignments,
+                total: totalCount,
+                page: parseInt(page),
+                limit: queryLimit,
+                totalPages: Math.ceil(totalCount / queryLimit)
+            });
         } catch (error) {
             console.error('Error in LetterAssignment.getAll:', error);
             res.status(500).json({ error: error.message });

@@ -9,10 +9,13 @@ const ALL_LETTER_ROLES = new Set([
 
 class StatsController {
     static async getDashboardStats(req, res) {
+        const startTime = Date.now();
         try {
             const { department_id, role, user_id } = req.query;
+            console.log(`[STATS] Dashboard lookup for role: "${role}", dept: "${department_id}"`);
+            
             const where = {};
-            const normalizedRole = role ? role.toString().toUpperCase() : '';
+            const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
 
             const isAccessManager = normalizedRole === 'ACCESS MANAGER';
             const isAdmin = ALL_LETTER_ROLES.has(normalizedRole);
@@ -27,9 +30,9 @@ class StatsController {
                     { department_id: null }
                 ];
             } else if (isAccessManager) {
-                // If it's an Access Manager but no department_id is passed (though it should be),
-                // we still want to limit them if we had their dept_id from session, but for now 
-                // we rely on the passed department_id.
+                // Access Managers MUST have a department_id. If not passed, we might want a fallback,
+                // but let's log it for now as it's the likely source of "0 counts"
+                console.warn(`[STATS] Access Manager "${user_id}" requested stats WITHOUT a department_id!`);
             }
 
             const allAssignments = await LetterAssignment.findAll({
@@ -196,6 +199,7 @@ class StatsController {
             });
             const taskDistribution = Object.entries(distributionMap).map(([name, count]) => ({ name, value: count }));
 
+            console.log(`[STATS] Dashboard metrics calculated in ${Date.now() - startTime}ms`);
             res.json({
                 activeTasks: active,
                 archivedTasks: archived,
@@ -212,7 +216,7 @@ class StatsController {
                 taskDistribution
             });
         } catch (error) {
-            console.error('Stats Error:', error);
+            console.error('[STATS ERROR] Dashboard:', error);
             res.status(500).json({ error: error.message });
         }
     }

@@ -3,12 +3,14 @@ const { Op } = require('sequelize');
 
 class DashboardController {
     static async getDashboardInit(req, res) {
+        const startTime = Date.now();
         try {
             const { department_id, user_id, role, view, named_filter, full_name } = req.query;
+            console.log(`[DASHBOARD] Init started for role="${role}", dept="${department_id}"`);
 
             // 1. Fetch Trays (Parallel)
             const traysPromise = Tray.findAll({
-                where: department_id ? { dept_id: department_id } : {}
+                where: (department_id && department_id !== 'all' && department_id !== 'null') ? { dept_id: department_id } : {}
             });
 
             // 2. Fetch Stats (Parallel)
@@ -25,6 +27,7 @@ class DashboardController {
                 assignmentsPromise
             ]);
 
+            console.log(`[DASHBOARD] Init complete in ${Date.now() - startTime}ms`);
             res.json({
                 trays,
                 inboxStats,
@@ -32,7 +35,7 @@ class DashboardController {
             });
 
         } catch (error) {
-            console.error("Dashboard Init Error:", error);
+            console.error("[DASHBOARD ERROR] Init failed:", error);
             res.status(500).json({ error: error.message });
         }
     }
@@ -114,13 +117,13 @@ class DashboardController {
     static async getAssignmentsInternal(query) {
         const { department_id, status, named_filter, user_id, role, view } = query;
         const where = {};
-        const normalizedRole = role ? role.toString().toUpperCase() : '';
-        const ALL_LETTER_ROLES = new Set(['ADMIN', 'ADMINISTRATOR', 'SUPERUSER', 'SUPER USER', 'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN']);
+        const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
+        const ALL_LETTER_ROLES = new Set(['ADMIN', 'ADMINISTRATOR', 'SUPERUSER', 'SUPER USER', 'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'DEVELOPER', 'ROOT']);
 
         if (normalizedRole === 'USER' && user_id) {
             where[Op.or] = [{ '$letter.encoder_id$': user_id }];
-            if (department_id) where[Op.or].push({ department_id: department_id });
-        } else if (!ALL_LETTER_ROLES.has(normalizedRole) && department_id && query.outbox !== 'true') {
+            if (department_id && department_id !== 'all' && department_id !== 'null') where[Op.or].push({ department_id: department_id });
+        } else if (!ALL_LETTER_ROLES.has(normalizedRole) && department_id && department_id !== 'all' && department_id !== 'null' && query.outbox !== 'true') {
             where[Op.or] = [{ department_id: department_id }, { department_id: null }];
         }
 
@@ -143,13 +146,18 @@ class DashboardController {
             include: [
                 {
                     model: Letter, as: 'letter', required: true,
-                    include: [{ model: Status, as: 'status' }, { model: Tray, as: 'tray' }, { model: LetterKind, as: 'letterKind' }, { model: Comment, as: 'comments', attributes: ['id'] }, { model: Endorsement, as: 'endorsements' }]
+                    include: [
+                        { model: Status, as: 'status' }, 
+                        { model: Tray, as: 'tray' }, 
+                        { model: LetterKind, as: 'letterKind' }, 
+                        { model: Comment, as: 'comments', attributes: ['id'], limit: 1 }, 
+                        { model: Endorsement, as: 'endorsements', limit: 3 }
+                    ]
                 },
                 { model: ProcessStep, as: 'step' },
                 { model: Department, as: 'department' }
             ],
-            order: [['created_at', 'DESC']],
-            subQuery: false
+            order: [['created_at', 'DESC']]
         });
 
         return assignments;

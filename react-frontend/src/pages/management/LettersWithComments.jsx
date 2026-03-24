@@ -43,12 +43,14 @@ export default function LettersWithComments() {
         try {
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
             const roleName = user?.roleData?.name || user?.role || '';
-            const data = await letterService.getAll({
+            const response = await letterService.getAll({
                 user_id: user?.id,
                 role: roleName,
                 department_id: userDeptId,
-                full_name: `${user?.first_name} ${user?.last_name}`.trim()
+                full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+                limit: 200 // Higher limit for specialized views
             });
+            const data = response.data || response;
             // Filter only letters that have comments
             const lettersWithComments = (Array.isArray(data) ? data : []).filter(l => l.comments && l.comments.length > 0);
             setLetters(lettersWithComments);

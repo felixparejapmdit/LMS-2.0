@@ -57,6 +57,10 @@ export default function MasterTable() {
     const [refreshing, setRefreshing] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedIds, setSelectedIds] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalRecords, setTotalRecords] = useState(0);
+    const [recordsPerPage] = useState(50);
 
     // Drawer/Modal State
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -126,13 +130,22 @@ export default function MasterTable() {
         try {
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
             const roleName = user?.roleData?.name || user?.role || '';
-            const data = await letterService.getAll({
+            const response = await letterService.getAll({
                 user_id: user?.id,
                 role: roleName,
                 department_id: userDeptId,
-                full_name: `${user?.first_name} ${user?.last_name}`.trim()
+                full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+                page: currentPage,
+                limit: recordsPerPage
             });
-            setLetters(Array.isArray(data) ? data : []);
+            
+            if (response && response.data) {
+                setLetters(response.data);
+                setTotalPages(response.totalPages || 1);
+                setTotalRecords(response.total || response.data.length);
+            } else {
+                setLetters(Array.isArray(response) ? response : []);
+            }
 
             const depts = await departmentService.getAll();
             setDepartments(depts);
@@ -165,7 +178,8 @@ export default function MasterTable() {
 
     useEffect(() => {
         fetchData();
-    }, []);
+        // eslint-disable-next-line
+    }, [currentPage]);
 
     const toggleSelectAll = () => {
         if (selectedIds.length === filteredLetters.length) {
@@ -718,15 +732,29 @@ export default function MasterTable() {
                             </div>
                         </div>
 
-                        {/* Footer / Pagination Placeholder */}
+                        {/* Footer / Pagination */}
                         <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-400 px-4">
-                            <span>{filteredLetters.length} / {letters.length}</span>
+                            <span>Showing {letters.length} / {totalRecords} Records</span>
                             <div className="flex items-center gap-4">
-                                <button disabled className="opacity-50">Previous</button>
+                                <button 
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className={`px-3 py-1 rounded transition-all ${currentPage === 1 ? 'opacity-30 cursor-not-allowed text-gray-300' : 'hover:bg-orange-500 hover:text-white pointer-events-auto cursor-pointer'}`}
+                                >
+                                    Previous
+                                </button>
                                 <div className="flex items-center gap-2">
-                                    <span className="w-6 h-6 rounded flex items-center justify-center bg-orange-500 text-white shadow-lg shadow-orange-500/20">1</span>
+                                    <span className="w-6 h-6 rounded flex items-center justify-center bg-orange-500 text-white shadow-lg shadow-orange-500/20">{currentPage}</span>
+                                    <span className="mx-2">of</span>
+                                    <span>{totalPages}</span>
                                 </div>
-                                <button disabled className="opacity-50">Next</button>
+                                <button 
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className={`px-3 py-1 rounded transition-all ${currentPage === totalPages ? 'opacity-30 cursor-not-allowed text-gray-300' : 'hover:bg-orange-500 hover:text-white pointer-events-auto cursor-pointer'}`}
+                                >
+                                    Next
+                                </button>
                             </div>
                         </div>
                     </div>

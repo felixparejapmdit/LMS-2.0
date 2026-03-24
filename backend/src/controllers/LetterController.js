@@ -5,10 +5,12 @@ const { Op } = require('sequelize');
 class LetterController {
     static async getAll(req, res) {
         try {
-            const { user_id, role, department_id } = req.query;
+            const { user_id, role, department_id, page = 1, limit = 50 } = req.query;
             const where = {};
-
-            const normalizedRole = role ? role.toString().toUpperCase() : '';
+            
+            const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
+            const offset = (parseInt(page) - 1) * parseInt(limit);
+            const queryLimit = parseInt(limit);
 
             if (normalizedRole === 'USER' && user_id) {
                 const hasValidDepartment = department_id && department_id !== 'null' && department_id !== 'undefined' && department_id !== '';
@@ -24,28 +26,87 @@ class LetterController {
                     { '$assignments.department_id$': department_id }
                 ];
             } else if (req.query.dept_id && req.query.dept_id !== 'all') {
-                // If Administrator or other role explicitly provides dept_id
                 where.dept_id = (req.query.dept_id === 'null' || req.query.dept_id === 'undefined') ? null : req.query.dept_id;
             }
 
-            const results = await Letter.findAll({
+            const { count, rows } = await Letter.findAndCountAll({
                 where,
                 include: [
                     'letterKind',
                     'status',
                     'attachment',
                     'tray',
-                    'comments',
-                    { model: LetterAssignment, as: 'assignments', include: ['step', 'department'] },
-                    { model: Endorsement, as: 'endorsements' }
+                    { 
+                        model: LetterAssignment, 
+                        as: 'assignments', 
+                        include: ['step', 'department'],
+                        required: false 
+                    }
                 ],
                 order: [['created_at', 'DESC']],
-                subQuery: false
+                limit: queryLimit,
+                offset: offset,
+                distinct: true // Important when using includes with findAndCountAll
             });
-            res.json(results);
+
+            res.json({
+                data: rows,
+                total: count,
+                page: parseInt(page),
+                limit: queryLimit,
+                totalPages: Math.ceil(count / queryLimit)
+            });
         } catch (error) {
             console.error("[ERROR] LetterController.getAll:", error);
-            res.status(500).json({ error: error.message, stack: error.stack });
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    static async getDepartmentLetters(req, res) {
+        try {
+            const { dept_id, page = 1, limit = 50 } = req.query;
+            const offset = (parseInt(page) - 1) * parseInt(limit);
+            const queryLimit = parseInt(limit);
+
+            if (!dept_id || dept_id === 'all') {
+                return LetterController.getAll(req, res);
+            }
+
+            const { count, rows } = await Letter.findAndCountAll({
+                where: {
+                    [Op.or]: [
+                        { dept_id: dept_id },
+                        { '$assignments.department_id$': dept_id }
+                    ]
+                },
+                include: [
+                    'letterKind',
+                    'status',
+                    'attachment',
+                    'tray',
+                    { 
+                        model: LetterAssignment, 
+                        as: 'assignments', 
+                        include: ['step', 'department'],
+                        required: false 
+                    }
+                ],
+                order: [['created_at', 'DESC']],
+                limit: queryLimit,
+                offset: offset,
+                distinct: true
+            });
+
+            res.json({
+                data: rows,
+                total: count,
+                page: parseInt(page),
+                limit: queryLimit,
+                totalPages: Math.ceil(count / queryLimit)
+            });
+        } catch (error) {
+            console.error("[ERROR] LetterController.getDepartmentLetters:", error);
+            res.status(500).json({ error: error.message });
         }
     }
 
