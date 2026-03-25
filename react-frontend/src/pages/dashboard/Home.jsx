@@ -29,6 +29,7 @@ import {
     PieChart
 } from "lucide-react";
 import useAccess from "../../hooks/useAccess";
+import API_BASE from "../../config/apiConfig";
 
 export default function Home() {
     const { user } = useSession();
@@ -63,8 +64,7 @@ export default function Home() {
         try {
             const deptId = user?.dept_id?.id ?? user?.dept_id ?? null;
             const roleName = user?.roleData?.name || user?.role || '';
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-            const response = await axios.get(`${baseUrl}/stats/dashboard`, {
+            const response = await axios.get(`${API_BASE}/stats/dashboard`, {
                 params: {
                     department_id: deptId,
                     role: roleName
@@ -88,7 +88,7 @@ export default function Home() {
 
     const checkHealth = async () => {
         try {
-            const healthUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '') + '/health';
+            const healthUrl = API_BASE.replace(/\/api$/, '') + '/health';
             const response = await axios.get(healthUrl);
             setSystemStatus({ isOnline: response.data.status === 'OK', uptime: response.data.uptime });
         } catch (error) {

@@ -15,8 +15,7 @@ import {
     ArrowLeftCircle
 } from 'lucide-react';
 import axios from 'axios';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import API_BASE from '../../config/apiConfig';
 
 export default function InterDeptManagement() {
     const { layoutStyle, setIsMobileMenuOpen } = useAuth();
@@ -41,7 +40,8 @@ export default function InterDeptManagement() {
         }
     }, [selectedUserId]);
 
-    const fetchInitialData = async () => {
+    const fetchInitialData = async (retryCount = 0) => {
+
         try {
             const [usersRes, deptsRes] = await Promise.all([
                 axios.get(`${API_BASE}/inter-dept/inter-users`),
@@ -51,17 +51,28 @@ export default function InterDeptManagement() {
             setDepartments(deptsRes.data);
         } catch (error) {
             console.error("Fetch error:", error);
+            // Retry logic for aborted/transient errors
+            if (retryCount < 2 && (error.code === 'ECONNABORTED' || error.message?.includes('aborted'))) {
+                console.log(`Retrying initial data fetch... (${retryCount + 1})`);
+                setTimeout(() => fetchInitialData(retryCount + 1), 1000);
+            }
         } finally {
-            setLoading(false);
+            if (retryCount === 0 || retryCount >= 2) {
+                setLoading(false);
+            }
         }
     };
 
-    const fetchUserAssignments = async (userId) => {
+    const fetchUserAssignments = async (userId, retryCount = 0) => {
+
         try {
             const res = await axios.get(`${API_BASE}/inter-dept/users/${userId}`);
             setAssignedDeptIds(res.data.map(a => a.department_id));
         } catch (error) {
             console.error("Assignment fetch error:", error);
+            if (retryCount < 2 && (error.code === 'ECONNABORTED' || error.message?.includes('aborted'))) {
+                setTimeout(() => fetchUserAssignments(userId, retryCount + 1), 1000);
+            }
         }
     };
 

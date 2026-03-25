@@ -12,8 +12,8 @@ const sequelize = new Sequelize({
     storage,
     logging: false,
     pool: {
-        max: 1,
-        min: 0,
+        max: 20, // Allowing concurrent reads (essential for WAL mode performance)
+        min: 1,
         idle: 10000,
         acquire: 60000
     },

@@ -17,8 +17,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import API_BASE from '../../config/apiConfig';
 
 export default function DepartmentViewer() {
     const { user } = useSession();
