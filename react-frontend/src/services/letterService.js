@@ -52,8 +52,9 @@ class LetterService {
         }
     }
 
-    async getLegacyData() {
-        const response = await axios.get("http://172.18.162.84/api/letters_detailed.php");
+    async getLegacyData(page = 1, limit = 10, search = '') {
+        // Direct PHP endpoint as remote MySQL is restricted
+        const response = await axios.get(`http://172.18.162.84/api/letters_detailed.php?page=${page}&limit=${limit}&search=${search}`);
         return response.data;
     }
 }

@@ -75,13 +75,13 @@ const healthHandler = (req, res) => {
 };
 
 app.get('/health', healthHandler);
-app.get('/api/health', healthHandler); // Support both styles
 
 // --- API ROUTES ---
 const apiRouter = express.Router();
 
 // Register Health check inside apiRouter as well
 apiRouter.get('/health', healthHandler);
+apiRouter.get('/api-check', healthHandler); // Support health check via /api/api-check too
 
 // Register all other routers onto the apiRouter
 apiRouter.use('/auth', authRoutes);
@@ -118,14 +118,12 @@ app.use((req, res, next) => {
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
-    // Only log full stack trace if LOG_LEVEL is implicitly debug
     if (process.env.LOG_LEVEL === 'debug') {
         console.error('SERVER ERROR [DEBUG]:', err.stack);
     } else {
         console.error(`SERVER ERROR: ${err.message} at ${req.method} ${req.url}`);
     }
 
-    // Always yield a clean, sanitized standard structure to the frontend.
     res.status(500).json({
         error: 'System Error',
         message: 'Something went wrong, but don\'t worry—we\'re on it.',

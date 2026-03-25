@@ -64,6 +64,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
 
   const activeStepTab = searchParams.get('tab') || 'review';
   const setActiveStepTab = (tab) => {
+    setSelectedIds([]); // Clear selections when changing tabs
     setSearchParams(prev => {
       prev.set('tab', tab);
       return prev;
@@ -89,14 +90,14 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   };
 
   const tabLabels = {
-    review: 'For Review',
-    atg_note: 'For ATG Note',
     signature: 'For Signature',
-    vem: 'VEM Letter',
-    avem: 'AVEM Letter',
-    pending: 'Pending',
-    hold: 'Hold',
-    empty_entry: 'Empty Entry'
+    review: 'For Review',
+    atg_note: 'FOR ATG NOTE',
+    vem: 'VEM LETTER',
+    avem: 'AEVEM LETTER',
+    pending: 'PENDING',
+    hold: 'HOLD',
+    empty_entry: 'EMPTY LETTER'
   };
   const activeTabLabel = tabLabels[activeStepTab] || 'Letters';
 
@@ -104,7 +105,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     if (!user?.id) return;
     if (showRefresh) setRefreshing(true);
     if (retryCount === 0) setLoading(true);
-    
+
     try {
       const deptId = forcedDeptId ?? (user?.dept_id?.id ?? user?.dept_id ?? null);
       const roleName = user?.roleData?.role_name || user?.role || '';
@@ -119,7 +120,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       } else if (view === 'outbox') {
         url += '&global_status=8&outbox=true&exclude_vip=true';
       }
-      
+
       url += `&page=${currentPage}&limit=${recordsPerPage}`;
 
       const response = await axios.get(url);
@@ -130,9 +131,13 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         setTotalPages(resData.totalPages || 1);
         setTotalRecords(resData.total || resData.data.length);
       } else {
-        setAssignments(Array.isArray(resData) ? resData : []);
+        const dataArray = Array.isArray(resData) ? resData : [];
+        setAssignments(dataArray);
+        setTotalRecords(dataArray.length);
+        setTotalPages(1);
+        setCurrentPage(1);
       }
-      
+
       if (view === 'inbox') fetchInboxStats();
     } catch (error) {
       console.error("Error fetching items:", error.message);
@@ -298,22 +303,22 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     if (activeStepTab !== 'pending') return null;
     return (
       <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-300">
-        <button 
-          onClick={(e) => handleQuickAction(e, assignment, 'review')} 
+        <button
+          onClick={(e) => handleQuickAction(e, assignment, 'review')}
           title="Move to For Review"
           className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white border border-emerald-100 transition-colors"
         >
           <FileEdit className="w-3.5 h-3.5" />
         </button>
-        <button 
-          onClick={(e) => handleQuickAction(e, assignment, 'signature')} 
+        <button
+          onClick={(e) => handleQuickAction(e, assignment, 'signature')}
           title="Move to For Signature"
           className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-100 transition-colors"
         >
           <PenTool className="w-3.5 h-3.5" />
         </button>
-        <button 
-          onClick={(e) => handleQuickAction(e, assignment, 'delete')} 
+        <button
+          onClick={(e) => handleQuickAction(e, assignment, 'delete')}
           title="Delete Document"
           className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border border-red-100 transition-colors"
         >
@@ -364,7 +369,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     const showPrintHold = ['review', 'signature', 'vem', 'avem', 'atg_note', 'hold'].includes(activeStepTab);
     const isGrid = layoutStyle === 'grid';
     return (
-      <div className="flex flex-wrap items-center gap-2 p-3 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-2xl shadow-sm mb-4">
+      <div className={`flex flex-wrap items-center gap-2 p-3 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-2xl shadow-sm transition-all duration-300 ${selectedIds.length > 0 ? 'opacity-100 scale-100 mb-4' : 'opacity-0 scale-95 h-0 overflow-hidden mb-0'}`}>
         <button onClick={handleSelectAll} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedIds.length > 0 ? (isGrid ? 'bg-blue-600' : 'bg-orange-600') + ' text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-400'}`}>
           {selectedIds.length === filteredBySteps.length && filteredBySteps.length > 0 ? 'Deselect All' : 'Check All'}
         </button>
@@ -659,38 +664,40 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       <main className="flex-1 flex flex-col h-screen overflow-hidden print:h-auto print:overflow-visible">
         {/* Minimalist Header */}
         <header className={`h-16 ${headerBg} px-4 md:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-20 transition-colors shadow-sm print:hidden`}>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-8 overflow-hidden">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
               className="p-2 -ml-2 text-gray-400 md:hidden transition-colors"
             >
               <MenuIcon className="w-5 h-5" />
             </button>
-            <div className="flex flex-col">
+            <div className="flex flex-col flex-shrink-0">
               <span className="text-[10px] text-[#737373] uppercase tracking-[0.2em] font-black">LMS</span>
               <h1 className={`text-xl font-black ${textColor} tracking-tighter uppercase`}>
                 {view === 'inbox' ? 'Inbox' : view === 'outbox' ? 'Outbox' : view}
               </h1>
             </div>
-          </div>
 
-          <div className="flex items-center gap-6">
+            {/* Tabs moved to the left, next to the title */}
             {view === 'inbox' && canTabFilter && (
-              <div className="flex items-center gap-1 border border-[#E5E5E5] dark:border-[#333] p-1 rounded-lg bg-gray-50/50 dark:bg-white/5 no-scrollbar overflow-x-auto">
+              <div className="flex items-center gap-1 border border-[#E5E5E5] dark:border-[#333] p-1.5 rounded-xl bg-gray-50/50 dark:bg-white/5 no-scrollbar overflow-x-auto min-w-0">
                 {Object.entries(tabLabels).map(([id, label]) => (
                   <button
                     key={id}
                     onClick={() => setActiveStepTab(id)}
-                    className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === id ? 'bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B]' : 'text-[#737373] dark:text-[#A3A3A3] hover:text-[#1A1A1B] dark:hover:text-white'}`}
+                    className={`px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === id ? 'bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B] shadow-sm' : 'text-[#737373] dark:text-[#A3A3A3] hover:text-[#1A1A1B] dark:hover:text-white'}`}
                   >
                     {label}
-                    <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black ${activeStepTab === id ? 'bg-white/20 text-white dark:bg-black/20 dark:text-[#1A1A1B]' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'}`}>
+                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black ${activeStepTab === id ? 'bg-white/20 text-white dark:bg-black/20 dark:text-[#1A1A1B]' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'}`}>
                       {inboxStats[id] || 0}
                     </span>
                   </button>
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="flex items-center gap-6">
             {canRefresh && (
               <button
                 onClick={() => fetchAssignments(true)}
@@ -703,25 +710,10 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pt-6 md:pt-10 custom-scrollbar print:hidden">
-          <div className="w-full space-y-8 md:space-y-10 lg:space-y-12">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-[#E5E5E5] dark:border-[#222] pb-6">
-              <div>
-
-                <h2 className={`text-3xl font-black ${textColor} tracking-tight uppercase`}>{activeTabLabel}</h2>
-                <div className="mt-4 flex items-center gap-3">
-                  <span className="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest border border-blue-100 dark:border-blue-900/30">
-                    Total: {filteredBySteps.length}
-                  </span>
-                  {selectedIds.length > 0 && (
-                    <span className="px-3 py-1 rounded-full bg-orange-50 dark:bg-orange-900/10 text-orange-600 dark:text-orange-400 text-[10px] font-black uppercase tracking-widest border border-orange-100 dark:border-orange-900/30">
-                      Selected: {selectedIds.length}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pt-0 md:pt-0 custom-scrollbar print:hidden">
+          <div className="w-full space-y-4 md:space-y-4 lg:space-y-4">
+            {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-[#E5E5E5] dark:border-[#222] pb-4">
                 <div className="flex items-center gap-1 p-1 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-xl shadow-sm overflow-x-auto no-scrollbar">
                   <button
                     onClick={() => setSelectedTray(null)}
@@ -748,8 +740,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                     );
                   })}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {loading ? (
               <div className="py-32 flex flex-col items-center justify-center border border-[#E5E5E5] dark:border-[#222] bg-white dark:bg-[#111] rounded-3xl">
@@ -806,7 +798,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                     Showing {assignments.length} / {totalRecords} Records
                   </span>
                   <div className="flex items-center gap-4">
-                    <button 
+                    <button
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
                       className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === 1 ? 'opacity-30 cursor-not-allowed text-gray-400' : 'bg-gray-100 dark:bg-white/5 text-[#1A1A1B] dark:text-white hover:bg-[#1A1A1B] hover:text-white pointer-events-auto cursor-pointer'}`}
@@ -818,7 +810,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                       <span className="text-[10px] font-black text-[#737373] uppercase tracking-widest mx-1">of</span>
                       <span className="text-[10px] font-black text-[#1A1A1B] dark:text-white">{totalPages}</span>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
                       className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === totalPages ? 'opacity-30 cursor-not-allowed text-gray-400' : 'bg-gray-100 dark:bg-white/5 text-[#1A1A1B] dark:text-white hover:bg-[#1A1A1B] hover:text-white pointer-events-auto cursor-pointer'}`}

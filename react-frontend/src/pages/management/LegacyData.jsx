@@ -384,8 +384,8 @@ export default function LegacyData() {
                          
                          {/* Pagination */}
                          {!loading && totalPages > 1 && (
-                             <div className="flex items-center justify-between px-2">
-                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                             <div className="flex flex-col items-center gap-4 py-8 pb-12">
+                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                      Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredLetters.length)} of {filteredLetters.length} entries
                                  </p>
                                  <div className="flex items-center gap-2">

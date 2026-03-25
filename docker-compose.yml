@@ -78,3 +78,6 @@ networks:
   lms-net:
     driver: bridge
     name: lms_network
+    ipam:
+      config:
+        - subnet: 10.10.0.0/16
