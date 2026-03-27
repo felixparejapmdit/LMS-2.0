@@ -112,9 +112,9 @@ class AuthController {
 
             console.log(`[LOGIN] Attempt started for: ${username}`);
 
-            // STEP 1: PARALLEL LOOKUP
-            // We can start both local user check and Directus auth simultaneously
-            const [localUserResult, directusAuthResult] = await Promise.allSettled([
+            // STEP 1: RESOLVE LOCAL USER FIRST (essential for identifying the email for Directus)
+            // We still parallelize the SystemPage fetch which is independent.
+            const [user, systemPages] = await Promise.all([
                 User.findOne({
                     where: sequelize.or(
                         { username: username },
@@ -125,37 +125,39 @@ class AuthController {
                         { model: Role, as: 'roleData' }
                     ]
                 }),
-                (async () => {
-                    // Optimized Directus login payload
-                    const loginPayload = {
-                        email: username.includes('@') ? username : undefined,
-                        password: password
-                    };
-                    
-                    // If we don't have email yet, we'll try username - Directus will fail if not configured
-                    // for that, but we'll try again if we find the user locally first in some edge cases.
-                    if (!loginPayload.email) loginPayload.email = username;
-                    if (provider) loginPayload.provider = provider;
-                    
-                    try {
-                        const response = await directusClient.post('/auth/login', loginPayload);
-                        return response.data;
-                    } catch (err) {
-                        // If it fails because of email mismatch, we might need the actual email from local DB
-                        // But for now we throw and let the catch handle it
-                        throw err;
-                    }
-                })()
+                (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) 
+                    ? SystemPage.findAll({ attributes: ['page_id'] }) 
+                    : Promise.resolve(cachedPages)
             ]);
-            lap('Parallel Initial Lookups');
+            lap('Local User & System Pages Lookup');
 
-            if (directusAuthResult.status === 'rejected') {
-                console.error(`[LOGIN] Directus auth failed for ${username}:`, directusAuthResult.reason.message);
-                return res.status(401).json({ error: 'Invalid credentials' });
+            if (!cachedPages || cachedPages !== systemPages) {
+                cachedPages = systemPages;
+                cachedPagesTimestamp = Date.now();
             }
 
-            let user = localUserResult.status === 'fulfilled' ? localUserResult.value : null;
-            const directusAuth = directusAuthResult.value;
+            // STEP 2: DIRECTUS AUTH
+            // If the user was found locally, we MUST use their email for Directus.
+            // If not found locally, we use the provided username as the potential email.
+            const loginPayload = {
+                email: user ? user.email : (username.includes('@') ? username : username),
+                password: password
+            };
+            if (provider) loginPayload.provider = provider;
+
+            let directusAuth;
+            try {
+                const response = await directusClient.post('/auth/login', loginPayload);
+                directusAuth = response.data;
+                lap('Directus Auth');
+            } catch (err) {
+                console.error(`[LOGIN] Directus auth failed for ${loginPayload.email}:`, err.message);
+                
+                // If the first attempt failed and we had a local user but the username was different, 
+                // it might be worth one more try with the raw username if we didn't already? 
+                // No, usually user.email is the correct one.
+                return res.status(401).json({ error: 'Invalid credentials' });
+            }
 
             // If user wasn't in DB but Directus login succeeded, auto-provision
             if (!user) {
