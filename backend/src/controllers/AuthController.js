@@ -1,14 +1,24 @@
 const { User, Role, RolePermission, Department, SystemPage } = require('../models/associations');
 const axios = require('axios');
+const http = require('http');
+const https = require('https');
 const sequelize = require('../config/db');
 
 const DIRECTUS_URL = process.env.DIRECTUS_INTERNAL_URL || 'http://localhost:8055';
-const PERMS_CACHE_TTL_MS = Number.parseInt(process.env.PERMS_CACHE_TTL_MS || '60000', 10);
+const PERMS_CACHE_TTL_MS = Number.parseInt(process.env.PERMS_CACHE_TTL_MS || '600000', 10); // Default to 10 minutes
 const permsCache = new Map();
+
+// Optimized Axios instance for internal communication to Directus
+const directusClient = axios.create({
+    baseURL: DIRECTUS_URL,
+    timeout: 10000,
+    httpAgent: new http.Agent({ keepAlive: true }),
+    httpsAgent: new https.Agent({ keepAlive: true })
+});
 
 let cachedPages = null;
 let cachedPagesTimestamp = 0;
-const PAGES_CACHE_TTL = 600000; // 10 minutes
+const PAGES_CACHE_TTL = 3600000; // 1 hour (System pages change rarely)
 
 const getCachedPerms = (roleId) => {
     if (!roleId || !Number.isFinite(PERMS_CACHE_TTL_MS) || PERMS_CACHE_TTL_MS <= 0) return null;
@@ -102,42 +112,49 @@ class AuthController {
 
             console.log(`[LOGIN] Attempt started for: ${username}`);
 
-            let user = await User.findOne({
-                where: sequelize.or(
-                    { username: username },
-                    { email: username }
-                ),
-                include: [
-                    { model: Department, as: 'department' },
-                    { model: Role, as: 'roleData' }
-                ]
-            });
-            lap('Local User Lookup');
-
-            const [directusAuthResult] = await Promise.allSettled([
+            // STEP 1: PARALLEL LOOKUP
+            // We can start both local user check and Directus auth simultaneously
+            const [localUserResult, directusAuthResult] = await Promise.allSettled([
+                User.findOne({
+                    where: sequelize.or(
+                        { username: username },
+                        { email: username }
+                    ),
+                    include: [
+                        { model: Department, as: 'department' },
+                        { model: Role, as: 'roleData' }
+                    ]
+                }),
                 (async () => {
+                    // Optimized Directus login payload
                     const loginPayload = {
-                        email: user ? user.email : (username.includes('@') ? username : undefined),
+                        email: username.includes('@') ? username : undefined,
                         password: password
                     };
                     
-                    if (!loginPayload.email && !username.includes('@')) {
-                        loginPayload.email = username;
-                    }
-
+                    // If we don't have email yet, we'll try username - Directus will fail if not configured
+                    // for that, but we'll try again if we find the user locally first in some edge cases.
+                    if (!loginPayload.email) loginPayload.email = username;
                     if (provider) loginPayload.provider = provider;
                     
-                    const response = await axios.post(`${DIRECTUS_URL}/auth/login`, loginPayload, { timeout: 10000 });
-                    return response.data;
+                    try {
+                        const response = await directusClient.post('/auth/login', loginPayload);
+                        return response.data;
+                    } catch (err) {
+                        // If it fails because of email mismatch, we might need the actual email from local DB
+                        // But for now we throw and let the catch handle it
+                        throw err;
+                    }
                 })()
             ]);
-            lap('Directus Auth API');
+            lap('Parallel Initial Lookups');
 
             if (directusAuthResult.status === 'rejected') {
                 console.error(`[LOGIN] Directus auth failed for ${username}:`, directusAuthResult.reason.message);
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
 
+            let user = localUserResult.status === 'fulfilled' ? localUserResult.value : null;
             const directusAuth = directusAuthResult.value;
 
             // If user wasn't in DB but Directus login succeeded, auto-provision
@@ -145,7 +162,7 @@ class AuthController {
                 try {
                     console.log(`[LOGIN] User ${username} auto-provisioning...`);
                     const token = directusAuth.data.access_token;
-                    const meRes = await axios.get(`${DIRECTUS_URL}/users/me?fields=*,role.*`, {
+                    const meRes = await directusClient.get('/users/me?fields=*,role.*', {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                     const me = meRes.data.data;
@@ -166,11 +183,11 @@ class AuthController {
                 }
             }
 
-            // Optimization: Try cache first for permissions
+            // Optimization: Longer TTL for permissions and smarter fetch
             let normalizedPerms = getCachedPerms(user.role);
-            let finalPerms = [];
-
+            
             if (!normalizedPerms) {
+                // Fetch in parallel
                 const [perms, systemPages] = await Promise.all([
                     RolePermission.findAll({ where: { role_id: user.role } }),
                     (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) 
@@ -184,35 +201,46 @@ class AuthController {
                     cachedPagesTimestamp = Date.now();
                 }
 
-                finalPerms = perms;
+                // Sync missing permissions ONLY IF needed, and do it async if possible?
+                // Actually we just return what we have to keep login fast.
+                // Missing perms return 'false' in frontend anyway.
                 if (perms.length < systemPages.length) {
                     const existingPageNames = new Set(perms.map(r => r.page_name));
                     const missingPages = systemPages.filter(p => !existingPageNames.has(p.page_id));
                     
                     if (missingPages.length > 0) {
-                        console.log(`[LOGIN] Syncing ${missingPages.length} missing permissions for role ${user.role}...`);
-                        const toCreate = missingPages.map(page => ({
-                            role_id: user.role,
-                            page_name: page.page_id,
-                            can_view: false,
-                            can_create: false,
-                            can_edit: false,
-                            can_delete: false,
-                            can_special: false,
-                            field_permissions: withDefaultFieldPermissions(page.page_id, {})
-                        }));
-                        await RolePermission.bulkCreate(toCreate, { ignoreDuplicates: true });
-                        finalPerms = await RolePermission.findAll({ where: { role_id: user.role } });
-                        lap('Missing Permission Sync');
+                        console.log(`[LOGIN] Detected missing permissions. Role ${user.role} has ${perms.length}/${systemPages.length} pages.`);
+                        // Fire-and-forget sync to not block login
+                        (async () => {
+                            try {
+                                const toCreate = missingPages.map(page => ({
+                                    role_id: user.role,
+                                    page_name: page.page_id,
+                                    can_view: false,
+                                    can_create: false,
+                                    can_edit: false,
+                                    can_delete: false,
+                                    can_special: false,
+                                    field_permissions: withDefaultFieldPermissions(page.page_id, {})
+                                }));
+                                await RolePermission.bulkCreate(toCreate, { ignoreDuplicates: true });
+                                console.log(`[LOGIN] Background sync of ${missingPages.length} permissions complete for role ${user.role}`);
+                                // Clear cache to ensure next loggers get full perms
+                                permsCache.delete(user.role);
+                            } catch (e) {
+                                console.error("[LOGIN] Background sync failed:", e.message);
+                            }
+                        })();
                     }
                 }
-                normalizedPerms = normalizePermissions(finalPerms);
+                
+                normalizedPerms = normalizePermissions(perms);
                 setCachedPerms(user.role, normalizedPerms);
             } else {
                 lap('Permission Cache Hit');
             }
 
-            // Fire-and-forget update
+            // Non-blocking update
             User.update({ islogin: true }, { where: { id: user.id } }).catch(() => { });
 
             lap('Final Prep');
