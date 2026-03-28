@@ -27,7 +27,7 @@ services:
       DB_SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
       DB_SQLITE_BUSY_TIMEOUT: "15000"
       DB_SQLITE_SYNCHRONOUS: "NORMAL"
-      NODE_OPTIONS: "--max-old-space-size=2048"
+      NODE_OPTIONS: "--max-old-space-size=2048 --dns-result-order=ipv4first"
     restart: unless-stopped
 
   backend:
@@ -50,6 +50,7 @@ services:
       TELEGRAM_WEBHOOK_URL: "${TELEGRAM_WEBHOOK_URL}"
       # Match the service name for internal networking
       DIRECTUS_INTERNAL_URL: "http://directus:8055"
+      NODE_OPTIONS: "--dns-result-order=ipv4first"
       SQLITE_SQL_LOG_LEVEL: "warn"
       SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
       SQLITE_BUSY_TIMEOUT: "15000"

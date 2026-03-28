@@ -92,6 +92,8 @@ const normalizePermissions = (perms) => perms.map((record) => {
     };
 });
 
+const argon2 = require('argon2');
+
 class AuthController {
     static async login(req, res) {
         const startTime = Date.now();
@@ -137,6 +139,17 @@ class AuthController {
             if (!cachedPages || cachedPages !== systemPages) {
                 cachedPages = systemPages;
                 cachedPagesTimestamp = Date.now();
+            }
+
+            // --- FAST PATH: LOCAL PASSWORD VERIFICATION ---
+            // If the user exists locally, we check the password first to provide instant 401s
+            // and isolate hashing performance from network performance.
+            if (user && user.password && !username.includes('@')) {
+                const isValid = await argon2.verify(user.password, password).catch(() => false);
+                lap(`Local Password Check (${isValid ? 'Success' : 'Failed'})`);
+                if (!isValid) {
+                    return res.status(401).json({ error: 'Invalid credentials', timings });
+                }
             }
 
             // STEP 2: DIRECTUS AUTH
