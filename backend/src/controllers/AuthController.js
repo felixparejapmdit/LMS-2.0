@@ -140,20 +140,52 @@ class AuthController {
             }
 
             // STEP 2: DIRECTUS AUTH
+            // We'll try user.email first if available, otherwise raw username.
+            const primaryEmail = user?.email || (username.includes('@') ? username : username);
             const loginPayload = {
-                email: user ? user.email : (username.includes('@') ? username : username),
+                email: primaryEmail,
                 password: password
             };
             if (provider) loginPayload.provider = provider;
+
+            console.log(`[LOGIN] Attempting Directus login for: ${primaryEmail} (Provider: ${provider || 'default'})`);
 
             let directusAuth;
             try {
                 const response = await directusClient.post('/auth/login', loginPayload);
                 directusAuth = response.data;
-                lap('Directus Auth');
+                lap('Directus Auth (Primary)');
             } catch (err) {
-                console.error(`[LOGIN] Directus auth failed for ${loginPayload.email}:`, err.message);
-                return res.status(401).json({ error: 'Invalid credentials' });
+                const status = err.response?.status;
+                const errorData = err.response?.data;
+                
+                console.warn(`[LOGIN] Primary Directus auth failed (${status}) for ${primaryEmail}:`, 
+                    JSON.stringify(errorData || err.message));
+
+                // FALLBACK: If primary failed with 401 and we used user.email, 
+                // try once more with the raw username just in case Directus 
+                // is configured to use usernames as the "email" field for some users.
+                if (status === 401 && user && user.email !== username) {
+                    console.log(`[LOGIN] Retrying Directus auth with raw username: ${username}`);
+                    try {
+                        const retryResponse = await directusClient.post('/auth/login', {
+                            email: username,
+                            password: password,
+                            ...(provider ? { provider } : {})
+                        });
+                        directusAuth = retryResponse.data;
+                        lap('Directus Auth (Fallback/Username)');
+                    } catch (retryErr) {
+                        console.error(`[LOGIN] Fallback Directus auth also failed for ${username}`);
+                        return res.status(401).json({ error: 'Invalid credentials', timings });
+                    }
+                } else {
+                    return res.status(status === 401 ? 401 : 500).json({ 
+                        error: status === 401 ? 'Invalid credentials' : 'Authentication service error',
+                        details: err.message,
+                        timings 
+                    });
+                }
             }
 
             // Sync user if needed (Auto-provisioning)
