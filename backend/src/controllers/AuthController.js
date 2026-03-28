@@ -97,9 +97,13 @@ class AuthController {
         const startTime = Date.now();
         let currentStepTime = startTime;
         
+        const timings = {};
         const lap = (name) => {
             const now = Date.now();
-            console.log(`[LOGIN Perf] ${name}: ${now - currentStepTime}ms (Total: ${now - startTime}ms)`);
+            const duration = now - currentStepTime;
+            const total = now - startTime;
+            timings[name] = duration;
+            console.log(`[LOGIN Perf] ${name}: ${duration}ms (Total: ${total}ms)`);
             currentStepTime = now;
         };
 
@@ -112,8 +116,7 @@ class AuthController {
 
             console.log(`[LOGIN] Attempt started for: ${username}`);
 
-            // STEP 1: RESOLVE LOCAL USER FIRST (essential for identifying the email for Directus)
-            // We still parallelize the SystemPage fetch which is independent.
+            // STEP 1: RESOLVE LOCAL USER FIRST
             const [user, systemPages] = await Promise.all([
                 User.findOne({
                     where: sequelize.or(
@@ -137,8 +140,6 @@ class AuthController {
             }
 
             // STEP 2: DIRECTUS AUTH
-            // If the user was found locally, we MUST use their email for Directus.
-            // If not found locally, we use the provided username as the potential email.
             const loginPayload = {
                 email: user ? user.email : (username.includes('@') ? username : username),
                 password: password
@@ -152,14 +153,10 @@ class AuthController {
                 lap('Directus Auth');
             } catch (err) {
                 console.error(`[LOGIN] Directus auth failed for ${loginPayload.email}:`, err.message);
-                
-                // If the first attempt failed and we had a local user but the username was different, 
-                // it might be worth one more try with the raw username if we didn't already? 
-                // No, usually user.email is the correct one.
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
 
-            // If user wasn't in DB but Directus login succeeded, auto-provision
+            // Sync user if needed (Auto-provisioning)
             if (!user) {
                 try {
                     console.log(`[LOGIN] User ${username} auto-provisioning...`);
@@ -185,34 +182,21 @@ class AuthController {
                 }
             }
 
-            // Optimization: Longer TTL for permissions and smarter fetch
+            // Permission Fetching
             let normalizedPerms = getCachedPerms(user.role);
             
             if (!normalizedPerms) {
-                // Fetch in parallel
-                const [perms, systemPages] = await Promise.all([
-                    RolePermission.findAll({ where: { role_id: user.role } }),
-                    (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) 
-                        ? SystemPage.findAll({ attributes: ['page_id'] }) 
-                        : Promise.resolve(cachedPages)
+                const [perms] = await Promise.all([
+                    RolePermission.findAll({ where: { role_id: user.role } })
                 ]);
-                lap('Permission & Page Fetch');
+                lap('Permission Fetch');
 
-                if (!cachedPages || cachedPages !== systemPages) {
-                    cachedPages = systemPages;
-                    cachedPagesTimestamp = Date.now();
-                }
-
-                // Sync missing permissions ONLY IF needed, and do it async if possible?
-                // Actually we just return what we have to keep login fast.
-                // Missing perms return 'false' in frontend anyway.
                 if (perms.length < systemPages.length) {
                     const existingPageNames = new Set(perms.map(r => r.page_name));
                     const missingPages = systemPages.filter(p => !existingPageNames.has(p.page_id));
                     
                     if (missingPages.length > 0) {
                         console.log(`[LOGIN] Detected missing permissions. Role ${user.role} has ${perms.length}/${systemPages.length} pages.`);
-                        // Fire-and-forget sync to not block login
                         (async () => {
                             try {
                                 const toCreate = missingPages.map(page => ({
@@ -226,13 +210,12 @@ class AuthController {
                                     field_permissions: withDefaultFieldPermissions(page.page_id, {})
                                 }));
                                 await RolePermission.bulkCreate(toCreate, { ignoreDuplicates: true });
-                                console.log(`[LOGIN] Background sync of ${missingPages.length} permissions complete for role ${user.role}`);
-                                // Clear cache to ensure next loggers get full perms
                                 permsCache.delete(user.role);
                             } catch (e) {
                                 console.error("[LOGIN] Background sync failed:", e.message);
                             }
                         })();
+                        lap('Background Permission Sync Triggered');
                     }
                 }
                 
@@ -242,7 +225,6 @@ class AuthController {
                 lap('Permission Cache Hit');
             }
 
-            // Non-blocking update
             User.update({ islogin: true }, { where: { id: user.id } }).catch(() => { });
 
             lap('Final Prep');
@@ -252,12 +234,13 @@ class AuthController {
                 success: true,
                 user,
                 permissions: normalizedPerms,
-                directus_auth: directusAuth.data
+                directus_auth: directusAuth.data,
+                timings
             });
 
         } catch (error) {
             console.error(`[LOGIN] Total failure after ${Date.now() - startTime}ms:`, error.message);
-            res.status(error.message === 'Invalid credentials' ? 401 : 500).json({ error: error.message });
+            res.status(error.message === 'Invalid credentials' ? 401 : 500).json({ error: error.message, timings });
         }
     }
 

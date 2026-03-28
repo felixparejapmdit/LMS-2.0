@@ -263,7 +263,15 @@ export const AuthProvider = ({ children }) => {
             const res = await axios.post(`${BACKEND_URL}/auth/login`, { username, password, provider });
             if (!res.data.success) throw new Error(res.data.error || "Login failed");
 
-            const { user: me, permissions: perms, directus_auth: directusAuth } = res.data;
+            const { user: me, permissions: perms, directus_auth: directusAuth, timings } = res.data;
+
+            if (timings) {
+                console.group(`[LOGIN Performance] ${username}`);
+                Object.entries(timings).forEach(([step, duration]) => {
+                    console.log(`${step.padEnd(30)}: ${duration}ms`);
+                });
+                console.groupEnd();
+            }
 
             if (directusAuth) localStorage.setItem('directus_auth', JSON.stringify(directusAuth));
             localStorage.removeItem("isGuest");
