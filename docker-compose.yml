@@ -24,9 +24,12 @@ services:
       # WAL mode + Single instances = maximum SQLite stability
       DB_SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
       DB_SQLITE_BUSY_TIMEOUT: "30000"
-      DB_SQLITE_SYNCHRONOUS: "NORMAL"
+      DB_SQLITE_SYNCHRONOUS: "OFF"
       NODE_OPTIONS: "--max-old-space-size=2048 --dns-result-order=ipv4first"
       PM2_INSTANCES: "1"
+      # Performance: Disable background session metadata tracking
+      AUTH_SESSION_IP_TIE: "false"
+      AUTH_SESSION_USER_AGENT_TIE: "false"
     restart: unless-stopped
     networks:
       lms-net:
@@ -56,7 +59,7 @@ services:
       SQLITE_SQL_LOG_LEVEL: "warn"
       SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
       SQLITE_BUSY_TIMEOUT: "30000"
-      SQLITE_SYNCHRONOUS: "${SQLITE_SYNCHRONOUS:-NORMAL}"
+      SQLITE_SYNCHRONOUS: "OFF"
     depends_on:
       - directus
     restart: unless-stopped
