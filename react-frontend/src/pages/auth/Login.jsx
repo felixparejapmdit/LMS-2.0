@@ -25,7 +25,7 @@ export default function Login() {
       } else if (roleName === 'VIP') {
         window.location.href = "/vip-view";
       } else {
-        window.location.href = "/";
+        window.location.href = "/inbox";
       }
     } else {
       setError(result.error || "Login failed. Please check your credentials.");
