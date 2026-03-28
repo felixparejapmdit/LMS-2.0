@@ -178,7 +178,7 @@ class AuthController {
                 permissionsPromise,
                 Promise.race([
                     directusAuthPromise,
-                    new Promise(resolve => setTimeout(() => resolve('PENDING'), 1000))
+                    new Promise(resolve => setTimeout(() => resolve('PENDING'), 500))
                 ])
             ]);
 

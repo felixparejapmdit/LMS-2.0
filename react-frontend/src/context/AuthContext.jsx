@@ -182,6 +182,20 @@ export const AuthProvider = ({ children }) => {
             return;
         }
 
+        const directusJson = JSON.parse(directusStored);
+        const isPending = directusJson?.pending === true;
+
+        if (isPending) {
+            // Give it 10 seconds to resolve. If still pending, logout
+            const age = Date.now() - (directusJson.timestamp || 0);
+            if (age > 10000) {
+                console.warn("AuthContext: Token was pending too long. Logging out.");
+                logout();
+                return;
+            }
+            console.log("AuthContext: Token is still pending in background, allowing session to continue.");
+        }
+
         const cachedUser = readCachedJson(AUTH_USER_KEY, null);
         const cachedPermsRaw = localStorage.getItem(AUTH_PERMS_KEY);
         const cachedPerms = cachedPermsRaw ? readCachedJson(AUTH_PERMS_KEY, []) : null;
@@ -263,17 +277,23 @@ export const AuthProvider = ({ children }) => {
             const res = await axios.post(`${BACKEND_URL}/auth/login`, { username, password, provider });
             if (!res.data.success) throw new Error(res.data.error || "Login failed");
 
-            const { user: me, permissions: perms, directus_auth: directusAuth, timings } = res.data;
+            const { user: me, permissions: perms, directus_auth: directusAuth, token_pending, timings } = res.data;
 
             if (timings) {
                 console.group(`[LOGIN Performance] ${username}`);
                 Object.entries(timings).forEach(([step, duration]) => {
                     console.log(`${step.padEnd(30)}: ${duration}ms`);
                 });
+                console.log(`Directus Token: ${token_pending ? 'PENDING' : 'READY'}`);
                 console.groupEnd();
             }
 
-            if (directusAuth) localStorage.setItem('directus_auth', JSON.stringify(directusAuth));
+            if (directusAuth) {
+                localStorage.setItem('directus_auth', JSON.stringify(directusAuth));
+            } else if (token_pending) {
+                // If the token is slow, we set a temporary pending status to prevent checkAuth from logging us out immediately
+                localStorage.setItem('directus_auth', JSON.stringify({ pending: true, timestamp: Date.now() }));
+            }
             localStorage.removeItem("isGuest");
 
             writeCachedJson(AUTH_USER_KEY, me);
