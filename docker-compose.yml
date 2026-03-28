@@ -8,8 +8,6 @@ services:
       - ./directus/database:/directus/database
       - ./directus/uploads:/directus/uploads
       - ./directus/extensions:/directus/extensions
-    networks:
-      - lms-net
     environment:
       KEY: "${DIRECTUS_KEY:-felix-lms-key}"
       SECRET: "${DIRECTUS_SECRET:-felix-lms-secret-must-be-32-chars-long}"
@@ -23,11 +21,10 @@ services:
       CORS_METHODS: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
       CORS_ALLOWED_HEADERS: "Content-Type,Authorization"
       PUBLIC_URL: "${DIRECTUS_PUBLIC_URL:-http://localhost:8055}"
-      # WAL mode is significantly faster on Linux/Proxmox
+      # WAL mode + Single instances = maximum SQLite stability
       DB_SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
-      DB_SQLITE_BUSY_TIMEOUT: "15000"
-      DB_SQLITE_SYNCHRONOUS: "NORMAL"
       DB_SQLITE_BUSY_TIMEOUT: "30000"
+      DB_SQLITE_SYNCHRONOUS: "NORMAL"
       NODE_OPTIONS: "--max-old-space-size=2048 --dns-result-order=ipv4first"
       PM2_INSTANCES: "1"
     restart: unless-stopped
@@ -53,12 +50,12 @@ services:
       DB_PATH: "${DB_PATH:-/directus/database/data.db}"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
       TELEGRAM_WEBHOOK_URL: "${TELEGRAM_WEBHOOK_URL}"
-      # Use static IP to bypass DNS entirely
+      # Static IP Bypasses Docker DNS (No more 4s wait)
       DIRECTUS_INTERNAL_URL: "http://172.20.0.10:8055"
       NODE_OPTIONS: "--dns-result-order=ipv4first"
       SQLITE_SQL_LOG_LEVEL: "warn"
       SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
-      SQLITE_BUSY_TIMEOUT: "15000"
+      SQLITE_BUSY_TIMEOUT: "30000"
       SQLITE_SYNCHRONOUS: "${SQLITE_SYNCHRONOUS:-NORMAL}"
     depends_on:
       - directus
@@ -84,3 +81,7 @@ networks:
   lms-net:
     driver: bridge
     name: lms_network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
