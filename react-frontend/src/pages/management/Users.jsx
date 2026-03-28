@@ -27,6 +27,7 @@ import { uploadFiles } from "@directus/sdk";
 import userService from "../../services/userService";
 import departmentService from "../../services/departmentService";
 import axios from "axios";
+import API_BASE from "../../config/apiConfig";
 
 export default function Users() {
     const access = useAccess();
@@ -132,15 +133,15 @@ export default function Users() {
             
             // For SuperAdmins, fetch ALL roles by not passing dept_id
             // For others, fetch roles for their department
-            const rolesUrl = new URL(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/role-permissions/roles`);
+            let finalRolesUrl = `${API_BASE}/role-permissions/roles`;
             if (!isSuperAdmin && userDeptId) {
-                rolesUrl.searchParams.append('dept_id', userDeptId);
+                finalRolesUrl += `?dept_id=${userDeptId}`;
             }
 
             const [usersData, deptsData, rolesRes] = await Promise.all([
                 userService.getAll(params),
                 departmentService.getAll(),
-                axios.get(rolesUrl.toString())
+                axios.get(finalRolesUrl)
             ]);
             setUsers(Array.isArray(usersData) ? usersData : []);
             setDepartments(Array.isArray(deptsData) ? deptsData : []);
