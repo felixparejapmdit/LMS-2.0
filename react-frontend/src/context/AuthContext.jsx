@@ -363,9 +363,6 @@ export const AuthProvider = ({ children }) => {
         // Access Manager Role (Previously bypassed, now follows matrix)
         const isAccessManager = roleName === 'ACCESS MANAGER';
 
-        console.log(`hasPermission: page=${pageId}, role=${roleName}, isSuperAdmin=${isSuperAdmin}, isAccessManager=${isAccessManager}`);
-        if (isSuperAdmin) return true;
-
         if (!authState.permissions || authState.permissions.length === 0) return false;
 
         const normalizePageId = (value = "") => value.toString().toLowerCase().replace(/[^a-z0-9]/g, "");
