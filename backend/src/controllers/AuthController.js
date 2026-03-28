@@ -189,29 +189,28 @@ class AuthController {
             } else {
                 lap('Permission Cache Hit');
             }
+            lap('Data Prepared');
 
-            const userData = {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                first_name: user.first_name,
-                last_name: user.last_name,
-                role: user.role,
-                avatar: user.avatar,
-                department_id: user.department_id,
-                permissions: normalizedPerms,
-                systemPages: systemPages.map(p => p.page_id)
-            };
-
-            // Non-blocking update
+            // Background update
             User.update({ islogin: true }, { where: { id: user.id } }).catch(() => {});
 
             console.log(`[LOGIN] Fast-path successful for ${user.username} in ${Date.now() - startTime}ms. Directus: ${typeof directusAuth === 'string' ? 'PENDING' : 'READY'}`);
 
             return res.json({
                 success: true,
-                user: userData,
-                directus_auth: directusAuth === 'PENDING' ? null : directusAuth?.data,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    first_name: user.first_name,
+                    last_name: user.last_name,
+                    role: user.role,
+                    avatar: user.avatar,
+                    department_id: user.department_id,
+                    systemPages: systemPages.map(p => p.page_id)
+                },
+                permissions: normalizedPerms || [], // ROOT LEVEL as expected by frontend
+                directus_auth: (directusAuth === 'PENDING' || !directusAuth) ? null : directusAuth?.data || directusAuth,
                 token_pending: directusAuth === 'PENDING',
                 timings
             });
