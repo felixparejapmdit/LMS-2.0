@@ -122,7 +122,7 @@ export default function Users() {
     }, [isModalOpen]);
 
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    const isSuperAdmin = ['ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER'].includes(roleName);
+    const isSuperAdmin = ['ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER', 'ADMIN', 'SUPER ADMIN', 'DEVELOPER', 'ROOT'].includes(roleName);
 
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
@@ -130,10 +130,17 @@ export default function Users() {
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
             const params = isSuperAdmin ? {} : { dept_id: userDeptId };
             
+            // For SuperAdmins, fetch ALL roles by not passing dept_id
+            // For others, fetch roles for their department
+            const rolesUrl = new URL(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/role-permissions/roles`);
+            if (!isSuperAdmin && userDeptId) {
+                rolesUrl.searchParams.append('dept_id', userDeptId);
+            }
+
             const [usersData, deptsData, rolesRes] = await Promise.all([
                 userService.getAll(params),
                 departmentService.getAll(),
-                axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/role-permissions/roles?dept_id=${userDeptId}`)
+                axios.get(rolesUrl.toString())
             ]);
             setUsers(Array.isArray(usersData) ? usersData : []);
             setDepartments(Array.isArray(deptsData) ? deptsData : []);
@@ -154,8 +161,8 @@ export default function Users() {
     };
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (user) fetchData();
+    }, [user]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

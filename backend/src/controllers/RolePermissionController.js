@@ -164,11 +164,12 @@ class RolePermissionController {
 
             // Build where clause for dept_id filtering
             const where = {};
-            if (dept_id !== undefined) {
+            if (dept_id !== undefined && dept_id !== 'all' && dept_id !== 'undefined') {
                 if (dept_id === 'null' || dept_id === '') {
                     where.dept_id = null;
                 } else {
-                    where.dept_id = parseInt(dept_id, 10) || dept_id;
+                    const parsed = parseInt(dept_id, 10) || dept_id;
+                    where.dept_id = { [Op.or]: [parsed, null] };
                 }
             }
 
@@ -221,11 +222,12 @@ class RolePermissionController {
             const ADMIN_ROLE_NAMES = ['ADMINISTRATOR', 'ADMIN', 'SUPER ADMIN', 'SUPERUSER', 'DEVELOPER', 'ROOT', 'SYSTEM ADMIN'];
 
             const where = {};
-            if (dept_id !== undefined) {
+            if (dept_id !== undefined && dept_id !== 'all' && dept_id !== 'undefined') {
                 if (dept_id === 'null' || dept_id === '') {
                     where.dept_id = null;
                 } else {
-                    where.dept_id = parseInt(dept_id, 10) || dept_id;
+                    const parsed = parseInt(dept_id, 10) || dept_id;
+                    where.dept_id = { [Op.or]: [parsed, null] };
                 }
             }
 

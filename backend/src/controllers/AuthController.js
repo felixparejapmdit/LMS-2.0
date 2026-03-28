@@ -112,7 +112,8 @@ class AuthController {
                     where: Sequelize.where(
                         Sequelize.fn('LOWER', Sequelize.col('username')),
                         Sequelize.fn('LOWER', username)
-                    )
+                    ),
+                    include: ['roleData', 'department']
                 }),
                 (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) 
                     ? SystemPage.findAll({ attributes: ['page_id'] }) 
@@ -199,14 +200,7 @@ class AuthController {
             return res.json({
                 success: true,
                 user: {
-                    id: user.id,
-                    username: user.username,
-                    email: user.email,
-                    first_name: user.first_name,
-                    last_name: user.last_name,
-                    role: user.role,
-                    avatar: user.avatar,
-                    department_id: user.department_id,
+                    ...user.get({ plain: true }),
                     systemPages: systemPages.map(p => p.page_id)
                 },
                 permissions: normalizedPerms || [], // ROOT LEVEL as expected by frontend
@@ -226,7 +220,7 @@ class AuthController {
             const { userId } = req.query;
             if (!userId) return res.status(400).json({ error: 'User ID required' });
 
-            const user = await User.findByPk(userId);
+            const user = await User.findByPk(userId, { include: ['roleData', 'department'] });
             if (!user) return res.status(404).json({ error: 'User not found' });
 
             let normalizedPerms = getCachedPerms(user.role);
