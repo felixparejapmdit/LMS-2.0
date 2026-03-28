@@ -3,12 +3,13 @@ const axios = require('axios');
 const http = require('http');
 const https = require('https');
 const sequelize = require('../config/db');
+const { Sequelize } = require('sequelize');
+const argon2 = require('argon2');
 
 const DIRECTUS_URL = process.env.DIRECTUS_INTERNAL_URL || 'http://localhost:8055';
-const PERMS_CACHE_TTL_MS = Number.parseInt(process.env.PERMS_CACHE_TTL_MS || '600000', 10); // Default to 10 minutes
+const PERMS_CACHE_TTL_MS = Number.parseInt(process.env.PERMS_CACHE_TTL_MS || '600000', 10);
 const permsCache = new Map();
 
-// Optimized Axios instance for internal communication to Directus
 const directusClient = axios.create({
     baseURL: DIRECTUS_URL,
     timeout: 10000,
@@ -18,7 +19,7 @@ const directusClient = axios.create({
 
 let cachedPages = null;
 let cachedPagesTimestamp = 0;
-const PAGES_CACHE_TTL = 3600000; // 1 hour (System pages change rarely)
+const PAGES_CACHE_TTL = 3600000;
 
 const getCachedPerms = (roleId) => {
     if (!roleId || !Number.isFinite(PERMS_CACHE_TTL_MS) || PERMS_CACHE_TTL_MS <= 0) return null;
@@ -92,200 +93,132 @@ const normalizePermissions = (perms) => perms.map((record) => {
     };
 });
 
-const argon2 = require('argon2');
-
 class AuthController {
     static async login(req, res) {
         const startTime = Date.now();
-        let currentStepTime = startTime;
-        
         const timings = {};
-        const lap = (name) => {
-            const now = Date.now();
-            const duration = now - currentStepTime;
-            const total = now - startTime;
-            timings[name] = duration;
-            console.log(`[LOGIN Perf] ${name}: ${duration}ms (Total: ${total}ms)`);
-            currentStepTime = now;
-        };
+        const lap = (name) => { timings[name] = Date.now() - startTime; };
 
         try {
-            const { username, password, provider } = req.body;
+            const { username, password } = req.body;
 
             if (!username || !password) {
                 return res.status(400).json({ error: 'Username and password are required' });
             }
 
-            console.log(`[LOGIN] Attempt started for: ${username}`);
-
-            // STEP 1: RESOLVE LOCAL USER FIRST
+            // STEP 1: PARALLEL LOCAL LOOKUP
             const [user, systemPages] = await Promise.all([
                 User.findOne({
-                    where: sequelize.or(
-                        { username: username },
-                        { email: username }
-                    ),
-                    include: [
-                        { model: Department, as: 'department' },
-                        { model: Role, as: 'roleData' }
-                    ]
+                    where: Sequelize.where(
+                        Sequelize.fn('LOWER', Sequelize.col('username')),
+                        Sequelize.fn('LOWER', username)
+                    )
                 }),
                 (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) 
                     ? SystemPage.findAll({ attributes: ['page_id'] }) 
                     : Promise.resolve(cachedPages)
             ]);
-            lap('Local User & System Pages Lookup');
 
-            if (!cachedPages || cachedPages !== systemPages) {
+            lap('Local Resolve');
+
+            if (!user) {
+                return res.status(401).json({ error: 'Invalid credentials (User not found)' });
+            }
+
+            // Update page cache
+            if (systemPages !== cachedPages) {
                 cachedPages = systemPages;
                 cachedPagesTimestamp = Date.now();
             }
 
-            // --- FAST PATH: LOCAL PASSWORD VERIFICATION ---
-            // If the user exists locally, we check the password first to provide instant 401s
-            // and isolate hashing performance from network performance.
-            if (user && user.password && !username.includes('@')) {
-                const isValid = await argon2.verify(user.password, password).catch(() => false);
-                lap(`Local Password Check (${isValid ? 'Success' : 'Failed'})`);
-                if (!isValid) {
-                    return res.status(401).json({ error: 'Invalid credentials', timings });
-                }
-            }
-
-            // STEP 2: DIRECTUS AUTH
-            // We'll try user.email first if available, otherwise raw username.
-            const primaryEmail = user?.email || (username.includes('@') ? username : username);
-            const loginPayload = {
-                email: primaryEmail,
-                password: password
-            };
-            if (provider) loginPayload.provider = provider;
-
-            console.log(`[LOGIN] Attempting Directus login for: ${primaryEmail} (Provider: ${provider || 'default'})`);
-
-            let directusAuth;
+            // STEP 2: LOCAL PASSWORD VERIFICATION (FAST PATH)
+            let isPasswordValid = false;
             try {
-                const response = await directusClient.post('/auth/login', loginPayload);
-                directusAuth = response.data;
-                lap('Directus Auth (Primary)');
+                isPasswordValid = await argon2.verify(user.password, password);
+                lap('Local Pwd Check');
             } catch (err) {
-                const status = err.response?.status;
-                const errorData = err.response?.data;
-                
-                console.warn(`[LOGIN] Primary Directus auth failed (${status}) for ${primaryEmail}:`, 
-                    JSON.stringify(errorData || err.message));
-
-                // FALLBACK: If primary failed with 401 and we used user.email, 
-                // try once more with the raw username just in case Directus 
-                // is configured to use usernames as the "email" field for some users.
-                if (status === 401 && user && user.email !== username) {
-                    console.log(`[LOGIN] Retrying Directus auth with raw username: ${username}`);
-                    try {
-                        const retryResponse = await directusClient.post('/auth/login', {
-                            email: username,
-                            password: password,
-                            ...(provider ? { provider } : {})
-                        });
-                        directusAuth = retryResponse.data;
-                        lap('Directus Auth (Fallback/Username)');
-                    } catch (retryErr) {
-                        console.error(`[LOGIN] Fallback Directus auth also failed for ${username}`);
-                        return res.status(401).json({ error: 'Invalid credentials', timings });
-                    }
-                } else {
-                    return res.status(status === 401 ? 401 : 500).json({ 
-                        error: status === 401 ? 'Invalid credentials' : 'Authentication service error',
-                        details: err.message,
-                        timings 
-                    });
-                }
+                console.error('[LOGIN] Argon2 Error:', err);
             }
 
-            // Sync user if needed (Auto-provisioning)
-            if (!user) {
+            if (!isPasswordValid) {
+                return res.status(401).json({ error: 'Invalid credentials' });
+            }
+
+            // STEP 3: ASYNC DIRECTUS AUTH
+            const directusAuthPromise = (async () => {
+                const searchEmail = user.email || `${user.username}@example.com`;
                 try {
-                    console.log(`[LOGIN] User ${username} auto-provisioning...`);
-                    const token = directusAuth.data.access_token;
-                    const meRes = await directusClient.get('/users/me?fields=*,role.*', {
-                        headers: { Authorization: `Bearer ${token}` }
+                    const response = await directusClient.post('/auth/login', {
+                        email: searchEmail,
+                        password: password
                     });
-                    const me = meRes.data.data;
-                    
-                    user = await User.create({
-                        id: me.id,
-                        email: me.email,
-                        username: me.email ? me.email.split('@')[0] : username, 
-                        first_name: me.first_name || username,
-                        last_name: me.last_name || '',
-                        role: 1,
-                        islogin: true
-                    });
-                    lap('User Provisioning');
-                } catch (syncErr) {
-                    console.error("[LOGIN] Provisioning failed:", syncErr.message);
-                    return res.status(500).json({ error: "External authentication sync failed" });
-                }
-            }
-
-            // Permission Fetching
-            let normalizedPerms = getCachedPerms(user.role);
-            
-            if (!normalizedPerms) {
-                const [perms] = await Promise.all([
-                    RolePermission.findAll({ where: { role_id: user.role } })
-                ]);
-                lap('Permission Fetch');
-
-                if (perms.length < systemPages.length) {
-                    const existingPageNames = new Set(perms.map(r => r.page_name));
-                    const missingPages = systemPages.filter(p => !existingPageNames.has(p.page_id));
-                    
-                    if (missingPages.length > 0) {
-                        console.log(`[LOGIN] Detected missing permissions. Role ${user.role} has ${perms.length}/${systemPages.length} pages.`);
-                        (async () => {
-                            try {
-                                const toCreate = missingPages.map(page => ({
-                                    role_id: user.role,
-                                    page_name: page.page_id,
-                                    can_view: false,
-                                    can_create: false,
-                                    can_edit: false,
-                                    can_delete: false,
-                                    can_special: false,
-                                    field_permissions: withDefaultFieldPermissions(page.page_id, {})
-                                }));
-                                await RolePermission.bulkCreate(toCreate, { ignoreDuplicates: true });
-                                permsCache.delete(user.role);
-                            } catch (e) {
-                                console.error("[LOGIN] Background sync failed:", e.message);
-                            }
-                        })();
-                        lap('Background Permission Sync Triggered');
+                    return response.data;
+                } catch (error) {
+                    // Fallback to username
+                    try {
+                        const response = await directusClient.post('/auth/login', {
+                            email: user.username,
+                            password: password
+                        });
+                        return response.data;
+                    } catch (e) {
+                        return null;
                     }
                 }
-                
-                normalizedPerms = normalizePermissions(perms);
+            })();
+
+            // STEP 4: FETCH PERMISSIONS (PARALLEL)
+            let normalizedPerms = getCachedPerms(user.role);
+            const permissionsPromise = !normalizedPerms 
+                ? RolePermission.findAll({ where: { role_id: user.role } })
+                : Promise.resolve(null);
+
+            // STEP 5: WAIT FOR PERMISSIONS + SHORT TIMEOUT FOR TOKEN
+            const [permsResult, directusAuth] = await Promise.all([
+                permissionsPromise,
+                Promise.race([
+                    directusAuthPromise,
+                    new Promise(resolve => setTimeout(() => resolve('PENDING'), 1000))
+                ])
+            ]);
+
+            if (permsResult) {
+                normalizedPerms = normalizePermissions(permsResult);
                 setCachedPerms(user.role, normalizedPerms);
+                lap('Permission Fetch');
             } else {
                 lap('Permission Cache Hit');
             }
 
-            User.update({ islogin: true }, { where: { id: user.id } }).catch(() => { });
-
-            lap('Final Prep');
-            console.log(`[LOGIN] Total successful auth for ${username} in ${Date.now() - startTime}ms`);
-
-            res.json({
-                success: true,
-                user,
+            const userData = {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                role: user.role,
+                avatar: user.avatar,
+                department_id: user.department_id,
                 permissions: normalizedPerms,
-                directus_auth: directusAuth.data,
+                systemPages: systemPages.map(p => p.page_id)
+            };
+
+            // Non-blocking update
+            User.update({ islogin: true }, { where: { id: user.id } }).catch(() => {});
+
+            console.log(`[LOGIN] Fast-path successful for ${user.username} in ${Date.now() - startTime}ms. Directus: ${typeof directusAuth === 'string' ? 'PENDING' : 'READY'}`);
+
+            return res.json({
+                success: true,
+                user: userData,
+                directus_auth: directusAuth === 'PENDING' ? null : directusAuth?.data,
+                token_pending: directusAuth === 'PENDING',
                 timings
             });
 
         } catch (error) {
-            console.error(`[LOGIN] Total failure after ${Date.now() - startTime}ms:`, error.message);
-            res.status(error.message === 'Invalid credentials' ? 401 : 500).json({ error: error.message, timings });
+            console.error(`[LOGIN] Critical Failure:`, error.message);
+            res.status(500).json({ error: 'Authentication service error' });
         }
     }
 
@@ -294,28 +227,17 @@ class AuthController {
             const { userId } = req.query;
             if (!userId) return res.status(400).json({ error: 'User ID required' });
 
-            const user = await User.findByPk(userId, {
-                include: [
-                    { model: Department, as: 'department' },
-                    { model: Role, as: 'roleData' }
-                ]
-            });
-
+            const user = await User.findByPk(userId);
             if (!user) return res.status(404).json({ error: 'User not found' });
 
             let normalizedPerms = getCachedPerms(user.role);
             if (!normalizedPerms) {
-                const perms = await RolePermission.findAll({
-                    where: { role_id: user.role }
-                });
+                const perms = await RolePermission.findAll({ where: { role_id: user.role } });
                 normalizedPerms = normalizePermissions(perms);
                 setCachedPerms(user.role, normalizedPerms);
             }
 
-            res.json({
-                user,
-                permissions: normalizedPerms
-            });
+            res.json({ user, permissions: normalizedPerms });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
@@ -324,25 +246,14 @@ class AuthController {
     static async getGuestConfig(req, res) {
         try {
             const guestRole = await Role.findOne({
-                where: sequelize.where(
-                    sequelize.fn('LOWER', sequelize.col('name')),
-                    'guest'
-                )
+                where: sequelize.where(sequelize.fn('LOWER', sequelize.col('name')), 'guest')
             });
+            if (!guestRole) return res.json({ permissions: [] });
 
-            if (!guestRole) {
-                // Return empty permissions instead of 500 if Guest role is missing from DB
-                return res.json({ permissions: [] });
-            }
-
-            const perms = await RolePermission.findAll({
-                where: { role_id: guestRole.id }
-            });
-
+            const perms = await RolePermission.findAll({ where: { role_id: guestRole.id } });
             res.json({ permissions: normalizePermissions(perms) });
         } catch (error) {
-            console.error("Guest config fetch failed:", error);
-            res.json({ permissions: [] }); // Graceful fallback
+            res.json({ permissions: [] });
         }
     }
 }
