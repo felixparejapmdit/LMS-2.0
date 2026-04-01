@@ -21,7 +21,7 @@ class LetterAssignmentController {
             const offset = (parseInt(page) - 1) * parseInt(limit);
             const queryLimit = parseInt(limit);
             const where = {};
-            
+
             console.log(`[ASSIGNMENTS] Lookup started: role="${role}", dept="${department_id}", filter="${named_filter}"`);
 
             const normalizedRole = role ? role.toString().toUpperCase() : '';
@@ -296,12 +296,12 @@ class LetterAssignmentController {
     static async update(req, res) {
         try {
             let id = req.params.id;
-            
+
             // Handle virtual 'mock-' IDs from Pending/Unassigned view
             if (id.toString().startsWith('mock-')) {
                 const letterId = id.replace('mock-', '');
                 let { step_id, status_id, department_id } = req.body;
-                
+
                 // Infer department from step if missing
                 if (!department_id && step_id) {
                     const step = await ProcessStep.findByPk(step_id);
