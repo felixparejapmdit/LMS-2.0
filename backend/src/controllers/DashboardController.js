@@ -121,9 +121,9 @@ class DashboardController {
 
         if (named_filter) {
             if (named_filter === 'review') {
-                where[Op.and] = [{ '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] } }, { '$step.id$': 2 }, { '$letter.tray_id$': { [Op.or]: [null, 0] } }];
+                where[Op.and] = [{ '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] } }, { step_id: 2 }, { '$letter.tray_id$': { [Op.or]: [null, 0] } }];
             } else if (named_filter === 'signature') {
-                where[Op.and] = [{ '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] } }, { '$step.id$': 1 }, { '$letter.tray_id$': { [Op.or]: [null, 0] } }];
+                where[Op.and] = [{ '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] } }, { step_id: 1 }, { '$letter.tray_id$': { [Op.or]: [null, 0] } }];
             } else if (named_filter === 'atg_note') {
                 where['$letter.tray_id$'] = { [Op.gt]: 0 };
                 where[Op.and] = [{ [Op.or]: [{ '$letter.status.status_name$': { [Op.notIn]: ['Filed', 'Done'] } }, { '$letter.status.status_name$': null }] }];

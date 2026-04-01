@@ -110,7 +110,7 @@ class LetterAssignmentController {
                 } else if (named_filter === 'pending') {
                     // Pending/Incoming: Status = 1 (Incoming) AND No Process Step
                     where['$letter.global_status$'] = 1;
-                    where['$step.id$'] = null;
+                    where.step_id = null;
                     where['$letter.tray_id$'] = { [Op.or]: [null, 0] };
                 } else if (named_filter === 'empty_entry') {
                     where[Op.and] = [
