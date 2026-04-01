@@ -1,4 +1,4 @@
-const { LetterAssignment, Letter, ProcessStep, Department, Status, Tray, LetterKind, Comment, Endorsement } = require('../models/associations');
+const { LetterAssignment, Letter, ProcessStep, Department, Status, Tray, LetterKind, Comment, Endorsement, sequelize } = require('../models/associations');
 const { Op } = require('sequelize');
 const ALL_LETTER_ROLES = new Set([
     'ADMIN',
