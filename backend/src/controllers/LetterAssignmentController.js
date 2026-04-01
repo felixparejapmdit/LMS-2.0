@@ -219,6 +219,18 @@ class LetterAssignmentController {
                     unassignedWhere[Op.or] = [{ dept_id: department_id }, { dept_id: null }];
                 }
 
+                // Add the specific filter for "Empty" or "ATG Note" or "Pending"
+                if (named_filter === 'atg_note') {
+                    unassignedWhere.tray_id = { [Op.gt]: 0 };
+                } else {
+                    unassignedWhere.tray_id = { [Op.or]: [null, 0] };
+                    if (named_filter === 'empty_entry') {
+                        unassignedWhere[Op.and] = [
+                            { [Op.or]: [{ sender: null }, { sender: '' }, { summary: null }, { summary: '' }] }
+                        ];
+                    }
+                }
+
                 // Optimization: Use subQuery false to find purely unassigned via SQL directly
                 const unassignedCheck = await Letter.findAll({
                     where: {
@@ -241,7 +253,8 @@ class LetterAssignmentController {
                             id: { [Op.notIn]: sequelize.literal('(SELECT letter_id FROM letter_assignments WHERE letter_id IS NOT NULL)') }
                         },
                         include: [{ model: Status, as: 'status' }, { model: Tray, as: 'tray' }, { model: LetterKind, as: 'letterKind' }],
-                        limit: moreNeeded
+                        limit: moreNeeded,
+                        order: [['created_at', 'DESC']]
                     });
 
                     const mappedMocks = purelyUnassigned.map(l => ({
