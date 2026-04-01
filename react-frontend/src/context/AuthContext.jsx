@@ -228,6 +228,13 @@ export const AuthProvider = ({ children }) => {
                 return;
             }
 
+            // Sync Grace: Reduce to 100ms for high performance
+            const cachedAuth = localStorage.getItem('directus_auth');
+            if (cachedAuth && cachedAuth.includes('"pending":true')) {
+                console.log("AuthContext: Token is pending, fast-syncing (100ms)...");
+                await new Promise(r => setTimeout(r, 100));
+            }
+
             const meId = await directus.request(readMe({ fields: ['id'] }));
             const response = await axios.get(`${BACKEND_URL}/auth/access-config?userId=${meId.id}`);
             const { user: me, permissions: perms } = response.data;

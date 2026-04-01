@@ -43,75 +43,65 @@ class DashboardController {
     // --- Extracted Internal Methods to avoid duplication ---
 
     static async getInboxStatsInternal({ department_id }) {
-        const where = {};
+        const startTime = Date.now();
+        const baseWhere = {};
         if (department_id && department_id !== 'null' && department_id !== 'undefined') {
-            where[Op.or] = [{ department_id: department_id }, { department_id: null }];
+            baseWhere[Op.or] = [{ department_id: department_id }, { department_id: null }];
         }
 
-        const allAssignments = await LetterAssignment.findAll({
-            where,
-            include: [
-                { model: Letter, as: 'letter', include: [{ model: Status, as: 'status' }] },
-                { model: ProcessStep, as: 'step' }
-            ]
-        });
-
-        const reviewStep = await ProcessStep.findByPk(2);
-        const signatureStep = await ProcessStep.findByPk(1);
-        const reviewName = reviewStep?.step_name || 'For Review';
-        const signatureName = signatureStep?.step_name || 'For Signature';
-
-        const counts = { review: 0, atg_note: 0, signature: 0, vem: 0, pending: 0, hold: 0, empty_entry: 0 };
-
-        allAssignments.forEach(a => {
-            const stepName = a.step?.step_name || '';
-            const letterStatus = a.letter?.status?.status_name || '';
-            const hasVem = a.letter?.vemcode && a.letter.vemcode.trim() !== '';
-            const hasTray = a.letter?.tray_id && a.letter.tray_id !== 0;
-
-            const isVip = (a.letter?.tray_id === 0 || a.letter?.tray_id == null) &&
-                (a.letter?.global_status === 2 || letterStatus === 'ATG Note');
-            if (isVip) return;
-
-            if (letterStatus === 'Hold' || letterStatus === 'On Hold') counts.hold++;
-
-            if (a.status === 'Pending') {
-                if (stepName === reviewName) {
-                    if (!hasTray && letterStatus !== 'Filed' && letterStatus !== 'Done') counts.review++;
-                } else if (stepName === signatureName) {
-                    if (!hasTray && letterStatus !== 'Filed' && letterStatus !== 'Done') counts.signature++;
-                } else if (stepName.includes('VEM') || hasVem) {
-                    counts.vem++;
+        // Parallelize counts at the DB level
+        const [review, signature, vem, atg_note, hold, empty_entry, pending] = await Promise.all([
+            // Review (Step 2, Pending, No Tray)
+            LetterAssignment.count({
+                where: { ...baseWhere, status: 'Pending', step_id: 2 },
+                include: [{ model: Letter, as: 'letter', where: { tray_id: { [Op.or]: [null, 0] }, global_status: { [Op.notIn]: [3, 4] } } }]
+            }),
+            // Signature (Step 1, Pending, No Tray)
+            LetterAssignment.count({
+                where: { ...baseWhere, status: 'Pending', step_id: 1 },
+                include: [{ model: Letter, as: 'letter', where: { tray_id: { [Op.or]: [null, 0] }, global_status: { [Op.notIn]: [3, 4] } } }]
+            }),
+            // VEM (VEM code exists)
+            LetterAssignment.count({
+                where: { ...baseWhere, status: 'Pending' },
+                include: [{ model: Letter, as: 'letter', where: { vemcode: { [Op.ne]: null }, global_status: { [Op.notIn]: [3, 4] } } }]
+            }),
+            // ATG Note (Tray > 0)
+            LetterAssignment.count({
+                where: baseWhere,
+                include: [{ model: Letter, as: 'letter', where: { tray_id: { [Op.gt]: 0 }, global_status: { [Op.notIn]: [3, 4] } } }]
+            }),
+            // Hold
+            LetterAssignment.count({
+                where: baseWhere,
+                include: [{ model: Letter, as: 'letter', where: { global_status: 7 } }]
+            }),
+            // Empty Entry (Missing sender or summary)
+            Letter.count({
+                where: {
+                    [Op.and]: [
+                        { global_status: { [Op.notIn]: [3, 4] } },
+                        { [Op.or]: [{ sender: null }, { sender: '' }, { summary: null }, { summary: '' }] }
+                    ],
+                    ...(department_id ? { [Op.or]: [{ dept_id: department_id }, { dept_id: null }] } : {})
                 }
-            }
-            if (letterStatus !== 'Filed' && letterStatus !== 'Done' && hasTray) counts.atg_note++;
+            }),
+            // Purely Unassigned
+            Letter.count({
+                where: {
+                    global_status: 1,
+                    tray_id: { [Op.or]: [0, null] },
+                    ...(department_id ? { [Op.or]: [{ dept_id: department_id }, { dept_id: null }] } : {})
+                },
+                include: [{ model: LetterAssignment, as: 'assignments', required: false }],
+                // We use a custom where to find letters with NO assignments
+                subQuery: false
+            })
+        ]);
 
-            const hasNoSenderOrSummary = !a.letter?.sender || a.letter.sender.trim() === '' || !a.letter?.summary || a.letter.summary.trim() === '';
-            if (hasNoSenderOrSummary && letterStatus !== 'Filed' && letterStatus !== 'Done') {
-                counts.empty_entry++;
-            }
-        });
+        console.log(`[DASHBOARD_STATS] DB Counts fetched in ${Date.now() - startTime}ms`);
 
-        const unassignedWhere = { global_status: 1, tray_id: { [Op.or]: [0, null] } };
-        if (department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
-            unassignedWhere[Op.or] = [
-                { dept_id: department_id },
-                { dept_id: null }
-            ];
-        }
-
-        const unassignedLetters = await Letter.findAll({
-            where: unassignedWhere,
-            include: [{ model: LetterAssignment, as: 'assignments', required: false }]
-        });
-        const purelyUnassigned = unassignedLetters.filter(l => (l.assignments || []).length === 0);
-        counts.pending += purelyUnassigned.length;
-        purelyUnassigned.forEach(l => {
-            const hasNoSenderOrSummary = !l.sender || l.sender.trim() === '' || !l.summary || l.summary.trim() === '';
-            if (hasNoSenderOrSummary) counts.empty_entry++;
-        });
-
-        return counts;
+        return { review, atg_note, signature, vem, pending, hold, empty_entry };
     }
 
     static async getAssignmentsInternal(query) {
