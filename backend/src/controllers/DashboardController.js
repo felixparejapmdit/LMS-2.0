@@ -105,9 +105,11 @@ class DashboardController {
     }
 
     static async getAssignmentsInternal(query) {
-        const { department_id, status, named_filter, user_id, role, view } = query;
+        const { department_id, status, named_filter, user_id, role, page = 1, limit = 50 } = query;
         const where = {};
         const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+
         const ALL_LETTER_ROLES = new Set(['ADMIN', 'ADMINISTRATOR', 'SUPERUSER', 'SUPER USER', 'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'DEVELOPER', 'ROOT']);
 
         if (normalizedRole === 'USER' && user_id) {
@@ -128,7 +130,6 @@ class DashboardController {
             } else if (named_filter === 'hold') {
                 where['$letter.status.status_name$'] = { [Op.or]: ['Hold', 'On Hold'] };
             }
-            // ... truncated for brevity but full logic should be here ...
         }
 
         const assignments = await LetterAssignment.findAll({
@@ -136,18 +137,22 @@ class DashboardController {
             include: [
                 {
                     model: Letter, as: 'letter', required: true,
+                    attributes: ['id', 'lms_id', 'entry_id', 'sender', 'summary', 'date_received', 'tray_id', 'scanned_copy', 'vemcode'],
                     include: [
-                        { model: Status, as: 'status' }, 
-                        { model: Tray, as: 'tray' }, 
-                        { model: LetterKind, as: 'letterKind' }, 
-                        { model: Comment, as: 'comments', attributes: ['id'], limit: 1 }, 
-                        { model: Endorsement, as: 'endorsements', limit: 3 }
+                        { model: Status, as: 'status', attributes: ['id', 'status_name'] },
+                        { model: Tray, as: 'tray', attributes: ['id', 'tray_no', 'tray_name'] },
+                        { model: LetterKind, as: 'letterKind', attributes: ['id', 'kind_name'] },
+                        { model: Comment, as: 'comments', attributes: ['id'], limit: 1, required: false },
+                        { model: Endorsement, as: 'endorsements', attributes: ['id', 'endorsed_to'], limit: 3, required: false }
                     ]
                 },
-                { model: ProcessStep, as: 'step' },
-                { model: Department, as: 'department' }
+                { model: ProcessStep, as: 'step', attributes: ['id', 'step_name'] },
+                { model: Department, as: 'department', attributes: ['id', 'dept_name'] }
             ],
-            order: [['created_at', 'DESC']]
+            order: [['created_at', 'DESC']],
+            limit: parseInt(limit),
+            offset: offset,
+            subQuery: false
         });
 
         return assignments;
