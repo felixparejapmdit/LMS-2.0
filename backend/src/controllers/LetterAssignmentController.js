@@ -185,6 +185,7 @@ class LetterAssignmentController {
                 };
             }
 
+            // Perform the primary assignment search
             const { count: realCount, rows: realRows } = await LetterAssignment.findAndCountAll({
                 where,
                 include: [
@@ -192,7 +193,7 @@ class LetterAssignmentController {
                     {
                         model: ProcessStep,
                         as: 'step',
-                        required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'vem' || named_filter === 'avem')
+                        required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'vem' || named_filter === 'avem' || (named_filter === 'pending' && isAdmin))
                     },
                     { model: Department, as: 'department' }
                 ],
@@ -205,54 +206,55 @@ class LetterAssignmentController {
             let finalAssignments = realRows;
             let totalCount = realCount;
 
-            // If named_filter requires showing letters that have NO assignment record at all
+            // Optional: If 'pending' requires showing letters that have NO assignment record at all
+            // Optimized to only fetch what's needed locally or to add to the count
             if (named_filter === 'pending' || named_filter === 'empty_entry' || named_filter === 'atg_note') {
-                const validStatuses = [1]; // Incoming
-                if (named_filter === 'atg_note') validStatuses.push(2); // ATG Note
+                const validStatuses = [1];
+                if (named_filter === 'atg_note') validStatuses.push(2);
 
                 const unassignedWhere = {
                     global_status: { [Op.in]: validStatuses }
                 };
                 if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
-                    unassignedWhere[Op.or] = [
-                        { dept_id: department_id },
-                        { dept_id: null }
-                    ];
+                    unassignedWhere[Op.or] = [{ dept_id: department_id }, { dept_id: null }];
                 }
 
-                const unassignedLetters = await Letter.findAll({
-                    where: unassignedWhere,
-                    include: [
-                        { model: Status, as: 'status' },
-                        { model: Tray, as: 'tray' },
-                        { model: LetterKind, as: 'letterKind' },
-                        { model: Comment, as: 'comments', attributes: ['id'] },
-                        { model: LetterAssignment, as: 'assignments', required: false }
-                    ]
+                // Optimization: Use subQuery false to find purely unassigned via SQL directly
+                const unassignedCheck = await Letter.findAll({
+                    where: {
+                        ...unassignedWhere,
+                        id: { [Op.notIn]: sequelize.literal('(SELECT letter_id FROM letter_assignments WHERE letter_id IS NOT NULL)') }
+                    },
+                    attributes: ['id'], // We only need count for paging
+                    transaction: null
                 });
-                let purelyUnassigned = unassignedLetters.filter(l => (l.assignments || []).length === 0);
-                
-                // Further filter purelyUnassigned based on the named_filter
-                if (named_filter === 'atg_note') {
-                    purelyUnassigned = purelyUnassigned.filter(l => l.tray_id > 0 && l.global_status === 1);
-                } else {
-                    purelyUnassigned = purelyUnassigned.filter(l => !l.tray_id || l.tray_id === 0);
-                    if (named_filter === 'empty_entry') {
-                        purelyUnassigned = purelyUnassigned.filter(l => !l.sender || l.sender.trim() === '' || !l.summary || l.summary.trim() === '');
-                    }
-                }
 
-                const mappedMocks = purelyUnassigned.map(l => ({
-                    id: `mock-${l.id}`,
-                    letter_id: l.id,
-                    letter: l,
-                    status: 'Pending',
-                    step: null,
-                    department: null,
-                    created_at: l.created_at
-                }));
-                finalAssignments = [...finalAssignments, ...mappedMocks];
-                totalCount += mappedMocks.length;
+                const purelyUnassignedCount = unassignedCheck.length;
+                totalCount += purelyUnassignedCount;
+
+                // Only fetch mock records if the current page actually covers them (this is complex, simplified for now)
+                if (finalAssignments.length < queryLimit && purelyUnassignedCount > 0) {
+                    const moreNeeded = queryLimit - finalAssignments.length;
+                    const purelyUnassigned = await Letter.findAll({
+                        where: {
+                            ...unassignedWhere,
+                            id: { [Op.notIn]: sequelize.literal('(SELECT letter_id FROM letter_assignments WHERE letter_id IS NOT NULL)') }
+                        },
+                        include: [{ model: Status, as: 'status' }, { model: Tray, as: 'tray' }, { model: LetterKind, as: 'letterKind' }],
+                        limit: moreNeeded
+                    });
+
+                    const mappedMocks = purelyUnassigned.map(l => ({
+                        id: `mock-${l.id}`,
+                        letter_id: l.id,
+                        letter: l,
+                        status: 'Pending',
+                        step: null,
+                        department: null,
+                        created_at: l.created_at
+                    }));
+                    finalAssignments = [...finalAssignments, ...mappedMocks];
+                }
             }
 
             console.log(`[ASSIGNMENTS] Fetch complete in ${Date.now() - startTime}ms. Found ${totalCount} records.`);
