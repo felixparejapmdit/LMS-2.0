@@ -32,6 +32,14 @@ const slowRequestThresholdMs = Number.parseInt(process.env.SLOW_REQUEST_THRESHOL
 app.use(cors());
 app.use(express.json());
 
+// Global Debug Logger for Letters
+app.use('/api/letters', (req, res, next) => {
+    if (req.method === 'POST') {
+        console.log(`[GLOBAL_DEBUG] POST /api/letters Hit. Body size: ${JSON.stringify(req.body).length} chars`);
+    }
+    next();
+});
+
 // Log slow requests to help pinpoint latency hotspots
 if (slowRequestLogsEnabled) {
     app.use((req, res, next) => {

@@ -336,8 +336,8 @@ export default function GuestSendLetter() {
                     </div>
                 </header>
 
-                <main className="flex-1 p-4 md:p-4 overflow-y-auto custom-scrollbar">
-                    <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <main className="flex-1 p-4 md:p-8 overflow-y-auto custom-scrollbar">
+                    <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
 
                         {/* Metadata Section */}
                         <div className="lg:col-span-12 xl:col-span-8 space-y-4">

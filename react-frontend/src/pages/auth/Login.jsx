@@ -21,11 +21,11 @@ export default function Login() {
     if (result.success) {
       const roleName = (result.user?.roleData?.name || result.user?.role || '').toString().toUpperCase();
       if (roleName === 'USER') {
-        window.location.href = "/letter-tracker";
+        navigate("/letter-tracker");
       } else if (roleName === 'VIP') {
-        window.location.href = "/vip-view";
+        navigate("/vip-view");
       } else {
-        window.location.href = "/inbox";
+        navigate("/inbox");
       }
     } else {
       setError(result.error || "Login failed. Please check your credentials.");
@@ -136,7 +136,7 @@ export default function Login() {
         </div>
 
         <p className="mt-10 sm:mt-12 text-center text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em] opacity-60">
-          &copy; {new Date().getFullYear()} LMS SOFTWARE INFRASTRUCTURE
+          &copy; {new Date().getFullYear()} LMS Developed by PMD-IT
         </p>
       </div>
     </div>

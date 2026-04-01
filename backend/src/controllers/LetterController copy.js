@@ -7,15 +7,15 @@ class LetterController {
         try {
             const { user_id, role, department_id, dept_id, page = 1, limit = 50 } = req.query;
             const where = {};
-
+            
             const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
             const offset = (parseInt(page) - 1) * parseInt(limit);
             const queryLimit = parseInt(limit);
 
-            const isSpecificDept = (department_id || dept_id) &&
-                (department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') &&
-                (dept_id !== 'all' && dept_id !== 'null' && dept_id !== 'undefined');
-
+            const isSpecificDept = (department_id || dept_id) && 
+                                   (department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') &&
+                                   (dept_id !== 'all' && dept_id !== 'null' && dept_id !== 'undefined');
+            
             const targetDeptId = department_id || dept_id;
 
             if (normalizedRole === 'USER' && user_id) {
@@ -42,11 +42,11 @@ class LetterController {
                     'status',
                     'attachment',
                     'tray',
-                    {
-                        model: LetterAssignment,
-                        as: 'assignments',
+                    { 
+                        model: LetterAssignment, 
+                        as: 'assignments', 
                         include: ['step', 'department'],
-                        required: false
+                        required: false 
                     }
                 ],
                 order: [['created_at', 'DESC']],
@@ -94,11 +94,11 @@ class LetterController {
                     'status',
                     'attachment',
                     'tray',
-                    {
-                        model: LetterAssignment,
-                        as: 'assignments',
+                    { 
+                        model: LetterAssignment, 
+                        as: 'assignments', 
                         include: ['step', 'department'],
-                        required: false
+                        required: false 
                     }
                 ],
                 order: [['created_at', 'DESC']],
@@ -276,14 +276,14 @@ class LetterController {
             // Collision Defense: Keep incrementing if ID exists (handles gaps/manual inserts)
             let lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, '0')}`;
             let entry_id = `${ymd}${dailySequence.toString().padStart(3, '0')}`;
-
+            
             let attempts = 0;
             while (attempts < 50) {
                 const existingLms = await Letter.findOne({ where: { lms_id }, transaction });
                 const existingEntry = await Letter.findOne({ where: { entry_id }, transaction });
-
+                
                 if (!existingLms && !existingEntry) break;
-
+                
                 console.warn(`[LETTER_CREATE_DEBUG] ID Collision detected for ${lms_id}/${entry_id}. Retrying...`);
                 if (existingLms) {
                     annualSequence++;
@@ -321,12 +321,12 @@ class LetterController {
                 lms_id,
                 entry_id,
                 date_received: receivedDate,
-                sender: sender || 'Unknown Sender',
-                summary: summary || 'No Summary Provided',
-                kind: sanitizeInt(kind) || 1,
-                global_status: finalGlobalStatus || 1,
-                tray_id: sanitizeInt(tray_id) || null,
-                attachment_id: sanitizeInt(attachment_id) || null,
+                sender: sender,
+                summary: summary,
+                kind: sanitizeInt(kind),
+                global_status: finalGlobalStatus,
+                tray_id: sanitizeInt(tray_id),
+                attachment_id: sanitizeInt(attachment_id),
                 direction: req.body.direction || 'Incoming',
                 letter_type: letter_type || 'Non-Confidential',
                 vemcode: vemcode || null,
@@ -335,114 +335,19 @@ class LetterController {
                 aevmnote: aevmnote || null,
                 atgnote: atgnote || null,
                 scanned_copy: req.body.scanned_copy || null,
-                encoder_id: validEncoderId || null,
-                dept_id: sanitizeInt(dept_id) || null,
-                show_atg: false,
-                processed_by: null,
-                processed_date: null
+                encoder_id: validEncoderId,
+                dept_id: sanitizeInt(dept_id)
             };
 
-            console.log(`[LETTER_CREATE_DEBUG] Final Payload for DB: ${JSON.stringify(letterData, null, 2)}`);
+            // Final data preparation
+            const targetEncoderId = validEncoderId || null;
+            const targetDeptId = sanitizeInt(dept_id) || null;
+
+            console.log(`[LETTER_CREATE_DEBUG] Objects Prepared: lms_id=${letterData.lms_id}, entry_id=${letterData.entry_id}`);
+            console.log(`[LETTER_CREATE_DEBUG] Full Data: ${JSON.stringify(letterData, null, 2)}`);
 
             const letter = await Letter.create(letterData, { transaction });
             console.log(`[LETTER_CREATE] Success! id ${letter.id}`);
-
-            // 3. Post-Creation Orchestration
-            const targetEncoderId = validEncoderId || null;
-            const targetDeptId = sanitizeInt(dept_id) || null;
-            const validAssignedDept = sanitizeInt(assigned_dept) || targetDeptId;
-
-            // Endorsement
-            if (req.body.endorse_to && req.body.endorse_to.trim() !== '') {
-                await Endorsement.create({
-                    letter_id: letter.id,
-                    endorsed_to: req.body.endorse_to.trim(),
-                    endorsed_by: targetEncoderId,
-                    notes: 'Initial endorsement during letter creation.',
-                    dept_id: validAssignedDept
-                }, { transaction });
-
-                await LetterLog.create({
-                    letter_id: letter.id,
-                    user_id: targetEncoderId,
-                    action_type: 'Endorsed',
-                    department_id: validAssignedDept,
-                    log_details: `Letter endorsed to ${req.body.endorse_to.trim()} during creation.`
-                }, { transaction });
-            }
-
-            // Sync to Person table
-            const namesToSync = [];
-            if (sender) {
-                sender.split(';').map(n => n.trim()).filter(n => n.length > 0 && n.includes(',')).forEach(n => namesToSync.push(n));
-            }
-            if (req.body.endorse_to && req.body.endorse_to.trim().includes(',')) {
-                namesToSync.push(req.body.endorse_to.trim());
-            }
-
-            for (const name of [...new Set(namesToSync)]) {
-                const existing = await Person.findOne({ where: { name }, transaction });
-                if (!existing) {
-                    await Person.create({ name, name_id: lms_id }, { transaction });
-                }
-            }
-
-            // Initial Assignment
-            let targetStepId = sanitizeInt(step_id);
-            if (!targetStepId && validAssignedDept) {
-                const sigStep = await ProcessStep.findOne({
-                    where: {
-                        dept_id: validAssignedDept,
-                        [Op.or]: [
-                            { step_name: { [Op.like]: '%Signature%' } },
-                            { step_name: { [Op.like]: '%Endorsement%' } }
-                        ]
-                    },
-                    transaction
-                });
-
-                targetStepId = sigStep?.id;
-                if (!targetStepId) {
-                    const fallbackStep = await ProcessStep.findOne({
-                        where: { dept_id: validAssignedDept },
-                        transaction
-                    });
-                    targetStepId = fallbackStep?.id || 1;
-                }
-            }
-
-            if (targetStepId) {
-                let finalDeptId = validAssignedDept;
-                if (!finalDeptId) {
-                    const stepObj = await ProcessStep.findByPk(targetStepId, { transaction });
-                    if (stepObj) finalDeptId = stepObj.dept_id;
-                }
-
-                await LetterAssignment.create({
-                    letter_id: letter.id,
-                    department_id: finalDeptId,
-                    step_id: targetStepId,
-                    assigned_by: targetEncoderId,
-                    status_id: finalGlobalStatus
-                }, { transaction });
-
-                const stepName = (await ProcessStep.findByPk(targetStepId, { transaction }))?.step_name || 'Workflow Step';
-                await LetterLog.create({
-                    letter_id: letter.id,
-                    user_id: targetEncoderId,
-                    action_type: 'Created',
-                    department_id: finalDeptId,
-                    log_details: `Letter created and initially assigned to ${stepName}.`
-                }, { transaction });
-            } else {
-                await LetterLog.create({
-                    letter_id: letter.id,
-                    user_id: targetEncoderId,
-                    action_type: 'Created',
-                    department_id: validAssignedDept || targetDeptId,
-                    log_details: `Letter created with no initial workflow step assigned.`
-                }, { transaction });
-            }
 
             await transaction.commit();
             res.status(201).json(letter);
@@ -450,16 +355,16 @@ class LetterController {
             if (transaction && !transaction.finished) {
                 await transaction.rollback();
             }
-            console.error("[LETTER_CREATE_DEBUG] DATABASE REJECTED SAVE:", error);
-
+            console.error("[LETTER_CREATE_DEBUG] FATAL ERROR:", error);
+            
             try {
                 const fs = require('fs');
-                const logMsg = `[${new Date().toISOString()}] ERROR: ${error.message}\nSTACK: ${error.stack}\nBODY: ${JSON.stringify(req.body, null, 2)}\nDATA: ${JSON.stringify(error.parent || {}, null, 2)}\n\n`;
+                const logMsg = `[${new Date().toISOString()}] ERROR: ${error.message}\nSTACK: ${error.stack}\nBODY: ${JSON.stringify(req.body, null, 2)}\n\n`;
                 fs.appendFileSync('./backend_error.log', logMsg);
-            } catch (e) { }
+            } catch (e) {}
 
-            res.status(400).json({
-                error: `Database Rejection: ${error.message}`,
+            res.status(418).json({ 
+                error: `Backend Fatal: ${error.message}`,
                 details: error.name,
                 stack: error.stack,
                 fullError: error

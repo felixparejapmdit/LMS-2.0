@@ -185,20 +185,25 @@ export const AuthProvider = ({ children }) => {
         const directusJson = JSON.parse(directusStored);
         const isPending = directusJson?.pending === true;
 
-        if (isPending) {
-            // Give it 10 seconds to resolve. If still pending, logout
-            const age = Date.now() - (directusJson.timestamp || 0);
-            if (age > 10000) {
-                console.warn("AuthContext: Token was pending too long. Logging out.");
-                logout();
-                return;
-            }
-            console.log("AuthContext: Token is still pending in background, allowing session to continue.");
-        }
-
         const cachedUser = readCachedJson(AUTH_USER_KEY, null);
         const cachedPermsRaw = localStorage.getItem(AUTH_PERMS_KEY);
         const cachedPerms = cachedPermsRaw ? readCachedJson(AUTH_PERMS_KEY, []) : null;
+
+        if (isPending) {
+            console.log("AuthContext: Token is still pending in background, using cached user if available.");
+            if (cachedUser) {
+                dispatch({
+                    type: 'INIT_SESSION',
+                    payload: {
+                        user: cachedUser,
+                        permissions: Array.isArray(cachedPerms) ? cachedPerms : [],
+                        permissionsLoaded: cachedPermsRaw !== null,
+                        isGuest: false
+                    }
+                });
+                return; // Continue using the cached user while token resolves
+            }
+        }
 
         // Fast Load: Use Cache first
         if (cachedUser) {

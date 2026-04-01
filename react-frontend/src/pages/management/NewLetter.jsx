@@ -23,7 +23,10 @@ import {
     Check,
     X as XIcon,
     FileText,
-    MessageSquare
+    MessageSquare,
+    Send,
+    ChevronDown,
+    Search
 } from "lucide-react";
 import letterKindService from "../../services/letterKindService";
 import departmentService from "../../services/departmentService";
@@ -32,6 +35,7 @@ import trayService from "../../services/trayService";
 import attachmentService from "../../services/attachmentService";
 import letterService from "../../services/letterService";
 import axios from "axios";
+import processStepService from "../../services/processStepService";
 import SuccessModal from "../../components/SuccessModal";
 import useAccess from "../../hooks/useAccess";
 
@@ -45,7 +49,13 @@ export default function NewLetter() {
     const [departments, setDepartments] = useState([]);
     const [statuses, setStatuses] = useState([]);
     const [trays, setTrays] = useState([]);
+    const [steps, setSteps] = useState([]);
     const [attachments, setAttachments] = useState([]);
+    const [persons, setPersons] = useState([]);
+    const [endorseSuggestions, setEndorseSuggestions] = useState([]);
+    const [showEndorseSuggestions, setShowEndorseSuggestions] = useState(false);
+    const [isAttachmentDropdownOpen, setIsAttachmentDropdownOpen] = useState(false);
+    const endorseRef = useRef(null);
     const [predictedLmsId, setPredictedLmsId] = useState("Generating...");
 
     const [formData, setFormData] = useState({
@@ -64,7 +74,9 @@ export default function NewLetter() {
         assigned_dept: "",
         tray_id: "",
         selectedRefIds: [],
-        encoder: ""
+        encoder: "",
+        step_id: "1",
+        endorse_to: ""
     });
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [attachmentSearch, setAttachmentSearch] = useState("");
@@ -105,6 +117,7 @@ export default function NewLetter() {
                 const deptsData = await departmentService.getAll();
                 const statusesData = await statusService.getAll({ dept_id: userDeptId });
                 const traysData = await trayService.getAllTrays({ dept_id: userDeptId }).catch(() => []);
+                const stepsData = await processStepService.getAll().catch(() => []);
                 const attachmentsData = await attachmentService.getAll({ dept_id: userDeptId }).catch(() => []);
                 const previews = await letterService.getPreviewIds().catch(() => null);
 
@@ -112,11 +125,21 @@ export default function NewLetter() {
                 setDepartments(deptsData);
                 setStatuses(statusesData);
                 setTrays(traysData);
+                
+                const filteredSteps = stepsData.filter(s => ['For Signature', 'For Review', 'VEM Letter', 'AEVM Letter'].includes(s.step_name));
+                setSteps(filteredSteps);
+                
                 setAttachments(attachmentsData);
                 if (previews) setPredictedLmsId(previews.lms_id);
 
                 // Set defaults
                 if (kindsData.length > 0) setFormData(prev => ({ ...prev, kind: kindsData[0].id }));
+                
+                if (filteredSteps.length > 0) {
+                    const forSig = filteredSteps.find(s => s.step_name === 'For Signature') || filteredSteps[0];
+                    setFormData(prev => ({ ...prev, step_id: forSig.id }));
+                }
+
                 if (statusesData.length > 0) {
                     const received = statusesData.find(s => s.status_name === 'Received' || s.status_name === 'Incoming');
                     setFormData(prev => ({ ...prev, global_status: received?.id || statusesData[0].id }));
@@ -150,7 +173,10 @@ export default function NewLetter() {
                 setShowSuggestions(false);
             }
             if (attachmentSearchRef.current && !attachmentSearchRef.current.contains(event.target)) {
-                setShowAttachmentResults(false);
+                setIsAttachmentDropdownOpen(false);
+            }
+            if (endorseRef.current && !endorseRef.current.contains(event.target)) {
+                setShowEndorseSuggestions(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -202,6 +228,21 @@ export default function NewLetter() {
         }
         setShowSuggestions(false);
     };
+
+    const fetchEndorseSuggestions = async (query) => {
+        if (!query || query.length < 1) {
+            setEndorseSuggestions([]);
+            setShowEndorseSuggestions(false);
+            return;
+        }
+        try {
+            const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+            const res = await axios.get(`${apiBase}/persons/search?query=${query}`);
+            setEndorseSuggestions(res.data);
+            setShowEndorseSuggestions(res.data.length > 0);
+        } catch { }
+    };
+
 
     const handleFileChange = (e) => {
         const selectedFiles = Array.from(e.target.files);
@@ -302,7 +343,20 @@ export default function NewLetter() {
             setIsSuccessModalOpen(true);
         } catch (err) {
             console.error("Creation failed:", err);
-            setError(err.response?.data?.error || "Failed to create letter.");
+            const backendError = err.response?.data?.error;
+            const backendDetails = err.response?.data?.details;
+            const backendStack = err.response?.data?.stack;
+            
+            let fullMsg = backendError || "Failed to create letter.";
+            if (backendDetails) {
+                const detailsStr = Array.isArray(backendDetails) ? backendDetails.join(", ") : backendDetails;
+                fullMsg += ` (${detailsStr})`;
+            }
+            if (backendStack) {
+                fullMsg += `\n\n[DEBUG STACK]: ${backendStack}`;
+            }
+            
+            setError(fullMsg);
         } finally {
             setLoading(false);
         }
@@ -346,9 +400,11 @@ export default function NewLetter() {
                         </div>
 
                         {error && (
-                            <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-xl flex items-center gap-3 text-red-700 dark:text-red-400 text-sm">
-                                <AlertCircle className="w-5 h-5" />
-                                {error}
+                            <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-xl flex items-start gap-3 text-red-700 dark:text-red-400 text-sm whitespace-pre-wrap overflow-hidden">
+                                <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                                <div className="break-all">
+                                    {error}
+                                </div>
                             </div>
                         )}
 
@@ -368,7 +424,34 @@ export default function NewLetter() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-4 pt-4 border-t border-dashed border-gray-100 dark:border-[#222]">
+                                     <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-2">
+                                         <Clock className="w-3 h-3 text-orange-400" />
+                                         Initial Step
+                                     </label>
+                                     <div className="grid grid-cols-2 gap-3">
+                                         {steps.map(step => (
+                                             <label 
+                                                 key={step.id} 
+                                                 className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group ${String(formData.step_id) === String(step.id) ? 'bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800' : 'bg-gray-50 border-transparent dark:bg-white/5 hover:border-gray-200 dark:hover:border-white/10'}`}
+                                             >
+                                                 <input
+                                                     type="radio"
+                                                     name="step_id"
+                                                     value={step.id}
+                                                     checked={String(formData.step_id) === String(step.id)}
+                                                     onChange={e => setFormData({ ...formData, step_id: e.target.value })}
+                                                     className="w-4 h-4 text-orange-500 focus:ring-orange-500 border-gray-300 dark:bg-black/40"
+                                                 />
+                                                 <span className={`text-[10px] font-black uppercase tracking-tight transition-colors ${String(formData.step_id) === String(step.id) ? 'text-orange-600' : 'text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300'}`}>
+                                                     {step.step_name}
+                                                 </span>
+                                             </label>
+                                         ))}
+                                     </div>
+                                 </div>
+
+                                <div className="space-y-4">
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                                             <Clock className="w-3 h-3" /> Date
@@ -381,17 +464,24 @@ export default function NewLetter() {
                                             className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
                                         />
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Type</label>
-                                        <select
-                                            value={formData.direction}
-                                            onChange={e => setFormData({ ...formData, direction: e.target.value })}
-                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                        >
-                                            <option value="Incoming">Letters In</option>
-                                            <option value="Outgoing">Letters Out</option>
-                                        </select>
-                                    </div>
+
+                                    {canKindDropdown && (
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-1">
+                                                <Tag className="w-3 h-3 text-blue-400" />
+                                                Kind
+                                            </label>
+                                            <select
+                                                required
+                                                value={formData.kind}
+                                                onChange={e => setFormData({ ...formData, kind: e.target.value })}
+                                                className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                            >
+                                                <option value="">-- Select Kind --</option>
+                                                {kinds.map(k => <option key={k.id} value={k.id}>{k.kind_name}</option>)}
+                                            </select>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {canSenderField && (
@@ -506,27 +596,17 @@ export default function NewLetter() {
 
                             {/* Classification */}
                             <section className={`${cardBg} rounded-3xl border p-8 shadow-sm space-y-6`}>
-                                <div className={`flex items-center gap-2 mb-2 ${textColor}`}>
-                                    <Tag className="w-5 h-5 text-blue-400" />
-                                    <h3 className="font-bold">Classification</h3>
-                                </div>
+                                 <div className={`flex items-center gap-2 mb-2 ${textColor}`}>
+                                     <Tag className="w-5 h-5 text-blue-400" />
+                                     <h3 className="font-bold">Classification</h3>
+                                 </div>
 
-                                {canKindDropdown && (
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Kind</label>
-                                        <select
-                                            required
-                                            value={formData.kind}
-                                            onChange={e => setFormData({ ...formData, kind: e.target.value })}
-                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                        >
-                                            {kinds.map(k => <option key={k.id} value={k.id}>{k.kind_name}</option>)}
-                                        </select>
-                                    </div>
-                                )}
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Letter Type</label>
+                                 <div className="space-y-2">
+                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-1">
+                                        <AlertCircle className="w-3 h-3 text-red-400" />
+                                        Letter Type
+                                    </label>
                                     <select
                                         value={formData.letter_type}
                                         onChange={e => setFormData({ ...formData, letter_type: e.target.value })}
@@ -559,222 +639,237 @@ export default function NewLetter() {
                                     />
                                 </div>
 
-                                {canStatusDropdown && (
+                                {/* Moved Authority Notes here */}
+                                <div className="space-y-4 pt-4 border-t border-dashed border-gray-100 dark:border-[#222]">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Status</label>
-                                        <select
-                                            required
-                                            value={formData.global_status}
-                                            onChange={e => setFormData({ ...formData, global_status: e.target.value })}
-                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                        >
-                                            {statuses.map(s => <option key={s.id} value={s.id}>{s.status_name}</option>)}
-                                        </select>
+                                        <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">EVM Note</label>
+                                        <textarea
+                                            rows="2"
+                                            value={formData.evemnote}
+                                            onChange={e => setFormData({ ...formData, evemnote: e.target.value })}
+                                            className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all resize-none ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        />
                                     </div>
-                                )}
-
-
-
-                            </section>
-
-                            {/* Authority Notes */}
-                            <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6`}>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">EVM Note</label>
-                                    <textarea
-                                        rows="3"
-                                        value={formData.evemnote}
-                                        onChange={e => setFormData({ ...formData, evemnote: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all resize-none ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">AEVM Note</label>
-                                    <textarea
-                                        rows="3"
-                                        value={formData.aevmnote}
-                                        onChange={e => setFormData({ ...formData, aevmnote: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all resize-none ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">ATG Note</label>
-                                    <textarea
-                                        rows="3"
-                                        value={formData.atgnote}
-                                        onChange={e => setFormData({ ...formData, atgnote: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all resize-none ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                    />
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">AEVM Note</label>
+                                        <textarea
+                                            rows="2"
+                                            value={formData.aevmnote}
+                                            onChange={e => setFormData({ ...formData, aevmnote: e.target.value })}
+                                            className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all resize-none ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">ATG Note</label>
+                                        <textarea
+                                            rows="2"
+                                            value={formData.atgnote}
+                                            onChange={e => setFormData({ ...formData, atgnote: e.target.value })}
+                                            className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all resize-none ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                        />
+                                    </div>
                                 </div>
                             </section>
 
-                            {(() => {
-                                return (
-                                    <>
-                                        {/* Physical Attachment Selection - Moved Above Upload */}
-                                        {(canAttachmentSelector || canTraySelector) && (
-                                            <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-8`}>
-                                                {canAttachmentSelector && (
-                                                    <div className="space-y-4">
-                                                        <label className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-2">
-                                                            <FilePlus className="w-3 h-3" />
-                                                            Link
-                                                        </label>
-                                                        <div className="space-y-3" ref={attachmentSearchRef}>
+
+                            {/* Physical Attachment Selection & Endorsement */}
+                            {canAttachmentSelector && (
+                                <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-8`}>
+                                    <div className="space-y-4">
+                                        <label className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-2">
+                                            <FilePlus className="w-3 h-3" />
+                                            Attachments
+                                        </label>
+                                        <div className="space-y-3" ref={attachmentSearchRef}>
+                                            <div className="relative">
+                                                {/* Custom Searchable Dropdown Toggle */}
+                                                <div 
+                                                    onClick={() => setIsAttachmentDropdownOpen(!isAttachmentDropdownOpen)}
+                                                    className={`w-full px-4 py-2.5 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-all border outline-none ${'bg-gray-50/50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300 hover:border-blue-400/50'}`}
+                                                >
+                                                    <span className="truncate max-w-[85%] font-bold">
+                                                        {formData.selectedRefIds.length > 0 
+                                                            ? attachments.find(a => a.id === formData.selectedRefIds[0])?.attachment_name || "Attachment Selected"
+                                                            : "-- Choose Attachment --"}
+                                                    </span>
+                                                    <ChevronDown className={`w-4 h-4 transition-transform ${isAttachmentDropdownOpen ? 'rotate-180' : ''}`} />
+                                                </div>
+
+                                                {/* Dropdown Menu */}
+                                                {isAttachmentDropdownOpen && (
+                                                    <div className="absolute z-[120] left-0 right-0 top-full mt-1 bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#333] rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                                                        {/* Internal Search Input */}
+                                                        <div className="p-2 border-b border-gray-50 dark:border-white/5 bg-gray-50/30 dark:bg-white/5">
                                                             <div className="relative">
+                                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                                                                 <input
                                                                     type="text"
-                                                                    placeholder="Search..."
+                                                                    placeholder="Search attachments..."
+                                                                    className="w-full pl-9 pr-4 py-2 text-xs bg-white dark:bg-black/20 border border-gray-100 dark:border-[#333] rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20"
                                                                     value={attachmentSearch}
-                                                                    onChange={(e) => {
-                                                                        setAttachmentSearch(e.target.value);
-                                                                        setShowAttachmentResults(true);
-                                                                    }}
-                                                                    onFocus={() => setShowAttachmentResults(true)}
-                                                                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
+                                                                    onChange={(e) => setAttachmentSearch(e.target.value)}
+                                                                    onClick={(e) => e.stopPropagation()}
                                                                 />
-
-                                                                {showAttachmentResults && (
-                                                                    <div className={`absolute z-[110] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}>
-                                                                        {attachments
-                                                                            .filter(att => att.attachment_name.toLowerCase().includes(attachmentSearch.toLowerCase()))
-                                                                            .map(att => (
-                                                                                <div
-                                                                                    key={att.id}
-                                                                                    onClick={() => {
-                                                                                        if (!formData.selectedRefIds.includes(String(att.id))) {
-                                                                                            setFormData(prev => ({
-                                                                                                ...prev,
-                                                                                                selectedRefIds: [...prev.selectedRefIds, String(att.id)]
-                                                                                            }));
-                                                                                        }
-                                                                                        setAttachmentSearch("");
-                                                                                        setShowAttachmentResults(false);
-                                                                                    }}
-                                                                                    className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/10 hover:text-blue-600 transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center justify-between"
-                                                                                >
-                                                                                    <span>{att.attachment_name}</span>
-                                                                                    {formData.selectedRefIds.includes(String(att.id)) && <Check className="w-3 h-3" />}
-                                                                                </div>
-                                                                            ))}
-                                                                        {attachments.filter(att => att.attachment_name.toLowerCase().includes(attachmentSearch.toLowerCase())).length === 0 && (
-                                                                            <div className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center italic">
-                                                                                No results found
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                )}
                                                             </div>
+                                                        </div>
 
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {formData.selectedRefIds.map(id => {
-                                                                    const att = attachments.find(a => String(a.id) === String(id));
-                                                                    return (
-                                                                        <div key={id} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40 rounded-lg text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
-                                                                            <span>{att?.attachment_name || id}</span>
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    setFormData(prev => ({
-                                                                                        ...prev,
-                                                                                        selectedRefIds: prev.selectedRefIds.filter(i => i !== id)
-                                                                                    }));
-                                                                                }}
-                                                                                className="hover:text-red-500"
-                                                                            >
-                                                                                <XIcon className="w-3 h-3" />
-                                                                            </button>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
+                                                        {/* Options List */}
+                                                        <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
+                                                            {attachments
+                                                                .filter(att => att.attachment_name.toLowerCase().includes(attachmentSearch.toLowerCase()))
+                                                                .map(att => (
+                                                                    <button
+                                                                        key={att.id}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (!formData.selectedRefIds.includes(att.id)) {
+                                                                                setFormData(prev => ({ ...prev, selectedRefIds: [att.id] })); // User requested one for now based on prev sessions
+                                                                            }
+                                                                            setIsAttachmentDropdownOpen(false);
+                                                                            setAttachmentSearch("");
+                                                                        }}
+                                                                        className={`w-full text-left px-4 py-2.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-between ${formData.selectedRefIds.includes(att.id) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                                                                    >
+                                                                        <span className="truncate">{att.attachment_name}</span>
+                                                                        {formData.selectedRefIds.includes(att.id) && <Check className="w-3.5 h-3.5 shrink-0" />}
+                                                                    </button>
+                                                                ))}
+                                                            {attachments.filter(att => att.attachment_name.toLowerCase().includes(attachmentSearch.toLowerCase())).length === 0 && (
+                                                                <div className="px-4 py-6 text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                                                                    No matches found
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 )}
-
-                                                {canTraySelector && (
-                                                    <div className="space-y-2">
-                                                        <label className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-2">
-                                                            <Clock className="w-3 h-3" />
-                                                            Tray
-                                                        </label>
-                                                        <select
-                                                            value={formData.tray_id}
-                                                            onChange={e => setFormData({ ...formData, tray_id: e.target.value })}
-                                                            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                                        >
-                                                            <option value="">-- Select Tray (Optional) --</option>
-                                                            {trays.map(t => <option key={t.id} value={t.id}>{t.tray_no} - {t.description}</option>)}
-                                                        </select>
-                                                    </div>
-                                                )}
-                                            </section>
-                                        )}
-
-                                        {/* Digital Attachment (Scanned Copy) - Always Enabled */}
-                                        {canAttachmentUpload && <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-6 relative overflow-hidden transition-all duration-300`}>
-                                            <div className={`flex items-center justify-between border-b pb-6 mb-2 ${'border-slate-50 dark:border-[#222]'}`}>
-                                                <div className="flex items-center gap-3">
-                                                    <Upload className={`w-5 h-5 text-indigo-400`} />
-                                                    <h3 className={`font-bold ${textColor}`}>Upload</h3>
-                                                </div>
                                             </div>
 
-                                            <div
-                                                onClick={() => fileInputRef.current.click()}
-                                                onDragOver={(e) => e.preventDefault()}
-                                                onDrop={(e) => handleDrop(e)}
-                                                className={`flex flex-col items-center justify-center border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-12 transition-all group cursor-pointer border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5`}
-                                            >
+                                            {/* Selected Pills */}
+                                            <div className="flex flex-wrap gap-2">
+                                                {formData.selectedRefIds.map(id => {
+                                                    const att = attachments.find(a => a.id === id);
+                                                    return (
+                                                        <div key={id} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg text-[10px] font-black uppercase border border-blue-100 dark:border-blue-900/30">
+                                                            <span className="truncate max-w-[150px]">{att?.attachment_name}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setFormData(prev => ({ ...prev, selectedRefIds: prev.selectedRefIds.filter(i => i !== id) }))}
+                                                                className="hover:text-blue-800"
+                                                            >
+                                                                <XIcon className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Endorse To Section */}
+                                    <div className="space-y-4">
+                                        <label className="text-xs font-black text-orange-500 uppercase tracking-wider flex items-center gap-2">
+                                            <Send className="w-3 h-3" />
+                                            Endorse To
+                                        </label>
+                                        <div className="space-y-3" ref={endorseRef}>
+                                            <div className="relative">
                                                 <input
-                                                    type="file"
-                                                    multiple
-                                                    className="hidden"
-                                                    ref={fileInputRef}
-                                                    onChange={handleFileChange}
+                                                    type="text"
+                                                    placeholder="Type name to search person..."
+                                                    className={`w-full px-4 py-2.5 text-xs rounded-xl border outline-none transition-all ${'bg-gray-50/50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-orange-500/20'}`}
+                                                    value={formData.endorse_to}
+                                                    onChange={(e) => {
+                                                        setFormData({ ...formData, endorse_to: e.target.value });
+                                                        fetchEndorseSuggestions(e.target.value);
+                                                    }}
                                                 />
-                                                <div className={`w-16 h-16 bg-white dark:bg-white/10 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform`}>
-                                                    <Upload className={`w-6 h-6 text-orange-400`} />
-                                                </div>
-                                                <h3 className={`text-sm font-black uppercase tracking-widest mb-1 ${textColor}`}>
-                                                    Upload
-                                                </h3>
-                                                <p className="text-xs text-slate-400 font-medium">
-                                                    Select PDF or scanned copies of the letter
-                                                </p>
-                                            </div>
-
-                                            {scannedFiles.length > 0 && (
-                                                <div className="mt-8 space-y-2">
-                                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Files ({scannedFiles.length})</h4>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                                                        {scannedFiles.map((file, index) => (
-                                                            <div key={index} className={`flex items-center justify-between p-3 rounded-xl border group animate-in fade-in slide-in-from-bottom-2 duration-300 ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}>
-                                                                <div className="flex items-center gap-3 truncate">
-                                                                    <div className={`w-8 h-8 bg-white dark:bg-white/10 border rounded-lg flex items-center justify-center text-orange-400 ${'border-slate-100'}`}>
-                                                                        <FileText className="w-4 h-4" />
-                                                                    </div>
-                                                                    <span className={`text-xs font-bold truncate ${textColor}`}>{file.name}</span>
-                                                                </div>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        removeAttachment(index);
-                                                                    }}
-                                                                    className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
+                                                {showEndorseSuggestions && endorseSuggestions.length > 0 && (
+                                                    <div className="absolute z-[120] left-0 right-0 top-full mt-1 bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl overflow-hidden max-h-40 overflow-y-auto">
+                                                        {endorseSuggestions.map((p) => (
+                                                            <button
+                                                                key={p.id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setFormData({ ...formData, endorse_to: p.name });
+                                                                    setShowEndorseSuggestions(false);
+                                                                }}
+                                                                className="w-full text-left px-4 py-2.5 text-sm font-bold text-gray-900 dark:text-white hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-colors"
+                                                            >
+                                                                {p.name}
+                                                            </button>
                                                         ))}
                                                     </div>
-                                                </div>
-                                            )}
-                                        </section>}
-                                    </>
-                                );
-                            })()}
+                                                )}
+                                            </div>
+                                            <p className="text-[10px] text-gray-400 font-medium">Specify the person this letter should be endorsed to.</p>
+                                        </div>
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* Digital Attachment (Scanned Copy) */}
+                            {canAttachmentUpload && (
+                                <section className={`md:col-span-2 ${cardBg} rounded-3xl border p-8 shadow-sm space-y-6 relative overflow-hidden transition-all duration-300`}>
+                                    <div className={`flex items-center justify-between border-b pb-6 mb-2 ${'border-slate-50 dark:border-[#222]'}`}>
+                                        <div className="flex items-center gap-3">
+                                            <Upload className={`w-5 h-5 text-indigo-400`} />
+                                            <h3 className={`font-bold ${textColor}`}>Upload</h3>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        onClick={() => fileInputRef.current.click()}
+                                        onDragOver={(e) => e.preventDefault()}
+                                        onDrop={(e) => handleDrop(e)}
+                                        className={`flex flex-col items-center justify-center border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-12 transition-all group cursor-pointer border-slate-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/5`}
+                                    >
+                                        <input
+                                            type="file"
+                                            multiple
+                                            className="hidden"
+                                            ref={fileInputRef}
+                                            onChange={handleFileChange}
+                                        />
+                                        <div className={`w-16 h-16 bg-white dark:bg-white/10 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform`}>
+                                            <Upload className={`w-6 h-6 text-orange-400`} />
+                                        </div>
+                                        <h3 className={`text-sm font-black uppercase tracking-widest mb-1 ${textColor}`}>
+                                            Upload
+                                        </h3>
+                                        <p className="text-xs text-slate-400 font-medium">
+                                            Select PDF or scanned copies of the letter
+                                        </p>
+                                    </div>
+
+                                    {scannedFiles.length > 0 && (
+                                        <div className="mt-8 space-y-2">
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Files ({scannedFiles.length})</h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                                                {scannedFiles.map((file, index) => (
+                                                    <div key={index} className={`flex items-center justify-between p-3 rounded-xl border group animate-in fade-in slide-in-from-bottom-2 duration-300 ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333]'}`}>
+                                                        <div className="flex items-center gap-3 truncate">
+                                                            <div className={`w-8 h-8 bg-white dark:bg-white/10 border rounded-lg flex items-center justify-center text-orange-400 ${'border-slate-100'}`}>
+                                                                <FileText className="w-4 h-4" />
+                                                            </div>
+                                                            <span className={`text-xs font-bold truncate ${textColor}`}>{file.name}</span>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                removeAttachment(index);
+                                                            }}
+                                                            className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </section>
+                            )}
                         </div>
 
                         <div className="flex justify-end gap-4 pt-6 pb-12">
@@ -798,7 +893,7 @@ export default function NewLetter() {
                         </div>
                     </form>
                 </div>
-            </main >
+            </main>
 
             <SuccessModal
                 isOpen={isSuccessModalOpen}
@@ -808,6 +903,6 @@ export default function NewLetter() {
                 }}
                 referenceNo={predictedLmsId}
             />
-        </div >
+        </div>
     );
 }

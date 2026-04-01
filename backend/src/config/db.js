@@ -10,7 +10,7 @@ const storage = envStorage
 const sequelize = new Sequelize({
     dialect: 'sqlite',
     storage,
-    logging: false,
+    logging: console.log,
     pool: {
         max: 20, // Allowing concurrent reads (essential for WAL mode performance)
         min: 1,
@@ -36,6 +36,9 @@ sequelize.addHook('afterConnect', async (connection, config) => {
     // We use .serialize to ensure these commands run in order
     await new Promise((resolve, reject) => {
         connection.serialize(() => {
+            connection.run("PRAGMA foreign_keys = OFF", (err) => {
+                if (err) console.error("Error disabling foreign_keys", err);
+            });
             connection.run(`PRAGMA busy_timeout = ${busyTimeout}`, (err) => { 
                 if (err) console.error("Error setting busy_timeout", err); 
             });
