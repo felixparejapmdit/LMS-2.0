@@ -133,7 +133,7 @@ export default function NewLetter() {
                 if (previews) setPredictedLmsId(previews.lms_id);
 
                 // Set defaults
-                if (kindsData.length > 0) setFormData(prev => ({ ...prev, kind: kindsData[0].id }));
+                // (Removed auto-selection for 'kind' as it's no longer required)
                 
                 if (filteredSteps.length > 0) {
                     const forSig = filteredSteps.find(s => s.step_name === 'For Signature') || filteredSteps[0];
@@ -472,7 +472,6 @@ export default function NewLetter() {
                                                 Kind
                                             </label>
                                             <select
-                                                required
                                                 value={formData.kind}
                                                 onChange={e => setFormData({ ...formData, kind: e.target.value })}
                                                 className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}

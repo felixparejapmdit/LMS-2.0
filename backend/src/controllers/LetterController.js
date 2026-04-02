@@ -323,7 +323,7 @@ class LetterController {
                 date_received: receivedDate,
                 sender: sender || 'Unknown Sender',
                 summary: summary || 'No Summary Provided',
-                kind: sanitizeInt(kind) || 1,
+                kind: sanitizeInt(kind),
                 global_status: finalGlobalStatus || 1,
                 tray_id: sanitizeInt(tray_id) || null,
                 attachment_id: sanitizeInt(attachment_id) || null,
@@ -472,6 +472,12 @@ class LetterController {
             const letter = await Letter.findByPk(req.params.id);
             if (!letter) return res.status(404).json({ error: 'Not found' });
             const updates = { ...req.body };
+            if (Object.prototype.hasOwnProperty.call(updates, 'kind')) {
+                const parsed = updates.kind === "" || updates.kind === undefined || updates.kind === null
+                    ? null
+                    : parseInt(updates.kind);
+                updates.kind = Number.isNaN(parsed) ? null : parsed;
+            }
             if (Object.prototype.hasOwnProperty.call(updates, 'tray_id')) {
                 const parsed = updates.tray_id === "" || updates.tray_id === undefined || updates.tray_id === null
                     ? null
