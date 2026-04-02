@@ -133,7 +133,7 @@ export default function NewLetter() {
                 if (previews) setPredictedLmsId(previews.lms_id);
 
                 // Set defaults
-                // (Removed auto-selection for 'kind' as it's no longer required)
+                // Auto-selection for 'kind' removed as it's no longer required
                 
                 if (filteredSteps.length > 0) {
                     const forSig = filteredSteps.find(s => s.step_name === 'For Signature') || filteredSteps[0];

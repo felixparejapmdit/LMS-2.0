@@ -21,39 +21,30 @@ class ProcessStepController {
                         { [Op.like]: '%AEVM%' }
                     ]
                 };
-                const atgStatus = await Status.findOne({ where: { status_name: 'ATG Note' } });
-                atgStatusId = atgStatus?.id || null;
+                const atgStatus = await Status.findOne({ where: { status_name: { [Op.like]: 'ATG Note' } } });
+                atgStatusId = atgStatus?.id || 2;
             }
 
             const includeCfg = [{
                 model: LetterAssignment,
                 as: 'assignments',
-                where: { status: 'Pending' },
                 required: false,
                 attributes: ['id']
             }];
 
             if (vip === 'true') {
-                const atgStatusFilter = atgStatusId
-                    ? {
-                        [Op.or]: [
-                            { '$assignments.letter.global_status$': atgStatusId },
-                            { '$assignments.letter.status.status_name$': 'ATG Note' }
-                        ]
-                    }
-                    : { '$assignments.letter.status.status_name$': 'ATG Note' };
-                includeCfg[0].where = {
-                    ...includeCfg[0].where,
-                    [Op.and]: [
-                        { '$assignments.letter.tray_id$': { [Op.or]: [0, null] } },
-                        atgStatusFilter
-                    ]
-                };
+                const atgStatusFilter = { global_status: atgStatusId };
 
                 includeCfg[0].include = [{
                     model: Letter,
                     as: 'letter',
                     required: true,
+                    where: {
+                        [Op.and]: [
+                            { tray_id: { [Op.or]: [0, null] } },
+                            atgStatusFilter
+                        ]
+                    },
                     include: [{
                         model: Status,
                         as: 'status',

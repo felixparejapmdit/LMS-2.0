@@ -1,17 +1,14 @@
-
-const { Status } = require('./backend/src/models/associations');
-const sequelize = require('./backend/src/config/db');
+const { Status } = require('../backend/src/models/associations');
+const sequelize = require('../backend/src/config/db');
 
 async function check() {
     try {
-        await sequelize.authenticate();
         const statuses = await Status.findAll();
-        console.log('Statuses in DB:', JSON.stringify(statuses, null, 2));
-    } catch (e) {
-        console.error(e);
-    } finally {
-        await sequelize.close();
+        console.log('Statuses:', statuses.map(s => `ID: ${s.id}, Name: ${s.status_name}`));
+        process.exit(0);
+    } catch (err) {
+        console.log(err.message);
+        process.exit(1);
     }
 }
-
 check();

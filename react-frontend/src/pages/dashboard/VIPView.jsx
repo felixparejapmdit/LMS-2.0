@@ -25,6 +25,17 @@ export default function VIPView() {
     const { layoutStyle } = useUI();
     const access = useAccess();
     const navigate = useNavigate();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+    // Helper: Map Step Name to VIP-Friendly Labels
+    const getStepLabel = (name = "") => {
+        const up = name.toUpperCase();
+        if (up.includes("REVIEW")) return "FOR REVIEW";
+        if (up.includes("SIGNATURE")) return "FOR SIGNATURE";
+        if (up.includes("VEM") && !up.includes("AVEM") && !up.includes("AEVM")) return "VEM LETTER";
+        if (up.includes("AEVM") || up.includes("AVEM")) return "AEVM LETTER";
+        return name.toUpperCase();
+    };
 
     const [currentTime, setCurrentTime] = useState(new Date());
     const [steps, setSteps] = useState([]);
@@ -63,7 +74,7 @@ export default function VIPView() {
 
     const fetchSteps = async () => {
         try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/process-steps?vip=true`);
+            const response = await axios.get(`${API_URL}/process-steps?vip=true`);
             setSteps(response.data);
             if (!selectedStepId && response.data.length > 0) {
                 setSelectedStepId(response.data[0].id);
@@ -95,10 +106,14 @@ export default function VIPView() {
             setLoading(true);
             try {
                 // Get assignments for this step to see which letters are here
-                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments?step_id=${selectedStepId}&status_id=8&vip=true`);
+                // Note: Removed status_id=8 to allow ATG Note (Vips) to show up correctly
+                const response = await axios.get(`${API_URL}/letter-assignments?step_id=${selectedStepId}&vip=true`);
+
+                // Support both flat array and paginated object formats
+                const assignments = Array.isArray(response.data) ? response.data : (response.data.data || []);
 
                 // Extract letters from assignments with safer mapping
-                const letterList = response.data
+                const letterList = assignments
                     .filter(a => a.letter) // Ensure letter data exists
                     .map(a => ({
                         ...a.letter,
@@ -131,7 +146,7 @@ export default function VIPView() {
         const { silent = false } = options;
         if (!silent) setIsCommentsLoading(true);
         try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments/letter/${letterId}`);
+            const response = await axios.get(`${API_URL}/comments/letter/${letterId}`);
             setComments(response.data);
         } catch (error) {
             console.error("Error fetching comments:", error);
@@ -168,8 +183,8 @@ export default function VIPView() {
 
         setIsPdfLoading(true);
         const url = letter.scanned_copy
-            ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view-path?path=${btoa(letter.scanned_copy)}`
-            : `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view/${letter.attachment_id}`;
+            ? `${API_URL}/attachments/view-path?path=${btoa(letter.scanned_copy)}`
+            : `${API_URL}/attachments/view/${letter.attachment_id}`;
 
         try {
             const res = await axios.get(url, { responseType: 'blob' });
@@ -202,7 +217,7 @@ export default function VIPView() {
         if (!selectedLetter || !newCommentText.trim()) return;
         setIsSaving(true);
         try {
-            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments`, {
+            await axios.post(`${API_URL}/comments`, {
                 letter_id: selectedLetter.id,
                 user_id: user.id,
                 comment_body: newCommentText
@@ -228,7 +243,7 @@ export default function VIPView() {
         if (!editingCommentBody.trim()) return;
         setIsSaving(true);
         try {
-            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments/${commentId}`, {
+            await axios.put(`${API_URL}/comments/${commentId}`, {
                 comment_body: editingCommentBody
             });
             await fetchComments(selectedLetter.id);
@@ -245,7 +260,7 @@ export default function VIPView() {
     const handleDeleteComment = async (commentId) => {
         if (!window.confirm("Are you sure you want to delete this Comment?")) return;
         try {
-            await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/comments/${commentId}`);
+            await axios.delete(`${API_URL}/comments/${commentId}`);
             fetchComments(selectedLetter.id);
         } catch (error) {
             console.error("Error deleting comment:", error);
@@ -326,7 +341,9 @@ export default function VIPView() {
                                     <CheckCircle2 className="w-4 h-4" />
                                 </div>
                                 <div className="flex flex-col items-start">
-                                    <span className="text-[11px] font-black uppercase tracking-wider">{step.step_name}</span>
+                                    <span className="text-[11px] font-black uppercase tracking-wider">
+                                        {getStepLabel(step.step_name)}
+                                    </span>
                                     {step.count !== undefined && (
                                         <span className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${selectedStepId === step.id ? 'text-blue-100' : 'text-slate-400'}`}>
                                             {step.count} {step.count === 1 ? 'Record' : 'Records'}
@@ -402,7 +419,7 @@ export default function VIPView() {
                                         </td>
                                         <td className="px-5 py-4">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                                                {letter.step_name || "N/A"}
+                                                {getStepLabel(letter.step_name)}
                                             </span>
                                         </td>
                                         <td className="px-5 py-4 text-center">
@@ -508,7 +525,7 @@ export default function VIPView() {
                                         <div>
                                             <label className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-1.5 block">Process</label>
                                             <p className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300">
-                                                {selectedLetter.step_name || "N/A"}
+                                                {getStepLabel(selectedLetter.step_name)}
                                             </p>
                                         </div>
                                         <div>

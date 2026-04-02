@@ -104,7 +104,8 @@ export const useAccess = () => {
     };
 
     return {
-        can,
+        canView: can,
+        can: can,
         canField,
         isSuperAdmin: false,
         role: null

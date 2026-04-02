@@ -36,18 +36,23 @@ export const getAssetUrl = (assetId, queryParams = "") => {
     if (!assetId) return null;
     let url = `${directusUrl}/assets/${assetId}`;
     try {
-        const authData = localStorage.getItem("directus_auth");
-        if (authData) {
-            const { access_token } = JSON.parse(authData);
-            if (access_token) {
-                // If there's already a query string (e.g. ?width=200), append with &
-                const seperator = queryParams.includes('?') || url.includes('?') ? '&' : '?';
-                url += `${queryParams}${seperator}access_token=${access_token}`;
-                return url;
-            }
+        const raw = localStorage.getItem('directus_auth');
+        if (!raw) return url + queryParams;
+
+        const authData = JSON.parse(raw);
+        if (authData.pending) {
+            // Prevent 403 by not attempting to load authenticated assets while token is resolving
+            return null;
+        }
+
+        const { access_token } = authData;
+        if (access_token) {
+            const separator = queryParams.includes('?') || url.includes('?') ? '&' : '?';
+            url += `${queryParams}${separator}access_token=${access_token}`;
+            return url;
         }
     } catch (e) {
-        // Fallback to anonymous access if parsing fails
+        // Fallback to anonymous
     }
     return url + queryParams;
 };
