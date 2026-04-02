@@ -290,6 +290,7 @@ export const AuthProvider = ({ children }) => {
     }, [authState.isGuest, logout]);
 
     const login = async (username, password, provider = null) => {
+        const loginStartTime = Date.now();
         try {
             const res = await axios.post(`${BACKEND_URL}/auth/login`, { username, password, provider });
             if (!res.data.success) throw new Error(res.data.error || "Login failed");
@@ -321,7 +322,7 @@ export const AuthProvider = ({ children }) => {
                 type: 'LOGIN',
                 payload: { user: me, permissions: perms }
             });
-            console.log(`[AUTH] LOGIN state dispatched in ${Date.now() - startTime}ms.`);
+            console.log(`[AUTH] LOGIN state dispatched in ${Date.now() - loginStartTime}ms.`);
 
             localStorage.setItem(LAST_REFRESH_KEY, Date.now().toString());
 

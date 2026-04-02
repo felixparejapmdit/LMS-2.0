@@ -109,10 +109,7 @@ class AuthController {
             // STEP 1: PARALLEL LOCAL LOOKUP
             const [user, systemPages] = await Promise.all([
                 User.findOne({
-                    where: Sequelize.where(
-                        Sequelize.fn('LOWER', Sequelize.col('username')),
-                        Sequelize.fn('LOWER', username)
-                    ),
+                    where: { username },
                     include: ['roleData', 'department']
                 }),
                 (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) 
