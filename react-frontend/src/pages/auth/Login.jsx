@@ -20,13 +20,9 @@ export default function Login() {
     const result = await login(username, password);
     if (result.success) {
       const roleName = (result.user?.roleData?.name || result.user?.role || '').toString().toUpperCase();
-      if (roleName === 'USER') {
-        navigate("/letter-tracker");
-      } else if (roleName === 'VIP') {
-        navigate("/vip-view");
-      } else {
-        navigate("/inbox");
-      }
+      const targetPath = roleName === 'USER' ? '/letter-tracker' : (roleName === 'VIP' ? '/vip-view' : '/inbox');
+      console.log(`[NAV] Starting navigation to ${targetPath} for ${username}...`);
+      navigate(targetPath);
     } else {
       setError(result.error || "Login failed. Please check your credentials.");
     }

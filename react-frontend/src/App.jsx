@@ -66,7 +66,12 @@ const ProtectedRoute = ({ children }) => {
     }).catch(() => { });
   }, [user, pageKey, location.pathname]);
 
+  useEffect(() => {
+    console.log(`[NAV] ProtectedRoute mounted for ${location.pathname}. Loading: ${loading}, PermsLoaded: ${permissionsLoaded}`);
+  }, [loading, permissionsLoaded, location.pathname]);
+
   if (loading || (user && !isGuest && !permissionsLoaded)) {
+    console.log(`[BOOT] Showing spinner on ${location.pathname} (loading: ${loading}, permsLoaded: ${permissionsLoaded})`);
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0d0d0d]">
         <div className="flex flex-col items-center gap-4">

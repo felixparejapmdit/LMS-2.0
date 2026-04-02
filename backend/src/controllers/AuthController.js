@@ -249,6 +249,16 @@ class AuthController {
             res.json({ permissions: [] });
         }
     }
+
+    static clearCache(roleId = null) {
+        if (roleId) {
+            permsCache.delete(roleId);
+            console.log(`[AUTH CACHE] Cleared for role: ${roleId}`);
+        } else {
+            permsCache.clear();
+            console.log(`[AUTH CACHE] Cleared ALL`);
+        }
+    }
 }
 
 module.exports = AuthController;

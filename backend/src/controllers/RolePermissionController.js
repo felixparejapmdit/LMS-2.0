@@ -1,4 +1,5 @@
 const { RolePermission, Role, SystemPage, User, Department, Attachment, LetterKind, Status, ProcessStep, Tray } = require('../models/associations');
+const AuthController = require('./AuthController');
 const sequelize = require('../config/db');
 const { Op } = require('sequelize');
 
@@ -147,6 +148,9 @@ class RolePermissionController {
                     await RolePermission.upsert(item, { transaction: t });
                 }
             });
+
+            // Clear cache for this role
+            AuthController.clearCache(role_id);
 
             res.json({ message: 'Permissions updated successfully' });
         } catch (error) {

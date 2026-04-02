@@ -149,6 +149,9 @@ export const AuthProvider = ({ children }) => {
 
 
     const checkAuth = useCallback(async () => {
+        const checkStartTime = Date.now();
+        console.log(`[BOOT] checkAuth triggered...`);
+
         if (authState.isGuest) {
             try {
                 const response = await axios.get(`${BACKEND_URL}/auth/guest-config`);
@@ -236,7 +239,9 @@ export const AuthProvider = ({ children }) => {
             }
 
             const meId = await directus.request(readMe({ fields: ['id'] }));
+            console.log(`[BOOT] Directus readMe resolved in ${Date.now() - checkStartTime}ms`);
             const response = await axios.get(`${BACKEND_URL}/auth/access-config?userId=${meId.id}`);
+            console.log(`[BOOT] Backend access-config resolved in ${Date.now() - checkStartTime}ms`);
             const { user: me, permissions: perms } = response.data;
 
             console.log("AuthContext: session refresh successful:", me.username);
@@ -311,10 +316,12 @@ export const AuthProvider = ({ children }) => {
             writeCachedJson(AUTH_USER_KEY, me);
             writeCachedJson(AUTH_PERMS_KEY, perms);
 
+            console.log(`[AUTH] Dispatching LOGIN state for ${username}...`);
             dispatch({
                 type: 'LOGIN',
                 payload: { user: me, permissions: perms }
             });
+            console.log(`[AUTH] LOGIN state dispatched in ${Date.now() - startTime}ms.`);
 
             localStorage.setItem(LAST_REFRESH_KEY, Date.now().toString());
 
