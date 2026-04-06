@@ -125,16 +125,16 @@ export default function NewLetter() {
                 setDepartments(deptsData);
                 setStatuses(statusesData);
                 setTrays(traysData);
-                
+
                 const filteredSteps = stepsData.filter(s => ['For Signature', 'For Review', 'VEM Letter', 'AEVM Letter'].includes(s.step_name));
                 setSteps(filteredSteps);
-                
+
                 setAttachments(attachmentsData);
                 if (previews) setPredictedLmsId(previews.lms_id);
 
                 // Set defaults
                 // Auto-selection for 'kind' removed as it's no longer required
-                
+
                 if (filteredSteps.length > 0) {
                     const forSig = filteredSteps.find(s => s.step_name === 'For Signature') || filteredSteps[0];
                     setFormData(prev => ({ ...prev, step_id: forSig.id }));
@@ -346,7 +346,7 @@ export default function NewLetter() {
             const backendError = err.response?.data?.error;
             const backendDetails = err.response?.data?.details;
             const backendStack = err.response?.data?.stack;
-            
+
             let fullMsg = backendError || "Failed to create letter.";
             if (backendDetails) {
                 const detailsStr = Array.isArray(backendDetails) ? backendDetails.join(", ") : backendDetails;
@@ -355,7 +355,7 @@ export default function NewLetter() {
             if (backendStack) {
                 fullMsg += `\n\n[DEBUG STACK]: ${backendStack}`;
             }
-            
+
             setError(fullMsg);
         } finally {
             setLoading(false);
@@ -425,31 +425,31 @@ export default function NewLetter() {
                                 </div>
 
                                 <div className="space-y-4 pt-4 border-t border-dashed border-gray-100 dark:border-[#222]">
-                                     <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-2">
-                                         <Clock className="w-3 h-3 text-orange-400" />
-                                         Initial Step
-                                     </label>
-                                     <div className="grid grid-cols-2 gap-3">
-                                         {steps.map(step => (
-                                             <label 
-                                                 key={step.id} 
-                                                 className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group ${String(formData.step_id) === String(step.id) ? 'bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800' : 'bg-gray-50 border-transparent dark:bg-white/5 hover:border-gray-200 dark:hover:border-white/10'}`}
-                                             >
-                                                 <input
-                                                     type="radio"
-                                                     name="step_id"
-                                                     value={step.id}
-                                                     checked={String(formData.step_id) === String(step.id)}
-                                                     onChange={e => setFormData({ ...formData, step_id: e.target.value })}
-                                                     className="w-4 h-4 text-orange-500 focus:ring-orange-500 border-gray-300 dark:bg-black/40"
-                                                 />
-                                                 <span className={`text-[10px] font-black uppercase tracking-tight transition-colors ${String(formData.step_id) === String(step.id) ? 'text-orange-600' : 'text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300'}`}>
-                                                     {step.step_name}
-                                                 </span>
-                                             </label>
-                                         ))}
-                                     </div>
-                                 </div>
+                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-2">
+                                        <Clock className="w-3 h-3 text-orange-400" />
+                                        Initial Step
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {steps.map(step => (
+                                            <label
+                                                key={step.id}
+                                                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group ${String(formData.step_id) === String(step.id) ? 'bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800' : 'bg-gray-50 border-transparent dark:bg-white/5 hover:border-gray-200 dark:hover:border-white/10'}`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="step_id"
+                                                    value={step.id}
+                                                    checked={String(formData.step_id) === String(step.id)}
+                                                    onChange={e => setFormData({ ...formData, step_id: e.target.value })}
+                                                    className="w-4 h-4 text-orange-500 focus:ring-orange-500 border-gray-300 dark:bg-black/40"
+                                                />
+                                                <span className={`text-[10px] font-black uppercase tracking-tight transition-colors ${String(formData.step_id) === String(step.id) ? 'text-orange-600' : 'text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300'}`}>
+                                                    {step.step_name}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
 
                                 <div className="space-y-4">
                                     <div className="space-y-2">
@@ -532,7 +532,7 @@ export default function NewLetter() {
                                         <div className="flex items-center justify-between mb-1">
                                             <label className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${'text-gray-500 dark:text-gray-400'}`}>
                                                 <MessageSquare className="w-3 h-3 text-orange-400" />
-                                                Subject
+                                                Re
                                             </label>
                                             <span className="text-[9px] text-red-500 font-black tracking-widest uppercase">Required</span>
                                         </div>
@@ -595,13 +595,13 @@ export default function NewLetter() {
 
                             {/* Classification */}
                             <section className={`${cardBg} rounded-3xl border p-8 shadow-sm space-y-6`}>
-                                 <div className={`flex items-center gap-2 mb-2 ${textColor}`}>
-                                     <Tag className="w-5 h-5 text-blue-400" />
-                                     <h3 className="font-bold">Classification</h3>
-                                 </div>
+                                <div className={`flex items-center gap-2 mb-2 ${textColor}`}>
+                                    <Tag className="w-5 h-5 text-blue-400" />
+                                    <h3 className="font-bold">Classification</h3>
+                                </div>
 
 
-                                 <div className="space-y-2">
+                                <div className="space-y-2">
                                     <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-1">
                                         <AlertCircle className="w-3 h-3 text-red-400" />
                                         Letter Type
@@ -682,12 +682,12 @@ export default function NewLetter() {
                                         <div className="space-y-3" ref={attachmentSearchRef}>
                                             <div className="relative">
                                                 {/* Custom Searchable Dropdown Toggle */}
-                                                <div 
+                                                <div
                                                     onClick={() => setIsAttachmentDropdownOpen(!isAttachmentDropdownOpen)}
                                                     className={`w-full px-4 py-2.5 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-all border outline-none ${'bg-gray-50/50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300 hover:border-blue-400/50'}`}
                                                 >
                                                     <span className="truncate max-w-[85%] font-bold">
-                                                        {formData.selectedRefIds.length > 0 
+                                                        {formData.selectedRefIds.length > 0
                                                             ? attachments.find(a => a.id === formData.selectedRefIds[0])?.attachment_name || "Attachment Selected"
                                                             : "-- Choose Attachment --"}
                                                     </span>

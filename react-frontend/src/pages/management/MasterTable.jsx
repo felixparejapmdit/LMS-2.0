@@ -141,7 +141,7 @@ export default function MasterTable() {
                 page: currentPage,
                 limit: recordsPerPage
             });
-            
+
             if (response && response.data) {
                 setLetters(response.data);
                 setTotalPages(response.totalPages || 1);
@@ -152,14 +152,14 @@ export default function MasterTable() {
 
             // Fetch reference data with individual safety catches
             const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-            
-            departmentService.getAll().then(setDepartments).catch(() => {});
-            statusService.getAll().then(setStatuses).catch(() => {});
-            axios.get(`${apiBase}/process-steps`).then(res => setSteps(res.data)).catch(() => {});
-            letterKindService.getAll().then(setLetterKinds).catch(() => {});
-            axios.get(`${apiBase}/persons`).then(res => setPersons(Array.isArray(res.data) ? res.data : [])).catch(() => {});
-            axios.get(`${apiBase}/trays`).then(res => setTrays(res.data)).catch(() => {});
-            axios.get(`${apiBase}/attachments`).then(res => setAttachments(res.data)).catch(() => {});
+
+            departmentService.getAll().then(setDepartments).catch(() => { });
+            statusService.getAll().then(setStatuses).catch(() => { });
+            axios.get(`${apiBase}/process-steps`).then(res => setSteps(res.data)).catch(() => { });
+            letterKindService.getAll().then(setLetterKinds).catch(() => { });
+            axios.get(`${apiBase}/persons`).then(res => setPersons(Array.isArray(res.data) ? res.data : [])).catch(() => { });
+            axios.get(`${apiBase}/trays`).then(res => setTrays(res.data)).catch(() => { });
+            axios.get(`${apiBase}/attachments`).then(res => setAttachments(res.data)).catch(() => { });
 
         } catch (error) {
             console.error("Fetch failed:", error.message);
@@ -303,10 +303,10 @@ export default function MasterTable() {
             return;
         }
 
-        const isAtgOrIncoming = selectedLetter.global_status 
-            ? [1, 2].includes(selectedLetter.global_status) 
+        const isAtgOrIncoming = selectedLetter.global_status
+            ? [1, 2].includes(selectedLetter.global_status)
             : ['Incoming', 'ATG Note'].includes(selectedLetter.status?.status_name);
-            
+
         if (!isAtgOrIncoming && (!selectedLetter.tray_id || selectedLetter.tray_id <= 0)) {
             alert("Please assign a tray first.");
             return;
@@ -622,7 +622,7 @@ export default function MasterTable() {
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Step</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 whitespace-nowrap">Date</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Sender</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Letter Summary</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Re</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">History</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">QR</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">PDF</th>
@@ -736,7 +736,7 @@ export default function MasterTable() {
                         <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-400 px-4">
                             <span>Showing {letters.length} / {totalRecords} Records</span>
                             <div className="flex items-center gap-4">
-                                <button 
+                                <button
                                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                     disabled={currentPage === 1}
                                     className={`px-3 py-1 rounded transition-all ${currentPage === 1 ? 'opacity-30 cursor-not-allowed text-gray-300' : 'hover:bg-orange-500 hover:text-white pointer-events-auto cursor-pointer'}`}
@@ -748,7 +748,7 @@ export default function MasterTable() {
                                     <span className="mx-2">of</span>
                                     <span>{totalPages}</span>
                                 </div>
-                                <button 
+                                <button
                                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                     disabled={currentPage === totalPages}
                                     className={`px-3 py-1 rounded transition-all ${currentPage === totalPages ? 'opacity-30 cursor-not-allowed text-gray-300' : 'hover:bg-orange-500 hover:text-white pointer-events-auto cursor-pointer'}`}
