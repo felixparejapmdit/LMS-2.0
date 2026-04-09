@@ -1,0 +1,76 @@
+[dotenv@17.3.1] injecting env (5) from .env -- tip: ≡ƒ¢í∩╕Å auth for agents: https://vestauth.com
+
+====== LMS DEEP DIAGNOSTIC ======
+
+--- ALL USERS ---
+Executing (default): SELECT `id`, `first_name`, `last_name`, `role`, `dept_id` FROM `directus_users` AS `User`;
+  [NO DEPT] Admin --- | role UUID: ec986bba-2c97-47a8-968f-f8a163e5f014
+  [NO DEPT] Superadmin User | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [3] Felix Pareja | role UUID: ec986bba-2c97-47a8-968f-f8a163e5f014
+  [3] Roland Kim Amaro | role UUID: ac74f61c-344d-4648-9bcf-0ed4d2330b37
+  [3] Badeth Serra | role UUID: 37393fbf-7955-40b2-a535-4f51d6afd854
+  [3] Karl Dematera | role UUID: ec986bba-2c97-47a8-968f-f8a163e5f014
+  [NO DEPT] Cervantes, Marco | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] ATG --- | role UUID: ac74f61c-344d-4648-9bcf-0ed4d2330b37
+  [NO DEPT] Marlene Apostadero | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [3] Mackay, Harvey | role UUID: 79834540-d24b-4e1c-b6ed-3777c902d108
+  [NO DEPT] Quiao Te | role UUID: ec986bba-2c97-47a8-968f-f8a163e5f014
+  [NO DEPT] Emmanuel Doctor | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Alcantara, Jake | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Alignay, Chris | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Arro, Claudio Jr | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Bisnan, Pepito Jr | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Cabacungan, Jeffrey | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Cabacungan, Joel | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Cabuhat, Arjay | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Christian Marco Cervantes | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] de Guzman, Ronald | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] De Leon, Karlo | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [10] Diaz, Philippe | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Domine, Elgin | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Enriquez, Michael | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Jomillo, Ryan | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Lawler, Christopher | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Lumbao, Ed | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Magpile, Adriel | role UUID: ec986bba-2c97-47a8-968f-f8a163e5f014
+  [NO DEPT] Malabanan, Ryan | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Mallari, Gerald | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Marbebe, Remuel | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Pare├▒a, Donald | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Parreno, Ryan | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Petorio, Zaldy | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Porcado, Rodeson | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Prestoza, Robert Darl | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Reyes, Raymond | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Sarmiento, Jeffrey | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Sino Cruz, Alejandro | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Tadeo, Dennis | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Villamarzo, Donny | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Vispo, Rimmel | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Maisip, Edgardo Jr | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Quinitio, Lovel Oriel | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Escober, Olive | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Llames, Carla | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Quilang, Irene | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Miranda, Ricalyn | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Suratos, Willie | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Zamora, Rey Walter | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [NO DEPT] Dizon, Ralph Ian | role UUID: ebceed4d-42e4-4f97-8a45-873b1298d310
+  [3] Eustaquio, Laarni | role UUID: 79834540-d24b-4e1c-b6ed-3777c902d108
+
+--- ALL LETTERS ---
+Executing (default): SELECT `id`, `subject`, `dept_id`, `global_status`, `encoder_id`, `sender`, `endorsed`, `direction` FROM `letters` AS `Letter` ORDER BY `Letter`.`created_at` DESC LIMIT 10;
+
+!! DIAGNOSTIC FAILED !! SQLITE_ERROR: no such column: subject
+Error
+    at Database.<anonymous> (C:\Users\felix\Documents\PMD Projects\LMS 2.0\backend\node_modules\sequelize\lib\dialects\sqlite\query.js:185:27)
+    at C:\Users\felix\Documents\PMD Projects\LMS 2.0\backend\node_modules\sequelize\lib\dialects\sqlite\query.js:183:50
+    at new Promise (<anonymous>)
+    at Query.run (C:\Users\felix\Documents\PMD Projects\LMS 2.0\backend\node_modules\sequelize\lib\dialects\sqlite\query.js:183:12)
+    at C:\Users\felix\Documents\PMD Projects\LMS 2.0\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at async SQLiteQueryInterface.select (C:\Users\felix\Documents\PMD Projects\LMS 2.0\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Letter.findAll (C:\Users\felix\Documents\PMD Projects\LMS 2.0\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async diagnose (C:\Users\felix\Documents\PMD Projects\LMS 2.0\backend\diagnose_db.js:23:25)
+
+====== DIAGNOSTIC END ======
+

@@ -74,6 +74,7 @@ class StatsController {
             } else if (isAdmin && !isSuperAdmin) {
                 // Viewing "all" — restricted to Shared Work in their own department
                 if (myDeptId) {
+                    // Admin with a home department: see their dept's work
                     visibilityClauses.push(sequelize.literal(getSharedWorkSql(myDeptId, role)));
                     
                     visibilityClauses.push(sequelize.literal(`EXISTS (
@@ -85,6 +86,9 @@ class StatsController {
                         AND colleagues.dept_id = ${sequelize.escape(myDeptId)}
                         AND (colleagues.role = ${sequelize.escape(role)} OR dr.name = ${sequelize.escape(role)})
                     )`));
+                } else {
+                    // Admin with NO department assigned: global visibility (see all letters)
+                    visibilityClauses.push(sequelize.literal('1=1'));
                 }
             }
 

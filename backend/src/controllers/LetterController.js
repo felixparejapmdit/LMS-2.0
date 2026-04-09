@@ -95,6 +95,9 @@ class LetterController {
                         AND colleagues.dept_id = ${sequelize.escape(myDeptId)}
                         AND (colleagues.role = ${sequelize.escape(role)} OR dr.name = ${sequelize.escape(role)})
                     )`));
+                } else {
+                    // Admin with NO department assigned: global visibility
+                    visibilityClauses.push(sequelize.literal('1=1'));
                 }
             }
 
