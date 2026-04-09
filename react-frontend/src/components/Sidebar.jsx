@@ -359,7 +359,11 @@ export default function Sidebar() {
                       src={getAssetUrl(user.avatar, "?width=100&height=100&fit=cover")}
                       className="w-full h-full object-cover"
                       alt="Profile"
-                      onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=0066FF&color=fff'; }}
+                      onError={(e) => {
+                        const firstName = user.first_name || user.username || 'U';
+                        const lastName = user.last_name || '';
+                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName + ' ' + lastName)}&background=0066FF&color=fff`;
+                      }}
                     />
                   ) : (
                     <UserCircle className="w-5 h-5" />

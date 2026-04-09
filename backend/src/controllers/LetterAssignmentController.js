@@ -1,4 +1,4 @@
-const { LetterAssignment, Letter, ProcessStep, Department, Status, Tray, LetterKind, Comment, Endorsement, sequelize } = require('../models/associations');
+const { LetterAssignment, Letter, ProcessStep, Department, Status, Tray, LetterKind, Comment, Endorsement, User, sequelize } = require('../models/associations');
 const { Op } = require('sequelize');
 const ALL_LETTER_ROLES = new Set([
     'ADMIN',
@@ -17,12 +17,12 @@ class LetterAssignmentController {
     static async getAll(req, res) {
         const startTime = Date.now();
         try {
-            const { department_id, step_id, status, vip, global_status, named_filter, user_id, role, page = 1, limit = 50 } = req.query;
+            const { department_id, step_id, status, vip, global_status, named_filter, user_id, role, page = 1, limit = 50, full_name } = req.query;
             const offset = (parseInt(page) - 1) * parseInt(limit);
             const queryLimit = parseInt(limit);
             const where = {};
 
-            console.log(`[ASSIGNMENTS] Lookup started: role="${role}", dept="${department_id}", filter="${named_filter}"`);
+            console.log(`[ASSIGNMENTS] Lookup started: role="${role}", dept="${department_id}", name="${full_name}"`);
 
             const normalizedRole = role ? role.toString().toUpperCase() : '';
             let atgStatusId = null;
@@ -31,31 +31,72 @@ class LetterAssignmentController {
                 atgStatusId = atgStatus?.id || null;
             }
 
-            const isAccessManager = normalizedRole === 'ACCESS MANAGER';
-            const isAdmin = ALL_LETTER_ROLES.has(normalizedRole);
+            const SUPER_ROLES = new Set(['SUPERUSER', 'SUPER USER', 'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'DEVELOPER', 'ROOT']);
+            const isSuperAdmin = SUPER_ROLES.has(normalizedRole);
+            const isAdminActual = isSuperAdmin || ['ADMINISTRATOR', 'ADMIN'].includes(normalizedRole);
+            const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
+            const isSpecificDept = isValidId(department_id);
 
-            // Role-based filtering
-            if (normalizedRole === 'USER' && user_id) {
-                const hasValidDepartment = department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined' && department_id !== '';
-                const visibilityClauses = [{ '$letter.encoder_id$': user_id }];
-                if (hasValidDepartment) {
-                    visibilityClauses.push({ department_id: department_id });
+            // Fetch user's department for secure filtering
+            const userRecord = user_id ? await User.findByPk(user_id) : null;
+            const myDeptId = userRecord?.dept_id;
+
+            const visibilityClauses = [];
+
+            if (user_id) {
+                // Involvement by user ID (Always Visible)
+                visibilityClauses.push({ '$letter.encoder_id$': user_id });
+                visibilityClauses.push({ '$letter.sender$': user_id });
+                visibilityClauses.push({ '$letter.endorsed$': user_id });
+
+                if (full_name) {
+                    const nameParts = full_name.split(' ').filter(p => p.length > 0);
+                    const nameMatches = [`%${full_name}%`];
+                    if (nameParts.length >= 2) {
+                        nameMatches.push(`%${nameParts[nameParts.length - 1]}, ${nameParts[0]}%`);
+                    }
+
+                    nameMatches.forEach(match => {
+                        visibilityClauses.push({ '$letter.sender$': { [Op.like]: match } });
+                        visibilityClauses.push({ '$letter.endorsed$': { [Op.like]: match } });
+                        visibilityClauses.push(sequelize.literal(`EXISTS (SELECT 1 FROM endorsements e WHERE e.letter_id = LetterAssignment.letter_id AND e.endorsed_to LIKE ${sequelize.escape(match)})`));
+                    });
                 }
-                where[Op.or] = visibilityClauses;
-            } else if (isAdmin) {
-                // Administrators can filter by department explicitly
-                if (department_id && department_id !== 'all') {
-                    where.department_id = (department_id === 'null' || department_id === 'undefined') ? null : department_id;
-                }
-            } else if (department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined' && req.query.outbox !== 'true') {
-                // Default department filtering for non-USER or when explicitly requested
-                where[Op.or] = [
-                    { department_id: department_id },
-                    { department_id: null }
-                ];
-            } else if (isAccessManager) {
-                // If Access Manager without department_id specified (mandatory for this role) 
             }
+
+            // 2. Department-based Visibility (Restrictive: Shared Work = Same Role + Same Dept)
+            const getSharedWorkSql = (d, r) => `EXISTS (
+                SELECT 1 FROM directus_users colleagues 
+                JOIN letters l ON l.id = LetterAssignment.letter_id
+                LEFT JOIN directus_roles dr ON colleagues.role = dr.id
+                WHERE colleagues.dept_id = ${sequelize.escape(d)} 
+                AND (colleagues.role = ${sequelize.escape(r)} OR dr.name = ${sequelize.escape(r)})
+                AND (
+                    colleagues.id IN (l.encoder_id, l.sender, l.endorsed)
+                    OR (colleagues.first_name || ' ' || colleagues.last_name) = l.sender
+                    OR (colleagues.first_name || ' ' || colleagues.last_name) = l.endorsed
+                )
+            )`;
+
+            if (isSpecificDept) {
+                // Only allow department filter if it's THEIR department or they are Super Admin
+                if (isSuperAdmin || department_id == myDeptId) {
+                    visibilityClauses.push(sequelize.literal(getSharedWorkSql(department_id, role)));
+                }
+            } else if (isAdminActual && !isSuperAdmin) {
+                // If an Admin looks at "all", restricted to Shared Work in their own department
+                if (myDeptId) {
+                    visibilityClauses.push(sequelize.literal(getSharedWorkSql(myDeptId, role)));
+                }
+            }
+
+            if (visibilityClauses.length > 0) {
+                where[Op.or] = visibilityClauses;
+            } else if (!isSuperAdmin) {
+                // Non-admins with no involvement and no department access see nothing
+                where.id = null;
+            }
+            // Super Admins with no filters see everything
 
             if (step_id && step_id !== 'null') where.step_id = step_id;
 
@@ -200,7 +241,8 @@ class LetterAssignmentController {
                 order: [['created_at', 'DESC']],
                 limit: queryLimit,
                 offset: offset,
-                distinct: true
+                distinct: true,
+                subQuery: false
             });
 
             let finalAssignments = realRows;
@@ -215,8 +257,11 @@ class LetterAssignmentController {
                 const unassignedWhere = {
                     global_status: { [Op.in]: validStatuses }
                 };
-                if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
-                    unassignedWhere[Op.or] = [{ dept_id: department_id }, { dept_id: null }];
+                if (isSpecificDept && !isSuperAdmin) {
+                    unassignedWhere[Op.or] = [
+                        { dept_id: department_id },
+                        sequelize.literal(`EXISTS (SELECT 1 FROM directus_users u WHERE u.id = Letter.encoder_id AND u.dept_id = ${sequelize.escape(department_id)})`)
+                    ];
                 }
 
                 // Add the specific filter for "Empty" or "ATG Note" or "Pending"

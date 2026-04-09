@@ -5,34 +5,106 @@ const { Op } = require('sequelize');
 class LetterController {
     static async getAll(req, res) {
         try {
-            const { user_id, role, department_id, dept_id, page = 1, limit = 50 } = req.query;
+            const { user_id, role, department_id, dept_id, page = 1, limit = 50, full_name } = req.query;
             const where = {};
 
             const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
             const offset = (parseInt(page) - 1) * parseInt(limit);
             const queryLimit = parseInt(limit);
 
-            const isSpecificDept = (department_id || dept_id) &&
-                (department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') &&
-                (dept_id !== 'all' && dept_id !== 'null' && dept_id !== 'undefined');
+            const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
+            const isSpecificDept = isValidId(department_id) || isValidId(dept_id);
+            const targetDeptId = isValidId(department_id) ? department_id : (isValidId(dept_id) ? dept_id : null);
 
-            const targetDeptId = department_id || dept_id;
+            const SUPER_ROLES = ['SUPERUSER', 'SUPER USER', 'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'DEVELOPER', 'ROOT'];
+            const isSuperAdmin = SUPER_ROLES.includes(normalizedRole);
+            const isAdmin = isSuperAdmin || ['ADMINISTRATOR', 'ADMIN'].includes(normalizedRole);
 
-            if (normalizedRole === 'USER' && user_id) {
-                const visibilityClauses = [{ encoder_id: user_id }];
-                if (isSpecificDept) {
-                    visibilityClauses.push({ '$assignments.department_id$': targetDeptId });
-                    visibilityClauses.push({ dept_id: targetDeptId });
+            // Fetch the user's actual department from the database for secure filtering
+            const userRecord = user_id ? await User.findByPk(user_id) : null;
+            const myDeptId = userRecord?.dept_id;
+
+            const visibilityClauses = [];
+            
+            // 1. Direct Involvement by ID (Always Visible)
+            if (user_id) {
+                visibilityClauses.push({ encoder_id: user_id });
+                visibilityClauses.push({ sender: user_id });
+                visibilityClauses.push({ endorsed: user_id });
+                
+                if (full_name) {
+                    const nameParts = full_name.split(' ').filter(p => p.length > 0);
+                    const nameMatches = [`%${full_name}%`];
+                    if (nameParts.length >= 2) {
+                        nameMatches.push(`%${nameParts[nameParts.length - 1]}, ${nameParts[0]}%`);
+                    }
+                    
+                    nameMatches.forEach(match => {
+                        visibilityClauses.push({ sender: { [Op.like]: match } });
+                        visibilityClauses.push({ endorsed: { [Op.like]: match } });
+                        visibilityClauses.push(sequelize.literal(`EXISTS (SELECT 1 FROM endorsements e WHERE e.letter_id = Letter.id AND e.endorsed_to LIKE ${sequelize.escape(match)})`));
+                    });
                 }
+            }
+
+            // 2. Department-based Visibility (Restrictive: Shared Work = Same Role + Same Dept)
+            // Checks if any technical participant (creator) or named participant (sender/endorsed)
+            // shares the same Role and Dept as the current user.
+            // 2. Department-based Visibility (Restrictive: Shared Work = Same Role + Same Dept)
+            // Checks if any team participant (creator, sender, or endorsed) matches the current user's profile.
+            // We join directus_roles to support the case where 'role' is a Name (e.g. "Administrator") instead of a UUID.
+            const getSharedWorkSql = (d, r) => `EXISTS (
+                SELECT 1 FROM directus_users colleagues 
+                LEFT JOIN directus_roles dr ON colleagues.role = dr.id
+                WHERE colleagues.dept_id = ${sequelize.escape(d)} 
+                AND (colleagues.role = ${sequelize.escape(r)} OR dr.name = ${sequelize.escape(r)})
+                AND (
+                    colleagues.id IN (Letter.encoder_id, Letter.sender, Letter.endorsed)
+                    OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.sender
+                    OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.endorsed
+                )
+            )`;
+
+            if (isSpecificDept) {
+                // If they specifically requested a department, only allow if it's THEIR department or they are Super Admin
+                if (isSuperAdmin || targetDeptId == myDeptId) {
+                    visibilityClauses.push(sequelize.literal(getSharedWorkSql(targetDeptId, role)));
+                    
+                    // Also check assignments
+                    visibilityClauses.push(sequelize.literal(`EXISTS (
+                        SELECT 1 FROM letter_assignments la 
+                        JOIN directus_users colleagues ON (colleagues.id IN (Letter.encoder_id, Letter.sender, Letter.endorsed) OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.sender OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.endorsed)
+                        LEFT JOIN directus_roles dr ON colleagues.role = dr.id
+                        WHERE la.letter_id = Letter.id 
+                        AND la.department_id = ${sequelize.escape(targetDeptId)} 
+                        AND colleagues.dept_id = ${sequelize.escape(targetDeptId)}
+                        AND (colleagues.role = ${sequelize.escape(role)} OR dr.name = ${sequelize.escape(role)})
+                    )`));
+                }
+            } else if (isAdmin && !isSuperAdmin) {
+                // Viewing "all" — restricted to Shared Work in their own department
+                if (myDeptId) {
+                    visibilityClauses.push(sequelize.literal(getSharedWorkSql(myDeptId, role)));
+                    
+                    visibilityClauses.push(sequelize.literal(`EXISTS (
+                        SELECT 1 FROM letter_assignments la 
+                        JOIN directus_users colleagues ON (colleagues.id IN (Letter.encoder_id, Letter.sender, Letter.endorsed) OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.sender OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.endorsed)
+                        LEFT JOIN directus_roles dr ON colleagues.role = dr.id
+                        WHERE la.letter_id = Letter.id 
+                        AND la.department_id = ${sequelize.escape(myDeptId)} 
+                        AND colleagues.dept_id = ${sequelize.escape(myDeptId)}
+                        AND (colleagues.role = ${sequelize.escape(role)} OR dr.name = ${sequelize.escape(role)})
+                    )`));
+                }
+            }
+
+            if (visibilityClauses.length > 0) {
                 where[Op.or] = visibilityClauses;
-            } else if (normalizedRole === 'ACCESS MANAGER' && targetDeptId) {
-                where[Op.or] = [
-                    { dept_id: targetDeptId },
-                    { '$assignments.department_id$': targetDeptId }
-                ];
-            } else if (isSpecificDept) {
-                // For other roles (like Administrator) filtering by dept
-                where.dept_id = targetDeptId;
+            }
+            // Super admins see everything if no specific involvement or dept is set
+            else if (!isSuperAdmin) {
+                // Non-super-admins with no involvement and no valid department access see nothing
+                where.id = null;
             }
 
             const { count, rows } = await Letter.findAndCountAll({
@@ -47,12 +119,18 @@ class LetterController {
                         as: 'assignments',
                         include: ['step', 'department'],
                         required: false
+                    },
+                    {
+                        model: Endorsement,
+                        as: 'endorsements',
+                        required: false
                     }
                 ],
                 order: [['created_at', 'DESC']],
                 limit: queryLimit,
                 offset: offset,
-                distinct: true
+                distinct: true,
+                subQuery: false
             });
 
             res.json({
@@ -104,7 +182,8 @@ class LetterController {
                 order: [['created_at', 'DESC']],
                 limit: queryLimit,
                 offset: offset,
-                distinct: true
+                distinct: true,
+                subQuery: false
             });
 
             res.json({

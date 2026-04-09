@@ -7,30 +7,23 @@ class TrayController {
             const { dept_id, include_letters } = req.query;
             const where = {};
             
-            if (dept_id && dept_id !== 'all') {
-                if (dept_id === 'null' || dept_id === 'undefined') {
-                    where.dept_id = null;
-                } else {
-                    where[Op.or] = [
-                        { dept_id: dept_id },
-                        { dept_id: null }
-                    ];
-                }
+            if (dept_id === 'all' || !dept_id) {
+                // Show everything
+            } else if (dept_id === 'null' || dept_id === 'undefined') {
+                where.dept_id = null;
+            } else {
+                where.dept_id = dept_id;
             }
 
-            const include = [
-                { model: Department, as: 'department' }
-            ];
+            const include = [{ model: Department, as: 'department' }];
 
-            // Only join letters if explicitly requested (it's very heavy)
             if (include_letters === 'true') {
                 include.push({ model: Letter, as: 'letters', attributes: ['id'] });
             }
 
-            const trays = await Tray.findAll({
-                where,
-                include
-            });
+            const trays = await Tray.findAll({ where, include });
+
+            res.setHeader('X-API-Version', '2.1.0');
             res.json(trays);
         } catch (error) {
             console.error("[ERROR] TrayController.getAll:", error.message);

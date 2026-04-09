@@ -74,7 +74,6 @@ export default function NewLetter() {
         assigned_dept: "",
         tray_id: "",
         selectedRefIds: [],
-        encoder: "",
         step_id: "1",
         endorse_to: ""
     });
@@ -198,13 +197,7 @@ export default function NewLetter() {
         }
     };
 
-    const handleEncoderChange = (e) => {
-        const val = e.target.value;
-        setFormData({ ...formData, encoder: val });
-        setActiveField('encoder');
-        const query = val.includes(',') ? val.split(',').pop().trim() : val.trim();
-        fetchSuggestions(query);
-    };
+
 
     const handleSenderChange = (e) => {
         const val = e.target.value;
@@ -223,8 +216,6 @@ export default function NewLetter() {
             parts[parts.length - 1] = name;
             const newValue = parts.filter(p => p !== "").join('; ');
             setFormData({ ...formData, sender: newValue + '; ' });
-        } else if (activeField === 'encoder') {
-            setFormData({ ...formData, encoder: name });
         }
         setShowSuggestions(false);
     };
@@ -292,10 +283,7 @@ export default function NewLetter() {
             return;
         }
 
-        if (formData.encoder && !validateFormat(formData.encoder)) {
-            alert("Encoder name must follow the format: LASTNAME, FIRSTNAME");
-            return;
-        }
+
 
         setLoading(true);
         setError("");
@@ -547,50 +535,7 @@ export default function NewLetter() {
                                     </div>
                                 )}
 
-                                {/* Encoder Section - Grouped under Regarding */}
-                                {canEncoderField && (
-                                    <div className="space-y-2 pt-4 border-t border-dashed border-gray-100 dark:border-[#222]">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <label className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${'text-gray-500 dark:text-gray-400'}`}>
-                                                <User className="w-3 h-3 text-orange-400" />
-                                                Encoder
-                                            </label>
-                                            <span className="text-[9px] text-red-500 font-black tracking-widest uppercase">Required</span>
-                                        </div>
-                                        <div className="relative">
-                                            <input
-                                                type="text"
-                                                required
-                                                value={formData.encoder}
-                                                onChange={handleEncoderChange}
-                                                onFocus={() => {
-                                                    setActiveField('encoder');
-                                                    if (formData.encoder.length >= 2) handleEncoderChange({ target: { value: formData.encoder } });
-                                                }}
-                                                autoComplete="off"
-                                                placeholder="LASTNAME, FIRSTNAME"
-                                                className={`w-full px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider outline-none focus:ring-2 focus:ring-orange-500 transition-all ${!validateFormat(formData.encoder) && formData.encoder ? 'border-red-500/50' : ''} ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300'}`}
-                                            />
-                                            {showSuggestions && activeField === 'encoder' && (
-                                                <div
-                                                    ref={suggestionRef}
-                                                    className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
-                                                >
-                                                    {suggestions.map((person) => (
-                                                        <div
-                                                            key={person.id}
-                                                            onClick={() => selectSuggestion(person.name)}
-                                                            className="px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600 transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3"
-                                                        >
-                                                            <User className="w-3 h-3 text-orange-400" />
-                                                            <span>{person.name}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
+
                             </section>
 
                             {/* Classification */}

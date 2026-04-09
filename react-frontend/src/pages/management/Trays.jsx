@@ -34,7 +34,7 @@ export default function Trays() {
 
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
-    const { user, layoutStyle, setIsMobileMenuOpen, refreshSetupStatus } = context;
+    const { user, isSuperAdmin, layoutStyle, setIsMobileMenuOpen, refreshSetupStatus } = context;
     const canField = access?.canField || (() => true);
     const canAdd = canField("trays", "add_button");
     const canEdit = canField("trays", "edit_button");
@@ -54,8 +54,8 @@ export default function Trays() {
     const [trayLetters, setTrayLetters] = useState([]);
     const [isMenuOpen, setIsMenuOpen] = useState(null);
     const [departments, setDepartments] = useState([]);
-    const [deptFilter, setDeptFilter] = useState("all");
-
+    const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+    const [deptFilter, setDeptFilter] = useState(userDeptId || "all");
     const [formData, setFormData] = useState({
         tray_no: "",
         description: "",
@@ -65,16 +65,18 @@ export default function Trays() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
 
-    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    const isSuperAdmin = ['ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER'].includes(roleName);
+
 
     const fetchTrays = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
+        else setLoading(true);
         try {
-            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
-            const params = isSuperAdmin 
-                ? (deptFilter !== 'all' ? { dept_id: deptFilter } : {}) 
-                : { dept_id: userDeptId };
+            const params = {
+                include_letters: 'true',
+                ...(isSuperAdmin 
+                    ? (deptFilter !== 'all' ? { dept_id: deptFilter } : {}) 
+                    : { dept_id: userDeptId })
+            };
             
             const data = await trayService.getAllTrays(params);
             setTrays(Array.isArray(data) ? data : []);

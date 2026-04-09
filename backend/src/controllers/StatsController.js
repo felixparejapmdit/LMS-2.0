@@ -1,4 +1,4 @@
-const { LetterAssignment, Letter, Status, User, Person, ProcessStep, Tray, LetterLog, sequelize } = require('../models/associations');
+const { LetterAssignment, Letter, Status, User, Person, ProcessStep, Tray, LetterLog, Endorsement, sequelize } = require('../models/associations');
 const { Op } = require('sequelize');
 
 const ALL_LETTER_ROLES = new Set([
@@ -11,12 +11,14 @@ class StatsController {
     static async getDashboardStats(req, res) {
         const startTime = Date.now();
         try {
-            const { department_id, role, user_id } = req.query;
+            const { department_id, role, user_id, full_name } = req.query;
             const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
-            const isAdmin = ALL_LETTER_ROLES.has(normalizedRole);
-            const isAccessManager = normalizedRole === 'ACCESS MANAGER';
 
-            console.log(`[STATS] Dashboard lookup for role: "${normalizedRole}", dept: "${department_id}"`);
+            const SUPER_ROLES = ['SUPERUSER', 'SUPER USER', 'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'DEVELOPER', 'ROOT'];
+            const isSuperAdmin = SUPER_ROLES.includes(normalizedRole);
+            const isAdmin = isSuperAdmin || ['ADMINISTRATOR', 'ADMIN'].includes(normalizedRole);
+
+            console.log(`[STATS] Dashboard lookup for role: "${normalizedRole}", dept: "${department_id}", name: "${full_name}"`);
 
             // 1. User & People Stats (Fast)
             const userWhere = {};
@@ -29,46 +31,128 @@ class StatsController {
                 Person.count()
             ]);
 
-            // 2. Base Letter Filter (Matches your original Department logic)
+            // 2. Base Letter Filter (Now includes name-based visibility)
             const baseLetterWhere = {};
-            const isSpecificDept = department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined';
+            const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
+            const isSpecificDept = isValidId(department_id);
 
-            if (isAdmin) {
-                // Admins only filter if they explicitly select a department
-                if (isSpecificDept) baseLetterWhere.dept_id = department_id;
-            } else if (isSpecificDept) {
-                // Others (like Access Managers) only see their department OR system entries
-                baseLetterWhere[Op.or] = [{ dept_id: department_id }, { dept_id: null }];
+            // Fetch user's department for secure filtering
+            const userRecord = user_id ? await User.findByPk(user_id) : null;
+            const myDeptId = userRecord?.dept_id;
+
+            const visibilityClauses = [];
+            
+            // 2. Department-based Visibility (Restrictive: Shared Work = Same Role + Same Dept)
+            const getSharedWorkSql = (d, r) => `EXISTS (
+                SELECT 1 FROM directus_users colleagues 
+                LEFT JOIN directus_roles dr ON colleagues.role = dr.id
+                WHERE colleagues.dept_id = ${sequelize.escape(d)} 
+                AND (colleagues.role = ${sequelize.escape(r)} OR dr.name = ${sequelize.escape(r)})
+                AND (
+                    colleagues.id IN (Letter.encoder_id, Letter.sender, Letter.endorsed)
+                    OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.sender
+                    OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.endorsed
+                )
+            )`;
+
+            if (isSpecificDept) {
+                // If they specifically requested a department, only allow if it's THEIR department or they are Super Admin
+                if (isSuperAdmin || department_id == myDeptId) {
+                    visibilityClauses.push(sequelize.literal(getSharedWorkSql(department_id, role)));
+                    
+                    // Also check assignments
+                    visibilityClauses.push(sequelize.literal(`EXISTS (
+                        SELECT 1 FROM letter_assignments la 
+                        JOIN directus_users colleagues ON (colleagues.id IN (Letter.encoder_id, Letter.sender, Letter.endorsed) OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.sender OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.endorsed)
+                        LEFT JOIN directus_roles dr ON colleagues.role = dr.id
+                        WHERE la.letter_id = Letter.id 
+                        AND la.department_id = ${sequelize.escape(department_id)} 
+                        AND colleagues.dept_id = ${sequelize.escape(department_id)}
+                        AND (colleagues.role = ${sequelize.escape(role)} OR dr.name = ${sequelize.escape(role)})
+                    )`));
+                }
+            } else if (isAdmin && !isSuperAdmin) {
+                // Viewing "all" — restricted to Shared Work in their own department
+                if (myDeptId) {
+                    visibilityClauses.push(sequelize.literal(getSharedWorkSql(myDeptId, role)));
+                    
+                    visibilityClauses.push(sequelize.literal(`EXISTS (
+                        SELECT 1 FROM letter_assignments la 
+                        JOIN directus_users colleagues ON (colleagues.id IN (Letter.encoder_id, Letter.sender, Letter.endorsed) OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.sender OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.endorsed)
+                        LEFT JOIN directus_roles dr ON colleagues.role = dr.id
+                        WHERE la.letter_id = Letter.id 
+                        AND la.department_id = ${sequelize.escape(myDeptId)} 
+                        AND colleagues.dept_id = ${sequelize.escape(myDeptId)}
+                        AND (colleagues.role = ${sequelize.escape(role)} OR dr.name = ${sequelize.escape(role)})
+                    )`));
+                }
+            }
+
+            if (user_id) {
+                // Involvements (Always Visible)
+                visibilityClauses.push({ encoder_id: user_id });
+                visibilityClauses.push({ sender: user_id });
+                visibilityClauses.push({ endorsed: user_id });
+                
+                if (full_name) {
+                    const nameParts = full_name.split(' ').filter(p => p.length > 0);
+                    const nameMatches = [`%${full_name}%`];
+                    if (nameParts.length >= 2) {
+                        nameMatches.push(`%${nameParts[nameParts.length - 1]}, ${nameParts[0]}%`);
+                    }
+                    
+                    nameMatches.forEach(match => {
+                        visibilityClauses.push({ sender: { [Op.like]: match } });
+                        visibilityClauses.push({ endorsed: { [Op.like]: match } });
+                        visibilityClauses.push(sequelize.literal(`EXISTS (SELECT 1 FROM endorsements e WHERE e.letter_id = Letter.id AND e.endorsed_to LIKE ${sequelize.escape(match)})`));
+                    });
+                }
+            }
+
+            if (visibilityClauses.length > 0) {
+                baseLetterWhere[Op.or] = visibilityClauses;
+            } else if (!isSuperAdmin) {
+                baseLetterWhere.id = null;
             }
 
             const activeStatuses = ['Incoming', 'Review', 'Forwarded', 'Endorsed', 'Pending'];
 
-            // 3. Optimized SQL Counts (Simplified for SQLite compatibility)
+            // 3. Optimized SQL Counts
             const [activeTasks, archivedTasks, incomingLetters, outgoingLetters] = await Promise.all([
-                // Active Tasks: global_status 1 (Incoming), 8 (Pending), 2 (ATG)
                 Letter.count({
-                    where: {
-                        ...baseLetterWhere,
-                        global_status: [1, 2, 8]
-                    }
+                    where: { ...baseLetterWhere, global_status: [1, 2, 8] },
+                    distinct: true,
+                    col: 'id'
                 }),
-                // Archived Tasks: global_status 9 (Filed)
                 Letter.count({
-                    where: {
-                        ...baseLetterWhere,
-                        global_status: 9
-                    }
+                    where: { ...baseLetterWhere, global_status: 9 },
+                    distinct: true,
+                    col: 'id'
                 }),
-                Letter.count({ where: { ...baseLetterWhere, direction: 'Incoming' } }),
-                Letter.count({ where: { ...baseLetterWhere, direction: 'Outgoing' } })
+                Letter.count({ 
+                    where: { ...baseLetterWhere, direction: 'Incoming' },
+                    distinct: true,
+                    col: 'id'
+                }),
+                Letter.count({ 
+                    where: { ...baseLetterWhere, direction: 'Outgoing' },
+                    distinct: true,
+                    col: 'id'
+                })
             ]);
 
             // 4. Priority Workflow Letters (Incoming only)
             const recentTasks = await Letter.findAll({
                 where: { ...baseLetterWhere, global_status: 1 },
-                include: [{ model: Status, as: 'status', required: false }, 'letterKind', 'attachment', 'tray'],
+                include: [
+                    { model: Status, as: 'status', required: false }, 
+                    'letterKind', 
+                    'attachment', 
+                    'tray'
+                ],
                 limit: 5,
-                order: [['created_at', 'DESC']]
+                order: [['created_at', 'DESC']],
+                distinct: true
             });
 
             // 5. ATG Note / VIP Letters (Status 2 OR 'ATG Note')
@@ -80,11 +164,21 @@ class StatsController {
             const [atgLetters, atgLettersCount] = await Promise.all([
                 Letter.findAll({
                     where: atgWhere,
-                    include: [{ model: Status, as: 'status' }, 'letterKind', 'attachment', 'tray'],
+                    include: [
+                        { model: Status, as: 'status' }, 
+                        'letterKind', 
+                        'attachment', 
+                        'tray'
+                    ],
                     limit: 10,
-                    order: [['created_at', 'DESC']]
+                    order: [['created_at', 'DESC']],
+                    distinct: true
                 }),
-                Letter.count({ where: atgWhere })
+                Letter.count({ 
+                    where: atgWhere,
+                    distinct: true,
+                    col: 'id'
+                })
             ]);
 
             // 6. Overdue (Older than 5 days AND Pending)
@@ -99,15 +193,19 @@ class StatsController {
                         { created_at: { [Op.lt]: fiveDaysAgo } }
                     ]
                 },
-                include: [{ model: Status, as: 'status' }, 'tray'],
+                include: [
+                    { model: Status, as: 'status' }, 
+                    'tray'
+                ],
                 order: [['date_received', 'ASC']],
-                limit: 10
+                limit: 10,
+                distinct: true
             });
 
             // 7. Recent Log Activity
             const logWhere = {};
             if (isSpecificDept && !isAdmin) {
-                logWhere['$Letter.dept_id$'] = { [Op.or]: [department_id, null] };
+                logWhere['$Letter.dept_id$'] = department_id;
             }
             const recentActivityLogs = await LetterLog.findAll({
                 where: logWhere,
@@ -164,39 +262,84 @@ class StatsController {
 
     static async getInboxStats(req, res) {
         try {
-            const { department_id, user_id, role } = req.query;
+            const { department_id, user_id, role, full_name } = req.query;
             const where = {};
+            const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
+            const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
+            const isSpecificDept = isValidId(department_id);
+            const SUPER_ROLES = ['SUPERUSER', 'SUPER USER', 'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'DEVELOPER', 'ROOT'];
+            const isSuperAdmin = SUPER_ROLES.includes(normalizedRole);
+            const isAdmin = isSuperAdmin || ['ADMINISTRATOR', 'ADMIN'].includes(normalizedRole);
 
-            const normalizedRole = role ? role.toString().toUpperCase() : '';
-            const isAccessManager = normalizedRole === 'ACCESS MANAGER';
-            const isAdmin = ALL_LETTER_ROLES.has(normalizedRole);
+            // Fetch user's department for secure filtering
+            const userRecord = user_id ? await User.findByPk(user_id) : null;
+            const myDeptId = userRecord?.dept_id;
 
-            // Role-based filtering identical to LetterAssignmentController
-            if (normalizedRole === 'USER' && user_id) {
-                const hasValidDepartment = department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined' && department_id !== '';
-                const visibilityClauses = [{ '$letter.encoder_id$': user_id }];
-                if (hasValidDepartment) {
-                    visibilityClauses.push({ department_id: department_id });
+            const visibilityClauses = [];
+
+            if (user_id) {
+                // Involvement-based (Always Visible)
+                visibilityClauses.push({ '$letter.encoder_id$': user_id });
+                visibilityClauses.push({ '$letter.sender$': user_id });
+                visibilityClauses.push({ '$letter.endorsed$': user_id });
+                
+                if (full_name) {
+                    const nameParts = full_name.split(' ').filter(p => p.length > 0);
+                    const nameMatches = [`%${full_name}%`];
+                    if (nameParts.length >= 2) {
+                        nameMatches.push(`%${nameParts[nameParts.length - 1]}, ${nameParts[0]}%`);
+                    }
+                    nameMatches.forEach(match => {
+                        visibilityClauses.push({ '$letter.sender$': { [Op.like]: match } });
+                        visibilityClauses.push({ '$letter.endorsed$': { [Op.like]: match } });
+                        visibilityClauses.push(sequelize.literal(`EXISTS (SELECT 1 FROM endorsements e WHERE e.letter_id = LetterAssignment.letter_id AND e.endorsed_to LIKE ${sequelize.escape(match)})`));
+                    });
                 }
+            }
+
+            // 2. Department-based Visibility (Restrictive: Shared Work = Same Role + Same Dept)
+            const getSharedWorkSqlInbox = (d, r) => `EXISTS (
+                SELECT 1 FROM directus_users colleagues 
+                JOIN letters l ON l.id = LetterAssignment.letter_id
+                LEFT JOIN directus_roles dr ON colleagues.role = dr.id
+                WHERE colleagues.dept_id = ${sequelize.escape(d)} 
+                AND (colleagues.role = ${sequelize.escape(r)} OR dr.name = ${sequelize.escape(r)})
+                AND (
+                    colleagues.id IN (l.encoder_id, l.sender, l.endorsed)
+                    OR (colleagues.first_name || ' ' || colleagues.last_name) = l.sender
+                    OR (colleagues.first_name || ' ' || colleagues.last_name) = l.endorsed
+                )
+            )`;
+
+            if (isSpecificDept) {
+                // Only allow department stats if it's THEIR department or they are Super Admin
+                if (isSuperAdmin || department_id == myDeptId) {
+                    visibilityClauses.push(sequelize.literal(getSharedWorkSqlInbox(department_id, role)));
+                }
+            } else if (isAdmin && !isSuperAdmin) {
+                // Viewing "all" — restricted to Shared Work in their own department
+                if (myDeptId) {
+                    visibilityClauses.push(sequelize.literal(getSharedWorkSqlInbox(myDeptId, role)));
+                }
+            }
+
+            if (visibilityClauses.length > 0) {
                 where[Op.or] = visibilityClauses;
-            } else if (isAdmin) {
-                if (department_id && department_id !== 'all') {
-                    where.department_id = (department_id === 'null' || department_id === 'undefined') ? null : department_id;
-                }
-            } else if (department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
-                where[Op.or] = [
-                    { department_id: department_id },
-                    { department_id: null }
-                ];
-            } else if (isAccessManager) {
-                // If it's an Access Manager but no department_id is passed, we rely on the frontend
-                // but we could also enforce it here if we fetched the user's dept.
+            } else if (!isSuperAdmin) {
+                where.id = null;
             }
 
             const allAssignments = await LetterAssignment.findAll({
                 where,
                 include: [
-                    { model: Letter, as: 'letter', include: [{ model: Status, as: 'status' }] },
+                    { 
+                        model: Letter, 
+                        as: 'letter', 
+                        include: [
+                            { model: Status, as: 'status' },
+                            { model: Endorsement, as: 'endorsements' }
+                        ] 
+                    },
                     { model: ProcessStep, as: 'step' }
                 ]
             });
@@ -247,10 +390,19 @@ class StatsController {
             // Count letters that are purely unassigned
             // MUST respect department filter for Access Managers
             const unassignedWhere = { global_status: 1 };
-            if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
-                unassignedWhere[Op.or] = [
-                    { dept_id: department_id },
-                    { dept_id: null }
+            if (isSpecificDept && !isSuperAdmin) {
+                unassignedWhere[Op.and] = [
+                    sequelize.literal(`EXISTS (
+                        SELECT 1 FROM directus_users colleagues 
+                        LEFT JOIN directus_roles dr ON colleagues.role = dr.id
+                        WHERE colleagues.dept_id = ${sequelize.escape(department_id)} 
+                        AND (colleagues.role = ${sequelize.escape(role)} OR dr.name = ${sequelize.escape(role)})
+                        AND (
+                            colleagues.id IN (Letter.encoder_id, Letter.sender, Letter.endorsed)
+                            OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.sender
+                            OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.endorsed
+                        )
+                    )`)
                 ];
             }
 

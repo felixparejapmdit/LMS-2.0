@@ -172,8 +172,7 @@ class RolePermissionController {
                 if (dept_id === 'null' || dept_id === '') {
                     where.dept_id = null;
                 } else {
-                    const parsed = parseInt(dept_id, 10) || dept_id;
-                    where.dept_id = { [Op.or]: [parsed, null] };
+                    where.dept_id = parseInt(dept_id, 10) || dept_id;
                 }
             }
 
@@ -230,8 +229,7 @@ class RolePermissionController {
                 if (dept_id === 'null' || dept_id === '') {
                     where.dept_id = null;
                 } else {
-                    const parsed = parseInt(dept_id, 10) || dept_id;
-                    where.dept_id = { [Op.or]: [parsed, null] };
+                    where.dept_id = parseInt(dept_id, 10) || dept_id;
                 }
             }
 

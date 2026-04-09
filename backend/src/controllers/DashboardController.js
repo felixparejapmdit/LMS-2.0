@@ -45,8 +45,8 @@ class DashboardController {
     static async getInboxStatsInternal({ department_id }) {
         const startTime = Date.now();
         const baseWhere = {};
-        if (department_id && department_id !== 'null' && department_id !== 'undefined') {
-            baseWhere[Op.or] = [{ department_id: department_id }, { department_id: null }];
+        if (department_id && department_id !== 'null' && department_id !== 'undefined' && department_id !== '') {
+            baseWhere.department_id = department_id;
         }
 
         // Parallelize counts at the DB level
@@ -83,7 +83,7 @@ class DashboardController {
                         { global_status: { [Op.notIn]: [3, 4] } },
                         { [Op.or]: [{ sender: null }, { sender: '' }, { summary: null }, { summary: '' }] }
                     ],
-                    ...(department_id ? { [Op.or]: [{ dept_id: department_id }, { dept_id: null }] } : {})
+                    ...(department_id ? { dept_id: department_id } : {})
                 }
             }),
             // Purely Unassigned
@@ -91,7 +91,7 @@ class DashboardController {
                 where: {
                     global_status: 1,
                     tray_id: { [Op.or]: [0, null] },
-                    ...(department_id ? { [Op.or]: [{ dept_id: department_id }, { dept_id: null }] } : {})
+                    ...(department_id ? { dept_id: department_id } : {})
                 },
                 include: [{ model: LetterAssignment, as: 'assignments', required: false }],
                 // We use a custom where to find letters with NO assignments
@@ -115,8 +115,8 @@ class DashboardController {
         if (normalizedRole === 'USER' && user_id) {
             where[Op.or] = [{ '$letter.encoder_id$': user_id }];
             if (department_id && department_id !== 'all' && department_id !== 'null') where[Op.or].push({ department_id: department_id });
-        } else if (!ALL_LETTER_ROLES.has(normalizedRole) && department_id && department_id !== 'all' && department_id !== 'null' && query.outbox !== 'true') {
-            where[Op.or] = [{ department_id: department_id }, { department_id: null }];
+        } else if (!ALL_LETTER_ROLES.has(normalizedRole) && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined' && query.outbox !== 'true') {
+            where.department_id = department_id;
         }
 
         if (named_filter) {

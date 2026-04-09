@@ -370,9 +370,15 @@ export default function LegacyData() {
                                                 </td>
                                                 <td className="px-5 py-4 text-center">
                                                     <div className="flex justify-center">
-                                                        {canPdf && (letter.file_name || letter.attachment_path || letter.scanned_copy) ? (
-                                                            <button onClick={() => handleViewPDF(letter)} className="p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-3.5 h-3.5" /></button>
-                                                        ) : <span className="text-gray-300">-</span>}
+                                                        {(letter.file_name || letter.attachment_path || letter.scanned_copy) ? (
+                                                            canPdf ? (
+                                                                <button onClick={() => handleViewPDF(letter)} className="p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-3.5 h-3.5" /></button>
+                                                            ) : (
+                                                                <span className="text-gray-300">-</span>
+                                                            )
+                                                        ) : (
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 opacity-60">No File</span>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

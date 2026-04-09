@@ -154,12 +154,12 @@ export default function MasterTable() {
             const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
             departmentService.getAll().then(setDepartments).catch(() => { });
-            statusService.getAll().then(setStatuses).catch(() => { });
+            statusService.getAll({ dept_id: userDeptId }).then(setStatuses).catch(() => { });
             axios.get(`${apiBase}/process-steps`).then(res => setSteps(res.data)).catch(() => { });
             letterKindService.getAll().then(setLetterKinds).catch(() => { });
             axios.get(`${apiBase}/persons`).then(res => setPersons(Array.isArray(res.data) ? res.data : [])).catch(() => { });
-            axios.get(`${apiBase}/trays`).then(res => setTrays(res.data)).catch(() => { });
-            axios.get(`${apiBase}/attachments`).then(res => setAttachments(res.data)).catch(() => { });
+            axios.get(`${apiBase}/trays?dept_id=${userDeptId}`).then(res => setTrays(res.data)).catch(() => { });
+            axios.get(`${apiBase}/attachments?dept_id=${userDeptId}`).then(res => setAttachments(res.data)).catch(() => { });
 
         } catch (error) {
             console.error("Fetch failed:", error.message);
@@ -253,10 +253,13 @@ export default function MasterTable() {
         }
     };
 
-    const handleStatusChange = async (id, newStatus) => {
+    const handleStatusChange = async (id, statusIdOrName) => {
         try {
-            const statusMatch = statuses.find(s => s.status_name === newStatus);
-            const payload = statusMatch ? { global_status: statusMatch.id } : { letter_type: newStatus };
+            const statusMatch = typeof statusIdOrName === 'number'
+                ? statuses.find(s => s.id === statusIdOrName)
+                : statuses.find(s => s.status_name === statusIdOrName);
+
+            const payload = statusMatch ? { global_status: statusMatch.id } : { letter_type: statusIdOrName };
 
             await letterService.update(id, payload);
             fetchData();
@@ -265,11 +268,11 @@ export default function MasterTable() {
         }
     };
 
-    const handleBulkStatusUpdate = async (newStatus) => {
-        if (!newStatus) return;
+    const handleBulkStatusUpdate = async (statusIdOrName) => {
+        if (!statusIdOrName) return;
         try {
             setLoading(true);
-            if (newStatus === "Combine Selected PDFs") {
+            if (statusIdOrName === "Combine Selected PDFs") {
                 const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/combine-selected`, {
                     letter_ids: selectedIds
                 });
@@ -279,11 +282,14 @@ export default function MasterTable() {
                 }
             } else {
                 for (const id of selectedIds) {
-                    if (newStatus === "Show to ATG Dashboard") {
+                    if (statusIdOrName === "Show to ATG Dashboard") {
                         await letterService.update(id, { tray_id: null, global_status: 2 });
                     } else {
-                        const statusMatch = statuses.find(s => s.status_name === newStatus);
-                        const payload = statusMatch ? { global_status: statusMatch.id } : { letter_type: newStatus };
+                        const statusMatch = typeof statusIdOrName === 'number'
+                            ? statuses.find(s => s.id === statusIdOrName)
+                            : statuses.find(s => s.status_name === statusIdOrName);
+
+                        const payload = statusMatch ? { global_status: statusMatch.id } : { letter_type: statusIdOrName };
                         await letterService.update(id, payload);
                     }
                 }
@@ -583,15 +589,26 @@ export default function MasterTable() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 custom-scrollbar w-full md:w-auto">
-                                    {statuses.map(s => (
-                                        <button
-                                            key={s.id}
-                                            onClick={() => handleBulkStatusUpdate(s.status_name)}
-                                            className={`whitespace-nowrap px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all bg-white dark:bg-white/5 border-gray-100 dark:border-white/10 ${textColor} hover:bg-orange-500 hover:text-white hover:border-orange-500`}
-                                        >
-                                            {s.status_name}
-                                        </button>
-                                    ))}
+                                    {statuses
+                                        .filter(s => {
+                                            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+                                            if (selectedIds.length === 0) return isSuperAdmin;
+                                            // Show if global (null dept_id) OR matches the currently logged-in user's department
+                                            return !s.dept_id || (userDeptId && Number(s.dept_id) === Number(userDeptId));
+                                        })
+                                        .map(s => {
+                                            const dept = departments.find(d => Number(d.id) === Number(s.dept_id));
+                                            const label = dept ? `${dept.dept_code}: ${s.status_name}` : s.status_name;
+                                            return (
+                                                <button
+                                                    key={s.id}
+                                                    onClick={() => handleBulkStatusUpdate(s.id)}
+                                                    className={`whitespace-nowrap px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all bg-white dark:bg-white/5 border-gray-100 dark:border-white/10 ${textColor} hover:bg-orange-500 hover:text-white hover:border-orange-500`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            )
+                                        })}
                                     {SPECIAL_ACTIONS.map(action => (
                                         <button
                                             key={action}
@@ -714,15 +731,19 @@ export default function MasterTable() {
                                                     </button>
                                                 </td>
                                                 <td className="p-5 text-center">
-                                                    {(isSuperAdmin || (canPdf && (letter.attachment_id || letter.scanned_copy))) ? (
-                                                        <button
-                                                            onClick={() => handleViewPDF(letter)}
-                                                            className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all mx-auto"
-                                                        >
-                                                            <FileText className="w-4 h-4" />
-                                                        </button>
+                                                    {(letter.attachment_id || letter.scanned_copy) ? (
+                                                        (isSuperAdmin || canPdf) ? (
+                                                            <button
+                                                                onClick={() => handleViewPDF(letter)}
+                                                                className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all mx-auto"
+                                                            >
+                                                                <FileText className="w-4 h-4" />
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-gray-200 dark:text-[#333]">-</span>
+                                                        )
                                                     ) : (
-                                                        <span className="text-gray-200 dark:text-[#333]">-</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 opacity-60">No File</span>
                                                     )}
                                                 </td>
                                             </tr>
@@ -909,9 +930,15 @@ export default function MasterTable() {
                                             className="w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm"
                                         >
                                             <option value="" style={{ color: 'black', backgroundColor: 'white' }}>-- Status --</option>
-                                            {statuses.map(s => (
-                                                <option key={s.id} value={s.id} style={{ color: 'black', backgroundColor: 'white' }}>{s.status_name}</option>
-                                            ))}
+                                            {statuses
+                                                .filter(s => !s.dept_id || Number(s.dept_id) === Number(selectedLetter?.dept_id?.id ?? selectedLetter?.dept_id))
+                                                .map(s => {
+                                                    const dept = departments.find(d => Number(d.id) === Number(s.dept_id));
+                                                    const label = dept ? `${dept.dept_code}: ${s.status_name}` : s.status_name;
+                                                    return (
+                                                        <option key={s.id} value={s.id} style={{ color: 'black', backgroundColor: 'white' }}>{label}</option>
+                                                    )
+                                                })}
                                         </select>
                                     </div>}
 

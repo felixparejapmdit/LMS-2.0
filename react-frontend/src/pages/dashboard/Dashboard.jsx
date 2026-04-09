@@ -62,7 +62,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const [totalRecords, setTotalRecords] = useState(0);
   const [recordsPerPage] = useState(30);
 
-  const activeStepTab = searchParams.get('tab') || 'review';
+  const activeStepTab = searchParams.get('tab') || 'signature';
   const setActiveStepTab = (tab) => {
     setSelectedIds([]); // Clear selections when changing tabs
     setSearchParams(prev => {
@@ -188,8 +188,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
 
   useEffect(() => {
     if (user?.id) {
-      if (view !== 'inbox' && activeStepTab !== 'review') {
-        setActiveStepTab('review');
+      if (view !== 'inbox' && activeStepTab !== 'signature') {
+        setActiveStepTab('signature');
       }
       fetchAssignments();
       fetchTrays();

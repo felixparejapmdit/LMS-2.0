@@ -163,7 +163,8 @@ export default function RoleAccessMatrix() {
     const [allRoles, setAllRoles] = useState([]); // Full unfiltered list for dept filter
     const [pages, setPages] = useState([]);
     const [departments, setDepartments] = useState([]);
-    const [deptFilter, setDeptFilter] = useState("null"); // Default to admin defaults if "all" is removed
+    const userDeptId = (user?.dept_id?.id !== undefined ? user?.dept_id?.id : user?.dept_id);
+    const [deptFilter, setDeptFilter] = useState(userDeptId !== undefined && userDeptId !== null ? String(userDeptId) : "null");
     const [deptSearchTerm, setDeptSearchTerm] = useState("");
     const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -204,7 +205,7 @@ export default function RoleAccessMatrix() {
             const deptId = user?.dept_id?.id || user?.dept_id;
 
             const params = {};
-            if (isAccessManager && deptId) {
+            if (!isAdministrator && deptId) {
                 params.dept_id = deptId;
                 params.exclude_admin = 'true';
             }
