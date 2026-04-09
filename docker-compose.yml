@@ -33,7 +33,7 @@ services:
     restart: unless-stopped
     networks:
       lms-net:
-        ipv4_address: 10.20.0.10
+        ipv4_address: 172.20.0.10
 
   backend:
     container_name: lms-backend
@@ -54,7 +54,7 @@ services:
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
       TELEGRAM_WEBHOOK_URL: "${TELEGRAM_WEBHOOK_URL}"
       # Static IP Bypasses Docker DNS (No more 4s wait)
-      DIRECTUS_INTERNAL_URL: "http://10.20.0.10:8055"
+      DIRECTUS_INTERNAL_URL: "http://172.20.0.10:8055"
       NODE_OPTIONS: "--dns-result-order=ipv4first"
       SQLITE_SQL_LOG_LEVEL: "warn"
       SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
@@ -86,4 +86,5 @@ networks:
     name: lms_network
     ipam:
       config:
-        - subnet: 10.20.0.0/16
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
