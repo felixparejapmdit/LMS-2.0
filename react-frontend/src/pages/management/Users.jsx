@@ -34,7 +34,7 @@ export default function Users() {
     const context = useAuth();
     if (!context) return <div className="p-20 text-red-500">Error: AuthContext not found</div>;
 
-    const { user, layoutStyle, setIsMobileMenuOpen } = context;
+    const { user, layoutStyle, setIsMobileMenuOpen, isSuperAdmin } = context;
     const canField = access?.canField || (() => true);
     const [users, setUsers] = useState([]);
     const [departments, setDepartments] = useState([]);
@@ -122,8 +122,7 @@ export default function Users() {
         return () => window.removeEventListener('paste', handlePaste);
     }, [isModalOpen]);
 
-    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    const isSuperAdmin = ['ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER', 'ADMIN', 'SUPER ADMIN', 'DEVELOPER', 'ROOT'].includes(roleName);
+
 
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
@@ -174,8 +173,12 @@ export default function Users() {
             if (modalMode === 'edit' && !dataToSubmit.password) {
                 delete dataToSubmit.password; // Don't send empty password on edit
             }
-            if (!dataToSubmit.dept_id || !isSuperAdmin) {
+            if (!isSuperAdmin) {
                 dataToSubmit.dept_id = user?.dept_id?.id ?? user?.dept_id;
+            } else if (dataToSubmit.dept_id === "") {
+                dataToSubmit.dept_id = null;
+            } else if (dataToSubmit.dept_id !== null && dataToSubmit.dept_id !== undefined) {
+                dataToSubmit.dept_id = parseInt(dataToSubmit.dept_id, 10);
             }
 
             if (modalMode === 'create') {

@@ -209,35 +209,7 @@ export default function Home() {
                     )}
                 </div>
 
-                {/* Activity Feed */}
-                <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
-                    <h3 className="text-xs font-black uppercase tracking-widest mb-6 flex items-center gap-2 text-gray-400">
-                        <History className="w-4 h-4 text-blue-500" /> Recent Activity
-                    </h3>
-                    {stats.recentActivityLogs?.length === 0 ? (
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-6">No recent activity</p>
-                    ) : (
-                        <div className="relative pl-3.5 border-l-2 border-slate-100 dark:border-[#333] space-y-5 pt-1">
-                            {stats.recentActivityLogs?.map(log => {
-                                const minAgo = Math.floor((new Date() - new Date(log.timestamp)) / 60000);
-                                const timeStr = minAgo < 60 ? `${minAgo} min${minAgo !== 1 ? 's' : ''}` : minAgo < 1440 ? `${Math.floor(minAgo / 60)} hr${Math.floor(minAgo / 60) !== 1 ? 's' : ''}` : `${Math.floor(minAgo / 1440)} d`;
-                                return (
-                                    <div key={log.id} className="relative">
-                                        <div className={`absolute -left-[20px] top-1.5 w-2.5 h-2.5 rounded-full ${layoutStyle === 'notion' ? 'ring-white dark:ring-[#191919]' : 'ring-white dark:ring-[#141414]'} bg-blue-500 ring-4`}></div>
-                                        <p className="text-[10.5px] text-gray-600 dark:text-gray-400 leading-snug">
-                                            <span className="font-bold text-gray-900 dark:text-white mr-1">{log.user?.first_name || 'System'}</span>
-                                            {log.action_type}{' '}
-                                            {log.Letter?.lms_id && <span className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1 rounded">{log.Letter.lms_id}</span>}
-                                        </p>
-                                        <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mt-1.5">
-                                            {timeStr} ago
-                                        </p>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
-                </div>
+
             </div>
         );
     };
@@ -291,34 +263,39 @@ export default function Home() {
                     <div className="lg:col-span-2 space-y-6">
                         <div className="flex items-center justify-between">
                             <h2 className={`text-lg font-black uppercase tracking-tight ${'text-slate-900 dark:text-white'}`}>
-                                New
+                                Recent Activity
                             </h2>
                             <button onClick={() => navigate('/inbox')} className={`text-xs font-bold uppercase tracking-widest flex items-center gap-1 transition-colors ${'text-blue-600 hover:text-blue-700'}`}>
                                 See All <ChevronRight className="w-4 h-4" />
                             </button>
                         </div>
 
-                        {stats.recentTasks.length === 0 ? (
+                        {stats.recentActivityLogs?.length === 0 ? (
                             <div className={`py-16 flex flex-col items-center justify-center rounded-[2.5rem] border ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
-                                <Inbox className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" />
-                                <p className="font-bold text-gray-400 uppercase tracking-widest text-xs">No new letters</p>
+                                <History className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" />
+                                <p className="font-bold text-gray-400 uppercase tracking-widest text-xs">No recent activity</p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
-                                {stats.recentTasks.map(task => (
-                                    <LetterCard
-                                        key={task.id}
-                                        id={task.id}
-                                        letterId={task.id}
-                                        atgId={task.lms_id}
-                                        sender={task.sender}
-                                        summary={task.summary}
-                                        status={task.status?.status_name || 'Incoming'}
-                                        step={null}
-                                        dueDate={task.date_received}
-                                        layout={layoutStyle}
-                                    />
-                                ))}
+                            <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
+                                <div className="relative pl-3.5 border-l-2 border-slate-100 dark:border-[#333] space-y-6 pt-1">
+                                    {stats.recentActivityLogs?.map(log => {
+                                        const minAgo = Math.floor((new Date() - new Date(log.timestamp)) / 60000);
+                                        const timeStr = minAgo < 60 ? `${minAgo} min${minAgo !== 1 ? 's' : ''}` : minAgo < 1440 ? `${Math.floor(minAgo / 60)} hr${Math.floor(minAgo / 60) !== 1 ? 's' : ''}` : `${Math.floor(minAgo / 1440)} d`;
+                                        return (
+                                            <div key={log.id} className="relative">
+                                                <div className={`absolute -left-[20px] top-1.5 w-2.5 h-2.5 rounded-full ${layoutStyle === 'notion' ? 'ring-white dark:ring-[#191919]' : 'ring-white dark:ring-[#141414]'} bg-blue-500 ring-4`}></div>
+                                                <p className="text-sm text-gray-600 dark:text-gray-400 leading-snug">
+                                                    <span className="font-bold text-gray-900 dark:text-white mr-1">{log.user?.first_name || 'System'}</span>
+                                                    {log.action_type}{' '}
+                                                    {log.Letter?.lms_id && <span className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1.5 py-0.5 rounded">{log.Letter.lms_id}</span>}
+                                                </p>
+                                                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mt-1.5">
+                                                    {timeStr} ago
+                                                </p>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
                             </div>
                         )}
                         {/* ATG Dashboard Letters */}
@@ -447,32 +424,37 @@ export default function Home() {
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
                                 <div className="lg:col-span-2 space-y-8">
                                     <div className="flex items-center justify-between border-b border-[#E5E5E5] dark:border-[#222] pb-4">
-                                        <h2 className="text-xs font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.3em]">Recent</h2>
+                                        <h2 className="text-xs font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.3em]">Recent Activity</h2>
                                         <button onClick={() => navigate('/inbox')} className="text-[10px] font-black text-[#737373] hover:text-[#1A1A1B] uppercase tracking-widest transition-colors flex items-center gap-1">
                                             See All <ChevronRight className="w-3 h-3" />
                                         </button>
                                     </div>
 
-                                    {stats.recentTasks.length === 0 ? (
+                                    {stats.recentActivityLogs?.length === 0 ? (
                                         <div className="py-20 flex flex-col items-center justify-center bg-white dark:bg-[#111] rounded-3xl border border-[#E5E5E5] dark:border-[#222] border-dashed">
                                             <p className="text-[10px] font-black text-[#737373] uppercase tracking-widest">Nothing recent</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-4">
-                                            {stats.recentTasks.map(task => (
-                                                <LetterCard
-                                                    key={task.id}
-                                                    id={task.id}
-                                                    letterId={task.id}
-                                                    atgId={task.lms_id}
-                                                    sender={task.sender}
-                                                    summary={task.summary}
-                                                    status={task.status?.status_name || 'Incoming'}
-                                                    step={null}
-                                                    dueDate={task.date_received}
-                                                    layout="minimalist"
-                                                />
-                                            ))}
+                                        <div className="bg-white dark:bg-[#111] p-6 md:p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
+                                            <div className="relative pl-3.5 border-l-2 border-[#E5E5E5] dark:border-[#222] space-y-6 pt-1">
+                                                {stats.recentActivityLogs?.map(log => {
+                                                    const minAgo = Math.floor((new Date() - new Date(log.timestamp)) / 60000);
+                                                    const timeStr = minAgo < 60 ? `${minAgo} min${minAgo !== 1 ? 's' : ''}` : minAgo < 1440 ? `${Math.floor(minAgo / 60)} hr${Math.floor(minAgo / 60) !== 1 ? 's' : ''}` : `${Math.floor(minAgo / 1440)} d`;
+                                                    return (
+                                                        <div key={log.id} className="relative">
+                                                            <div className="absolute -left-[20px] top-1.5 w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-white dark:ring-[#111]"></div>
+                                                            <p className="text-sm text-[#737373] dark:text-gray-400 leading-snug">
+                                                                <span className="font-bold text-[#1A1A1B] dark:text-white mr-1">{log.user?.first_name || 'System'}</span>
+                                                                {log.action_type}{' '}
+                                                                {log.Letter?.lms_id && <span className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1.5 py-0.5 rounded-md">{log.Letter.lms_id}</span>}
+                                                            </p>
+                                                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#737373] mt-2">
+                                                                {timeStr} ago
+                                                            </p>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
                                         </div>
                                     )}
 

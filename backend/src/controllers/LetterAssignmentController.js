@@ -81,12 +81,15 @@ class LetterAssignmentController {
             if (isSpecificDept) {
                 // Only allow department filter if it's THEIR department or they are Super Admin
                 if (isSuperAdmin || department_id == myDeptId) {
-                    visibilityClauses.push(sequelize.literal(getSharedWorkSql(department_id, role)));
+                    visibilityClauses.push({ department_id: String(department_id) });
                 }
             } else if (isAdminActual && !isSuperAdmin) {
-                // If an Admin looks at "all", restricted to Shared Work in their own department
                 if (myDeptId) {
-                    visibilityClauses.push(sequelize.literal(getSharedWorkSql(myDeptId, role)));
+                    // Admin with a department: see all assignments in their dept
+                    visibilityClauses.push({ department_id: String(myDeptId) });
+                } else {
+                    // Admin with NO department: global visibility
+                    visibilityClauses.push(sequelize.literal('1=1'));
                 }
             }
 
@@ -234,7 +237,7 @@ class LetterAssignmentController {
                     {
                         model: ProcessStep,
                         as: 'step',
-                        required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'vem' || named_filter === 'avem' || (named_filter === 'pending' && isAdmin))
+                        required: (named_filter === 'review' || named_filter === 'signature' || named_filter === 'vem' || named_filter === 'avem' || (named_filter === 'pending' && isAdminActual))
                     },
                     { model: Department, as: 'department' }
                 ],
