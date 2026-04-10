@@ -139,17 +139,28 @@ export default function Spam() {
         setFormName(val);
         if (val.length > 1) {
             const suggestionsList = [];
+            const seenNames = new Set();
+
             // Match in Persons
             people.forEach(p => {
                 if (p.name?.toLowerCase().includes(val.toLowerCase())) {
-                    suggestionsList.push({ id: p.id, name: p.name, type: 'person', data: p });
+                    const cleanName = p.name.replace(/,+$/, '').trim();
+                    if (!seenNames.has(cleanName)) {
+                        suggestionsList.push({ id: p.id, name: cleanName, type: 'person', data: p });
+                        seenNames.add(cleanName);
+                    }
                 }
             });
+
             // Match in Users
             users.forEach(u => {
                 const fullName = `${u.last_name}, ${u.first_name}`;
-                if (fullName.toLowerCase().includes(val.toLowerCase())) {
-                    suggestionsList.push({ id: u.id, name: fullName, type: 'user', data: u });
+                const cleanName = fullName.replace(/,+$/, '').trim();
+                if (cleanName.toLowerCase().includes(val.toLowerCase())) {
+                    if (!seenNames.has(cleanName)) {
+                        suggestionsList.push({ id: u.id, name: cleanName, type: 'user', data: u });
+                        seenNames.add(cleanName);
+                    }
                 }
             });
             setSuggestions(suggestionsList.slice(0, 10));

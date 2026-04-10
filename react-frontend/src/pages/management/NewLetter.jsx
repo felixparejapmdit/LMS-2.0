@@ -190,8 +190,19 @@ export default function NewLetter() {
         }
         try {
             const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/search?query=${query}`);
-            setSuggestions(response.data);
-            setShowSuggestions(response.data.length > 0);
+            
+            // Deduplicate and clean names in suggestions to handle existing DB inconsistencies
+            const seen = new Set();
+            const cleaned = response.data
+                .map(p => ({ ...p, name: p.name.replace(/,+$/, '').trim() }))
+                .filter(p => {
+                    if (seen.has(p.name)) return false;
+                    seen.add(p.name);
+                    return true;
+                });
+
+            setSuggestions(cleaned);
+            setShowSuggestions(cleaned.length > 0);
         } catch (error) {
             console.error("Error fetching suggestions:", error);
         }
@@ -212,9 +223,11 @@ export default function NewLetter() {
 
     const selectSuggestion = (name) => {
         if (activeField === 'sender') {
+            const cleanName = name.replace(/,+$/, '').trim();
             const parts = formData.sender.split(';').map(p => p.trim());
-            parts[parts.length - 1] = name;
+            parts[parts.length - 1] = cleanName;
             const newValue = parts.filter(p => p !== "").join('; ');
+            // We append a semicolon to allow easy addition of multiple names if needed
             setFormData({ ...formData, sender: newValue + '; ' });
         }
         setShowSuggestions(false);

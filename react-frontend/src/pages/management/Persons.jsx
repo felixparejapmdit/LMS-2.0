@@ -16,7 +16,8 @@ import {
     Trash2,
     UserCircle,
     MapPin,
-    MessageSquare
+    MessageSquare,
+    Search
 } from "lucide-react";
 import axios from "axios";
 
@@ -42,6 +43,7 @@ export default function Persons() {
     const [modalMode, setModalMode] = useState("create");
     const [selectedPerson, setSelectedPerson] = useState(null);
     const [isMenuOpen, setIsMenuOpen] = useState(null);
+    const [searchTerm, setSearchTerm] = useState("");
 
     const [formData, setFormData] = useState({
         name: "",
@@ -146,12 +148,14 @@ export default function Persons() {
                         <div className="w-12 h-12 bg-orange-50 dark:bg-orange-900/10 rounded-full flex items-center justify-center text-orange-600 dark:text-orange-400 group-hover:scale-110 transition-transform shrink-0">
                             <UserCircle className="w-6 h-6" />
                         </div>
-                        {viewMode === 'grid' && (person.telegram || person.telegram_chat_id) && (
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-500">
-                                <MessageSquare className="w-3 h-3" />
-                                <span className="text-[9px] font-black uppercase tracking-widest hidden sm:block">Telegram</span>
-                            </div>
-                        )}
+                        <div className="flex flex-col items-end gap-1.5">
+                            {(person.telegram || person.telegram_chat_id) && (
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-500 border border-blue-100 dark:border-blue-900/10">
+                                    <MessageSquare className="w-3 h-3" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest hidden sm:block">LMS Bot</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -167,6 +171,7 @@ export default function Persons() {
                                 {isMenuOpen === person.id && (
                                     <div className="absolute right-0 top-full mt-2 w-32 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl z-20 py-1">
                                         {canEdit && <button onClick={() => openEditModal(person)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit</button>}
+                                        {person.telegram && <a href={`https://t.me/${person.telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10"><MessageSquare className="w-3 h-3" /> Chat</a>}
                                         {canDelete && <button onClick={() => handleDelete(person.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Delete</button>}
                                     </div>
                                 )}
@@ -176,23 +181,39 @@ export default function Persons() {
                             <MapPin className="w-3 h-3" />
                             {person.area || "None"}
                         </div>
-                        <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">
-                            ID: {person.name_id || 'N/A'}
-                        </div>
-                        {person.telegram_chat_id && (
-                            <div className="text-[9px] text-green-500 font-bold uppercase tracking-widest mt-1">
-                                ID: {person.telegram_chat_id}
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-50 dark:border-white/5">
+                            <div className="flex flex-col">
+                                <span className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">LMS ID</span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-bold tracking-widest">{person.name_id || 'NOT SET'}</span>
                             </div>
-                        )}
+                            {person.telegram_chat_id ? (
+                                <div className="flex flex-col items-end">
+                                    <span className="text-[8px] font-black text-blue-400 uppercase tracking-[0.2em] mb-0.5">Chat ID</span>
+                                    <span className="text-[10px] text-blue-600 dark:text-blue-400 font-mono font-bold tracking-widest">{person.telegram_chat_id}</span>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-end">
+                                    <span className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-0.5">Bot Status</span>
+                                    <span className="text-[10px] text-gray-300 font-bold uppercase tracking-widest italic">Inactive</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
                 {viewMode === 'list' && (
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-6">
                         <div className="text-right hidden md:block shrink-0">
                             {person.telegram && (
-                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest block">TELEGRAM</span>
+                                <a 
+                                    href={`https://t.me/${person.telegram.replace('@', '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] font-black text-blue-500 hover:text-blue-600 uppercase tracking-widest block mb-0.5 underline decoration-blue-500/30 underline-offset-4"
+                                >
+                                    @{person.telegram.replace('@', '')}
+                                </a>
                             )}
-                            <p className="text-sm font-bold text-gray-500">{person.telegram || (person.telegram_chat_id ? 'Bot Active' : 'User')}</p>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{person.telegram_chat_id ? `ID: ${person.telegram_chat_id}` : 'No Telegram Active'}</p>
                         </div>
                         <div className="flex items-center gap-1">
                             {canEdit && <button onClick={(e) => { e.stopPropagation(); openEditModal(person); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-orange-500"><Edit2 className="w-4 h-4" /></button>}
@@ -230,12 +251,28 @@ export default function Persons() {
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 custom-scrollbar w-full">
                     <div className="max-w-[100vw] mx-auto">
                         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
-                            <div>
+                            <div className="flex-1">
                                 <h2 className={`text-3xl font-bold ${textColor}`}>Persons</h2>
                                 <p className="text-gray-500 mt-2">Manage contacts.</p>
+                                
+                                <div className="mt-6 relative max-w-md group">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-orange-500 transition-colors" />
+                                    <input 
+                                        type="text"
+                                        placeholder="Search by name, ID, area or telegram..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-full pl-12 pr-4 py-3 bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#222] rounded-2xl text-sm focus:ring-2 focus:ring-orange-500/20 outline-none transition-all shadow-sm group-hover:border-orange-200 dark:group-hover:border-orange-900/40"
+                                    />
+                                    {searchTerm && (
+                                        <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500">
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             {canViewToggle && (
-                                <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm font-sans">
+                                <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm font-sans mb-1">
                                     <button onClick={() => setViewMode("grid")} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-4 h-4" /></button>
                                     <button onClick={() => setViewMode("list")} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-4 h-4" /></button>
                                 </div>
@@ -246,7 +283,14 @@ export default function Persons() {
                             <div className="flex flex-col items-center justify-center py-40 gap-4"><Loader2 className="w-10 h-10 text-orange-500 animate-spin" /><p className="text-sm text-gray-500 font-bold uppercase tracking-widest">Loading...</p></div>
                         ) : (
                             <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-6" : "space-y-4"}>
-                                {persons.map(renderCard)}
+                                {persons
+                                    .filter(p => 
+                                        p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                        (p.name_id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        (p.area || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        (p.telegram || "").toLowerCase().includes(searchTerm.toLowerCase())
+                                    )
+                                    .map(renderCard)}
                             </div>
                         )}
                     </div>

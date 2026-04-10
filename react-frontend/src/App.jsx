@@ -9,9 +9,6 @@ import Login from "./pages/auth/Login";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Home from "./pages/dashboard/Home";
 import VIPView from "./pages/dashboard/VIPView";
-import Spam from "./pages/dashboard/Spam";
-
-// Management
 import NewLetter from "./pages/management/NewLetter";
 import MasterTable from "./pages/management/MasterTable";
 import LetterTracker from "./pages/management/LetterTracker";
@@ -20,6 +17,7 @@ import LetterEndorsement from "./pages/management/LetterEndorsement";
 import LetterDetail from "./pages/management/LetterDetail";
 import LegacyData from "./pages/management/LegacyData";
 import VemResumen from "./pages/management/VemResumen";
+import ResumenPage from "./pages/management/ResumenPage";
 import RoleAccessMatrix from "./pages/management/RoleAccessMatrix";
 import DeptAccessMatrix from "./pages/management/DeptAccessMatrix";
 import Roles from "./pages/management/Roles";
@@ -49,6 +47,19 @@ import GuestSendLetter from "./pages/guest/GuestSendLetter";
 
 import { AuthProvider, useAuth, useSession } from "./context/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
+import axios from "axios";
+
+// Global Axios Error Logger
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    const status = error.response ? error.response.status : 'NETWORK/TIMEOUT';
+    const url = error.config ? error.config.url : 'UNKNOWN';
+    console.error(`%c[API ERROR] ${status} | ${url}`, 'color: white; background: red; padding: 2px 5px; border-radius: 3px; font-weight: bold;');
+    console.error('Details:', error.response?.data || error.message);
+    return Promise.reject(error);
+  }
+);
 import systemPageService from "./services/systemPageService";
 import { getPageKeyFromPath, humanizePageId } from "./utils/pageAccess";
 
@@ -155,10 +166,10 @@ function AppRoutes() {
         <Route path="/legacy-data" element={<ProtectedRoute><LegacyData /></ProtectedRoute>} />
         <Route path="/upload-pdf" element={<ProtectedRoute><UploadPDFFiles /></ProtectedRoute>} />
         <Route path="/guest/send-letter" element={<ProtectedRoute><GuestSendLetter /></ProtectedRoute>} />
-        <Route path="/spam" element={<ProtectedRoute><Spam /></ProtectedRoute>} />
         <Route path="/endorsements" element={<ProtectedRoute><LetterEndorsement /></ProtectedRoute>} />
         <Route path="/letter/:id" element={<ProtectedRoute><LetterDetail /></ProtectedRoute>} />
         <Route path="/vem-resumen" element={<ProtectedRoute><VemResumen /></ProtectedRoute>} />
+        <Route path="/resumen" element={<ProtectedRoute><ResumenPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 

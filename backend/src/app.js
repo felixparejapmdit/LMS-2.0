@@ -126,16 +126,14 @@ app.use((req, res, next) => {
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
-    if (process.env.LOG_LEVEL === 'debug') {
-        console.error('SERVER ERROR [DEBUG]:', err.stack);
-    } else {
-        console.error(`SERVER ERROR: ${err.message} at ${req.method} ${req.url}`);
-    }
+    // ALWAYS log the stack trace in the terminal for "easy detect" as requested
+    console.error(`\x1b[31m[CRITICAL ERROR] ${req.method} ${req.originalUrl}\x1b[0m`);
+    console.error(err.stack || err);
 
-    res.status(500).json({
+    res.status(err.status || 500).json({
         error: 'System Error',
-        message: 'Something went wrong, but don\'t worry—we\'re on it.',
-        details: process.env.LOG_LEVEL === 'debug' ? err.message : undefined
+        message: err.message || 'Something went wrong.',
+        details: process.env.LOG_LEVEL === 'debug' ? err.stack : undefined
     });
 });
 

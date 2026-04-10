@@ -1,4 +1,4 @@
-const { LetterAssignment, Letter, ProcessStep, Department, Status, Tray, LetterKind, Comment, Endorsement, User, sequelize } = require('../models/associations');
+const { LetterAssignment, Letter, ProcessStep, Department, Status, Tray, LetterKind, Comment, Endorsement, User, Role, sequelize } = require('../models/associations');
 const { Op } = require('sequelize');
 const ALL_LETTER_ROLES = new Set(['ADMINISTRATOR']);
 
@@ -6,29 +6,35 @@ class LetterAssignmentController {
     static async getAll(req, res) {
         const startTime = Date.now();
         try {
-            const { department_id, step_id, status, vip, global_status, named_filter, user_id, role, page = 1, limit = 50, full_name } = req.query;
+            const { department_id, step_id, status, vip, global_status, named_filter, user_id, role, page = 1, limit = 50, full_name: queryFullName } = req.query;
             const offset = (parseInt(page) - 1) * parseInt(limit);
             const queryLimit = parseInt(limit);
             const where = {};
 
-            console.log(`[ASSIGNMENTS] Lookup started: role="${role}", dept="${department_id}", name="${full_name}"`);
+            const userRecord = user_id ? await User.findByPk(user_id, {
+                include: [{ model: Role, as: 'roleData' }]
+            }) : null;
 
-            const normalizedRole = role ? role.toString().toUpperCase() : '';
+            const myDeptId = userRecord?.dept_id;
+            const actualRoleName = userRecord?.roleData?.name || role;
+            const full_name = userRecord ? `${userRecord.first_name || ''} ${userRecord.last_name || ''}`.trim() : queryFullName;
+
+            const normalizedRole = actualRoleName ? actualRoleName.toString().toUpperCase().trim() : '';
+
+            console.log(`[ASSIGNMENTS] Lookup started: role="${normalizedRole}", dept="${department_id}", name="${full_name}"`);
+
+            const SUPER_ROLES = ['ADMINISTRATOR', 'ADMIN'];
+            const isSuperAdmin = SUPER_ROLES.includes(normalizedRole);
+            const isAdminActual = isSuperAdmin || SUPER_ROLES.includes(normalizedRole);
+            
+            const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
+            const isSpecificDept = isValidId(department_id);
+
             let atgStatusId = null;
             if (vip === 'true' || req.query.exclude_vip === 'true' || named_filter === 'atg_note') {
                 const atgStatus = await Status.findOne({ where: { status_name: 'ATG Note' } });
                 atgStatusId = atgStatus?.id || null;
             }
-
-            const SUPER_ROLES = new Set(['ADMINISTRATOR']);
-            const isSuperAdmin = SUPER_ROLES.has(normalizedRole);
-            const isAdminActual = isSuperAdmin || ['ADMINISTRATOR'].includes(normalizedRole);
-            const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
-            const isSpecificDept = isValidId(department_id);
-
-            // Fetch user's department for secure filtering
-            const userRecord = user_id ? await User.findByPk(user_id) : null;
-            const myDeptId = userRecord?.dept_id;
 
             const visibilityClauses = [];
 
@@ -133,8 +139,8 @@ class LetterAssignmentController {
                         { '$step.step_name$': { [Op.notIn]: ['For Review', 'For Signature'] } }
                     ];
                 } else if (named_filter === 'pending') {
-                    // Pending/Incoming: Status = 1 (Incoming) AND No Process Step
-                    where['$letter.global_status$'] = 1;
+                    // Pending/Incoming: Status = 1 (Incoming) or 8 (Pending) AND No Process Step
+                    where['$letter.global_status$'] = { [Op.in]: [1, 8] };
                     where.step_id = null;
                     where['$letter.tray_id$'] = { [Op.or]: [null, 0] };
                 } else if (named_filter === 'empty_entry') {
@@ -235,7 +241,7 @@ class LetterAssignmentController {
             // Optional: If 'pending' requires showing letters that have NO assignment record at all
             // Optimized to only fetch what's needed locally or to add to the count
             if (named_filter === 'pending' || named_filter === 'empty_entry' || named_filter === 'atg_note') {
-                const validStatuses = [1];
+                const validStatuses = [1, 8];
                 if (named_filter === 'atg_note') validStatuses.push(2);
 
                 const unassignedWhere = {
@@ -246,6 +252,9 @@ class LetterAssignmentController {
                         { dept_id: department_id },
                         sequelize.literal(`EXISTS (SELECT 1 FROM directus_users u WHERE u.id = Letter.encoder_id AND u.dept_id = ${sequelize.escape(department_id)})`)
                     ];
+                    if (isAdminActual) {
+                        unassignedWhere[Op.or].push({ dept_id: { [Op.or]: [null, 0] } });
+                    }
                 }
 
                 // Add the specific filter for "Empty" or "ATG Note" or "Pending"

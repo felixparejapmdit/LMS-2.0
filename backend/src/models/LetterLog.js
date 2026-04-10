@@ -24,6 +24,14 @@ const LetterLog = sequelize.define('LetterLog', {
         type: DataTypes.INTEGER,
         allowNull: true
     },
+    step_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    status_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
     log_details: {
         type: DataTypes.TEXT,
         allowNull: false,

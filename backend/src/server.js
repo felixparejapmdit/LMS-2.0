@@ -92,6 +92,9 @@ async function startServer() {
         await ensureColumn('directus_users', 'layout_style', "VARCHAR(255) DEFAULT 'notion'");
         await ensureColumn('directus_users', 'theme_preference', "VARCHAR(255) DEFAULT 'light'");
         await ensureColumn('directus_users', 'telegram_chat_id', "VARCHAR(255)");
+        await ensureColumn('letter_logs', 'step_id', "INTEGER");
+        await ensureColumn('letter_logs', 'department_id', "INTEGER");
+        await ensureColumn('letter_logs', 'status_id', "INTEGER");
 
         // Normalize any invalid tray_id=0 back to NULL (FK-safe unassigned tray)
         try {

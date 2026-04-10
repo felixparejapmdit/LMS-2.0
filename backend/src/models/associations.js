@@ -38,6 +38,9 @@ LetterAssignment.belongsTo(User, { foreignKey: 'assigned_by', as: 'assigner' });
 Letter.hasMany(LetterLog, { foreignKey: 'letter_id', as: 'logs' });
 LetterLog.belongsTo(Letter, { foreignKey: 'letter_id' });
 LetterLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+LetterLog.belongsTo(Department, { foreignKey: 'department_id', as: 'department' });
+LetterLog.belongsTo(ProcessStep, { foreignKey: 'step_id', as: 'step' });
+LetterLog.belongsTo(Status, { foreignKey: 'status_id', as: 'status' });
 
 Letter.hasMany(Comment, { foreignKey: 'letter_id', as: 'comments' });
 Comment.belongsTo(Letter, { foreignKey: 'letter_id' });

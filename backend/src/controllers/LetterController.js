@@ -224,8 +224,24 @@ class LetterController {
                     'status',
                     'attachment',
                     'tray',
-                    { model: LetterAssignment, as: 'assignments', include: ['department', 'step'] },
-                    { model: LetterLog, as: 'logs', include: ['user'] },
+                    { 
+                        model: LetterAssignment, 
+                        as: 'assignments', 
+                        include: [
+                            { model: Department, as: 'department' },
+                            { model: ProcessStep, as: 'step' }
+                        ] 
+                    },
+                    { 
+                        model: LetterLog, 
+                        as: 'logs', 
+                        include: [
+                            { model: User, as: 'user' },
+                            { model: Department, as: 'department' },
+                            { model: ProcessStep, as: 'step' },
+                            { model: Status, as: 'status' }
+                        ] 
+                    },
                     { model: User, as: 'encoder', attributes: ['id', 'first_name', 'last_name', 'email'] }
                 ]
             });
@@ -485,6 +501,9 @@ class LetterController {
                     user_id: targetEncoderId,
                     action_type: 'Created',
                     department_id: finalDeptId,
+                    step_id: targetStepId,
+                    status_id: targetStatusId || 1,
+                    metadata: { marginal_note: req.body.marginal_note },
                     log_details: `Letter created and initially assigned to ${stepName}.`
                 }, { transaction });
             } else {

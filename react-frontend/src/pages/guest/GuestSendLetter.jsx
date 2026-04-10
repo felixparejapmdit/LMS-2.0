@@ -13,7 +13,9 @@ import {
     Plus,
     X as XIcon,
     AlertCircle,
-    Menu
+    Menu,
+    ChevronDown,
+    Search
 } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
@@ -101,8 +103,19 @@ export default function GuestSendLetter() {
         }
         try {
             const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/search?query=${query}`);
-            setSuggestions(response.data);
-            setShowSuggestions(response.data.length > 0);
+            
+            // Deduplicate and clean names in suggestions to handle existing DB inconsistencies
+            const seen = new Set();
+            const cleaned = response.data
+                .map(p => ({ ...p, name: p.name.replace(/,+$/, '').trim() }))
+                .filter(p => {
+                    if (seen.has(p.name)) return false;
+                    seen.add(p.name);
+                    return true;
+                });
+
+            setSuggestions(cleaned);
+            setShowSuggestions(cleaned.length > 0);
         } catch (error) {
             console.error("Error fetching suggestions:", error);
         }
@@ -181,7 +194,7 @@ export default function GuestSendLetter() {
                 encoder: formData.encoder,
                 summary: formData.regarding,
                 date_received: new Date().toISOString(),
-                global_status: 1,
+                global_status: 8,
                 encoder_id: user?.id,
                 letter_type: 'Non-Confidential',
                 attachment_id: (formData.selectedRefIds && formData.selectedRefIds.length > 0) ? parseInt(formData.selectedRefIds[0]) : null,
@@ -266,14 +279,16 @@ export default function GuestSendLetter() {
     const selectSuggestion = (name) => {
         if (activeSenderIndex === null) return;
 
+        // Clean up name from any trailing punctuation (commas)
+        const cleanName = name.replace(/,+$/, '').trim();
+
         if (activeSenderIndex === 'encoder') {
-            setFormData(prev => ({ ...prev, encoder: name + ', ' }));
+            setFormData(prev => ({ ...prev, encoder: cleanName }));
         } else {
             const newSenders = [...formData.senders];
-            const val = newSenders[activeSenderIndex];
-            const parts = val.split(',').map(p => p.trim());
-            parts[parts.length - 1] = name;
-            newSenders[activeSenderIndex] = parts.filter(p => p !== "").join(', ') + ', ';
+            // Replace the entire field content with the selected name 
+            // to avoid "doubling" caused by splitting by commas in the name
+            newSenders[activeSenderIndex] = cleanName;
             setFormData(prev => ({ ...prev, senders: newSenders }));
         }
         setShowSuggestions(false);
@@ -506,79 +521,118 @@ export default function GuestSendLetter() {
                                     return (
                                         <div className="space-y-8">
                                             {/* Physical Attachment Selection */}
-                                            {canAttachmentSelector && <div className="space-y-3">
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                                    Attachment
-                                                </label>
-                                                <div className="space-y-3" ref={attachmentSearchRef}>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Search..."
-                                                            value={attachmentSearch}
-                                                            onChange={(e) => {
-                                                                setAttachmentSearch(e.target.value);
-                                                                setShowAttachmentResults(true);
-                                                            }}
-                                                            onFocus={() => setShowAttachmentResults(true)}
-                                                            className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all outline-none text-sm font-bold ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] focus:border-orange-500'}`}
-                                                        />
-
-                                                        {showAttachmentResults && (
-                                                            <div className={`absolute z-[110] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}>
-                                                                {refAttachments
-                                                                    .filter(att => att.attachment_name.toLowerCase().includes(attachmentSearch.toLowerCase()))
-                                                                    .map(att => (
-                                                                        <div
-                                                                            key={att.id}
-                                                                            onClick={() => {
-                                                                                if (!formData.selectedRefIds.includes(String(att.id))) {
-                                                                                    setFormData(prev => ({
-                                                                                        ...prev,
-                                                                                        selectedRefIds: [...prev.selectedRefIds, String(att.id)]
-                                                                                    }));
-                                                                                }
-                                                                                setAttachmentSearch("");
-                                                                                setShowAttachmentResults(false);
-                                                                            }}
-                                                                            className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600 transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center justify-between"
-                                                                        >
-                                                                            <span>{att.attachment_name}</span>
-                                                                            {formData.selectedRefIds.includes(String(att.id)) && <Check className="w-3 h-3" />}
-                                                                        </div>
-                                                                    ))}
-                                                                {refAttachments.filter(att => att.attachment_name.toLowerCase().includes(attachmentSearch.toLowerCase())).length === 0 && (
-                                                                    <div className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center italic">
-                                                                        No results found
-                                                                    </div>
-                                                                )}
+                                            {canAttachmentSelector && (
+                                                <div className="space-y-3">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                        Attachment
+                                                    </label>
+                                                    <div className="space-y-3" ref={attachmentSearchRef}>
+                                                        <div className="relative">
+                                                            {/* Custom Searchable Dropdown Toggle */}
+                                                            <div
+                                                                onClick={() => setShowAttachmentResults(!showAttachmentResults)}
+                                                                className={`w-full px-5 py-3 rounded-xl border-2 transition-all outline-none text-sm font-bold flex items-center justify-between cursor-pointer ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] hover:border-orange-500/50'}`}
+                                                            >
+                                                                <span className="truncate max-w-[85%] uppercase tracking-wider">
+                                                                    {formData.selectedRefIds.length > 0
+                                                                        ? refAttachments.find(a => String(a.id) === String(formData.selectedRefIds[0]))?.attachment_name || "Attachment Selected"
+                                                                        : "None"}
+                                                                </span>
+                                                                <ChevronDown className={`w-4 h-4 transition-transform ${showAttachmentResults ? 'rotate-180' : ''}`} />
                                                             </div>
-                                                        )}
-                                                    </div>
 
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {formData.selectedRefIds.map(id => {
-                                                            const att = refAttachments.find(a => String(a.id) === String(id));
-                                                            return (
-                                                                <div key={id} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40 rounded-lg text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
-                                                                    <span>{att?.attachment_name || id}</span>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setFormData(prev => ({
-                                                                                ...prev,
-                                                                                selectedRefIds: prev.selectedRefIds.filter(i => i !== id)
-                                                                            }));
-                                                                        }}
-                                                                        className="hover:text-red-500"
-                                                                    >
-                                                                        <XIcon className="w-3 h-3" />
-                                                                    </button>
+                                                            {/* Dropdown Menu */}
+                                                            {showAttachmentResults && (
+                                                                <div className={`absolute z-[110] w-full mt-1 max-h-60 overflow-y-auto rounded-xl border shadow-2xl animate-in fade-in slide-in-from-top-1 overflow-hidden ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}>
+                                                                    {/* Internal Search Input */}
+                                                                    <div className="p-2 border-b border-gray-50 dark:border-white/5 bg-gray-50/30 dark:bg-white/10">
+                                                                        <div className="relative">
+                                                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder="Search attachments..."
+                                                                                className="w-full pl-9 pr-4 py-2 text-xs bg-white dark:bg-black/20 border border-gray-100 dark:border-[#333] rounded-lg outline-none focus:ring-2 focus:ring-orange-500/20"
+                                                                                value={attachmentSearch}
+                                                                                onChange={(e) => setAttachmentSearch(e.target.value)}
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                autoFocus
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Options List */}
+                                                                    <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
+                                                                        {/* Explicit 'None' Option */}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setFormData(prev => ({ ...prev, selectedRefIds: [] }));
+                                                                                setShowAttachmentResults(false);
+                                                                                setAttachmentSearch("");
+                                                                            }}
+                                                                            className={`w-full text-left px-4 py-2.5 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-between ${formData.selectedRefIds.length === 0 ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 uppercase'}`}
+                                                                        >
+                                                                            <span>NONE (NO ATTACHMENT)</span>
+                                                                            {formData.selectedRefIds.length === 0 && <Check className="w-3 h-3" />}
+                                                                        </button>
+
+                                                                        {refAttachments
+                                                                            .filter(att => att.attachment_name.toLowerCase().includes(attachmentSearch.toLowerCase()))
+                                                                            .map(att => (
+                                                                                <button
+                                                                                    key={att.id}
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        // Toggle behavior or single select? Let's go with single for now as per management pattern
+                                                                                        if (formData.selectedRefIds.includes(String(att.id))) {
+                                                                                            setFormData(prev => ({ ...prev, selectedRefIds: [] }));
+                                                                                        } else {
+                                                                                            setFormData(prev => ({ ...prev, selectedRefIds: [String(att.id)] }));
+                                                                                        }
+                                                                                        setAttachmentSearch("");
+                                                                                        setShowAttachmentResults(false);
+                                                                                    }}
+                                                                                    className={`w-full text-left px-4 py-2.5 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-between uppercase ${formData.selectedRefIds.includes(String(att.id)) ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600' : 'text-slate-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                                                                                >
+                                                                                    <span className="truncate">{att.attachment_name}</span>
+                                                                                    {formData.selectedRefIds.includes(String(att.id)) && <Check className="w-3 h-3" />}
+                                                                                </button>
+                                                                            ))}
+                                                                    </div>
                                                                 </div>
-                                                            );
-                                                        })}
+                                                            )}
+                                                        </div>
+
+                                                        {/* Selected Pills (Optional now that we have a label, but good for clarity if we want to allow removal) */}
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {formData.selectedRefIds.length > 0 ? (
+                                                                formData.selectedRefIds.map(id => {
+                                                                    const att = refAttachments.find(a => String(a.id) === String(id));
+                                                                    return (
+                                                                        <div key={id} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40 rounded-lg text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest animate-in zoom-in-95 duration-200">
+                                                                            <span className="truncate max-w-[200px]">{att?.attachment_name || id}</span>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setFormData(prev => ({
+                                                                                    ...prev,
+                                                                                    selectedRefIds: prev.selectedRefIds.filter(i => i !== id)
+                                                                                }))}
+                                                                                className="hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
+                                                                            >
+                                                                                <XIcon className="w-3 h-3" />
+                                                                            </button>
+                                                                        </div>
+                                                                    );
+                                                                })
+                                                            ) : (
+                                                                <div className="px-3 py-1.5 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-[#333] rounded-lg text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                                    None Selected
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>}
+                                            )}
 
                                             {/* Digital Upload */}
                                             {canAttachmentUpload && <div className={`space-y-6 transition-all duration-300`}>

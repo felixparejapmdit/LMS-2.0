@@ -71,6 +71,8 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                     user_id: assignment.assigned_by || null,
                     action_type: 'Assigned',
                     department_id: assignment.department_id,
+                    step_id: assignment.step_id,
+                    status_id: assignment.status_id,
                     log_details: `Letter assigned to ${deptName} (Step: ${stepName}).`
                 }, { transaction: options.transaction });
 
@@ -155,6 +157,8 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                         user_id: assignment.assigned_by || null,
                         action_type: actionType,
                         department_id: assignment.department_id,
+                        step_id: assignment.step_id,
+                        status_id: assignment.status_id,
                         log_details: logDetails
                     }, { transaction: options.transaction });
 

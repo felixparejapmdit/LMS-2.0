@@ -116,8 +116,8 @@ export default function Sidebar() {
     { icon: Inbox, label: "VIP View", path: "/vip-view" },
     { icon: Plus, label: "New Letter", path: "/new-letter" },
     { icon: Inbox, label: "Inbox", path: "/inbox" },
+    { icon: FileText, label: "Resumen", path: "/resumen" },
     { icon: Send, label: "Outbox", path: "/outbox" },
-    { icon: AlertCircle, label: "Spam", path: "/spam" },
     { icon: TableIcon, label: "Master Table", path: "/master-table" },
     { icon: Eye, label: "Dept Viewer", path: "/dept-viewer", hidden: !user?.interdepartment && !hasPermission('dept-viewer') },
     { icon: MessageSquare, label: "Letters with Comment", path: "/letters-with-comments" },
@@ -146,16 +146,7 @@ export default function Sidebar() {
         { icon: Settings2, label: "Inter-Dept Management", path: "/setup/inter-dept", hidden: !hasPermission('inter-dept') },
       ]
     },
-    ...(isSuperAdmin ? [
-      {
-        icon: Sparkles,
-        label: "Developer DNA",
-        path: "#",
-        children: [
-          { icon: Zap, label: "Setup Wizard", path: "/setup" },
-        ]
-      }
-    ] : []),
+
   ];
 
   useEffect(() => {
@@ -628,10 +619,10 @@ export default function Sidebar() {
                           const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
                           const activeColor = isAccessManager ? "text-sky-600" : "text-[#1A1A1B]";
                           const hoverBg = isAccessManager ? "hover:bg-sky-50 dark:hover:bg-sky-900/10" : "hover:bg-gray-200";
-                          return `
-                          flex items-center gap-3 px-4 py-1.5 text-xs transition-colors rounded-md
-                          ${isActive ? `${activeColor} font-bold` : `text-[#A3A3A3] hover:text-sky-600 ${hoverBg}`}
-                        `                }}
+                          return `flex items-center gap-3 px-4 py-1.5 text-xs transition-colors rounded-md ${
+                            isActive ? `${activeColor} font-bold` : `text-[#A3A3A3] hover:text-sky-600 ${hoverBg}`
+                          }`;
+                        }}
                       >
                         <child.icon className="w-3.5 h-3.5 shrink-0" />
                         <span>{child.label}</span>

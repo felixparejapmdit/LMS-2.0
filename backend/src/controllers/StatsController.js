@@ -1,4 +1,4 @@
-const { LetterAssignment, Letter, Status, User, Person, ProcessStep, Tray, LetterLog, Endorsement, sequelize } = require('../models/associations');
+const { LetterAssignment, Letter, Status, User, Person, ProcessStep, Tray, LetterLog, Endorsement, Role, sequelize } = require('../models/associations');
 const { Op } = require('sequelize');
 
 const ALL_LETTER_ROLES = new Set(['ADMINISTRATOR']);
@@ -7,12 +7,20 @@ class StatsController {
     static async getDashboardStats(req, res) {
         const startTime = Date.now();
         try {
-            const { department_id, role, user_id, full_name } = req.query;
-            const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
+            const { department_id, user_id, role, full_name: queryFullName } = req.query;
+            const userRecord = user_id ? await User.findByPk(user_id, {
+                include: [{ model: Role, as: 'roleData' }]
+            }) : null;
 
-            const SUPER_ROLES = ['ADMINISTRATOR'];
+            const myDeptId = userRecord?.dept_id;
+            const actualRoleName = userRecord?.roleData?.name || role;
+            const full_name = userRecord ? `${userRecord.first_name || ''} ${userRecord.last_name || ''}`.trim() : queryFullName;
+
+            const normalizedRole = actualRoleName ? actualRoleName.toString().toUpperCase().trim() : '';
+            const SUPER_ROLES = ['ADMINISTRATOR', 'ADMIN'];
             const isSuperAdmin = SUPER_ROLES.includes(normalizedRole);
-            const isAdmin = isSuperAdmin || ['ADMINISTRATOR'].includes(normalizedRole);
+            const isAdmin = isSuperAdmin || SUPER_ROLES.includes(normalizedRole);
+            const isSpecificDept = department_id && department_id !== 'all' && department_id !== 'null';
 
             console.log(`[STATS] Dashboard lookup for role: "${normalizedRole}", dept: "${department_id}", name: "${full_name}"`);
 
@@ -30,12 +38,6 @@ class StatsController {
             // 2. Base Letter Filter (Now includes name-based visibility)
             const baseLetterWhere = {};
             const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
-            const isSpecificDept = isValidId(department_id);
-
-            // Fetch user's department for secure filtering
-            const userRecord = user_id ? await User.findByPk(user_id) : null;
-            const myDeptId = userRecord?.dept_id;
-
             const visibilityClauses = [];
             
             // 2. Department-based Visibility
@@ -238,18 +240,23 @@ class StatsController {
 
     static async getInboxStats(req, res) {
         try {
-            const { department_id, user_id, role, full_name } = req.query;
+            const { department_id, user_id, role, full_name: queryFullName } = req.query;
             const where = {};
-            const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
+            
+            const userRecord = user_id ? await User.findByPk(user_id, {
+                include: [{ model: Role, as: 'roleData' }]
+            }) : null;
+
+            const myDeptId = userRecord?.dept_id;
+            const actualRoleName = userRecord?.roleData?.name || role;
+            const full_name = userRecord ? `${userRecord.first_name || ''} ${userRecord.last_name || ''}`.trim() : queryFullName;
+
+            const normalizedRole = actualRoleName ? actualRoleName.toString().toUpperCase().trim() : '';
+            const SUPER_ROLES = ['ADMINISTRATOR', 'ADMIN'];
+            const isSuperAdmin = SUPER_ROLES.includes(normalizedRole);
+            const isAdmin = isSuperAdmin || SUPER_ROLES.includes(normalizedRole);
             const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
             const isSpecificDept = isValidId(department_id);
-            const SUPER_ROLES = ['ADMINISTRATOR'];
-            const isSuperAdmin = SUPER_ROLES.includes(normalizedRole);
-            const isAdmin = isSuperAdmin || ['ADMINISTRATOR'].includes(normalizedRole);
-
-            // Fetch user's department for secure filtering
-            const userRecord = user_id ? await User.findByPk(user_id) : null;
-            const myDeptId = userRecord?.dept_id;
 
             const visibilityClauses = [];
 
@@ -279,19 +286,20 @@ class StatsController {
                 visibilityClauses.push(sequelize.literal('1=1'));
             } else if (isAdmin) {
                 if (myDeptId) {
-                    if (!isSpecificDept || department_id == myDeptId) {
-                        visibilityClauses.push({ department_id: String(myDeptId) });
-                        visibilityClauses.push(sequelize.literal(`EXISTS (
-                            SELECT 1 FROM directus_users du
-                            JOIN letters l ON l.id = LetterAssignment.letter_id
-                            WHERE du.dept_id = ${sequelize.escape(String(myDeptId))}
-                            AND (
-                                du.id IN (l.encoder_id, l.sender, l.endorsed)
-                                OR (du.first_name || ' ' || du.last_name) = l.sender
-                                OR (du.first_name || ' ' || du.last_name) = l.endorsed
-                            )
-                        )`));
-                    }
+                    // Specific department filter requested OR default to user's department
+                    const targetDeptId = isSpecificDept ? department_id : myDeptId;
+                    
+                    visibilityClauses.push({ department_id: String(targetDeptId) });
+                    visibilityClauses.push(sequelize.literal(`EXISTS (
+                        SELECT 1 FROM directus_users du
+                        JOIN letters l ON l.id = LetterAssignment.letter_id
+                        WHERE du.dept_id = ${sequelize.escape(String(targetDeptId))}
+                        AND (
+                            du.id IN (l.encoder_id, l.sender, l.endorsed)
+                            OR (du.first_name || ' ' || du.last_name) = l.sender
+                            OR (du.first_name || ' ' || du.last_name) = l.endorsed
+                        )
+                    )`));
                 }
             }
 
@@ -343,11 +351,11 @@ class StatsController {
                 // AVEM
                 if (globalStatus === 8 && stepName.includes('AEVM') && stepId !== 1 && stepId !== 2 && !isVip && globalStatus !== 7) counts.avem++;
 
-                // ATG Note (STRICTLY Incoming (1) and has tray)
-                if (globalStatus === 1 && hasTray) counts.atg_note++;
+                // ATG Note (Incoming (1) or ATG Note (2) and has tray)
+                if ([1, 2].includes(globalStatus) && hasTray) counts.atg_note++;
 
-                // Pending (from assignments that somehow have no step and global_status 1)
-                if (globalStatus === 1 && !stepId && !hasTray && !isVip) counts.pending++;
+                // Pending (Incoming (1) or Pending (8) AND No Process Step AND No Tray)
+                if ([1, 8].includes(globalStatus) && !stepId && !hasTray && !isVip) counts.pending++;
 
                 // Hold
                 if (globalStatus === 7 && !isVip) counts.hold++;
@@ -360,7 +368,7 @@ class StatsController {
             });
 
             // MUST respect department filter for unassigned counts
-            const unassignedWhere = { global_status: 1 };
+            const unassignedWhere = { global_status: [1, 2, 8] };
             const unassignedVisibilityClauses = [];
 
             if (user_id) {
@@ -383,11 +391,20 @@ class StatsController {
             }
 
             if (isSuperAdmin) {
-                if (isSpecificDept) {
-                    unassignedVisibilityClauses.push({ dept_id: String(department_id) });
+                // Super Admins see everything globally for unassigned letters
+                unassignedVisibilityClauses.push(sequelize.literal('1=1'));
+            } else if (isAdmin) {
+                if (myDeptId) {
+                    const targetDeptId = isSpecificDept ? department_id : myDeptId;
+                    unassignedVisibilityClauses.push({
+                        [Op.or]: [
+                            { dept_id: String(targetDeptId) },
+                            { dept_id: { [Op.or]: [null, 0] } } // Include items with no department yet
+                        ]
+                    });
                     unassignedVisibilityClauses.push(sequelize.literal(`EXISTS (
                         SELECT 1 FROM directus_users du
-                        WHERE du.dept_id = ${sequelize.escape(String(department_id))}
+                        WHERE du.dept_id = ${sequelize.escape(String(targetDeptId))}
                         AND (
                             du.id = Letter.encoder_id
                             OR du.id = Letter.sender
@@ -398,33 +415,12 @@ class StatsController {
                             OR Letter.endorsed LIKE ('%' || du.last_name || '%')
                         )
                     )`));
-                } else {
-                    unassignedVisibilityClauses.push(sequelize.literal('1=1'));
-                }
-            } else if (isAdmin) {
-                if (myDeptId) {
-                    if (!isSpecificDept || department_id == myDeptId) {
-                        unassignedVisibilityClauses.push({ dept_id: String(myDeptId) });
-                        unassignedVisibilityClauses.push(sequelize.literal(`EXISTS (
-                            SELECT 1 FROM directus_users du
-                            WHERE du.dept_id = ${sequelize.escape(String(myDeptId))}
-                            AND (
-                                du.id = Letter.encoder_id
-                                OR du.id = Letter.sender
-                                OR du.id = Letter.endorsed
-                                OR Letter.sender LIKE ('%' || du.first_name || '%')
-                                OR Letter.sender LIKE ('%' || du.last_name || '%')
-                                OR Letter.endorsed LIKE ('%' || du.first_name || '%')
-                                OR Letter.endorsed LIKE ('%' || du.last_name || '%')
-                            )
-                        )`));
-                    }
                 }
             }
 
             if (unassignedVisibilityClauses.length > 0) {
                 unassignedWhere[Op.or] = unassignedVisibilityClauses;
-            } else if (!isSuperAdmin) {
+            } else if (!isAdmin) {
                 unassignedWhere.id = null;
             }
 
@@ -439,15 +435,20 @@ class StatsController {
             const purelyUnassigned = unassignedLetters.filter(l => (l.assignments || []).length === 0);
             purelyUnassigned.forEach(l => {
                 const hasTray = l.tray_id && l.tray_id > 0;
+                const globalStatus = l.global_status;
 
                 if (hasTray) {
-                    counts.atg_note++;
+                    // ATG notes can be status 1 or 2
+                    if ([1, 2].includes(globalStatus)) counts.atg_note++;
                 } else {
-                    const hasNoSenderOrSummary = !l.sender || l.sender.trim() === '' || !l.summary || l.summary.trim() === '';
-                    if (hasNoSenderOrSummary) {
-                        counts.empty_entry++;
+                    // Pending/Mock assignments count for status 1 and 8
+                    if ([1, 8].includes(globalStatus)) {
+                        const hasNoSenderOrSummary = !l.sender || l.sender.trim() === '' || !l.summary || l.summary.trim() === '';
+                        if (hasNoSenderOrSummary) {
+                            counts.empty_entry++;
+                        }
+                        counts.pending++;
                     }
-                    counts.pending++;
                 }
             });
 

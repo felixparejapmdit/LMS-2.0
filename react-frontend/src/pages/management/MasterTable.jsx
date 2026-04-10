@@ -33,7 +33,9 @@ import {
     GitMerge,
     Upload,
     Send,
-    Printer
+    Printer,
+    Settings,
+    Pencil
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import departmentService from "../../services/departmentService";
@@ -96,6 +98,11 @@ export default function MasterTable() {
     const canEndorse = canField("master-table", "endorse_button");
     const canTrack = canField("master-table", "track_button");
     const canRefresh = canField("master-table", "refresh_button");
+
+    // Status Manager State
+    const [isStatusManagerOpen, setIsStatusManagerOpen] = useState(false);
+    const [editingStatus, setEditingStatus] = useState(null);
+    const [statusForm, setStatusForm] = useState({ status_name: '', dept_id: '' });
 
     const handleFileSelect = (file) => {
         if (!file) return;
@@ -522,6 +529,45 @@ export default function MasterTable() {
         }
     };
 
+    const handleCreateStatus = async () => {
+        if (!statusForm.status_name.trim()) return;
+        try {
+            await statusService.create({
+                status_name: statusForm.status_name.trim(),
+                dept_id: statusForm.dept_id ? parseInt(statusForm.dept_id) : null
+            });
+            statusService.getAll({ dept_id: user?.dept_id?.id ?? user?.dept_id }).then(setStatuses).catch(() => { });
+            setStatusForm({ status_name: '', dept_id: '' });
+        } catch (error) {
+            alert('Failed to create status: ' + error.message);
+        }
+    };
+
+    const handleUpdateStatus = async () => {
+        if (!editingStatus || !statusForm.status_name.trim()) return;
+        try {
+            await statusService.update(editingStatus.id, {
+                status_name: statusForm.status_name.trim(),
+                dept_id: statusForm.dept_id !== '' ? parseInt(statusForm.dept_id) : null
+            });
+            statusService.getAll({ dept_id: user?.dept_id?.id ?? user?.dept_id }).then(setStatuses).catch(() => { });
+            setEditingStatus(null);
+            setStatusForm({ status_name: '', dept_id: '' });
+        } catch (error) {
+            alert('Failed to update status: ' + error.message);
+        }
+    };
+
+    const handleDeleteStatus = async (id) => {
+        if (!window.confirm('Delete this status? Letters using it will be affected.')) return;
+        try {
+            await statusService.delete(id);
+            statusService.getAll({ dept_id: user?.dept_id?.id ?? user?.dept_id }).then(setStatuses).catch(() => { });
+        } catch (error) {
+            alert('Failed to delete status: ' + error.message);
+        }
+    };
+
     return (
         <div className={`min-h-screen ${pageBg} flex overflow-hidden`}>
             <Sidebar />
@@ -551,6 +597,11 @@ export default function MasterTable() {
                             </button>
                         )}
                         {canRefresh && <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>}
+                        {isSuperAdmin && (
+                            <button onClick={() => { setEditingStatus(null); setStatusForm({ status_name: '', dept_id: '' }); setIsStatusManagerOpen(true); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all" title="Manage Statuses">
+                                <Settings className="w-4 h-4 text-gray-400" />
+                            </button>
+                        )}
                     </div>
                 </header>
 
@@ -590,6 +641,7 @@ export default function MasterTable() {
                                 </div>
                                 <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 custom-scrollbar w-full md:w-auto">
                                     {statuses
+                                        .filter(s => s.status_name?.toLowerCase() !== 'done')
                                         .filter(s => {
                                             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
                                             if (selectedIds.length === 0) return isSuperAdmin;
@@ -636,11 +688,11 @@ export default function MasterTable() {
                                             <th className="p-5 w-12 text-center"></th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">ID</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Step</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Group</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 whitespace-nowrap">Date</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Sender</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Re</th>
-                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">History</th>
+                                            <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Track</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">QR</th>
                                             <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">PDF</th>
                                         </tr>
@@ -814,7 +866,7 @@ export default function MasterTable() {
                                     {/* Workflow Step Selection (Radio Buttons) */}
                                     {canStepSelector && <div className="space-y-4">
                                         <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                                            <GitMerge className="w-3 h-3" /> Steps
+                                            <GitMerge className="w-3 h-3" /> Groups
                                         </label>
                                         <div className="flex flex-wrap gap-2 mt-2">
                                             {steps.map((step) => {
@@ -931,6 +983,7 @@ export default function MasterTable() {
                                         >
                                             <option value="" style={{ color: 'black', backgroundColor: 'white' }}>-- Status --</option>
                                             {statuses
+                                                .filter(s => s.status_name?.toLowerCase() !== 'done')
                                                 .filter(s => !s.dept_id || Number(s.dept_id) === Number(selectedLetter?.dept_id?.id ?? selectedLetter?.dept_id))
                                                 .map(s => {
                                                     const dept = departments.find(d => Number(d.id) === Number(s.dept_id));
@@ -1225,104 +1278,200 @@ export default function MasterTable() {
                 </div>
             )}
 
-            {/* TRACKING DRAWER FROM LEFT */}
+            {/* TRACKING DRAWER - Activity Log Timeline */}
             {isTrackDrawerOpen && (
                 <div className="fixed inset-0 z-[100] flex justify-start">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsTrackDrawerOpen(false)} />
-                    <div className={`w-full max-w-md ${'bg-white dark:bg-[#141414] shadow-2xl'} h-full relative z-10 animate-in slide-in-from-left duration-500 flex flex-col`}>
-                        {/* Drawer Header */}
-                        <div className={`p-8 border-b ${'border-gray-50 dark:border-[#222]'} flex items-center justify-between`}>
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/10 flex items-center justify-center text-indigo-500">
-                                    <GitMerge className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Track</h2>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{trackingLetter?.lms_id}</p>
-                                </div>
+                    <div className="w-full max-w-sm bg-white dark:bg-[#141414] shadow-2xl h-full relative z-10 animate-in slide-in-from-left duration-500 flex flex-col">
+                        {/* Header */}
+                        <div className="p-6 border-b border-gray-100 dark:border-[#222] flex items-center justify-between">
+                            <div>
+                                <span className="text-lg font-black text-orange-500 uppercase tracking-tight">{trackingLetter?.lms_id}</span>
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Activity Tracking</p>
                             </div>
-                            <button onClick={() => setIsTrackDrawerOpen(false)} className="p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors">
-                                <ChevronRight className="w-6 h-6 text-gray-400 rotate-180" />
+                            <button onClick={() => setIsTrackDrawerOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors">
+                                <X className="w-5 h-5 text-gray-400" />
                             </button>
                         </div>
 
-                        {/* Drawer Content */}
-                        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                            <div className="space-y-8">
-                                {steps.length === 0 ? (
-                                    <p className="text-center text-gray-400 py-20 uppercase font-black tracking-widest text-[10px]">Configuring workflow steps...</p>
-                                ) : (
-                                    <div className="relative pl-8 space-y-12 before:absolute before:left-[15px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-[#222]">
-                                        {steps.map((step, idx) => {
-                                            const latestAssignment = trackingLetter?.assignments?.sort((a, b) => b.id - a.id)[0];
-                                            const currentStepId = latestAssignment?.step_id || 1;
-                                            const currentStepIdx = steps.findIndex(s => s.id === currentStepId);
+                        {/* Timeline Content */}
+                        <div className="flex-1 overflow-y-auto px-4 py-8 custom-scrollbar">
+                            {(!trackingLetter?.logs || trackingLetter.logs.length === 0) ? (
+                                <p className="text-center text-gray-400 py-20 uppercase font-black tracking-widest text-[10px]">No activity recorded yet.</p>
+                            ) : (
+                                <div className="relative">
+                                    {[...trackingLetter.logs]
+                                        .sort((a, b) => new Date(b.timestamp || b.log_date || 0) - new Date(a.timestamp || a.log_date || 0))
+                                        .map((log, i, arr) => {
+                                            const logDate = new Date(log.timestamp || log.log_date);
+                                            const isOldest = i === arr.length - 1;
+                                            
+                                            // Mapping based on Cheat Sheet
+                                            let displayHeading = "";
+                                            let displaySubheading = "";
+                                            
+                                            const deptCode = log.department?.dept_code || "";
+                                            const statusName = log.status?.status_name || "";
+                                            const actionType = log.action_type || "";
+                                            
+                                            if (isOldest) {
+                                                displayHeading = "Processing";
+                                                displaySubheading = "For Incoming";
+                                            } else if (deptCode === 'ATG') {
+                                                displayHeading = "ATG";
+                                                displaySubheading = log.metadata?.marginal_note || log.log_details || 'Being Reviewed';
+                                            } else if (deptCode === 'EVM') {
+                                                displayHeading = "Office of the Executive Minister";
+                                                displaySubheading = log.log_details;
+                                            } else if (statusName === 'Filed' || actionType === 'Filed') {
+                                                displayHeading = "FILE";
+                                                displaySubheading = log.metadata?.location || log.log_details;
+                                            } else {
+                                                const deptLabel = log.department?.dept_code || log.department?.dept_name || 'System';
+                                                const stepLabel = log.step?.step_name || actionType;
+                                                displayHeading = `${deptLabel} - ${stepLabel}`;
+                                                displaySubheading = actionType;
+                                            }
 
-                                            const isDone = idx < currentStepIdx;
-                                            const isCurrent = idx === currentStepIdx;
-
-                                            const stepAssignment = trackingLetter?.assignments?.find(a => a.step_id === step.id);
-
+                                            const isLastItem = i === arr.length - 1;
                                             return (
-                                                <div key={step.id} className="relative">
-                                                    <div className={`absolute -left-[27px] top-1 w-4 h-4 rounded-full border-4 ${isDone ? 'bg-emerald-500 border-white dark:border-[#141414]' : isCurrent ? 'bg-orange-500 border-orange-200 dark:border-orange-900/40 animate-pulse' : 'bg-slate-200 dark:bg-[#333] border-white dark:border-[#141414]'}`} />
-                                                    <div className="flex flex-col">
-                                                        <span className={`text-xs font-black uppercase tracking-widest ${isDone ? 'text-emerald-500' : isCurrent ? 'text-orange-500' : 'text-slate-400'}`}>
-                                                            {step.step_name}
-                                                        </span>
-                                                        <p className="text-[10px] text-gray-500 font-medium mt-1">
-                                                            {isDone ? 'Processed successfully' : isCurrent ? 'Currently active step' : 'Awaiting reaching this stage'}
+                                                <div key={i} className="relative grid grid-cols-[90px_auto_1fr] items-start gap-3 mb-8">
+                                                    {/* Left: Date & Time */}
+                                                    <div className="text-right pt-0.5">
+                                                        <p className="text-xs font-black text-slate-800 dark:text-slate-200">
+                                                            {logDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
                                                         </p>
-                                                        {(isDone || isCurrent) && stepAssignment && (
-                                                            <div className="mt-3 bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-[#222]">
-                                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Assigned Department</p>
-                                                                <p className={`text-[11px] font-bold mt-1 ${textColor}`}>{stepAssignment.department?.dept_name || 'System Auto-Log'}</p>
-                                                            </div>
-                                                        )}
+                                                        <p className="text-[10px] font-medium text-gray-400">
+                                                            {logDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Center: Dashed line + circle */}
+                                                    <div className="flex flex-col items-center">
+                                                        <div className="w-5 h-5 rounded-full border-2 border-orange-400 bg-white dark:bg-[#141414] z-10 flex items-center justify-center shrink-0">
+                                                            <div className="w-2 h-2 rounded-full bg-orange-400" />
+                                                        </div>
+                                                        {!isLastItem && <div className="w-px flex-1 mt-1 border-l-2 border-dashed border-gray-200 dark:border-[#333] min-h-[2rem]" />}
+                                                    </div>
+
+                                                    {/* Right: Mapped Display */}
+                                                    <div className="pt-0.5">
+                                                        <p className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-tight">
+                                                            {displayHeading}
+                                                        </p>
+                                                        <p className="text-[10px] text-gray-500 font-medium mt-0.5 whitespace-pre-wrap">
+                                                            {displaySubheading}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             );
-                                        })}
-                                    </div>
-                                )}
+                                        })
+                                    }
+                                </div>
+                            )}
+                        </div>
 
-                                {/* NEW: Audit Logs Section */}
-                                {trackingLetter?.logs && trackingLetter.logs.length > 0 && (
-                                    <div className="pt-8 border-t border-gray-100 dark:border-[#222]">
-                                        <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-6 flex items-center gap-2">
-                                            <Activity className="w-3 h-3" /> Activity
-                                        </h3>
-                                        <div className="space-y-6">
-                                            {trackingLetter.logs.map((log, i) => (
-                                                <div key={i} className="relative pl-6 border-l-2 border-slate-100 dark:border-white/5 pb-2">
-                                                    <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-indigo-500" />
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                                            {log.action_type || 'Update'}
-                                                        </span>
-                                                        <p className={`text-xs font-bold mt-1 ${textColor}`}>
-                                                            {log.log_details || log.action_taken}
-                                                        </p>
-                                                        <p className="text-[9px] font-medium text-gray-400 mt-1">
-                                                            {new Date(log.timestamp || log.log_date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short', hour12: true })}
-                                                            {log.user && ` • ${log.user.first_name}`}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                        <div className="p-6 border-t border-gray-100 dark:border-[#222]">
+                            <button
+                                onClick={() => setIsTrackDrawerOpen(false)}
+                                className="w-full py-3 bg-orange-500 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-orange-500/20"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* STATUS MANAGER MODAL (Super Admin Only) */}
+            {isStatusManagerOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsStatusManagerOpen(false)} />
+                    <div className="relative z-10 w-full max-w-lg bg-white dark:bg-[#141414] rounded-[2rem] shadow-2xl flex flex-col max-h-[85vh]">
+                        {/* Modal Header */}
+                        <div className="p-6 border-b border-gray-100 dark:border-[#222] flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-orange-50 dark:bg-orange-900/10 flex items-center justify-center text-orange-500">
+                                    <Settings className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Manage Statuses</h2>
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Add, Edit or Remove</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsStatusManagerOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl">
+                                <X className="w-5 h-5 text-gray-400" />
+                            </button>
+                        </div>
+
+                        {/* Form */}
+                        <div className="p-6 border-b border-gray-100 dark:border-[#222]">
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">{editingStatus ? 'Editing: ' + editingStatus.status_name : 'Add New Status'}</p>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Status name..."
+                                    value={statusForm.status_name}
+                                    onChange={e => setStatusForm(f => ({ ...f, status_name: e.target.value }))}
+                                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-[#333] text-sm font-bold bg-white dark:bg-[#1a1a1a] text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500/20 outline-none"
+                                />
+                                <select
+                                    value={statusForm.dept_id}
+                                    onChange={e => setStatusForm(f => ({ ...f, dept_id: e.target.value }))}
+                                    style={{ backgroundColor: 'white', color: 'black' }}
+                                    className="px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20"
+                                >
+                                    <option value="">Global</option>
+                                    {departments.map(d => <option key={d.id} value={d.id}>{d.dept_code || d.dept_name}</option>)}
+                                </select>
+                                <button
+                                    onClick={editingStatus ? handleUpdateStatus : handleCreateStatus}
+                                    className="px-4 py-2.5 bg-orange-500 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20"
+                                >
+                                    {editingStatus ? 'Update' : 'Add'}
+                                </button>
+                                {editingStatus && (
+                                    <button
+                                        onClick={() => { setEditingStatus(null); setStatusForm({ status_name: '', dept_id: '' }); }}
+                                        className="px-3 py-2.5 bg-gray-100 dark:bg-white/5 text-gray-500 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-all"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
                                 )}
                             </div>
                         </div>
 
-                        <div className={`p-8 border-t ${'border-gray-50 dark:border-[#222]'}`}>
-                            <button
-                                onClick={() => setIsTrackDrawerOpen(false)}
-                                className="w-full py-4 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-600/20"
-                            >
-                                Close
-                            </button>
+                        {/* Status List */}
+                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-2">
+                            {statuses.length === 0 ? (
+                                <p className="text-center py-8 text-gray-400 text-[10px] font-black uppercase tracking-widest">No statuses found</p>
+                            ) : (
+                                statuses.map(s => {
+                                    const dept = departments.find(d => Number(d.id) === Number(s.dept_id));
+                                    return (
+                                        <div key={s.id} className="flex items-center justify-between p-3 rounded-2xl border border-gray-100 dark:border-[#222] bg-gray-50 dark:bg-white/5 group">
+                                            <div>
+                                                <p className={`text-xs font-black uppercase tracking-tight ${textColor}`}>{s.status_name}</p>
+                                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{dept ? dept.dept_code || dept.dept_name : 'Global'}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => { setEditingStatus(s); setStatusForm({ status_name: s.status_name, dept_id: s.dept_id ? String(s.dept_id) : '' }); }}
+                                                    className="p-1.5 rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white transition-all"
+                                                >
+                                                    <Pencil className="w-3 h-3" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteStatus(s.id)}
+                                                    className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                                                >
+                                                    <Trash2 className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
                         </div>
                     </div>
                 </div>
