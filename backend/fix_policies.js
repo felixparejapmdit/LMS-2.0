@@ -3,7 +3,7 @@ const crypto = require('crypto');
 
 async function fixPolicies() {
     try {
-        const rolesToFix = ['Superuser', 'Admin', 'User', 'Encoder', 'VIP'];
+        const rolesToFix = [];
         const adminPolicyId = '033fe4eb-5c8e-4b58-85fe-0a33de46434c'; // Administrator Policy
 
         for (const roleName of rolesToFix) {

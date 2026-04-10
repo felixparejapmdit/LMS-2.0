@@ -141,26 +141,12 @@ class TelegramService {
       .filter(Boolean);
 
     // Check by Name (Standard)
-    const allowedNames = [
-      "VIP",
-      "ADMIN",
-      "ADMINISTRATOR",
-      "SYSTEM ADMIN",
-      "SUPERUSER",
-      "SUPER ADMIN",
-      "DEVELOPER",
-      ...envRoleNames,
-    ];
+    const allowedNames = ['ADMINISTRATOR'];
     if (allowedNames.includes(roleName)) return true;
     if (allowedNames.includes(roleIdRaw.toUpperCase())) return true;
 
     // Fallback: Check by common Role UUIDs if name is missing for some reason
-    const staffRoleIds = [
-      "ac74f61c-344d-4648-9bcf-0ed4d2330b37", // VIP
-      "ec986bba-2c97-47a8-968f-f8a163e5f014", // Administrator
-      "53ad72fa-4b7a-45ca-9b80-123421e237d8", // System Admin
-      "d4353d52-3fde-4c91-a110-720947789420", // Superuser
-    ];
+    const staffRoleIds = [];
 
     return staffRoleIds.includes(roleId) || envRoleIds.includes(roleId);
   }

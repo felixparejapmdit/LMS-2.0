@@ -376,7 +376,7 @@ export const AuthProvider = ({ children }) => {
         if (authState.isGuest) return pageId === 'guest-send-letter';
 
         const roleName = (authState.user?.roleData?.name || authState.user?.role || '').toString().toUpperCase();
-        const SUPER_ADMIN_ROLES = ['ADMIN', 'SUPER ADMIN', 'DEVELOPER', 'ROOT', 'ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER'];
+        const SUPER_ADMIN_ROLES = ['ADMINISTRATOR'];
         const isSuperAdmin = SUPER_ADMIN_ROLES.includes(roleName) ||
             authState.user?.email === 'felixpareja07@gmail.com';
 
@@ -530,7 +530,7 @@ export const useAuth = () => {
 
     const { user } = auth;
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    const isSuperAdmin = ['ADMIN', 'SUPER ADMIN', 'DEVELOPER', 'ROOT', 'ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER'].includes(roleName) ||
+    const isSuperAdmin = ['ADMINISTRATOR'].includes(roleName) ||
         user?.email === 'felixpareja07@gmail.com';
 
     // Return combined object for backward compatibility, but it will trigger re-renders
@@ -545,7 +545,7 @@ export const useSession = () => {
     // Memoize the super admin calculation so it doesn't change on every useSession call
     const isSuperAdmin = useMemo(() => {
         const roleName = (context.user?.roleData?.name || context.user?.role || '').toString().toUpperCase();
-        const SUPER_ADMIN_ROLES = ['ADMIN', 'SUPER ADMIN', 'DEVELOPER', 'ROOT', 'ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER'];
+        const SUPER_ADMIN_ROLES = ['ADMINISTRATOR'];
         return SUPER_ADMIN_ROLES.includes(roleName) ||
             context.user?.email === 'felixpareja07@gmail.com';
     }, [context.user]);

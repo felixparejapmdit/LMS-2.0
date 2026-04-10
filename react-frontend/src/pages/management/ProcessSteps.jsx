@@ -54,7 +54,7 @@ export default function ProcessSteps() {
     const [error, setError] = useState("");
 
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    const isSuperAdmin = ['ADMINISTRATOR', 'SYSTEM ADMIN', 'SUPERUSER'].includes(roleName);
+    const isSuperAdmin = ['ADMINISTRATOR'].includes(roleName);
 
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);

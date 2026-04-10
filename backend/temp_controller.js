@@ -1,17 +1,6 @@
 const { LetterAssignment, Letter, ProcessStep, Department, Status, Tray, LetterKind, Comment, Endorsement } = require('../models/associations');
 const { Op } = require('sequelize');
-const ALL_LETTER_ROLES = new Set([
-    'ADMIN',
-    'ADMINISTRATOR',
-    'SUPERUSER',
-    'SUPER USER',
-    'SYSTEM ADMIN',
-    'SYSTEMADMIN',
-    'SUPER ADMIN',
-    'SUPERADMIN',
-    'DEVELOPER',
-    'ROOT'
-]);
+const ALL_LETTER_ROLES = new Set(['ADMINISTRATOR']);
 
 class LetterAssignmentController {
     static async getAll(req, res) {

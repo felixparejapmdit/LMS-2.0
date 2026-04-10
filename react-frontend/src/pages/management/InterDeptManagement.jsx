@@ -138,8 +138,8 @@ export default function InterDeptManagement() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                    <div className="max-w-6xl mx-auto space-y-8">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 custom-scrollbar">
+                    <div className="max-w-[100vw] mx-auto space-y-8">
                         <div>
                             <h2 className={`text-3xl font-black tracking-tight ${textColor}`}>Unit Access Control</h2>
                             <p className="text-gray-500 mt-2 text-sm font-medium">Assign departments that authorized staff can view and track.</p>

@@ -164,7 +164,7 @@ class RolePermissionController {
             const { dept_id, exclude_admin } = req.query;
 
             // Roles that should NEVER be visible to non-admin users
-            const ADMIN_ROLE_NAMES = ['ADMINISTRATOR', 'ADMIN', 'SUPER ADMIN', 'SUPERUSER', 'DEVELOPER', 'ROOT', 'SYSTEM ADMIN'];
+            const ADMIN_ROLE_NAMES = ['ADMINISTRATOR'];
 
             // Build where clause for dept_id filtering
             const where = {};
@@ -222,7 +222,7 @@ class RolePermissionController {
             const { dept_id, exclude_admin } = req.query;
 
             // Roles that should NEVER be visible to non-admin users
-            const ADMIN_ROLE_NAMES = ['ADMINISTRATOR', 'ADMIN', 'SUPER ADMIN', 'SUPERUSER', 'DEVELOPER', 'ROOT', 'SYSTEM ADMIN'];
+            const ADMIN_ROLE_NAMES = ['ADMINISTRATOR'];
 
             const where = {};
             if (dept_id !== undefined && dept_id !== 'all' && dept_id !== 'undefined') {

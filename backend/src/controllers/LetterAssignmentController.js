@@ -1,17 +1,6 @@
 const { LetterAssignment, Letter, ProcessStep, Department, Status, Tray, LetterKind, Comment, Endorsement, User, sequelize } = require('../models/associations');
 const { Op } = require('sequelize');
-const ALL_LETTER_ROLES = new Set([
-    'ADMIN',
-    'ADMINISTRATOR',
-    'SUPERUSER',
-    'SUPER USER',
-    'SYSTEM ADMIN',
-    'SYSTEMADMIN',
-    'SUPER ADMIN',
-    'SUPERADMIN',
-    'DEVELOPER',
-    'ROOT'
-]);
+const ALL_LETTER_ROLES = new Set(['ADMINISTRATOR']);
 
 class LetterAssignmentController {
     static async getAll(req, res) {
@@ -31,9 +20,9 @@ class LetterAssignmentController {
                 atgStatusId = atgStatus?.id || null;
             }
 
-            const SUPER_ROLES = new Set(['SUPERUSER', 'SUPER USER', 'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'DEVELOPER', 'ROOT']);
+            const SUPER_ROLES = new Set(['ADMINISTRATOR']);
             const isSuperAdmin = SUPER_ROLES.has(normalizedRole);
-            const isAdminActual = isSuperAdmin || ['ADMINISTRATOR', 'ADMIN'].includes(normalizedRole);
+            const isAdminActual = isSuperAdmin || ['ADMINISTRATOR'].includes(normalizedRole);
             const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
             const isSpecificDept = isValidId(department_id);
 
@@ -64,32 +53,24 @@ class LetterAssignmentController {
                 }
             }
 
-            // 2. Department-based Visibility (Restrictive: Shared Work = Same Role + Same Dept)
-            const getSharedWorkSql = (d, r) => `EXISTS (
-                SELECT 1 FROM directus_users colleagues 
-                JOIN letters l ON l.id = LetterAssignment.letter_id
-                LEFT JOIN directus_roles dr ON colleagues.role = dr.id
-                WHERE colleagues.dept_id = ${sequelize.escape(d)} 
-                AND (colleagues.role = ${sequelize.escape(r)} OR dr.name = ${sequelize.escape(r)})
-                AND (
-                    colleagues.id IN (l.encoder_id, l.sender, l.endorsed)
-                    OR (colleagues.first_name || ' ' || colleagues.last_name) = l.sender
-                    OR (colleagues.first_name || ' ' || colleagues.last_name) = l.endorsed
-                )
-            )`;
-
-            if (isSpecificDept) {
-                // Only allow department filter if it's THEIR department or they are Super Admin
-                if (isSuperAdmin || department_id == myDeptId) {
-                    visibilityClauses.push({ department_id: String(department_id) });
-                }
-            } else if (isAdminActual && !isSuperAdmin) {
+            // 2. Department-based Visibility
+            if (isSuperAdmin) {
+                visibilityClauses.push(sequelize.literal('1=1'));
+            } else if (isAdminActual) {
                 if (myDeptId) {
-                    // Admin with a department: see all assignments in their dept
-                    visibilityClauses.push({ department_id: String(myDeptId) });
-                } else {
-                    // Admin with NO department: global visibility
-                    visibilityClauses.push(sequelize.literal('1=1'));
+                    if (!isSpecificDept || department_id == myDeptId) {
+                        visibilityClauses.push({ department_id: String(myDeptId) });
+                        visibilityClauses.push(sequelize.literal(`EXISTS (
+                            SELECT 1 FROM directus_users du
+                            JOIN letters l ON l.id = LetterAssignment.letter_id
+                            WHERE du.dept_id = ${sequelize.escape(String(myDeptId))}
+                            AND (
+                                du.id IN (l.encoder_id, l.sender, l.endorsed)
+                                OR (du.first_name || ' ' || du.last_name) = l.sender
+                                OR (du.first_name || ' ' || du.last_name) = l.endorsed
+                            )
+                        )`));
+                    }
                 }
             }
 

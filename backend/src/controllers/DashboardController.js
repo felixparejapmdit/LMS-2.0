@@ -8,14 +8,16 @@ class DashboardController {
             const { department_id, user_id, role, view, named_filter, full_name } = req.query;
             console.log(`[DASHBOARD] Init started for role="${role}", dept="${department_id}"`);
 
+            const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
+            const ALL_LETTER_ROLES = new Set(['ADMINISTRATOR']);
+
             // 1. Fetch Trays (Parallel)
             const traysPromise = Tray.findAll({
-                where: (department_id && department_id !== 'all' && department_id !== 'null') ? { dept_id: department_id } : {}
+                where: (!ALL_LETTER_ROLES.has(normalizedRole) && department_id && department_id !== 'all' && department_id !== 'null') ? { dept_id: department_id } : {}
             });
 
             // 2. Fetch Stats (Parallel)
-            // Reusing logic from StatsController
-            const statsPromise = DashboardController.getInboxStatsInternal({ department_id });
+            const statsPromise = DashboardController.getInboxStatsInternal({ department_id, role });
 
             // 3. Fetch Assignments (Main Task)
             // Reusing logic from LetterAssignmentController
@@ -42,10 +44,13 @@ class DashboardController {
 
     // --- Extracted Internal Methods to avoid duplication ---
 
-    static async getInboxStatsInternal({ department_id }) {
+    static async getInboxStatsInternal({ department_id, role }) {
         const startTime = Date.now();
         const baseWhere = {};
-        if (department_id && department_id !== 'null' && department_id !== 'undefined' && department_id !== '') {
+        const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
+        const ALL_LETTER_ROLES = new Set(['ADMINISTRATOR']);
+        
+        if (!ALL_LETTER_ROLES.has(normalizedRole) && department_id && department_id !== 'null' && department_id !== 'undefined' && department_id !== '') {
             baseWhere.department_id = department_id;
         }
 
@@ -110,7 +115,7 @@ class DashboardController {
         const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
         const offset = (parseInt(page) - 1) * parseInt(limit);
 
-        const ALL_LETTER_ROLES = new Set(['ADMIN', 'ADMINISTRATOR', 'SUPERUSER', 'SUPER USER', 'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'DEVELOPER', 'ROOT']);
+        const ALL_LETTER_ROLES = new Set(['ADMINISTRATOR']);
 
         if (normalizedRole === 'USER' && user_id) {
             where[Op.or] = [{ '$letter.encoder_id$': user_id }];

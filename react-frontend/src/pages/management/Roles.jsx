@@ -46,10 +46,10 @@ export default function Roles() {
     const canViewToggle = canField("roles", "view_toggle");
 
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    const isSuperAdmin = ['ADMINISTRATOR', 'ADMIN', 'SYSTEM ADMIN', 'SUPERUSER', 'DEVELOPER', 'ROOT'].includes(roleName);
+    const isSuperAdmin = ['ADMINISTRATOR'].includes(roleName);
 
     // Names that must NEVER appear in Access Manager view
-    const ADMIN_ROLE_NAMES = ['ADMINISTRATOR', 'ADMIN', 'SUPER ADMIN', 'SUPERUSER', 'DEVELOPER', 'ROOT', 'SYSTEM ADMIN'];
+    const ADMIN_ROLE_NAMES = ['ADMINISTRATOR'];
 
     const fetchRoles = async () => {
         setLoading(true);
@@ -193,8 +193,8 @@ export default function Roles() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-10">
-                    <div className="max-w-6xl mx-auto space-y-8">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 custom-scrollbar">
+                    <div className="max-w-[100vw] mx-auto space-y-8">
                         {/* Search & Filter Section */}
                         <div className="flex flex-col md:flex-row gap-4 items-center">
                             <div className={`flex-1 ${cardBg} rounded-[2.5rem] border shadow-2xl p-6 relative overflow-hidden group w-full`}>
@@ -247,7 +247,7 @@ export default function Roles() {
                         </div>
 
                         {/* List Section */}
-                        <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
+                        <div className={viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-6" : "space-y-4"}>
                             {loading ? (
                                 [...Array(6)].map((_, i) => (
                                     <div key={i} className={`${cardBg} rounded-[2.5rem] border shadow-sm ${viewMode === 'grid' ? 'p-8 space-y-4' : 'p-6 flex items-center justify-between'} animate-pulse`}>

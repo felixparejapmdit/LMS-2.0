@@ -73,7 +73,7 @@ export default function DeptAccessMatrix() {
     const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
 
     // Names that must NEVER appear in Access Manager's role list
-    const ADMIN_ROLE_NAMES = ['ADMINISTRATOR', 'ADMIN', 'SUPER ADMIN', 'SUPERUSER', 'DEVELOPER', 'ROOT', 'SYSTEM ADMIN'];
+    const ADMIN_ROLE_NAMES = ['ADMINISTRATOR'];
 
     const fetchData = async () => {
         setLoading(true);

@@ -1,16 +1,7 @@
 const { Letter, LetterKind, LetterAssignment } = require('../models/associations');
 const Endorsement = require('../models/Endorsement');
 const { Op } = require('sequelize');
-const ALL_LETTER_ROLES = new Set([
-    'ADMIN',
-    'ADMINISTRATOR',
-    'SUPERUSER',
-    'SUPER USER',
-    'SYSTEM ADMIN',
-    'SYSTEMADMIN',
-    'SUPER ADMIN',
-    'SUPERADMIN'
-]);
+const ALL_LETTER_ROLES = new Set(['ADMINISTRATOR']);
 
 // CREATE the table if it doesn't exist
 (async () => {

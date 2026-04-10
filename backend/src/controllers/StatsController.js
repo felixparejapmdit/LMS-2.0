@@ -1,11 +1,7 @@
 const { LetterAssignment, Letter, Status, User, Person, ProcessStep, Tray, LetterLog, Endorsement, sequelize } = require('../models/associations');
 const { Op } = require('sequelize');
 
-const ALL_LETTER_ROLES = new Set([
-    'ADMIN', 'ADMINISTRATOR', 'SUPERUSER', 'SUPER USER',
-    'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN',
-    'DEVELOPER', 'ROOT'
-]);
+const ALL_LETTER_ROLES = new Set(['ADMINISTRATOR']);
 
 class StatsController {
     static async getDashboardStats(req, res) {
@@ -14,9 +10,9 @@ class StatsController {
             const { department_id, role, user_id, full_name } = req.query;
             const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
 
-            const SUPER_ROLES = ['SUPERUSER', 'SUPER USER', 'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'DEVELOPER', 'ROOT'];
+            const SUPER_ROLES = ['ADMINISTRATOR'];
             const isSuperAdmin = SUPER_ROLES.includes(normalizedRole);
-            const isAdmin = isSuperAdmin || ['ADMINISTRATOR', 'ADMIN'].includes(normalizedRole);
+            const isAdmin = isSuperAdmin || ['ADMINISTRATOR'].includes(normalizedRole);
 
             console.log(`[STATS] Dashboard lookup for role: "${normalizedRole}", dept: "${department_id}", name: "${full_name}"`);
 
@@ -42,58 +38,29 @@ class StatsController {
 
             const visibilityClauses = [];
             
-            // 2. Department-based Visibility (Restrictive: Shared Work = Same Role + Same Dept)
-            const getSharedWorkSql = (d, r) => `EXISTS (
-                SELECT 1 FROM directus_users colleagues 
-                LEFT JOIN directus_roles dr ON colleagues.role = dr.id
-                WHERE colleagues.dept_id = ${sequelize.escape(d)} 
-                AND (colleagues.role = ${sequelize.escape(r)} OR dr.name = ${sequelize.escape(r)})
-                AND (
-                    colleagues.id IN (Letter.encoder_id, Letter.sender, Letter.endorsed)
-                    OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.sender
-                    OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.endorsed
-                )
-            )`;
-
-            if (isSpecificDept) {
-                // If they specifically requested a department, only allow if it's THEIR department or they are Super Admin
-                if (isSuperAdmin || department_id == myDeptId) {
-                    visibilityClauses.push(sequelize.literal(getSharedWorkSql(department_id, role)));
-                    
-                    // Also check assignments
-                    visibilityClauses.push(sequelize.literal(`EXISTS (
-                        SELECT 1 FROM letter_assignments la 
-                        JOIN directus_users colleagues ON (colleagues.id IN (Letter.encoder_id, Letter.sender, Letter.endorsed) OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.sender OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.endorsed)
-                        LEFT JOIN directus_roles dr ON colleagues.role = dr.id
-                        WHERE la.letter_id = Letter.id 
-                        AND la.department_id = ${sequelize.escape(department_id)} 
-                        AND colleagues.dept_id = ${sequelize.escape(department_id)}
-                        AND (colleagues.role = ${sequelize.escape(role)} OR dr.name = ${sequelize.escape(role)})
-                    )`));
-                }
-            } else if (isAdmin && !isSuperAdmin) {
+            // 2. Department-based Visibility
+            if (isSuperAdmin) {
+                // Admins see everything globally
+                visibilityClauses.push(sequelize.literal('1=1'));
+            } else if (isAdmin) {
                 if (myDeptId) {
-                    // Admin with a department: see all letters in their dept
-                    visibilityClauses.push({ dept_id: String(myDeptId) });
-                    // Also letters where any dept member is involved (not just same-role)
-                    visibilityClauses.push(sequelize.literal(`EXISTS (
-                        SELECT 1 FROM directus_users du
-                        WHERE du.dept_id = ${sequelize.escape(String(myDeptId))}
-                        AND (
-                            du.id = Letter.encoder_id
-                            OR du.id = Letter.sender
-                            OR du.id = Letter.endorsed
-                            OR Letter.sender LIKE ('%' || du.first_name || '%')
-                            OR Letter.sender LIKE ('%' || du.last_name || '%')
-                            OR Letter.endorsed LIKE ('%' || du.first_name || '%')
-                            OR Letter.endorsed LIKE ('%' || du.last_name || '%')
-                        )
-                    )`));
-                    // Letters assigned to their dept
-                    visibilityClauses.push(sequelize.literal(`EXISTS (SELECT 1 FROM letter_assignments la WHERE la.letter_id = Letter.id AND la.department_id = ${sequelize.escape(String(myDeptId))})`));
-                } else {
-                    // Admin with NO department: global visibility
-                    visibilityClauses.push(sequelize.literal('1=1'));
+                    if (!isSpecificDept || department_id == myDeptId) {
+                        visibilityClauses.push({ dept_id: String(myDeptId) });
+                        visibilityClauses.push(sequelize.literal(`EXISTS (
+                            SELECT 1 FROM directus_users du
+                            WHERE du.dept_id = ${sequelize.escape(String(myDeptId))}
+                            AND (
+                                du.id = Letter.encoder_id
+                                OR du.id = Letter.sender
+                                OR du.id = Letter.endorsed
+                                OR Letter.sender LIKE ('%' || du.first_name || '%')
+                                OR Letter.sender LIKE ('%' || du.last_name || '%')
+                                OR Letter.endorsed LIKE ('%' || du.first_name || '%')
+                                OR Letter.endorsed LIKE ('%' || du.last_name || '%')
+                            )
+                        )`));
+                        visibilityClauses.push(sequelize.literal(`EXISTS (SELECT 1 FROM letter_assignments la WHERE la.letter_id = Letter.id AND la.department_id = ${sequelize.escape(String(myDeptId))})`));
+                    }
                 }
             }
 
@@ -276,9 +243,9 @@ class StatsController {
             const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
             const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
             const isSpecificDept = isValidId(department_id);
-            const SUPER_ROLES = ['SUPERUSER', 'SUPER USER', 'SYSTEM ADMIN', 'SYSTEMADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'DEVELOPER', 'ROOT'];
+            const SUPER_ROLES = ['ADMINISTRATOR'];
             const isSuperAdmin = SUPER_ROLES.includes(normalizedRole);
-            const isAdmin = isSuperAdmin || ['ADMINISTRATOR', 'ADMIN'].includes(normalizedRole);
+            const isAdmin = isSuperAdmin || ['ADMINISTRATOR'].includes(normalizedRole);
 
             // Fetch user's department for secure filtering
             const userRecord = user_id ? await User.findByPk(user_id) : null;
@@ -306,29 +273,25 @@ class StatsController {
                 }
             }
 
-            // 2. Department-based Visibility (Restrictive: Shared Work = Same Role + Same Dept)
-            const getSharedWorkSqlInbox = (d, r) => `EXISTS (
-                SELECT 1 FROM directus_users colleagues 
-                JOIN letters l ON l.id = LetterAssignment.letter_id
-                LEFT JOIN directus_roles dr ON colleagues.role = dr.id
-                WHERE colleagues.dept_id = ${sequelize.escape(d)} 
-                AND (colleagues.role = ${sequelize.escape(r)} OR dr.name = ${sequelize.escape(r)})
-                AND (
-                    colleagues.id IN (l.encoder_id, l.sender, l.endorsed)
-                    OR (colleagues.first_name || ' ' || colleagues.last_name) = l.sender
-                    OR (colleagues.first_name || ' ' || colleagues.last_name) = l.endorsed
-                )
-            )`;
-
-            if (isSpecificDept) {
-                // Only allow department stats if it's THEIR department or they are Super Admin
-                if (isSuperAdmin || department_id == myDeptId) {
-                    visibilityClauses.push(sequelize.literal(getSharedWorkSqlInbox(department_id, role)));
-                }
-            } else if (isAdmin && !isSuperAdmin) {
-                // Viewing "all" — restricted to Shared Work in their own department
+            // 2. Department-based Visibility
+            if (isSuperAdmin) {
+                // Admins see everything globally
+                visibilityClauses.push(sequelize.literal('1=1'));
+            } else if (isAdmin) {
                 if (myDeptId) {
-                    visibilityClauses.push(sequelize.literal(getSharedWorkSqlInbox(myDeptId, role)));
+                    if (!isSpecificDept || department_id == myDeptId) {
+                        visibilityClauses.push({ department_id: String(myDeptId) });
+                        visibilityClauses.push(sequelize.literal(`EXISTS (
+                            SELECT 1 FROM directus_users du
+                            JOIN letters l ON l.id = LetterAssignment.letter_id
+                            WHERE du.dept_id = ${sequelize.escape(String(myDeptId))}
+                            AND (
+                                du.id IN (l.encoder_id, l.sender, l.endorsed)
+                                OR (du.first_name || ' ' || du.last_name) = l.sender
+                                OR (du.first_name || ' ' || du.last_name) = l.endorsed
+                            )
+                        )`));
+                    }
                 }
             }
 
@@ -396,23 +359,73 @@ class StatsController {
                 }
             });
 
-            // Count letters that are purely unassigned
-            // MUST respect department filter for Access Managers
+            // MUST respect department filter for unassigned counts
             const unassignedWhere = { global_status: 1 };
-            if (isSpecificDept && !isSuperAdmin) {
-                unassignedWhere[Op.and] = [
-                    sequelize.literal(`EXISTS (
-                        SELECT 1 FROM directus_users colleagues 
-                        LEFT JOIN directus_roles dr ON colleagues.role = dr.id
-                        WHERE colleagues.dept_id = ${sequelize.escape(department_id)} 
-                        AND (colleagues.role = ${sequelize.escape(role)} OR dr.name = ${sequelize.escape(role)})
+            const unassignedVisibilityClauses = [];
+
+            if (user_id) {
+                unassignedVisibilityClauses.push({ encoder_id: user_id });
+                unassignedVisibilityClauses.push({ sender: user_id });
+                unassignedVisibilityClauses.push({ endorsed: user_id });
+                
+                if (full_name) {
+                    const nameParts = full_name.split(' ').filter(p => p.length > 0);
+                    const nameMatches = [`%${full_name}%`];
+                    if (nameParts.length >= 2) {
+                        nameMatches.push(`%${nameParts[nameParts.length - 1]}, ${nameParts[0]}%`);
+                    }
+                    nameMatches.forEach(match => {
+                        unassignedVisibilityClauses.push({ sender: { [Op.like]: match } });
+                        unassignedVisibilityClauses.push({ endorsed: { [Op.like]: match } });
+                        unassignedVisibilityClauses.push(sequelize.literal(`EXISTS (SELECT 1 FROM endorsements e WHERE e.letter_id = Letter.id AND e.endorsed_to LIKE ${sequelize.escape(match)})`));
+                    });
+                }
+            }
+
+            if (isSuperAdmin) {
+                if (isSpecificDept) {
+                    unassignedVisibilityClauses.push({ dept_id: String(department_id) });
+                    unassignedVisibilityClauses.push(sequelize.literal(`EXISTS (
+                        SELECT 1 FROM directus_users du
+                        WHERE du.dept_id = ${sequelize.escape(String(department_id))}
                         AND (
-                            colleagues.id IN (Letter.encoder_id, Letter.sender, Letter.endorsed)
-                            OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.sender
-                            OR (colleagues.first_name || ' ' || colleagues.last_name) = Letter.endorsed
+                            du.id = Letter.encoder_id
+                            OR du.id = Letter.sender
+                            OR du.id = Letter.endorsed
+                            OR Letter.sender LIKE ('%' || du.first_name || '%')
+                            OR Letter.sender LIKE ('%' || du.last_name || '%')
+                            OR Letter.endorsed LIKE ('%' || du.first_name || '%')
+                            OR Letter.endorsed LIKE ('%' || du.last_name || '%')
                         )
-                    )`)
-                ];
+                    )`));
+                } else {
+                    unassignedVisibilityClauses.push(sequelize.literal('1=1'));
+                }
+            } else if (isAdmin) {
+                if (myDeptId) {
+                    if (!isSpecificDept || department_id == myDeptId) {
+                        unassignedVisibilityClauses.push({ dept_id: String(myDeptId) });
+                        unassignedVisibilityClauses.push(sequelize.literal(`EXISTS (
+                            SELECT 1 FROM directus_users du
+                            WHERE du.dept_id = ${sequelize.escape(String(myDeptId))}
+                            AND (
+                                du.id = Letter.encoder_id
+                                OR du.id = Letter.sender
+                                OR du.id = Letter.endorsed
+                                OR Letter.sender LIKE ('%' || du.first_name || '%')
+                                OR Letter.sender LIKE ('%' || du.last_name || '%')
+                                OR Letter.endorsed LIKE ('%' || du.first_name || '%')
+                                OR Letter.endorsed LIKE ('%' || du.last_name || '%')
+                            )
+                        )`));
+                    }
+                }
+            }
+
+            if (unassignedVisibilityClauses.length > 0) {
+                unassignedWhere[Op.or] = unassignedVisibilityClauses;
+            } else if (!isSuperAdmin) {
+                unassignedWhere.id = null;
             }
 
             const unassignedLetters = await Letter.findAll({
