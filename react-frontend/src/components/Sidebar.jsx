@@ -113,7 +113,6 @@ export default function Sidebar() {
 
   const navItems = [
     { icon: Home, label: "Home", path: "/" },
-    { icon: Inbox, label: "VIP View", path: "/vip-view" },
     { icon: Plus, label: "New Letter", path: "/new-letter" },
     { icon: Inbox, label: "Inbox", path: "/inbox" },
     { icon: FileText, label: "Resumen", path: "/resumen" },

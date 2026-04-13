@@ -298,36 +298,7 @@ export default function Home() {
                                 </div>
                             </div>
                         )}
-                        {/* ATG Dashboard Letters */}
-                        <div className="mt-12 space-y-6">
-                            <div className="flex items-center justify-between">
-                                <h2 className={`text-lg font-black uppercase tracking-tight text-orange-500`}>
-                                    VIP View
-                                </h2>
-                            </div>
-                            {stats.atgLetters?.length === 0 ? (
-                                <div className={`py-12 flex flex-col items-center justify-center rounded-[2.5rem] border border-dashed ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
-                                    <p className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">No flagged letters</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {stats.atgLetters.map(assignment => (
-                                        <LetterCard
-                                            key={assignment.id}
-                                            id={assignment.id}
-                                            letterId={assignment.letter?.id}
-                                            atgId={assignment.letter?.lms_id}
-                                            sender={assignment.letter?.sender}
-                                            summary={assignment.letter?.summary}
-                                            status={assignment.letter?.status?.status_name || 'ATG Note'}
-                                            step={assignment.step?.step_name}
-                                            dueDate={assignment.due_date || assignment.letter?.date_received}
-                                            layout={layoutStyle}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        {/* ATG Dashboard Letters REMOVED as per user request */}
                     </div>
 
                     {/* Side Panel - Operations */}
@@ -458,30 +429,7 @@ export default function Home() {
                                         </div>
                                     )}
 
-                                    {/* ATG Section */}
-                                    {stats.atgLetters?.length > 0 && (
-                                        <div className="mt-12 space-y-6">
-                                            <div className="flex items-center justify-between border-b border-[#E5E5E5] dark:border-[#222] pb-4">
-                                                <h2 className="text-xs font-black text-orange-500 uppercase tracking-[0.3em]">VIP View</h2>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {stats.atgLetters.map(assignment => (
-                                                    <LetterCard
-                                                        key={assignment.id}
-                                                        id={assignment.id}
-                                                        letterId={assignment.letter?.id}
-                                                        atgId={assignment.letter?.lms_id}
-                                                        sender={assignment.letter?.sender}
-                                                        summary={assignment.letter?.summary}
-                                                        status={assignment.letter?.status?.status_name || 'ATG Note'}
-                                                        step={assignment.step?.step_name}
-                                                        dueDate={assignment.due_date || assignment.letter?.date_received}
-                                                        layout="minimalist"
-                                                    />
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+                                    {/* ATG Section REMOVED as per user request */}
                                 </div>
 
                                 <div className="space-y-8">

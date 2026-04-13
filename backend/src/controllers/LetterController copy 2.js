@@ -25,20 +25,20 @@ class LetterController {
             const myDeptId = userRecord?.dept_id;
 
             const visibilityClauses = [];
-
+            
             // 1. Direct Involvement by ID (Always Visible)
             if (user_id) {
                 visibilityClauses.push({ encoder_id: user_id });
                 visibilityClauses.push({ sender: user_id });
                 visibilityClauses.push({ endorsed: user_id });
-
+                
                 if (full_name) {
                     const nameParts = full_name.split(' ').filter(p => p.length > 0);
                     const nameMatches = [`%${full_name}%`];
                     if (nameParts.length >= 2) {
                         nameMatches.push(`%${nameParts[nameParts.length - 1]}, ${nameParts[0]}%`);
                     }
-
+                    
                     nameMatches.forEach(match => {
                         visibilityClauses.push({ sender: { [Op.like]: match } });
                         visibilityClauses.push({ endorsed: { [Op.like]: match } });
@@ -224,23 +224,23 @@ class LetterController {
                     'status',
                     'attachment',
                     'tray',
-                    {
-                        model: LetterAssignment,
-                        as: 'assignments',
+                    { 
+                        model: LetterAssignment, 
+                        as: 'assignments', 
                         include: [
                             { model: Department, as: 'department' },
                             { model: ProcessStep, as: 'step' }
-                        ]
+                        ] 
                     },
-                    {
-                        model: LetterLog,
-                        as: 'logs',
+                    { 
+                        model: LetterLog, 
+                        as: 'logs', 
                         include: [
                             { model: User, as: 'user' },
                             { model: Department, as: 'department' },
                             { model: ProcessStep, as: 'step' },
                             { model: Status, as: 'status' }
-                        ]
+                        ] 
                     },
                     { model: User, as: 'encoder', attributes: ['id', 'first_name', 'last_name', 'email'] }
                 ]
@@ -524,49 +524,25 @@ class LetterController {
     }
 
     static async update(req, res) {
-        let transaction;
         try {
-            transaction = await Letter.sequelize.transaction();
-            const letter = await Letter.findByPk(req.params.id, { transaction });
-            if (!letter) {
-                await transaction.rollback();
-                return res.status(404).json({ error: 'Not found' });
-            }
-
-            const oldStatusId = letter.global_status;
+            const letter = await Letter.findByPk(req.params.id);
+            if (!letter) return res.status(404).json({ error: 'Not found' });
             const updates = { ...req.body };
-
-            // Normalize internal IDs
             if (Object.prototype.hasOwnProperty.call(updates, 'kind')) {
-                const parsed = updates.kind === "" || updates.kind === undefined || updates.kind === null ? null : parseInt(updates.kind);
+                const parsed = updates.kind === "" || updates.kind === undefined || updates.kind === null
+                    ? null
+                    : parseInt(updates.kind);
                 updates.kind = Number.isNaN(parsed) ? null : parsed;
             }
             if (Object.prototype.hasOwnProperty.call(updates, 'tray_id')) {
-                const parsed = updates.tray_id === "" || updates.tray_id === undefined || updates.tray_id === null ? null : parseInt(updates.tray_id);
+                const parsed = updates.tray_id === "" || updates.tray_id === undefined || updates.tray_id === null
+                    ? null
+                    : parseInt(updates.tray_id);
                 updates.tray_id = Number.isNaN(parsed) ? null : parsed;
             }
-
-            const newStatusId = updates.global_status !== undefined ? (updates.global_status === "" ? null : parseInt(updates.global_status)) : oldStatusId;
-            
-            await letter.update(updates, { transaction });
-
-            // Create log if status changed
-            if (newStatusId !== oldStatusId) {
-                const newStatus = await Status.findByPk(newStatusId, { transaction });
-                await LetterLog.create({
-                    letter_id: letter.id,
-                    user_id: req.body.user_id || null, // Best effort for user id
-                    action_type: newStatus?.status_name || 'Status Updated',
-                    status_id: newStatusId,
-                    log_details: `Status changed to ${newStatus?.status_name || 'Unknown'}`
-                }, { transaction });
-            }
-
-            await transaction.commit();
+            await letter.update(updates);
             res.json(letter);
         } catch (error) {
-            if (transaction) await transaction.rollback();
-            console.error("[LETTER_UPDATE_ERROR]:", error);
             res.status(400).json({ error: error.message });
         }
     }

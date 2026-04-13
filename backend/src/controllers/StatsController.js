@@ -346,10 +346,10 @@ class StatsController {
                 if ([1, 8].includes(globalStatus) && stepId === 1 && !hasTray && !isVip) counts.signature++;
 
                 // VEM
-                if (globalStatus === 8 && stepName.includes('VEM') && !stepName.includes('AEVM') && stepId !== 1 && stepId !== 2 && !isVip && globalStatus !== 7) counts.vem++;
+                if ([1, 8].includes(globalStatus) && stepName.includes('VEM') && !stepName.includes('AEVM') && !stepName.includes('AEVEM') && stepId !== 1 && stepId !== 2 && !isVip && globalStatus !== 7) counts.vem++;
 
                 // AVEM
-                if (globalStatus === 8 && stepName.includes('AEVM') && stepId !== 1 && stepId !== 2 && !isVip && globalStatus !== 7) counts.avem++;
+                if ([1, 8].includes(globalStatus) && (stepName.includes('AEVM') || stepName.includes('AEVEM')) && stepId !== 1 && stepId !== 2 && !isVip && globalStatus !== 7) counts.avem++;
 
                 // ATG Note (Incoming (1) or ATG Note (2) and has tray)
                 if ([1, 2].includes(globalStatus) && hasTray) counts.atg_note++;

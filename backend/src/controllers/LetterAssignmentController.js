@@ -124,18 +124,28 @@ class LetterAssignmentController {
                         { '$letter.tray_id$': { [Op.gt]: 0 } }
                     ];
                 } else if (named_filter === 'vem') {
-                    // VEM: global_status 8 (Pending), VEM step
+                    // VEM: Incoming(1) or Pending(8), VEM step
                     where[Op.and] = [
-                        { '$letter.global_status$': 8 },
-                        { '$step.step_name$': { [Op.like]: '%VEM%' } },
-                        { '$step.step_name$': { [Op.notLike]: '%AEVM%' } },
+                        { '$letter.global_status$': { [Op.in]: [1, 8] } },
+                        { 
+                            [Op.and]: [
+                                { '$step.step_name$': { [Op.like]: '%VEM%' } },
+                                { '$step.step_name$': { [Op.notLike]: '%AEVM%' } },
+                                { '$step.step_name$': { [Op.notLike]: '%AEVEM%' } }
+                            ]
+                        },
                         { '$step.step_name$': { [Op.notIn]: ['For Review', 'For Signature'] } }
                     ];
                 } else if (named_filter === 'avem') {
-                    // AEVM: global_status 8 (Pending), AEVM step
+                    // AEVM/AEVEM: Incoming(1) or Pending(8), AEVM step
                     where[Op.and] = [
-                        { '$letter.global_status$': 8 },
-                        { '$step.step_name$': { [Op.like]: '%AEVM%' } },
+                        { '$letter.global_status$': { [Op.in]: [1, 8] } },
+                        { 
+                            [Op.or]: [
+                                { '$step.step_name$': { [Op.like]: '%AEVM%' } },
+                                { '$step.step_name$': { [Op.like]: '%AEVEM%' } }
+                            ]
+                        },
                         { '$step.step_name$': { [Op.notIn]: ['For Review', 'For Signature'] } }
                     ];
                 } else if (named_filter === 'pending') {

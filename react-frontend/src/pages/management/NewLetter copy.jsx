@@ -71,7 +71,7 @@ export default function NewLetter() {
         assigned_dept: "",
         tray_id: "",
         selectedRefIds: [],
-        step_ids: []
+        step_id: "1"
     });
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [attachmentSearch, setAttachmentSearch] = useState("");
@@ -135,8 +135,10 @@ export default function NewLetter() {
                     setFormData(prev => ({ ...prev, kind: "" })); 
                 }
 
-                // No default group selection - user must select manually
-                setFormData(prev => ({ ...prev, step_ids: [] }));
+                if (filteredSteps.length > 0) {
+                    const forSig = filteredSteps.find(s => s.step_name === 'For Signature') || filteredSteps[0];
+                    setFormData(prev => ({ ...prev, step_id: forSig.id }));
+                }
 
                 if (statusesData.length > 0) {
                     const received = statusesData.find(s => s.status_name === 'Received' || s.status_name === 'Incoming');
@@ -202,46 +204,6 @@ export default function NewLetter() {
         } catch (error) {
             console.error("Error fetching suggestions:", error);
         }
-    };
-
-    const toggleStep = (stepId) => {
-        const step = steps.find(s => String(s.id) === String(stepId));
-        if (!step) return;
-
-        const isPrimary = ['For Signature', 'For Review'].includes(step.step_name);
-
-        setFormData(prev => {
-            let current = (prev.step_ids || []).map(id => String(id));
-            const target = String(stepId);
-
-            if (isPrimary) {
-                // Radio behavior: Remove other primary steps
-                const primaryStepIds = steps.filter(s => ['For Signature', 'For Review'].includes(s.step_name)).map(s => String(s.id));
-                const filtered = current.filter(id => !primaryStepIds.includes(id));
-                
-                // Toggle behavior for primary (if you click the same one it unselects, or just stays selected)
-                if (current.includes(target)) {
-                    // If user clicks the already selected radio, we can unselect to hide the VEM/AEVM options
-                    return { ...prev, step_ids: filtered };
-                }
-                return { ...prev, step_ids: [...filtered, target] };
-            } else {
-                // Checkbox behavior for VEM/AEVM
-                if (current.includes(target)) {
-                    return { ...prev, step_ids: current.filter(id => id !== target) };
-                } else {
-                    return { ...prev, step_ids: [...current, target] };
-                }
-            }
-        });
-    };
-
-    const isStepSelected = (stepId) => (formData.step_ids || []).map(id => String(id)).includes(String(stepId));
-
-    const hasTriggerStep = () => {
-        const triggerStepNames = ['For Signature', 'For Review'];
-        const triggerStepIds = steps.filter(s => triggerStepNames.includes(s.step_name)).map(s => String(s.id));
-        return (formData.step_ids || []).some(id => triggerStepIds.includes(String(id)));
     };
 
 
@@ -455,42 +417,20 @@ export default function NewLetter() {
                                         Group
                                     </label>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        {steps.filter(s => ['For Signature', 'For Review'].includes(s.step_name)).map(step => (
+                                        {steps.map(step => (
                                             <label
                                                 key={step.id}
-                                                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group ${isStepSelected(step.id) ? 'bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800' : 'bg-gray-50 border-transparent dark:bg-white/5 hover:border-gray-200 dark:hover:border-white/10'}`}
+                                                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group ${String(formData.step_id) === String(step.id) ? 'bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800' : 'bg-gray-50 border-transparent dark:bg-white/5 hover:border-gray-200 dark:hover:border-white/10'}`}
                                             >
                                                 <input
                                                     type="radio"
-                                                    checked={isStepSelected(step.id)}
-                                                    onChange={() => toggleStep(step.id)}
-                                                    onClick={(e) => {
-                                                        // This allows unselecting the radio by clicking it again
-                                                        if (isStepSelected(step.id)) {
-                                                            toggleStep(step.id);
-                                                            e.preventDefault();
-                                                        }
-                                                    }}
+                                                    name="step_id"
+                                                    value={step.id}
+                                                    checked={String(formData.step_id) === String(step.id)}
+                                                    onChange={e => setFormData({ ...formData, step_id: e.target.value })}
                                                     className="w-4 h-4 text-orange-500 focus:ring-orange-500 border-gray-300 dark:bg-black/40"
                                                 />
-                                                <span className={`text-[10px] font-black uppercase tracking-tight transition-colors ${isStepSelected(step.id) ? 'text-orange-600' : 'text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300'}`}>
-                                                    {step.step_name}
-                                                </span>
-                                            </label>
-                                        ))}
-
-                                        {hasTriggerStep() && steps.filter(s => ['VEM Letter', 'AEVM Letter'].includes(s.step_name)).map(step => (
-                                            <label
-                                                key={step.id}
-                                                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group ${isStepSelected(step.id) ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' : 'bg-gray-50 border-transparent dark:bg-white/5 hover:border-gray-200 dark:hover:border-white/10'}`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isStepSelected(step.id)}
-                                                    onChange={() => toggleStep(step.id)}
-                                                    className="w-4 h-4 text-blue-500 focus:ring-blue-500 border-gray-300 dark:bg-black/40 rounded shadow-sm"
-                                                />
-                                                <span className={`text-[10px] font-black uppercase tracking-tight transition-colors ${isStepSelected(step.id) ? 'text-blue-600' : 'text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300'}`}>
+                                                <span className={`text-[10px] font-black uppercase tracking-tight transition-colors ${String(formData.step_id) === String(step.id) ? 'text-orange-600' : 'text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300'}`}>
                                                     {step.step_name}
                                                 </span>
                                             </label>

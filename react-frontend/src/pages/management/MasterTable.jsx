@@ -350,8 +350,11 @@ export default function MasterTable() {
                 updatedLetter.scanned_copy = uploadRes.data.file_path;
             }
 
-            // 1. Update core letter details
-            await letterService.update(updatedLetter.id, updatedLetter);
+            // 1. Update core letter details with user context for logging
+            await letterService.update(updatedLetter.id, {
+                ...updatedLetter,
+                user_id: user?.id
+            });
 
             // 2. Update/Add Assignment for the new step if it changed
             if (updatedLetter.currentStepId) {
@@ -1300,43 +1303,84 @@ export default function MasterTable() {
                                 <p className="text-center text-gray-400 py-20 uppercase font-black tracking-widest text-[10px]">No activity recorded yet.</p>
                             ) : (
                                 <div className="relative">
-                                    {[...trackingLetter.logs]
-                                        .sort((a, b) => new Date(b.timestamp || b.log_date || 0) - new Date(a.timestamp || a.log_date || 0))
-                                        .map((log, i, arr) => {
-                                            const logDate = new Date(log.timestamp || log.log_date);
-                                            const isOldest = i === arr.length - 1;
-                                            
-                                            // Mapping based on Cheat Sheet
+                                    {(() => {
+                                        // 1. Sort ASCENDING (oldest to newest) to process progression
+                                        const sorted = [...trackingLetter.logs].sort((a, b) =>
+                                            new Date(a.timestamp || a.log_date || 0) - new Date(b.timestamp || b.log_date || 0)
+                                        );
+
+                                        // 2. Map and Filter Redundant Consecutive States
+                                        const uniqueSequence = [];
+                                        let lastStateKey = "";
+
+                                        sorted.forEach((log) => {
+                                            const statusComp = (log.status?.status_name || "").trim().toUpperCase();
+                                            const stepComp = (log.step?.step_name || "").trim().toUpperCase();
+                                            const actionType = (log.action_type || "").trim().toUpperCase();
+                                            const deptComp = (log.department?.dept_code || "").trim().toUpperCase();
+                                            const logDetails = (log.log_details || "");
+
                                             let displayHeading = "";
                                             let displaySubheading = "";
-                                            
-                                            const deptCode = log.department?.dept_code || "";
-                                            const statusName = log.status?.status_name || "";
-                                            const actionType = log.action_type || "";
-                                            
-                                            if (isOldest) {
+
+                                            // Priority Status Checks (Bypass workflow matrix)
+                                            const isPriority = statusComp.includes('FILED') || actionType.includes('FILED') ||
+                                                statusComp.includes('HOLD') || actionType.includes('HOLD') ||
+                                                actionType.includes('ENDORSE');
+
+                                            if (isPriority) {
+                                                displayHeading = log.status?.status_name || log.action_type || actionType;
+                                                displaySubheading = log.metadata?.location || logDetails || "";
+                                            }
+                                            // Workflow Logic Matrix Implementation
+                                            else if (stepComp === 'VEM LETTER') {
+                                                displayHeading = "Office of the Executive Minister";
+                                            } else if (stepComp === 'AEVM LETTER') {
+                                                displayHeading = "Office of the Deputy Executive Minister";
+                                            } else if (stepComp === 'FOR SIGNATURE' || stepComp === 'FOR REVIEW') {
+                                                // INCLUSIVE check for REVIEW status to handle "Review", "In Review", "Reviewing", etc.
+                                                if (statusComp === 'REVIEW' || statusComp.includes('REVIEW')) {
+                                                    displayHeading = "ATG";
+                                                    displaySubheading = "Being Reviewed";
+                                                } else {
+                                                    displayHeading = "Processing";
+                                                    displaySubheading = "For Incoming";
+                                                }
+                                            } else if (statusComp === 'PENDING') {
                                                 displayHeading = "Processing";
                                                 displaySubheading = "For Incoming";
-                                            } else if (deptCode === 'ATG') {
-                                                displayHeading = "ATG";
-                                                displaySubheading = log.metadata?.marginal_note || log.log_details || 'Being Reviewed';
-                                            } else if (deptCode === 'EVM') {
-                                                displayHeading = "Office of the Executive Minister";
-                                                displaySubheading = log.log_details;
-                                            } else if (statusName === 'Filed' || actionType === 'Filed') {
-                                                displayHeading = "FILE";
-                                                displaySubheading = log.metadata?.location || log.log_details;
                                             } else {
-                                                const deptLabel = log.department?.dept_code || log.department?.dept_name || 'System';
-                                                const stepLabel = log.step?.step_name || actionType;
-                                                displayHeading = `${deptLabel} - ${stepLabel}`;
-                                                displaySubheading = actionType;
+                                                if (deptComp === 'ATG') {
+                                                    displayHeading = "ATG";
+                                                    displaySubheading = logDetails || "Being Reviewed";
+                                                } else if (deptComp === 'EVM') {
+                                                    displayHeading = "Office of the Executive Minister";
+                                                    displaySubheading = logDetails || actionType;
+                                                } else {
+                                                    displayHeading = log.department?.dept_code || log.step?.step_name || log.action_type || "Activity";
+                                                    displaySubheading = logDetails || log.action_type || "";
+                                                }
                                             }
 
+                                            // Detect Duplicate State
+                                            const currentStateKey = `${displayHeading}-${displaySubheading}`.toUpperCase();
+                                            if (currentStateKey !== lastStateKey || isPriority) {
+                                                uniqueSequence.push({
+                                                    ...log,
+                                                    displayHeading,
+                                                    displaySubheading
+                                                });
+                                                lastStateKey = currentStateKey;
+                                            }
+                                        });
+
+                                        // 3. Reverse (descending) for display: newest at top
+                                        return uniqueSequence.reverse().map((log, i, arr) => {
+                                            const logDate = new Date(log.timestamp || log.log_date);
                                             const isLastItem = i === arr.length - 1;
+
                                             return (
                                                 <div key={i} className="relative grid grid-cols-[90px_auto_1fr] items-start gap-3 mb-8">
-                                                    {/* Left: Date & Time */}
                                                     <div className="text-right pt-0.5">
                                                         <p className="text-xs font-black text-slate-800 dark:text-slate-200">
                                                             {logDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
@@ -1346,7 +1390,6 @@ export default function MasterTable() {
                                                         </p>
                                                     </div>
 
-                                                    {/* Center: Dashed line + circle */}
                                                     <div className="flex flex-col items-center">
                                                         <div className="w-5 h-5 rounded-full border-2 border-orange-400 bg-white dark:bg-[#141414] z-10 flex items-center justify-center shrink-0">
                                                             <div className="w-2 h-2 rounded-full bg-orange-400" />
@@ -1354,19 +1397,18 @@ export default function MasterTable() {
                                                         {!isLastItem && <div className="w-px flex-1 mt-1 border-l-2 border-dashed border-gray-200 dark:border-[#333] min-h-[2rem]" />}
                                                     </div>
 
-                                                    {/* Right: Mapped Display */}
                                                     <div className="pt-0.5">
                                                         <p className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-tight">
-                                                            {displayHeading}
+                                                            {log.displayHeading}
                                                         </p>
                                                         <p className="text-[10px] text-gray-500 font-medium mt-0.5 whitespace-pre-wrap">
-                                                            {displaySubheading}
+                                                            {log.displaySubheading}
                                                         </p>
                                                     </div>
                                                 </div>
                                             );
-                                        })
-                                    }
+                                        });
+                                    })()}
                                 </div>
                             )}
                         </div>
