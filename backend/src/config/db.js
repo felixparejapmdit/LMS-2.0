@@ -10,7 +10,7 @@ const storage = envStorage
 const sequelize = new Sequelize({
     dialect: 'sqlite',
     storage,
-    logging: console.log,
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
     pool: {
         max: 20, // Allowing concurrent reads (essential for WAL mode performance)
         min: 1,

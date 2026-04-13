@@ -238,11 +238,14 @@ export const AuthProvider = ({ children }) => {
                 await new Promise(r => setTimeout(r, 100));
             }
 
-            const meId = await directus.request(readMe({ fields: ['id'] }));
-            console.log(`[BOOT] Directus readMe resolved in ${Date.now() - checkStartTime}ms`);
-            const response = await axios.get(`${BACKEND_URL}/auth/access-config?userId=${meId.id}`);
-            console.log(`[BOOT] Backend access-config resolved in ${Date.now() - checkStartTime}ms`);
-            const { user: me, permissions: perms } = response.data;
+            // Parallelize critical auth resolution
+            const [meIdRes, configRes] = await Promise.all([
+                directus.request(readMe({ fields: ['id'] })),
+                axios.get(`${BACKEND_URL}/auth/access-config`) 
+            ]);
+            
+            console.log(`[BOOT] Auth parallel resolve in ${Date.now() - checkStartTime}ms`);
+            const { user: me, permissions: perms } = configRes.data;
 
             console.log("AuthContext: session refresh successful:", me.username);
             localStorage.setItem(LAST_REFRESH_KEY, Date.now().toString());
@@ -266,16 +269,13 @@ export const AuthProvider = ({ children }) => {
                 }
             });
 
-            // If Access Manager, check setup status
+            // If Access Manager, check setup status - NON-BLOCKING
             const roleName = (me.roleData?.name || me.role || '').toString().toUpperCase();
             if (roleName === 'ACCESS MANAGER') {
-                try {
-                    const deptId = me.dept_id?.id || me.dept_id;
-                    const setup = await axios.get(`${BACKEND_URL}/role-permissions/setup-status?dept_id=${deptId}`);
-                    dispatch({ type: 'SET_SETUP_STATUS', payload: !!setup.data?.isSetupComplete });
-                } catch (e) {
-                    console.error("Failed to check setup status", e);
-                }
+                const deptId = me.dept_id?.id || me.dept_id;
+                axios.get(`${BACKEND_URL}/role-permissions/setup-status?dept_id=${deptId}`)
+                    .then(setup => dispatch({ type: 'SET_SETUP_STATUS', payload: !!setup.data?.isSetupComplete }))
+                    .catch(e => console.error("Failed to check setup status", e));
             } else {
                 dispatch({ type: 'SET_SETUP_STATUS', payload: true });
             }
@@ -326,16 +326,13 @@ export const AuthProvider = ({ children }) => {
 
             localStorage.setItem(LAST_REFRESH_KEY, Date.now().toString());
 
-            // Check setup status for Access Manager
+            // Check setup status - NON-BLOCKING
             const roleName = (me.roleData?.name || me.role || '').toString().toUpperCase();
             if (roleName === 'ACCESS MANAGER') {
-                try {
-                    const deptId = me.dept_id?.id || me.dept_id;
-                    const setup = await axios.get(`${BACKEND_URL}/role-permissions/setup-status?dept_id=${deptId}`);
-                    dispatch({ type: 'SET_SETUP_STATUS', payload: !!setup.data?.isSetupComplete });
-                } catch (e) {
-                    console.error("Failed to check setup status", e);
-                }
+                const deptId = me.dept_id?.id || me.dept_id;
+                axios.get(`${BACKEND_URL}/role-permissions/setup-status?dept_id=${deptId}`)
+                    .then(setup => dispatch({ type: 'SET_SETUP_STATUS', payload: !!setup.data?.isSetupComplete }))
+                    .catch(e => console.error("Failed to check setup status", e));
             } else {
                 dispatch({ type: 'SET_SETUP_STATUS', payload: true });
             }

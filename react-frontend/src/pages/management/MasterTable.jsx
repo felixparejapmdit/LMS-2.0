@@ -184,9 +184,9 @@ export default function MasterTable() {
     };
 
     useEffect(() => {
-        fetchData();
+        if (user?.id) fetchData();
         // eslint-disable-next-line
-    }, [currentPage]);
+    }, [currentPage, user?.id]);
 
     const toggleSelectAll = () => {
         if (selectedIds.length === filteredLetters.length) {

@@ -43,11 +43,6 @@ export const getAssetUrl = (assetId, queryParams = "") => {
 
         const authData = JSON.parse(raw);
         
-        // Handle pending state
-        if (authData.pending) {
-            return url + (queryParams ? (queryParams.startsWith('?') ? queryParams : '?' + queryParams) : '');
-        }
-
         // Robust token extraction (handle various structures: {access_token}, {data: {access_token}}, etc)
         const token = authData.access_token || authData.token || (authData.data && (authData.data.access_token || authData.data.token));
         

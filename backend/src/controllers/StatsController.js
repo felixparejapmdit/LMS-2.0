@@ -309,150 +309,119 @@ class StatsController {
                 where.id = null;
             }
 
-            const allAssignments = await LetterAssignment.findAll({
-                where,
-                include: [
-                    { 
-                        model: Letter, 
-                        as: 'letter', 
-                        include: [
-                            { model: Status, as: 'status' },
-                            { model: Endorsement, as: 'endorsements' }
-                        ] 
-                    },
-                    { model: ProcessStep, as: 'step' }
-                ]
-            });
-
-            const reviewStep = await ProcessStep.findByPk(2);
-            const signatureStep = await ProcessStep.findByPk(1);
-            const reviewName = reviewStep?.step_name || 'For Review';
-            const signatureName = signatureStep?.step_name || 'For Signature';
-
-            const counts = { review: 0, atg_note: 0, signature: 0, vem: 0, avem: 0, pending: 0, hold: 0, empty_entry: 0 };
-
-            allAssignments.forEach(a => {
-                const stepId = a.step_id;
-                const stepName = a.step?.step_name || '';
-                const globalStatus = a.letter?.global_status;
-                const hasTray = a.letter?.tray_id && a.letter.tray_id > 0;
-
-                const isVip = !hasTray && (globalStatus === 2 || a.letter?.status?.status_name === 'ATG Note');
-
-                // For Review
-                if ([1, 8].includes(globalStatus) && stepId === 2 && !hasTray && !isVip) counts.review++;
-
-                // For Signature
-                if ([1, 8].includes(globalStatus) && stepId === 1 && !hasTray && !isVip) counts.signature++;
-
-                // VEM
-                if ([1, 8].includes(globalStatus) && stepName.includes('VEM') && !stepName.includes('AEVM') && !stepName.includes('AEVEM') && stepId !== 1 && stepId !== 2 && !isVip && globalStatus !== 7) counts.vem++;
-
-                // AVEM
-                if ([1, 8].includes(globalStatus) && (stepName.includes('AEVM') || stepName.includes('AEVEM')) && stepId !== 1 && stepId !== 2 && !isVip && globalStatus !== 7) counts.avem++;
-
-                // ATG Note (Incoming (1) or ATG Note (2) and has tray)
-                if ([1, 2].includes(globalStatus) && hasTray) counts.atg_note++;
-
-                // Pending (Incoming (1) or Pending (8) AND No Process Step AND No Tray)
-                if ([1, 8].includes(globalStatus) && !stepId && !hasTray && !isVip) counts.pending++;
-
+            // 3. Perform optimized counts
+            const [
+                reviewCount,
+                signatureCount,
+                holdCount,
+                atgNoteCount,
+                pendingCount,
+                vemCount,
+                avemCount,
+                emptyCount
+            ] = await Promise.all([
+                // Review
+                LetterAssignment.count({
+                    where: { ...where, step_id: 2, '$letter.tray_id$': { [Op.or]: [null, 0] }, '$letter.global_status$': [1, 8] },
+                    include: [{ model: Letter, as: 'letter' }]
+                }),
+                // Signature
+                LetterAssignment.count({
+                    where: { ...where, step_id: 1, '$letter.tray_id$': { [Op.or]: [null, 0] }, '$letter.global_status$': [1, 8] },
+                    include: [{ model: Letter, as: 'letter' }]
+                }),
                 // Hold
-                if (globalStatus === 7 && !isVip) counts.hold++;
-
-                // Empty Entry (from assignments)
-                if (globalStatus !== 6 && globalStatus !== 9 && !isVip) {
-                    const hasNoSenderOrSummary = !a.letter?.sender || a.letter?.sender?.trim() === '' || !a.letter?.summary || a.letter?.summary?.trim() === '';
-                    if (hasNoSenderOrSummary) counts.empty_entry++;
-                }
-            });
-
-            // MUST respect department filter for unassigned counts
-            const unassignedWhere = { global_status: [1, 2, 8] };
-            const unassignedVisibilityClauses = [];
-
-            if (user_id) {
-                unassignedVisibilityClauses.push({ encoder_id: user_id });
-                unassignedVisibilityClauses.push({ sender: user_id });
-                unassignedVisibilityClauses.push({ endorsed: user_id });
-                
-                if (full_name) {
-                    const nameParts = full_name.split(' ').filter(p => p.length > 0);
-                    const nameMatches = [`%${full_name}%`];
-                    if (nameParts.length >= 2) {
-                        nameMatches.push(`%${nameParts[nameParts.length - 1]}, ${nameParts[0]}%`);
-                    }
-                    nameMatches.forEach(match => {
-                        unassignedVisibilityClauses.push({ sender: { [Op.like]: match } });
-                        unassignedVisibilityClauses.push({ endorsed: { [Op.like]: match } });
-                        unassignedVisibilityClauses.push(sequelize.literal(`EXISTS (SELECT 1 FROM endorsements e WHERE e.letter_id = Letter.id AND e.endorsed_to LIKE ${sequelize.escape(match)})`));
+                LetterAssignment.count({
+                    where: { ...where, '$letter.global_status$': 7 },
+                    include: [{ model: Letter, as: 'letter' }]
+                }),
+                // ATG Note (Assigned + Unassigned)
+                (async () => {
+                    const assigned = await LetterAssignment.count({
+                        where: { ...where, '$letter.tray_id$': { [Op.gt]: 0 }, '$letter.global_status$': [1, 2] },
+                        include: [{ model: Letter, as: 'letter' }]
                     });
-                }
-            }
-
-            if (isSuperAdmin) {
-                // Super Admins see everything globally for unassigned letters
-                unassignedVisibilityClauses.push(sequelize.literal('1=1'));
-            } else if (isAdmin) {
-                if (myDeptId) {
-                    const targetDeptId = isSpecificDept ? department_id : myDeptId;
-                    unassignedVisibilityClauses.push({
+                    const unassigned = await Letter.count({
+                        where: { ...unassignedWhere, tray_id: { [Op.gt]: 0 }, global_status: [1, 2], id: { [Op.notIn]: sequelize.literal('(SELECT letter_id FROM letter_assignments)') } }
+                    });
+                    return assigned + unassigned;
+                })(),
+                // Pending (Assigned + Unassigned)
+                (async () => {
+                    const assigned = await LetterAssignment.count({
+                        where: { ...where, step_id: null, '$letter.tray_id$': { [Op.or]: [null, 0] }, '$letter.global_status$': [1, 8] },
+                        include: [{ model: Letter, as: 'letter' }]
+                    });
+                    const unassigned = await Letter.count({
+                        where: { ...unassignedWhere, tray_id: { [Op.or]: [null, 0] }, global_status: [1, 8], id: { [Op.notIn]: sequelize.literal('(SELECT letter_id FROM letter_assignments)') } }
+                    });
+                    return assigned + unassigned;
+                })(),
+                // VEM
+                LetterAssignment.count({
+                    where: { 
+                        ...where, 
+                        '$step.step_name$': { [Op.like]: '%VEM%' },
+                        [Op.and]: [
+                            { '$step.step_name$': { [Op.notLike]: '%AEVM%' } },
+                            { '$step.step_name$': { [Op.notLike]: '%AEVEM%' } }
+                        ],
+                        step_id: { [Op.notIn]: [1, 2] },
+                        '$letter.global_status$': [1, 8]
+                    },
+                    include: [{ model: Letter, as: 'letter' }, { model: ProcessStep, as: 'step' }]
+                }),
+                // AVEM
+                LetterAssignment.count({
+                    where: { 
+                        ...where, 
                         [Op.or]: [
-                            { dept_id: String(targetDeptId) },
-                            { dept_id: { [Op.or]: [null, 0] } } // Include items with no department yet
-                        ]
+                            { '$step.step_name$': { [Op.like]: '%AEVM%' } },
+                            { '$step.step_name$': { [Op.like]: '%AEVEM%' } }
+                        ],
+                        step_id: { [Op.notIn]: [1, 2] },
+                        '$letter.global_status$': [1, 8]
+                    },
+                    include: [{ model: Letter, as: 'letter' }, { model: ProcessStep, as: 'step' }]
+                }),
+                // Empty (Empty sender/summary)
+                (async () => {
+                    const assigned = await LetterAssignment.count({
+                        where: { 
+                            ...where, 
+                            '$letter.global_status$': { [Op.notIn]: [6, 9] },
+                            [Op.or]: [
+                                { '$letter.sender$': { [Op.or]: [null, '', ' '] } },
+                                { '$letter.summary$': { [Op.or]: [null, '', ' '] } }
+                            ]
+                        },
+                        include: [{ model: Letter, as: 'letter' }]
                     });
-                    unassignedVisibilityClauses.push(sequelize.literal(`EXISTS (
-                        SELECT 1 FROM directus_users du
-                        WHERE du.dept_id = ${sequelize.escape(String(targetDeptId))}
-                        AND (
-                            du.id = Letter.encoder_id
-                            OR du.id = Letter.sender
-                            OR du.id = Letter.endorsed
-                            OR Letter.sender LIKE ('%' || du.first_name || '%')
-                            OR Letter.sender LIKE ('%' || du.last_name || '%')
-                            OR Letter.endorsed LIKE ('%' || du.first_name || '%')
-                            OR Letter.endorsed LIKE ('%' || du.last_name || '%')
-                        )
-                    )`));
-                }
-            }
-
-            if (unassignedVisibilityClauses.length > 0) {
-                unassignedWhere[Op.or] = unassignedVisibilityClauses;
-            } else if (!isAdmin) {
-                unassignedWhere.id = null;
-            }
-
-            const unassignedLetters = await Letter.findAll({
-                where: unassignedWhere,
-                include: [{
-                    model: LetterAssignment,
-                    as: 'assignments',
-                    required: false
-                }]
-            });
-            const purelyUnassigned = unassignedLetters.filter(l => (l.assignments || []).length === 0);
-            purelyUnassigned.forEach(l => {
-                const hasTray = l.tray_id && l.tray_id > 0;
-                const globalStatus = l.global_status;
-
-                if (hasTray) {
-                    // ATG notes can be status 1 or 2
-                    if ([1, 2].includes(globalStatus)) counts.atg_note++;
-                } else {
-                    // Pending/Mock assignments count for status 1 and 8
-                    if ([1, 8].includes(globalStatus)) {
-                        const hasNoSenderOrSummary = !l.sender || l.sender.trim() === '' || !l.summary || l.summary.trim() === '';
-                        if (hasNoSenderOrSummary) {
-                            counts.empty_entry++;
+                    const unassigned = await Letter.count({
+                        where: { 
+                            ...unassignedWhere, 
+                            global_status: { [Op.notIn]: [6, 9] },
+                            [Op.or]: [
+                                { sender: { [Op.or]: [null, '', ' '] } },
+                                { summary: { [Op.or]: [null, '', ' '] } }
+                            ],
+                            id: { [Op.notIn]: sequelize.literal('(SELECT letter_id FROM letter_assignments)') }
                         }
-                        counts.pending++;
-                    }
-                }
-            });
+                    });
+                    return assigned + unassigned;
+                })()
+            ]);
 
-            res.json(counts);
+            res.json({
+                review: reviewCount,
+                signature: signatureCount,
+                hold: holdCount,
+                atg_note: atgNoteCount,
+                pending: pendingCount,
+                vem: vemCount,
+                avem: avemCount,
+                empty_entry: emptyCount
+            });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }

@@ -279,20 +279,17 @@ class LetterAssignmentController {
                     }
                 }
 
-                // Optimization: Use subQuery false to find purely unassigned via SQL directly
-                const unassignedCheck = await Letter.findAll({
+                // Optimization: Use count directly for purely unassigned
+                const purelyUnassignedCount = await Letter.count({
                     where: {
                         ...unassignedWhere,
                         id: { [Op.notIn]: sequelize.literal('(SELECT letter_id FROM letter_assignments WHERE letter_id IS NOT NULL)') }
-                    },
-                    attributes: ['id'], // We only need count for paging
-                    transaction: null
+                    }
                 });
-
-                const purelyUnassignedCount = unassignedCheck.length;
+                
                 totalCount += purelyUnassignedCount;
 
-                // Only fetch mock records if the current page actually covers them (this is complex, simplified for now)
+                // Only fetch mock records if the current page actually covers them
                 if (finalAssignments.length < queryLimit && purelyUnassignedCount > 0) {
                     const moreNeeded = queryLimit - finalAssignments.length;
                     const purelyUnassigned = await Letter.findAll({
