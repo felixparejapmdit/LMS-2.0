@@ -309,6 +309,62 @@ class StatsController {
                 where.id = null;
             }
 
+            // 2.5 Prepare visibility for unassigned letters (pure letters)
+            const unassignedWhere = { global_status: [1, 2, 8] };
+            const unassignedVisibilityClauses = [];
+
+            if (user_id) {
+                unassignedVisibilityClauses.push({ encoder_id: user_id });
+                unassignedVisibilityClauses.push({ sender: user_id });
+                unassignedVisibilityClauses.push({ endorsed: user_id });
+                
+                if (full_name) {
+                    const nameParts = full_name.split(' ').filter(p => p.length > 0);
+                    const nameMatches = [`%${full_name}%`];
+                    if (nameParts.length >= 2) {
+                        nameMatches.push(`%${nameParts[nameParts.length - 1]}, ${nameParts[0]}%`);
+                    }
+                    nameMatches.forEach(match => {
+                        unassignedVisibilityClauses.push({ sender: { [Op.like]: match } });
+                        unassignedVisibilityClauses.push({ endorsed: { [Op.like]: match } });
+                        unassignedVisibilityClauses.push(sequelize.literal(`EXISTS (SELECT 1 FROM endorsements e WHERE e.letter_id = Letter.id AND e.endorsed_to LIKE ${sequelize.escape(match)})`));
+                    });
+                }
+            }
+
+            if (isSuperAdmin) {
+                unassignedVisibilityClauses.push(sequelize.literal('1=1'));
+            } else if (isAdmin) {
+                if (myDeptId) {
+                    const targetDeptId = isSpecificDept ? department_id : myDeptId;
+                    unassignedVisibilityClauses.push({
+                        [Op.or]: [
+                            { dept_id: String(targetDeptId) },
+                            { dept_id: { [Op.or]: [null, 0] } } 
+                        ]
+                    });
+                    unassignedVisibilityClauses.push(sequelize.literal(`EXISTS (
+                        SELECT 1 FROM directus_users du
+                        WHERE du.dept_id = ${sequelize.escape(String(targetDeptId))}
+                        AND (
+                            du.id = Letter.encoder_id
+                            OR du.id = Letter.sender
+                            OR du.id = Letter.endorsed
+                            OR Letter.sender LIKE ('%' || du.first_name || '%')
+                            OR Letter.sender LIKE ('%' || du.last_name || '%')
+                            OR Letter.endorsed LIKE ('%' || du.first_name || '%')
+                            OR Letter.endorsed LIKE ('%' || du.last_name || '%')
+                        )
+                    )`));
+                }
+            }
+
+            if (unassignedVisibilityClauses.length > 0) {
+                unassignedWhere[Op.or] = unassignedVisibilityClauses;
+            } else if (!isSuperAdmin) {
+                unassignedWhere.id = null;
+            }
+
             // 3. Perform optimized counts
             const [
                 reviewCount,
