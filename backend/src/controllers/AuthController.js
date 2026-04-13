@@ -172,12 +172,12 @@ class AuthController {
                 : Promise.resolve(null);
 
             // STEP 5: WAIT FOR PERMISSIONS + EXTENDED TIMEOUT FOR TOKEN
-            // 2s is enough even for slow cold starts but fast enough for UX
+            // 5s is a good balance: users wait a bit more but get a fully working session with assets enabled
             const [permsResult, directusAuth] = await Promise.all([
                 permissionsPromise,
                 Promise.race([
                     directusAuthPromise,
-                    new Promise(resolve => setTimeout(() => resolve('PENDING'), 2000))
+                    new Promise(resolve => setTimeout(() => resolve('PENDING'), 5000))
                 ])
             ]);
 
