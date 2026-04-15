@@ -263,30 +263,7 @@ export default function ResumenPage() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
-                            <div className="hidden sm:flex items-center gap-2">
-                                <form onSubmit={(e) => { e.preventDefault(); handleAddLetter(); }} className="relative">
-                                    <input
-                                        type="text"
-                                        placeholder="LMS_ID..."
-                                        value={lmsIdInput}
-                                        onChange={(e) => setLmsIdInput(e.target.value)}
-                                        className="pl-4 pr-10 py-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-[#333] rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-40 transition-all uppercase"
-                                    />
-                                    <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-600">
-                                        {isAddingLetter ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                                    </button>
-                                    {modalError && <span className="absolute -bottom-5 left-0 text-[8px] text-red-500 font-black uppercase">{modalError}</span>}
-                                </form>
-                                <button
-                                    onClick={showScanner ? stopScanner : startScanner}
-                                    className={`p-2 rounded-xl border transition-all flex items-center gap-2 ${showScanner ? 'bg-red-50 border-red-100 text-red-600' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
-                                >
-                                    {showScanner ? <X className="w-4 h-4" /> : <QrCode className="w-4 h-4" />}
-                                    <span className="text-[10px] font-black uppercase tracking-widest">{showScanner ? 'Cancel' : 'Scan QR'}</span>
-                                </button>
-                            </div>
-
+                        <div className="flex items-center gap-4 text-gray-400">
                             <button
                                 onClick={() => {
                                     const sync = async () => {
@@ -301,29 +278,10 @@ export default function ResumenPage() {
                                     };
                                     sync();
                                 }}
-                                className="p-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-all text-gray-400"
+                                className="p-2.5 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-all text-gray-500 border border-slate-100 dark:border-white/5"
                                 title="Sync Data"
                             >
                                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                            </button>
-
-                            <div className="h-4 w-px bg-slate-200 dark:bg-white/10" />
-
-                            <button
-                                onClick={() => window.print()}
-                                className="p-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2"
-                            >
-                                <Printer className="w-4 h-4" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Print</span>
-                            </button>
-
-                            <button
-                                onClick={handleAtgViewBulk}
-                                disabled={modalLetters.length === 0 || loading}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2"
-                            >
-                                {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowRight className="w-3 h-3" />}
-                                ATG Review
                             </button>
                         </div>
                     </header>
@@ -355,7 +313,7 @@ export default function ResumenPage() {
                                 {/* Print Header */}
                                 <div className="hidden print:flex flex-col mb-8 border-b-2 border-slate-900 pb-4">
                                     <div className="flex justify-between items-end">
-                                        <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Correspondence Summary</h2>
+                                        <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Resumen</h2>
                                         <div className="text-right">
                                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mr-2">Date:</span>
                                             <span className="text-xs font-bold text-slate-700">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
@@ -364,8 +322,8 @@ export default function ResumenPage() {
                                 </div>
 
                                 <div className="flex-1 p-8 lg:p-12 flex flex-col">
-                                    {/* Dashboard Info Section (Left-aligned) */}
-                                    <div className="mb-8 print:hidden">
+                                    {/* Dashboard Info Section */}
+                                    <div className="mb-8 print:hidden flex items-end justify-between">
                                         <div className="flex flex-col gap-2 max-w-xs">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prepared by:</label>
                                             <input
@@ -373,8 +331,14 @@ export default function ResumenPage() {
                                                 value={preparedBy}
                                                 onChange={(e) => setPreparedBy(e.target.value)}
                                                 placeholder="Enter name..."
-                                                className="px-4 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500/20 outline-none transition-all uppercase"
+                                                className="px-6 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all uppercase text-slate-600 dark:text-slate-300"
                                             />
+                                        </div>
+                                        <div className="text-right flex flex-col items-end gap-1">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700">Printed:</span>
+                                            <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight">
+                                                {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                            </span>
                                         </div>
                                     </div>
 
@@ -452,6 +416,54 @@ export default function ResumenPage() {
                                             )}
                                         </tbody>
                                     </table>
+
+                                    {/* Action Buttons Below Table */}
+                                    <div className="mt-12 flex items-center gap-4 print:hidden">
+                                        {/* 1. Print */}
+                                        <button
+                                            onClick={() => window.print()}
+                                            className="px-6 py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2 group"
+                                        >
+                                            <Printer className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Print</span>
+                                        </button>
+
+                                        {/* 2. Add LMS ID */}
+                                        <div className="flex items-center gap-2">
+                                            <form onSubmit={(e) => { e.preventDefault(); handleAddLetter(); }} className="relative flex items-center">
+                                                <input
+                                                    type="text"
+                                                    placeholder="LMS_ID..."
+                                                    value={lmsIdInput}
+                                                    onChange={(e) => setLmsIdInput(e.target.value)}
+                                                    className="pl-4 pr-10 py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-[#333] rounded-2xl text-[10px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48 transition-all uppercase"
+                                                />
+                                                <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-600 hover:scale-110 transition-transform">
+                                                    {isAddingLetter ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-4 h-4" />}
+                                                </button>
+                                                {modalError && <span className="absolute -bottom-5 left-0 text-[8px] text-red-500 font-black uppercase whitespace-nowrap">{modalError}</span>}
+                                            </form>
+                                        </div>
+
+                                        {/* 3. Scan QR */}
+                                        <button
+                                            onClick={showScanner ? stopScanner : startScanner}
+                                            className={`px-6 py-3 rounded-2xl border transition-all flex items-center gap-2 ${showScanner ? 'bg-red-50 border-red-100 text-red-600' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 group'}`}
+                                        >
+                                            {showScanner ? <X className="w-4 h-4" /> : <QrCode className="w-4 h-4 group-hover:scale-110 transition-transform" />}
+                                            <span className="text-[10px] font-black uppercase tracking-widest">{showScanner ? 'Cancel' : 'Scan QR'}</span>
+                                        </button>
+
+                                        {/* 4. ATG Review */}
+                                        <button
+                                            onClick={handleAtgViewBulk}
+                                            disabled={modalLetters.length === 0 || loading}
+                                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-blue-500/20 flex items-center gap-3 group"
+                                        >
+                                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
+                                            ATG Review
+                                        </button>
+                                    </div>
 
                                     {/* Print Footer / Signatures */}
                                     <div className="hidden print:block mt-20 pt-12 border-t-2 border-slate-900">

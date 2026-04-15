@@ -175,14 +175,15 @@ class LetterController {
 
     static async getPreviewIds(req, res) {
         try {
+            const { prefix = 'LMS' } = req.query;
             const now = new Date();
             const yearStr = now.getFullYear().toString();
             const shortYear = yearStr.slice(-2);
             const ymd = yearStr + (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0');
 
-            // Find counters via Max sequence
+            // Find counters via Max sequence for the specific prefix
             const lastYearEntry = await Letter.findOne({
-                where: { lms_id: { [Op.like]: `LMS${shortYear}-%` } },
+                where: { lms_id: { [Op.like]: `${prefix}${shortYear}-%` } },
                 order: [['lms_id', 'DESC']]
             });
 
@@ -207,7 +208,7 @@ class LetterController {
                 if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
             }
 
-            const lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, '0')}`;
+            const lms_id = `${prefix}${shortYear}-${annualSequence.toString().padStart(5, '0')}`;
             const entry_id = `${ymd}${dailySequence.toString().padStart(3, '0')}`;
 
             res.json({ lms_id, entry_id });
@@ -387,7 +388,7 @@ class LetterController {
             }
 
             const letterData = {
-                lms_id,
+                lms_id: req.body.lms_id || lms_id,
                 entry_id,
                 date_received: receivedDate,
                 sender: sender || 'Unknown Sender',

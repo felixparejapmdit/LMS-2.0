@@ -56,7 +56,7 @@ export default function NewLetter() {
     const [persons, setPersons] = useState([]);
     const [isAttachmentDropdownOpen, setIsAttachmentDropdownOpen] = useState(false);
     const [predictedLmsId, setPredictedLmsId] = useState("Generating...");
-
+    const [selectedDept, setSelectedDept] = useState("");
     const [formData, setFormData] = useState({
         date_received: new Date().toISOString().slice(0, 16), // Use datetime-local format
         sender: "",
@@ -85,6 +85,7 @@ export default function NewLetter() {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const fileInputRef = useRef(null);
     const suggestionRef = useRef(null);
+    const scrollContainerRef = useRef(null);
 
     const [error, setError] = useState("");
     const canField = access?.canField || (() => true);
@@ -175,6 +176,26 @@ export default function NewLetter() {
         fetchRefs();
     }, [user]);
 
+    useEffect(() => {
+        const fetchNextId = async () => {
+            let prefix = 'LMS';
+            if (selectedDept && selectedDept.toUpperCase() === "ATG'S OFFICE") {
+                prefix = 'ATG';
+            }
+            
+            try {
+                const previews = await letterService.getPreviewIds(prefix);
+                if (previews) {
+                    setPredictedLmsId(previews.lms_id);
+                }
+            } catch (err) {
+                console.error("Failed to fetch next ID for prefix:", prefix, err);
+            }
+        };
+        
+        fetchNextId();
+    }, [selectedDept]);
+
     // Inaccessibility check for Access Manager
     useEffect(() => {
         if (!user) return;
@@ -238,12 +259,19 @@ export default function NewLetter() {
             if (isPrimary) {
                 // Radio behavior: Remove other primary steps
                 const primaryStepIds = steps.filter(s => ['For Signature', 'For Review'].includes(s.step_name)).map(s => String(s.id));
-                const filtered = current.filter(id => !primaryStepIds.includes(id));
+                const secondaryStepIds = steps.filter(s => ['VEM Letter', 'AEVM Letter'].includes(s.step_name)).map(s => String(s.id));
                 
-                // Toggle behavior for primary (if you click the same one it unselects, or just stays selected)
+                let filtered = current.filter(id => !primaryStepIds.includes(id));
+                
+                // If we are selecting 'For Signature', we must ALSO clear VEM/AEVM letters
+                if (step.step_name === 'For Signature') {
+                    filtered = filtered.filter(id => !secondaryStepIds.includes(id));
+                }
+
                 if (current.includes(target)) {
-                    // If user clicks the already selected radio, we can unselect to hide the VEM/AEVM options
-                    return { ...prev, step_ids: filtered };
+                    // Clicking the already selected radio: unselect it (and clear secondaries just in case)
+                    const fullyFiltered = current.filter(id => !primaryStepIds.includes(id) && !secondaryStepIds.includes(id));
+                    return { ...prev, step_ids: fullyFiltered };
                 }
                 return { ...prev, step_ids: [...filtered, target] };
             } else {
@@ -259,10 +287,10 @@ export default function NewLetter() {
 
     const isStepSelected = (stepId) => (formData.step_ids || []).map(id => String(id)).includes(String(stepId));
 
-    const hasTriggerStep = () => {
-        const triggerStepNames = ['For Signature', 'For Review'];
-        const triggerStepIds = steps.filter(s => triggerStepNames.includes(s.step_name)).map(s => String(s.id));
-        return (formData.step_ids || []).some(id => triggerStepIds.includes(String(id)));
+    const hasReviewStep = () => {
+        const reviewStep = steps.find(s => s.step_name === 'For Review');
+        if (!reviewStep) return false;
+        return (formData.step_ids || []).some(id => String(id) === String(reviewStep.id));
     };
 
 
@@ -341,10 +369,45 @@ export default function NewLetter() {
             return;
         }
 
-
-
         setLoading(true);
         setError("");
+
+        // 1. Validate Group Selection (Mandatory Signature or Review)
+        const primarySteps = steps.filter(s => ['For Signature', 'For Review'].includes(s.step_name)).map(s => String(s.id));
+        const hasPrimarySelection = formData.step_ids.some(id => primarySteps.includes(String(id)));
+
+        if (!hasPrimarySelection) {
+            setError("Submission Failed: Either 'For Signature' or 'For Review' must be selected in the Group section.");
+            setLoading(false);
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            return;
+        }
+
+        // 2. Validate VEM/AEVM numbers if corresponding steps are selected
+        const vemStep = steps.find(s => s.step_name === 'VEM Letter');
+        const aevmStep = steps.find(s => s.step_name === 'AEVM Letter');
+        
+        const isVemSelected = formData.step_ids.some(id => String(id) === String(vemStep?.id));
+        const isAevmSelected = formData.step_ids.some(id => String(id) === String(aevmStep?.id));
+
+        if (isVemSelected && !formData.vemcode.trim()) {
+            setError("Submission Failed: VEM Number is required when 'VEM Letter' is selected.");
+            setLoading(false);
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            return;
+        }
+        if (isAevmSelected && !formData.aevm_number.trim()) {
+            setError("Submission Failed: AEVM Number is required when 'AEVM Letter' is selected.");
+            setLoading(false);
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            return;
+        }
 
         try {
             let scannedCopyPath = null;
@@ -377,6 +440,7 @@ export default function NewLetter() {
             const submissionData = {
                 ...formData,
                 attachment_id: Number.isNaN(attachmentId) ? null : attachmentId,
+                lms_id: predictedLmsId,
                 scanned_copy: scannedCopyPath,
                 encoder_id: user.id,
                 dept_id: user.dept_id?.id || user.dept_id
@@ -451,7 +515,10 @@ export default function NewLetter() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-10 custom-scrollbar">
+                <div 
+                    ref={scrollContainerRef}
+                    className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-10 custom-scrollbar"
+                >
                     <form onSubmit={handleSubmit} className="w-full space-y-8">
                         <div className="mb-8">
                             <h2 className={`text-3xl font-bold ${textColor}`}>New Letter</h2>
@@ -475,18 +542,42 @@ export default function NewLetter() {
                                     <h3 className="font-bold">Info</h3>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Letter Code</label>
-                                    <div className="p-3 bg-orange-50/50 dark:bg-orange-950/20 border border-dashed border-orange-200 dark:border-orange-800/40 rounded-xl text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest flex items-center justify-between">
-                                        <span>Reference Code: {predictedLmsId}</span>
-                                        <span className="text-[8px] bg-orange-100 dark:bg-orange-900/40 px-2 py-0.5 rounded-full">(ID)</span>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-1">
+                                            <Building2 className="w-3 h-3 text-blue-400" />
+                                            Departments
+                                        </label>
+                                        <div className="relative">
+                                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 pointer-events-none" />
+                                            <select
+                                                value={selectedDept}
+                                                onChange={(e) => setSelectedDept(e.target.value)}
+                                                className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-orange-500 transition-all ${'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300 uppercase'}`}
+                                            >
+                                                <option value="">Select Department</option>
+                                                {departments.map(d => (
+                                                    <option key={d.id} value={d.dept_name}>{d.dept_name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Reference Code</label>
+                                        <div className="p-2.5 bg-orange-50/50 dark:bg-orange-950/20 border border-dashed border-orange-200 dark:border-orange-800/40 rounded-xl text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest flex items-center justify-between h-[42px]">
+                                            <span>Reference Code: {predictedLmsId}</span>
+                                            <span className="text-[8px] bg-orange-100 dark:bg-orange-900/40 px-2 py-0.5 rounded-full">(ID)</span>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <div className="space-y-4 pt-4 border-t border-dashed border-gray-100 dark:border-[#222]">
-                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-2">
-                                        <Clock className="w-3 h-3 text-orange-400" />
-                                        Group
+                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="w-3 h-3 text-orange-400" />
+                                            Group
+                                        </div>
+                                        <span className="text-[9px] text-red-500 font-black tracking-widest uppercase">Required</span>
                                     </label>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {steps.filter(s => ['For Signature', 'For Review'].includes(s.step_name)).map(step => (
@@ -513,7 +604,7 @@ export default function NewLetter() {
                                             </label>
                                         ))}
 
-                                        {hasTriggerStep() && steps.filter(s => ['VEM Letter', 'AEVM Letter'].includes(s.step_name)).map(step => (
+                                        {hasReviewStep() && steps.filter(s => ['VEM Letter', 'AEVM Letter'].includes(s.step_name)).map(step => (
                                             <label
                                                 key={step.id}
                                                 className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group ${isStepSelected(step.id) ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' : 'bg-gray-50 border-transparent dark:bg-white/5 hover:border-gray-200 dark:hover:border-white/10'}`}
