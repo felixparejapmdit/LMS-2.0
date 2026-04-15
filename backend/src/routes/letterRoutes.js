@@ -7,6 +7,7 @@ router.get('/preview/ids', LetterController.getPreviewIds);
 router.get('/lms-id/:lms_id', LetterController.getByLmsId);
 router.get('/:id', LetterController.getById);
 router.post('/', LetterController.create);
+router.post('/bulk-create-empty', LetterController.bulkCreateEmpty);
 router.put('/:id', LetterController.update);
 router.delete('/:id', LetterController.delete);
 

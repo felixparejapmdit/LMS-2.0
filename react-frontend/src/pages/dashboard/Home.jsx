@@ -26,13 +26,18 @@ import {
     Plus,
     History,
     AlertTriangle,
-    PieChart
+    PieChart,
+    Layers,
+    ArrowRightLeft,
+    ShieldCheck,
+    Contact,
+    Building2
 } from "lucide-react";
 import useAccess from "../../hooks/useAccess";
 import API_BASE from "../../config/apiConfig";
 
 export default function Home() {
-    const { user } = useSession();
+    const { user, isSuperAdmin } = useSession();
     const { layoutStyle, setIsMobileMenuOpen } = useUI();
     const access = useAccess();
     const navigate = useNavigate();
@@ -42,12 +47,15 @@ export default function Home() {
         onlineUsers: 0,
         totalUsers: 0,
         totalPeople: 0,
+        totalDepartments: 0,
         recentTasks: [],
         atgLetters: [],
         atgLettersCount: 0,
         overdueTasks: [],
         recentActivityLogs: [],
-        taskDistribution: []
+        taskDistribution: [],
+        statusDistribution: [],
+        letterTypeDistribution: []
     });
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -55,22 +63,25 @@ export default function Home() {
     const canField = access?.canField || (() => true);
     const canRefresh = canField("home", "refresh_button");
     const canQuickNewLetter = canField("home", "quick_new_letter_button");
-    const canQuickTrays = canField("home", "quick_trays_button");
+    const canQuickTrays = canField("home", "quick_trays_button") || isSuperAdmin;
+    const canQuickSetup = isSuperAdmin;
 
     const fetchStats = async (showRefresh = false, retryCount = 0) => {
         if (!user?.id) return;
         if (showRefresh) setRefreshing(true);
-        
+
         try {
             const deptId = user?.dept_id?.id ?? user?.dept_id ?? null;
             const roleName = user?.roleData?.name || user?.role || '';
             const response = await axios.get(`${API_BASE}/stats/dashboard`, {
                 params: {
+                    user_id: user.id,
                     department_id: deptId,
                     role: roleName
                 }
             });
             setStats(response.data);
+            console.log("[STATS] Dashboard response:", response.data);
         } catch (error) {
             console.error("Error fetching stats:", error.message);
             // Retry for aborted/network issues specifically for Brave stability
@@ -114,105 +125,134 @@ export default function Home() {
         return `${d > 0 ? d + 'd ' : ''}${h}h ${m}m ${s}s`;
     };
 
-    const StatCard = ({ title, value, icon: Icon, colorClass, bgClass, trend }) => (
-        <div className={`p-6 rounded-[2rem] border transition-all hover:shadow-lg ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222] hover:border-gray-200' :
-            layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
-                'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] shadow-sm'
-            }`}>
-            <div className="flex justify-between items-start mb-4">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${bgClass} shrink-0`}>
-                    <Icon className={`w-6 h-6 ${colorClass}`} />
-                </div>
-                {trend && (
-                    <div className="flex items-center gap-1 px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg text-xs font-bold">
-                        <TrendingUp className="w-3 h-3" />
-                        {trend}
-                    </div>
-                )}
+    const StatCard = ({ title, value, icon: Icon, gradientClass, iconColorClass, trend }) => (
+        <div className={`p-6 rounded-[2rem] border relative overflow-hidden transition-all hover:scale-[1.02] hover:shadow-xl ${gradientClass} border-transparent text-white shadow-lg`}>
+            {/* Background Icon with Opacity */}
+            <div className="absolute -right-4 -bottom-4 opacity-20 transform -rotate-12">
+                <Icon className="w-32 h-32" />
             </div>
-            <div>
-                <h3 className={`text-3xl font-black tracking-tight ${'text-slate-900 dark:text-white'}`}>
-                    {value}
-                </h3>
-                <p className={`text-xs font-bold uppercase tracking-widest mt-1 ${'text-slate-400'}`}>
-                    {title}
-                </p>
+            
+            <div className="relative z-10">
+                <div className="flex justify-between items-start mb-6">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-white/20 backdrop-blur-md shrink-0`}>
+                        <Icon className={`w-6 h-6 text-white`} />
+                    </div>
+                    {trend && (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-white/20 backdrop-blur-md text-white rounded-lg text-xs font-bold">
+                            <TrendingUp className="w-3 h-3" />
+                            {trend}
+                        </div>
+                    )}
+                </div>
+                <div>
+                    <h3 className="text-4xl font-black tracking-tight drop-shadow-sm">
+                        {value}
+                    </h3>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] mt-1 opacity-80">
+                        {title}
+                    </p>
+                </div>
             </div>
         </div>
     );
 
+    const colors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'];
+
+    const SummaryChart = ({ title, data, icon: Icon, colorClass = "text-indigo-500" }) => {
+        const total = data?.reduce((acc, d) => acc + d.value, 0) || 0;
+        let cumulativeAngle = 0;
+
+        return (
+            <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
+                <h3 className="text-xs font-black uppercase tracking-widest mb-6 flex items-center gap-2 text-gray-400">
+                    <Icon className={`w-4 h-4 ${colorClass}`} /> {title}
+                </h3>
+                {(!data || data.length === 0) ? (
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-6">No data</p>
+                ) : (
+                    <div className="flex flex-col items-center">
+                        <svg viewBox="0 0 100 100" className="w-28 h-28 -rotate-90 drop-shadow-sm">
+                            <circle cx="50" cy="50" r="40" fill="transparent" className="stroke-slate-100 dark:stroke-[#222]" strokeWidth="15" />
+                            {data.map((d, i) => {
+                                const percentage = total > 0 ? (d.value / total) : 0;
+                                const strokeDasharray = `${percentage * 251.2} 251.2`;
+                                const strokeDashoffset = `-${cumulativeAngle * 251.2}`;
+                                cumulativeAngle += percentage;
+                                return (
+                                    <circle key={d.name} cx="50" cy="50" r="40" fill="transparent" stroke={colors[i % colors.length]} strokeWidth="15"
+                                        strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} className="transition-all duration-1000 ease-out" />
+                                );
+                            })}
+                        </svg>
+                        <div className="mt-6 w-full space-y-2.5">
+                            {data.map((d, i) => (
+                                <div key={d.name} className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: colors[i % colors.length] }}></span>
+                                        <span className="text-gray-500 dark:text-gray-400 line-clamp-1 max-w-[120px]">{d.name}</span>
+                                    </div>
+                                    <span className="text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-white/5 px-2 py-0.5 rounded-lg">{d.value}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     const SideWidgets = () => {
-        let totalStats = stats.taskDistribution?.reduce((s, d) => s + d.value, 0) || 1;
+        const totalStats = stats.taskDistribution?.reduce((acc, d) => acc + d.value, 0) || 0;
         let angle = 0;
-        const colors = ['#3B82F6', '#F97316', '#10B981', '#6366F1', '#8B5CF6', '#EF4444'];
 
         return (
             <div className="space-y-6">
-                {/* Visual Breakdown Donut Chart */}
-                <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
-                    <h3 className="text-xs font-black uppercase tracking-widest mb-6 flex items-center gap-2 text-gray-400">
-                        <PieChart className="w-4 h-4 text-indigo-500" /> Pipeline Stats
-                    </h3>
-                    {stats.taskDistribution?.length === 0 ? (
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-6">No data</p>
-                    ) : (
-                        <div className="flex flex-col items-center">
-                            <svg viewBox="0 0 100 100" className="w-32 h-32 -rotate-90 drop-shadow-sm">
-                                <circle cx="50" cy="50" r="40" fill="transparent" className="stroke-slate-100 dark:stroke-[#222]" strokeWidth="15" />
-                                {stats.taskDistribution.map((d, i) => {
-                                    const percentage = (d.value / totalStats);
-                                    const strokeDasharray = `${percentage * 251.2} 251.2`;
-                                    const strokeDashoffset = `-${angle * 251.2}`;
-                                    angle += percentage;
-                                    return (
-                                        <circle key={d.name} cx="50" cy="50" r="40" fill="transparent" stroke={colors[i % colors.length]} strokeWidth="15"
-                                            strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} className="transition-all duration-1000 ease-out" />
-                                    );
-                                })}
-                            </svg>
-                            <div className="mt-6 w-full space-y-2.5">
-                                {stats.taskDistribution.map((d, i) => (
-                                    <div key={d.name} className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-                                        <div className="flex items-center gap-2">
-                                            <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: colors[i % colors.length] }}></span>
-                                            <span className="text-gray-500 dark:text-gray-400 line-clamp-1 max-w-[120px]">{d.name}</span>
-                                        </div>
-                                        <span className="text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-white/5 px-2 py-0.5 rounded-lg">{d.value}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                <SummaryChart
+                    title="Group Summary"
+                    data={stats.taskDistribution}
+                    icon={PieChart}
+                />
 
-                {/* Overdue Deadlines */}
-                <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-red-100 dark:border-red-900/30' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'}`}>
-                    <h3 className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-red-600 dark:text-red-400">
-                        <AlertTriangle className="w-4 h-4" /> Urgent & Overdue
-                    </h3>
-                    {stats.overdueTasks?.length === 0 ? (
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-4">All clear</p>
-                    ) : (
-                        <div className="space-y-2">
-                            {stats.overdueTasks?.map(t => (
-                                <Link to={`/letter/${t.id}`} key={t.id} className="flex items-center justify-between p-3 bg-white dark:bg-[#111] rounded-xl border border-red-100 dark:border-red-900/30 hover:border-red-300 transition-colors shadow-sm">
-                                    <div className="flex flex-col truncate w-[65%]">
-                                        <span className="text-xs font-black text-slate-800 dark:text-slate-200 truncate">{t.sender}</span>
-                                        <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest truncate">{t.lms_id}</span>
-                                    </div>
-                                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded-lg shadow-sm whitespace-nowrap">
-                                        {Math.floor((new Date() - new Date(t.date_received || t.created_at)) / (1000 * 60 * 60 * 24))} Days
-                                    </span>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
+                <SummaryChart
+                    title="Status Summary"
+                    data={stats.statusDistribution}
+                    icon={Activity}
+                    colorClass="text-emerald-500"
+                />
 
             </div>
         );
     };
+
+    const OverdueWidget = () => (
+        <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-red-100 dark:border-red-900/30' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'}`}>
+            <h3 className="text-xs font-black uppercase tracking-widest mb-1 flex items-center gap-2 text-red-600 dark:text-red-400">
+                <AlertTriangle className="w-4 h-4" /> Urgent & Overdue
+            </h3>
+            <p className="text-[9px] font-bold text-red-900/40 dark:text-red-400/40 uppercase tracking-widest mb-4 leading-relaxed">
+                Pending letters older than 5 days
+            </p>
+            {stats.overdueTasks?.length === 0 ? (
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-4">All clear</p>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {stats.overdueTasks?.map(t => (
+                        <Link to={`/letter/${t.id}`} key={t.id} className="flex items-center justify-between p-3 bg-white dark:bg-[#111] rounded-xl border border-red-100 dark:border-red-900/30 hover:border-red-300 transition-colors shadow-sm">
+                            <div className="flex flex-col truncate w-[65%]">
+                                <span className="text-xs font-black text-slate-800 dark:text-slate-200 truncate">{t.sender}</span>
+                                <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest truncate">{t.lms_id}</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded-lg shadow-sm whitespace-nowrap">
+                                {Math.floor((new Date() - new Date(t.date_received || t.created_at)) / (1000 * 60 * 60 * 24))} Days
+                            </span>
+                        </Link>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
+
 
     const renderDashboardContent = () => {
         if (loading) {
@@ -232,29 +272,25 @@ export default function Home() {
                         title="Pending"
                         value={stats.activeTasks}
                         icon={Activity}
-                        colorClass="text-blue-600 dark:text-blue-400"
-                        bgClass="bg-blue-50 dark:bg-blue-900/20"
+                        gradientClass="bg-gradient-to-br from-blue-600 to-cyan-500"
                     />
                     <StatCard
                         title="Completed"
                         value={stats.archivedTasks}
                         icon={CheckCircle2}
-                        colorClass="text-emerald-600 dark:text-emerald-400"
-                        bgClass="bg-emerald-50 dark:bg-emerald-900/20"
+                        gradientClass="bg-gradient-to-br from-emerald-600 to-teal-500"
                     />
                     <StatCard
                         title="Users"
                         value={stats.totalUsers}
                         icon={Users}
-                        colorClass="text-indigo-600 dark:text-indigo-400"
-                        bgClass="bg-indigo-50 dark:bg-indigo-900/20"
+                        gradientClass="bg-gradient-to-br from-indigo-600 to-violet-500"
                     />
                     <StatCard
-                        title="Contacts"
-                        value={stats.totalPeople}
-                        icon={User}
-                        colorClass="text-orange-600 dark:text-orange-400"
-                        bgClass="bg-orange-50 dark:bg-orange-900/20"
+                        title="Departments"
+                        value={stats.totalDepartments || stats.totalDepartment || 0}
+                        icon={Building2}
+                        gradientClass="bg-gradient-to-br from-orange-600 to-amber-500"
                     />
                 </div>
 
@@ -287,7 +323,11 @@ export default function Home() {
                                                 <p className="text-sm text-gray-600 dark:text-gray-400 leading-snug">
                                                     <span className="font-bold text-gray-900 dark:text-white mr-1">{log.user?.first_name || 'System'}</span>
                                                     {log.action_type}{' '}
-                                                    {log.Letter?.lms_id && <span className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1.5 py-0.5 rounded">{log.Letter.lms_id}</span>}
+                                                    {log.Letter?.lms_id && (
+                                                        <Link to={`/letter/${log.Letter.id}`} className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1.5 py-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors">
+                                                            {log.Letter.lms_id}
+                                                        </Link>
+                                                    )}
                                                 </p>
                                                 <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mt-1.5">
                                                     {timeStr} ago
@@ -298,6 +338,9 @@ export default function Home() {
                                 </div>
                             </div>
                         )}
+                        
+                        <OverdueWidget />
+                        
                         {/* ATG Dashboard Letters REMOVED as per user request */}
                     </div>
 
@@ -329,16 +372,36 @@ export default function Home() {
                             <h3 className={`text-xs font-black uppercase tracking-widest mb-4 ${'text-gray-400'}`}>Actions</h3>
                             <div className="grid grid-cols-2 gap-3">
                                 {canQuickNewLetter && (
-                                    <button onClick={() => navigate('/new-letter')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${'bg-slate-50 dark:bg-[#1a1a1a] hover:bg-slate-100 dark:hover:bg-[#222]'}`}>
+                                    <button onClick={() => navigate('/new-letter')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${'bg-blue-50/50 dark:bg-blue-900/10 hover:bg-blue-100 dark:hover:bg-blue-900/20'}`}>
                                         <FileText className={`w-5 h-5 ${'text-blue-500'}`} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">New Letter</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">New Letter</span>
                                     </button>
                                 )}
                                 {canQuickTrays && (
-                                    <button onClick={() => navigate('/setup/trays')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${'bg-slate-50 dark:bg-[#1a1a1a] hover:bg-slate-100 dark:hover:bg-[#222]'}`}>
-                                        <Inbox className={`w-5 h-5 ${'text-blue-500'}`} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Trays</span>
+                                    <button onClick={() => navigate('/setup/trays')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${'bg-indigo-50/50 dark:bg-indigo-900/10 hover:bg-indigo-100 dark:hover:bg-indigo-900/20'}`}>
+                                        <Inbox className={`w-5 h-5 ${'text-indigo-500'}`} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300">Trays</span>
                                     </button>
+                                )}
+                                {canQuickSetup && (
+                                    <>
+                                        <button onClick={() => navigate('/setup/statuses')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${'bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'}`}>
+                                            <ShieldCheck className={`w-5 h-5 ${'text-emerald-500'}`} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Statuses</span>
+                                        </button>
+                                        <button onClick={() => navigate('/setup/process-steps')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${'bg-orange-50/50 dark:bg-orange-900/10 hover:bg-orange-100 dark:hover:bg-orange-900/20'}`}>
+                                            <ArrowRightLeft className={`w-5 h-5 ${'text-orange-500'}`} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-orange-700 dark:text-orange-300">Group</span>
+                                        </button>
+                                        <button onClick={() => navigate('/setup/letter-kinds')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${'bg-purple-50/50 dark:bg-purple-900/10 hover:bg-purple-100 dark:hover:bg-purple-900/20'}`}>
+                                            <Layers className={`w-5 h-5 ${'text-purple-500'}`} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-purple-700 dark:text-purple-300">Kinds</span>
+                                        </button>
+                                        <button onClick={() => navigate('/setup/departments')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${'bg-teal-50/50 dark:bg-teal-900/10 hover:bg-teal-100 dark:hover:bg-teal-900/20'}`}>
+                                            <Building2 className={`w-5 h-5 ${'text-teal-500'}`} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-teal-700 dark:text-teal-300">Depts</span>
+                                        </button>
+                                    </>
                                 )}
                             </div>
                         </div>
@@ -373,22 +436,26 @@ export default function Home() {
                     <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pt-6 md:pt-10 custom-scrollbar">
                         <div className="w-full space-y-8 md:space-y-10 lg:space-y-12">
                             {/* Metric Cards */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                    <p className="text-[10px] font-black text-[#737373] uppercase tracking-[0.2em] mb-2">Active</p>
-                                    <h3 className="text-3xl font-black text-[#1A1A1B] dark:text-white">{stats.activeTasks}</h3>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <div className="bg-gradient-to-br from-blue-600 to-cyan-500 p-6 rounded-3xl border border-transparent shadow-lg text-white relative overflow-hidden group hover:scale-[1.02] transition-all">
+                                    <div className="absolute -right-4 -bottom-4 opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform"><Activity className="w-32 h-32" /></div>
+                                    <p className="text-[10px] font-black text-blue-100 uppercase tracking-[0.2em] mb-2 relative z-10">Active</p>
+                                    <h3 className="text-4xl font-black text-white relative z-10">{stats.activeTasks}</h3>
                                 </div>
-                                <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                    <p className="text-[10px] font-black text-[#737373] uppercase tracking-[0.2em] mb-2">Processed</p>
-                                    <h3 className="text-3xl font-black text-[#1A1A1B] dark:text-white">{stats.archivedTasks}</h3>
+                                <div className="bg-gradient-to-br from-emerald-600 to-teal-500 p-6 rounded-3xl border border-transparent shadow-lg text-white relative overflow-hidden group hover:scale-[1.02] transition-all">
+                                    <div className="absolute -right-4 -bottom-4 opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform"><CheckCircle2 className="w-32 h-32" /></div>
+                                    <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.2em] mb-2 relative z-10">Processed</p>
+                                    <h3 className="text-4xl font-black text-white relative z-10">{stats.archivedTasks}</h3>
                                 </div>
-                                <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                    <p className="text-[10px] font-black text-[#737373] uppercase tracking-[0.2em] mb-2">USERS</p>
-                                    <h3 className="text-3xl font-black text-[#1A1A1B] dark:text-white">{stats.totalUsers}</h3>
+                                <div className="bg-gradient-to-br from-indigo-600 to-violet-500 p-6 rounded-3xl border border-transparent shadow-lg text-white relative overflow-hidden group hover:scale-[1.02] transition-all">
+                                    <div className="absolute -right-4 -bottom-4 opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform"><Users className="w-32 h-32" /></div>
+                                    <p className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.2em] mb-2 relative z-10">USERS</p>
+                                    <h3 className="text-4xl font-black text-white relative z-10">{stats.totalUsers}</h3>
                                 </div>
-                                <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                    <p className="text-[10px] font-black text-[#737373] uppercase tracking-[0.2em] mb-2">Contacts</p>
-                                    <h3 className="text-3xl font-black text-[#1A1A1B] dark:text-white">{stats.totalPeople}</h3>
+                                <div className="bg-gradient-to-br from-orange-600 to-amber-500 p-6 rounded-3xl border border-transparent shadow-lg text-white relative overflow-hidden group hover:scale-[1.02] transition-all">
+                                    <div className="absolute -right-4 -bottom-4 opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform"><Building2 className="w-32 h-32" /></div>
+                                    <p className="text-[10px] font-black text-orange-100 uppercase tracking-[0.2em] mb-2 relative z-10">Departments</p>
+                                    <h3 className="text-4xl font-black text-white relative z-10">{stats.totalDepartments || stats.totalDepartment || 0}</h3>
                                 </div>
                             </div>
 
@@ -417,7 +484,11 @@ export default function Home() {
                                                             <p className="text-sm text-[#737373] dark:text-gray-400 leading-snug">
                                                                 <span className="font-bold text-[#1A1A1B] dark:text-white mr-1">{log.user?.first_name || 'System'}</span>
                                                                 {log.action_type}{' '}
-                                                                {log.Letter?.lms_id && <span className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1.5 py-0.5 rounded-md">{log.Letter.lms_id}</span>}
+                                                                {log.Letter?.lms_id && (
+                                                                    <Link to={`/letter/${log.Letter.id}`} className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1.5 py-0.5 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors">
+                                                                        {log.Letter.lms_id}
+                                                                    </Link>
+                                                                )}
                                                             </p>
                                                             <p className="text-[10px] font-bold uppercase tracking-widest text-[#737373] mt-2">
                                                                 {timeStr} ago
@@ -428,8 +499,9 @@ export default function Home() {
                                             </div>
                                         </div>
                                     )}
-
-                                    {/* ATG Section REMOVED as per user request */}
+                                    <div className="mt-8">
+                                        <OverdueWidget />
+                                    </div>
                                 </div>
 
                                 <div className="space-y-8">
@@ -437,16 +509,36 @@ export default function Home() {
                                         <h3 className="text-[10px] font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] mb-6">Quick Actions</h3>
                                         <div className="space-y-4">
                                             {canQuickNewLetter && (
-                                                <button onClick={() => navigate('/new-letter')} className="w-full flex items-center justify-between p-4 bg-[#F7F7F7] dark:bg-white/5 rounded-xl hover:bg-[#E5E5E5] dark:hover:bg-white/10 transition-colors group">
-                                                    <span className="text-[10px] font-black text-[#737373] group-hover:text-[#1A1A1B] dark:group-hover:text-white uppercase tracking-widest">New</span>
-                                                    <Plus className="w-4 h-4 text-[#737373]" />
+                                                <button onClick={() => navigate('/new-letter')} className="w-full flex items-center justify-between p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all group">
+                                                    <span className="text-[10px] font-black text-blue-700 dark:text-blue-300 uppercase tracking-widest">New Letter</span>
+                                                    <Plus className="w-4 h-4 text-blue-500" />
                                                 </button>
                                             )}
                                             {canQuickTrays && (
-                                                <button onClick={() => navigate('/setup/trays')} className="w-full flex items-center justify-between p-4 bg-[#F7F7F7] dark:bg-white/5 rounded-xl hover:bg-[#E5E5E5] dark:hover:bg-white/10 transition-colors group">
-                                                    <span className="text-[10px] font-black text-[#737373] group-hover:text-[#1A1A1B] dark:group-hover:text-white uppercase tracking-widest">Trays</span>
-                                                    <Inbox className="w-4 h-4 text-[#737373]" />
+                                                <button onClick={() => navigate('/setup/trays')} className="w-full flex items-center justify-between p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/20 transition-all group">
+                                                    <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest">Trays</span>
+                                                    <Inbox className="w-4 h-4 text-indigo-500" />
                                                 </button>
+                                            )}
+                                            {canQuickSetup && (
+                                                <>
+                                                    <button onClick={() => navigate('/setup/statuses')} className="w-full flex items-center justify-between p-4 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all group">
+                                                        <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-widest">Statuses</span>
+                                                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                                                    </button>
+                                                    <button onClick={() => navigate('/setup/process-steps')} className="w-full flex items-center justify-between p-4 bg-orange-50/50 dark:bg-orange-900/10 rounded-xl hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-all group">
+                                                        <span className="text-[10px] font-black text-orange-700 dark:text-orange-300 uppercase tracking-widest">Group</span>
+                                                        <ArrowRightLeft className="w-4 h-4 text-orange-500" />
+                                                    </button>
+                                                    <button onClick={() => navigate('/setup/letter-kinds')} className="w-full flex items-center justify-between p-4 bg-purple-50/50 dark:bg-purple-900/10 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-all group">
+                                                        <span className="text-[10px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-widest">Kinds</span>
+                                                        <Layers className="w-4 h-4 text-purple-500" />
+                                                    </button>
+                                                    <button onClick={() => navigate('/setup/departments')} className="w-full flex items-center justify-between p-4 bg-teal-50/50 dark:bg-teal-900/10 rounded-xl hover:bg-teal-100 dark:hover:bg-teal-900/20 transition-all group">
+                                                        <span className="text-[10px] font-black text-teal-700 dark:text-teal-300 uppercase tracking-widest">Depts</span>
+                                                        <Building2 className="w-4 h-4 text-teal-500" />
+                                                    </button>
+                                                </>
                                             )}
                                         </div>
                                     </div>

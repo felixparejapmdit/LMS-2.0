@@ -113,6 +113,12 @@ apiRouter.use('/telegram', telegramRoutes);
 apiRouter.use('/inter-dept', interDeptRoutes);
 apiRouter.use('/import', require('./routes/importRoutes'));
 
+// Catch-all inside apiRouter to help diagnose missing routes
+apiRouter.use((req, res, next) => {
+    console.warn(`[API-MISS] ${req.method} ${req.originalUrl} - No match inside apiRouter for subpath: ${req.url}`);
+    next();
+});
+
 // Mount the apiRouter
 app.use('/api', apiRouter);
 

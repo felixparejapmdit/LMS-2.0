@@ -1,4 +1,4 @@
-const { LetterAssignment, Letter, Status, User, Person, ProcessStep, Tray, LetterLog, Endorsement, Role, sequelize } = require('../models/associations');
+const { LetterAssignment, Letter, Status, User, Person, ProcessStep, Tray, LetterLog, Endorsement, Role, Department, sequelize } = require('../models/associations');
 const { Op } = require('sequelize');
 
 const ALL_LETTER_ROLES = new Set(['ADMINISTRATOR']);
@@ -17,7 +17,7 @@ class StatsController {
             const full_name = userRecord ? `${userRecord.first_name || ''} ${userRecord.last_name || ''}`.trim() : queryFullName;
 
             const normalizedRole = actualRoleName ? actualRoleName.toString().toUpperCase().trim() : '';
-            const SUPER_ROLES = ['ADMINISTRATOR', 'ADMIN'];
+            const SUPER_ROLES = ['ADMINISTRATOR', 'ADMIN', 'VIP'];
             const isSuperAdmin = SUPER_ROLES.includes(normalizedRole);
             const isAdmin = isSuperAdmin || SUPER_ROLES.includes(normalizedRole);
             const isSpecificDept = department_id && department_id !== 'all' && department_id !== 'null';
@@ -29,40 +29,54 @@ class StatsController {
             if (!isAdmin && department_id && department_id !== 'all' && department_id !== 'null' && department_id !== 'undefined') {
                 userWhere.dept_id = department_id;
             }
-            const [onlineUsers, totalUsers, totalPeople] = await Promise.all([
+            const [onlineUsers, totalUsers, totalPeople, totalDepartments] = await Promise.all([
                 User.count({ where: { ...userWhere, islogin: true } }),
                 User.count({ where: userWhere }),
-                Person.count()
+                Person.count(),
+                Department.count()
             ]);
 
             // 2. Base Letter Filter (Now includes name-based visibility)
             const baseLetterWhere = {};
-            const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
             const visibilityClauses = [];
             
             // 2. Department-based Visibility
             if (isSuperAdmin) {
                 // Admins see everything globally
                 visibilityClauses.push(sequelize.literal('1=1'));
-            } else if (isAdmin) {
-                if (myDeptId) {
-                    if (!isSpecificDept || department_id == myDeptId) {
-                        visibilityClauses.push({ dept_id: String(myDeptId) });
-                        visibilityClauses.push(sequelize.literal(`EXISTS (
-                            SELECT 1 FROM directus_users du
-                            WHERE du.dept_id = ${sequelize.escape(String(myDeptId))}
-                            AND (
-                                du.id = Letter.encoder_id
-                                OR du.id = Letter.sender
-                                OR du.id = Letter.endorsed
-                                OR Letter.sender LIKE ('%' || du.first_name || '%')
-                                OR Letter.sender LIKE ('%' || du.last_name || '%')
-                                OR Letter.endorsed LIKE ('%' || du.first_name || '%')
-                                OR Letter.endorsed LIKE ('%' || du.last_name || '%')
-                            )
-                        )`));
-                        visibilityClauses.push(sequelize.literal(`EXISTS (SELECT 1 FROM letter_assignments la WHERE la.letter_id = Letter.id AND la.department_id = ${sequelize.escape(String(myDeptId))})`));
+            } else if (isAdmin && myDeptId) {
+                // Optimized departmental visibility
+                // Instead of multiple EXISTS, we use OR clauses that leverage indexes
+                if (!isSpecificDept || department_id == myDeptId) {
+                    const deptIdStr = String(myDeptId);
+                    visibilityClauses.push({ dept_id: deptIdStr });
+                    
+                    // Pre-fetch dept user IDs to avoid slow per-row subqueries where possible
+                    const deptUserIds = await User.findAll({ 
+                        where: { dept_id: myDeptId }, 
+                        attributes: ['id'], 
+                        raw: true 
+                    }).then(users => users.map(u => u.id));
+
+                    if (deptUserIds.length > 0) {
+                        visibilityClauses.push({ encoder_id: { [Op.in]: deptUserIds } });
+                        visibilityClauses.push({ sender: { [Op.in]: deptUserIds } });
+                        visibilityClauses.push({ endorsed: { [Op.in]: deptUserIds } });
                     }
+
+                    // Fallback for name-based matching in the department
+                    visibilityClauses.push(sequelize.literal(`EXISTS (
+                        SELECT 1 FROM directus_users du
+                        WHERE du.dept_id = ${sequelize.escape(deptIdStr)}
+                        AND (
+                            Letter.sender LIKE ('%' || du.first_name || '%')
+                            OR Letter.sender LIKE ('%' || du.last_name || '%')
+                            OR Letter.endorsed LIKE ('%' || du.first_name || '%')
+                            OR Letter.endorsed LIKE ('%' || du.last_name || '%')
+                        )
+                    )`));
+                    
+                    visibilityClauses.push(sequelize.literal(`EXISTS (SELECT 1 FROM letter_assignments la WHERE la.letter_id = Letter.id AND la.department_id = ${sequelize.escape(deptIdStr)})`));
                 }
             }
 
@@ -93,17 +107,41 @@ class StatsController {
                 baseLetterWhere.id = null;
             }
 
-            const activeStatuses = ['Incoming', 'Review', 'Forwarded', 'Endorsed', 'Pending'];
+            // 3. Dynamic Status Mapping
+            const allStatuses = await Status.findAll({ attributes: ['id', 'status_name'], raw: true });
+            const statusMap = allStatuses.reduce((acc, s) => {
+                acc[s.status_name.toUpperCase()] = s.id;
+                return acc;
+            }, {});
 
-            // 3. Optimized SQL Counts
+            const activeStatusIds = [
+                statusMap['INCOMING'], 
+                statusMap['ATG NOTE'], 
+                statusMap['REVIEW'], 
+                statusMap['FORWARDED'], 
+                statusMap['HOLD'], 
+                statusMap['PENDING'],
+                statusMap['RECEIVED'], // Alignment with seed data
+                statusMap['PROCESSING'], // Alignment with seed data
+                1, 2, 7, 8 // Fallback hardcoded IDs
+            ].filter(id => id != null);
+
+            const processedStatusIds = [
+                statusMap['FILED'], 
+                statusMap['ENDORSED'], 
+                statusMap['ARCHIVED'], // Alignment with seed data
+                9, 10 // Fallback hardcoded IDs
+            ].filter(id => id != null);
+
+            // 4. Optimized SQL Counts
             const [activeTasks, archivedTasks, incomingLetters, outgoingLetters] = await Promise.all([
                 Letter.count({
-                    where: { ...baseLetterWhere, global_status: [1, 2, 8] },
+                    where: { ...baseLetterWhere, global_status: activeStatusIds },
                     distinct: true,
                     col: 'id'
                 }),
                 Letter.count({
-                    where: { ...baseLetterWhere, global_status: 9 },
+                    where: { ...baseLetterWhere, global_status: processedStatusIds },
                     distinct: true,
                     col: 'id'
                 }),
@@ -119,9 +157,9 @@ class StatsController {
                 })
             ]);
 
-            // 4. Priority Workflow Letters (Incoming only)
+            // 5. Priority Workflow Letters (Incoming only)
             const recentTasks = await Letter.findAll({
-                where: { ...baseLetterWhere, global_status: 1 },
+                where: { ...baseLetterWhere, global_status: statusMap['INCOMING'] || 1 },
                 include: [
                     { model: Status, as: 'status', required: false }, 
                     'letterKind', 
@@ -133,10 +171,11 @@ class StatsController {
                 distinct: true
             });
 
-            // 5. ATG Note / VIP Letters (Status 2 OR 'ATG Note')
+            // 6. ATG Note / VIP Letters (Status 2 ONLY AND No Tray)
             const atgWhere = {
                 ...baseLetterWhere,
-                global_status: 2
+                global_status: 2,
+                tray_id: { [Op.or]: [0, null] }
             };
 
             const [atgLetters, atgLettersCount] = await Promise.all([
@@ -159,13 +198,13 @@ class StatsController {
                 })
             ]);
 
-            // 6. Overdue (Older than 5 days AND Pending)
+            // 7. Overdue (Older than 5 days AND Pending)
             const fiveDaysAgo = new Date();
             fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
             const overdueTasks = await Letter.findAll({
                 where: {
                     ...baseLetterWhere,
-                    global_status: 8,
+                    global_status: statusMap['PENDING'] || 8,
                     [Op.or]: [
                         { date_received: { [Op.lt]: fiveDaysAgo } },
                         { created_at: { [Op.lt]: fiveDaysAgo } }
@@ -198,7 +237,7 @@ class StatsController {
                 return [];
             });
 
-            // 8. Task Distribution Map
+            // 8. Task Distribution Map (by Step)
             const distributionWhere = {};
             if (isSpecificDept) distributionWhere.department_id = department_id;
 
@@ -215,6 +254,26 @@ class StatsController {
             });
             const taskDistribution = Object.entries(distributionMap).map(([name, count]) => ({ name, value: count }));
 
+            // 9. Status Distribution Map (by Global Status)
+            const allLettersForStats = await Letter.findAll({
+                where: baseLetterWhere,
+                attributes: ['id', 'global_status'],
+                include: [{ model: Status, as: 'status', attributes: ['status_name'] }]
+            });
+
+            const statusCountMap = {};
+            allLettersForStats.forEach(l => {
+                const name = l.status?.status_name || 'Draft/Unknown';
+                statusCountMap[name] = (statusCountMap[name] || 0) + 1;
+            });
+
+            const statusDistribution = Object.entries(statusCountMap).map(([name, count]) => ({
+                name,
+                value: count
+            })).filter(d => d.value > 0);
+
+            console.log(`[STATS] Dashboard status distribution: ${statusDistribution.length} statuses found. Total letters: ${allLettersForStats.length}, Depts: ${totalDepartments}`);
+
             console.log(`[STATS] Dashboard metrics optimized for ${normalizedRole} in ${Date.now() - startTime}ms`);
 
             res.json({
@@ -227,10 +286,12 @@ class StatsController {
                 onlineUsers,
                 totalUsers,
                 totalPeople,
+                totalDepartments,
                 atgLettersCount,
                 overdueTasks,
                 recentActivityLogs,
-                taskDistribution
+                taskDistribution,
+                statusDistribution
             });
         } catch (error) {
             console.error('[STATS ERROR] Dashboard:', error);
@@ -252,7 +313,7 @@ class StatsController {
             const full_name = userRecord ? `${userRecord.first_name || ''} ${userRecord.last_name || ''}`.trim() : queryFullName;
 
             const normalizedRole = actualRoleName ? actualRoleName.toString().toUpperCase().trim() : '';
-            const SUPER_ROLES = ['ADMINISTRATOR', 'ADMIN'];
+            const SUPER_ROLES = ['ADMINISTRATOR', 'ADMIN', 'VIP'];
             const isSuperAdmin = SUPER_ROLES.includes(normalizedRole);
             const isAdmin = isSuperAdmin || SUPER_ROLES.includes(normalizedRole);
             const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
@@ -284,23 +345,39 @@ class StatsController {
             if (isSuperAdmin) {
                 // Admins see everything globally
                 visibilityClauses.push(sequelize.literal('1=1'));
-            } else if (isAdmin) {
-                if (myDeptId) {
-                    // Specific department filter requested OR default to user's department
-                    const targetDeptId = isSpecificDept ? department_id : myDeptId;
-                    
-                    visibilityClauses.push({ department_id: String(targetDeptId) });
+            } else if (isAdmin && myDeptId) {
+                // Specific department filter requested OR default to user's department
+                const targetDeptId = isSpecificDept ? department_id : myDeptId;
+                const targetDeptIdStr = String(targetDeptId);
+                
+                visibilityClauses.push({ department_id: targetDeptIdStr });
+
+                // Pre-fetch dept user IDs to leverage indexes instead of slow subqueries
+                const deptUserIds = await User.findAll({ 
+                    where: { dept_id: targetDeptId }, 
+                    attributes: ['id'], raw: true 
+                }).then(users => users.map(u => u.id));
+
+                if (deptUserIds.length > 0) {
                     visibilityClauses.push(sequelize.literal(`EXISTS (
-                        SELECT 1 FROM directus_users du
-                        JOIN letters l ON l.id = LetterAssignment.letter_id
-                        WHERE du.dept_id = ${sequelize.escape(String(targetDeptId))}
-                        AND (
-                            du.id IN (l.encoder_id, l.sender, l.endorsed)
-                            OR (du.first_name || ' ' || du.last_name) = l.sender
-                            OR (du.first_name || ' ' || du.last_name) = l.endorsed
-                        )
+                        SELECT 1 FROM letters l 
+                        WHERE l.id = LetterAssignment.letter_id 
+                        AND (l.encoder_id IN (${deptUserIds.map(id => sequelize.escape(id)).join(',')}) 
+                             OR l.sender IN (${deptUserIds.map(id => sequelize.escape(id)).join(',')}) 
+                             OR l.endorsed IN (${deptUserIds.map(id => sequelize.escape(id)).join(',')}))
                     )`));
                 }
+
+                // Fallback for name-based matching
+                visibilityClauses.push(sequelize.literal(`EXISTS (
+                    SELECT 1 FROM directus_users du
+                    JOIN letters l ON l.id = LetterAssignment.letter_id
+                    WHERE du.dept_id = ${sequelize.escape(targetDeptIdStr)}
+                    AND (
+                        (du.first_name || ' ' || du.last_name) = l.sender
+                        OR (du.first_name || ' ' || du.last_name) = l.endorsed
+                    )
+                )`));
             }
 
             if (visibilityClauses.length > 0) {

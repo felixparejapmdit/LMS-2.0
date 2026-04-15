@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import LetterCard from "../../components/LetterCard";
+import EmptyEntryView from "./EmptyEntryView";
 import axios from "axios";
 import { useSession, useUI } from "../../context/AuthContext";
 import {
@@ -97,7 +98,18 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     avem: 'AEVEM LETTER',
     pending: 'PENDING',
     hold: 'HOLD',
-    empty_entry: 'EMPTY LETTER'
+    empty_entry: 'EMPTY ENTRY'
+  };
+
+  const tabGradients = {
+    signature: 'from-blue-500 to-cyan-400',
+    review: 'from-emerald-500 to-teal-400',
+    atg_note: 'from-indigo-500 to-violet-400',
+    vem: 'from-amber-500 to-orange-400',
+    avem: 'from-rose-500 to-pink-400',
+    pending: 'from-slate-600 to-slate-500',
+    hold: 'from-red-500 to-orange-400',
+    empty_entry: 'from-gray-600 to-gray-500'
   };
   const activeTabLabel = tabLabels[activeStepTab] || 'Letters';
 
@@ -466,7 +478,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         await Promise.all(relevantAssignments.map(a =>
           axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${a.id}`, {
             status_id: 8,
-            step_id: null
+            step_id: 2 // Move to 'For Review' by default for VIP View
           })
         ));
       }
@@ -685,10 +697,10 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                   <button
                     key={id}
                     onClick={() => setActiveStepTab(id)}
-                    className={`px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === id ? 'bg-[#1A1A1B] dark:bg-white text-white dark:text-[#1A1A1B] shadow-sm' : 'text-[#737373] dark:text-[#A3A3A3] hover:text-[#1A1A1B] dark:hover:text-white'}`}
+                    className={`px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === id ? `bg-gradient-to-r ${tabGradients[id] || 'bg-[#1A1A1B] dark:bg-white'} text-white shadow-md` : 'text-[#737373] dark:text-[#A3A3A3] hover:text-[#1A1A1B] dark:hover:text-white'}`}
                   >
                     {label}
-                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black ${activeStepTab === id ? 'bg-white/20 text-white dark:bg-black/20 dark:text-[#1A1A1B]' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'}`}>
+                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black ${activeStepTab === id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'}`}>
                       {inboxStats[id] || 0}
                     </span>
                   </button>
@@ -748,6 +760,12 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <Loader2 className="w-10 h-10 text-[#1A1A1B] dark:text-white animate-spin mb-4" />
                 <span className="text-[10px] font-black text-[#737373] uppercase tracking-widest">Refreshing assignments...</span>
               </div>
+            ) : activeStepTab === 'empty_entry' ? (
+              <EmptyEntryView 
+                assignments={filteredBySteps}
+                onRefresh={fetchAssignments}
+                user={user}
+              />
             ) : filteredBySteps.length === 0 ? (
               <div className="py-32 flex flex-col items-center justify-center border border-dashed border-[#E5E5E5] dark:border-[#222] bg-white dark:bg-[#111] rounded-3xl">
                 <Inbox className="w-12 h-12 text-[#E5E5E5] mb-4" />

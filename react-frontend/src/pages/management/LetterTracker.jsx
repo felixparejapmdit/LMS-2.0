@@ -196,10 +196,7 @@ export default function LetterTracker() {
                     <div className="max-w-full mx-auto space-y-6">
                         {/* Summary & Search */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div>
-                                <h2 className={`text-2xl font-bold uppercase tracking-tight ${textColor}`}>Letter Tracker</h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{isSuperAdmin ? 'Full Access Monitoring' : 'Your Registered Records'}</p>
-                            </div>
+
                             {canSearch && (
                                 <div className="relative group min-w-[300px]">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

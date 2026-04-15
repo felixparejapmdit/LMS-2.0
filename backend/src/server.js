@@ -103,10 +103,34 @@ async function startServer() {
             console.warn("Tray ID cleanup skipped:", e.message);
         }
 
-        // 3. Specific Index Fixes
+        // 3. Specific Index & UI Performance Fixes
         try {
             await sequelize.query("CREATE UNIQUE INDEX IF NOT EXISTS role_page_unique ON role_permissions (role_id, page_name)");
-        } catch (idxErr) { }
+            
+            // Performance Indexes for Dashboard/Inbox
+            const performanceIndexes = [
+                "CREATE INDEX IF NOT EXISTS idx_letters_dept ON letters (dept_id)",
+                "CREATE INDEX IF NOT EXISTS idx_letters_tray ON letters (tray_id)",
+                "CREATE INDEX IF NOT EXISTS idx_letters_status ON letters (global_status)",
+                "CREATE INDEX IF NOT EXISTS idx_letters_encoder ON letters (encoder_id)",
+                "CREATE INDEX IF NOT EXISTS idx_users_dept ON directus_users (dept_id)",
+                "CREATE INDEX IF NOT EXISTS idx_assignments_letter ON letter_assignments (letter_id)",
+                "CREATE INDEX IF NOT EXISTS idx_assignments_dept ON letter_assignments (department_id)",
+                "CREATE INDEX IF NOT EXISTS idx_endorsements_letter ON endorsements (letter_id)"
+            ];
+
+            for (const sql of performanceIndexes) {
+                await sequelize.query(sql).catch(e => {
+                    // Ignore index creation errors if they already exist in a different format
+                    if (!e.message.toLowerCase().includes('already exists')) {
+                        console.warn(`[DATABASE] Index optimization suppressed: ${e.message}`);
+                    }
+                });
+            }
+            console.log('[DATABASE] Performance indexes verified.');
+        } catch (idxErr) {
+            console.warn('[DATABASE] Index optimization skipped:', idxErr.message);
+        }
 
         // Start listening on all network interfaces (bind to 0.0.0.0)
         app.listen(PORT, '0.0.0.0', () => {

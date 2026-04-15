@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import { directus } from "../../hooks/useDirectus";
 import { readItems, createItem } from "@directus/sdk";
@@ -41,6 +41,8 @@ import useAccess from "../../hooks/useAccess";
 
 export default function NewLetter() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const refCode = searchParams.get('ref_code');
     const { user, layoutStyle, setIsMobileMenuOpen, isSetupComplete } = useAuth();
     const access = useAccess();
 
@@ -123,9 +125,28 @@ export default function NewLetter() {
 
                 const filteredSteps = stepsData.filter(s => ['For Signature', 'For Review', 'VEM Letter', 'AEVM Letter'].includes(s.step_name));
                 setSteps(filteredSteps);
-
                 setAttachments(attachmentsData);
-                if (previews) setPredictedLmsId(previews.lms_id);
+
+                if (refCode) {
+                    setPredictedLmsId(refCode);
+                    // Optionally fetch existing data if it's an "Empty Entry"
+                    const existing = await letterService.getByLmsId(refCode).catch(() => null);
+                    if (existing) {
+                        setFormData(prev => ({
+                            ...prev,
+                            sender: existing.sender || "",
+                            summary: existing.summary || "",
+                            kind: existing.kind || prev.kind,
+                            global_status: existing.global_status || prev.global_status,
+                            direction: existing.direction || "Incoming",
+                            letter_type: existing.letter_type || "Non-Confidential",
+                            tray_id: existing.tray_id || "",
+                            dept_id: existing.dept_id || prev.dept_id
+                        }));
+                    }
+                } else if (previews) {
+                    setPredictedLmsId(previews.lms_id);
+                }
 
                 // Set defaults
                 const letterKind = kindsData.find(k => k.kind_name.toLowerCase() === 'letter');
@@ -353,13 +374,26 @@ export default function NewLetter() {
                 ? parseInt(formData.selectedRefIds[0])
                 : null;
 
-            const created = await letterService.create({
+            const submissionData = {
                 ...formData,
                 attachment_id: Number.isNaN(attachmentId) ? null : attachmentId,
                 scanned_copy: scannedCopyPath,
                 encoder_id: user.id,
                 dept_id: user.dept_id?.id || user.dept_id
-            });
+            };
+
+            let created;
+            if (refCode) {
+                // If we have a refCode, we find the letter by LMS ID and update it
+                const existing = await letterService.getByLmsId(refCode);
+                if (existing) {
+                    created = await letterService.update(existing.id, submissionData);
+                } else {
+                    created = await letterService.create(submissionData);
+                }
+            } else {
+                created = await letterService.create(submissionData);
+            }
 
             if (created?.lms_id) {
                 setPredictedLmsId(created.lms_id);

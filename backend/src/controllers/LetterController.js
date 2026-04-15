@@ -581,6 +581,111 @@ class LetterController {
             res.status(500).json({ error: error.message });
         }
     }
+
+    static async bulkCreateEmpty(req, res) {
+        let transaction;
+        try {
+            transaction = await sequelize.transaction();
+            const { count = 1, encoder_id, dept_id } = req.body;
+            const numCount = parseInt(count);
+
+            if (isNaN(numCount) || numCount <= 0) {
+                return res.status(400).json({ error: "Invalid count" });
+            }
+
+            const incomingStatus = await Status.findOne({ where: { status_name: 'Incoming' }, transaction });
+            const finalGlobalStatus = incomingStatus?.id || 1;
+            const validEncoderId = encoder_id || null;
+            const targetDeptId = dept_id || null;
+
+            const createdLetters = [];
+
+            for (let i = 0; i < numCount; i++) {
+                const now = new Date();
+                const yearStr = now.getFullYear().toString();
+                const shortYear = yearStr.slice(-2);
+                const ymd = yearStr + (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0');
+
+                const lastYearEntry = await Letter.findOne({
+                    where: { lms_id: { [Op.like]: `LMS${shortYear}-%` } },
+                    order: [['lms_id', 'DESC']],
+                    transaction
+                });
+
+                const lastDayEntry = await Letter.findOne({
+                    where: { entry_id: { [Op.like]: `${ymd}%` } },
+                    order: [['entry_id', 'DESC']],
+                    transaction
+                });
+
+                let annualSequence = 1;
+                if (lastYearEntry) {
+                    const parts = lastYearEntry.lms_id.split('-');
+                    if (parts.length > 1) {
+                        const lastSeq = parseInt(parts[1]);
+                        if (!isNaN(lastSeq)) annualSequence = lastSeq + 1;
+                    }
+                }
+
+                let dailySequence = 1;
+                if (lastDayEntry) {
+                    const lastSeqStr = lastDayEntry.entry_id.slice(-3);
+                    const lastSeq = parseInt(lastSeqStr);
+                    if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
+                }
+
+                let lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, '0')}`;
+                let entry_id = `${ymd}${dailySequence.toString().padStart(3, '0')}`;
+
+                let attempts = 0;
+                while (attempts < 50) {
+                    const existingLms = await Letter.findOne({ where: { lms_id }, transaction });
+                    const existingEntry = await Letter.findOne({ where: { entry_id }, transaction });
+                    if (!existingLms && !existingEntry) break;
+                    if (existingLms) {
+                        annualSequence++;
+                        lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, '0')}`;
+                    }
+                    if (existingEntry) {
+                        dailySequence++;
+                        entry_id = `${ymd}${dailySequence.toString().padStart(3, '0')}`;
+                    }
+                    attempts++;
+                }
+
+                const letter = await Letter.create({
+                    lms_id,
+                    entry_id,
+                    date_received: now,
+                    sender: '',
+                    summary: '',
+                    global_status: finalGlobalStatus,
+                    encoder_id: validEncoderId,
+                    dept_id: targetDeptId,
+                    direction: 'Incoming',
+                    letter_type: 'Non-Confidential',
+                    show_atg: false
+                }, { transaction });
+
+                await LetterLog.create({
+                    letter_id: letter.id,
+                    user_id: validEncoderId,
+                    action_type: 'Created',
+                    department_id: targetDeptId,
+                    log_details: `Urgent empty entry created for quick-start.`
+                }, { transaction });
+
+                createdLetters.push(letter);
+            }
+
+            await transaction.commit();
+            res.status(201).json(createdLetters);
+        } catch (error) {
+            if (transaction) await transaction.rollback();
+            console.error("[BULK_CREATE_EMPTY_ERROR]:", error);
+            res.status(500).json({ error: error.message });
+        }
+    }
 }
 
 module.exports = LetterController;

@@ -239,10 +239,8 @@ export const AuthProvider = ({ children }) => {
             }
 
             // Parallelize critical auth resolution
-            const [meIdRes, configRes] = await Promise.all([
-                directus.request(readMe({ fields: ['id'] })),
-                axios.get(`${BACKEND_URL}/auth/access-config`) 
-            ]);
+            const meId = await directus.request(readMe({ fields: ['id'] })).then(r => r.id).catch(() => cachedUser?.id);
+            const configRes = await axios.get(`${BACKEND_URL}/auth/access-config?userId=${meId}`);
             
             console.log(`[BOOT] Auth parallel resolve in ${Date.now() - checkStartTime}ms`);
             const { user: me, permissions: perms } = configRes.data;
