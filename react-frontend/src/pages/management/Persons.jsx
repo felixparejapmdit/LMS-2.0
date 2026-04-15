@@ -44,6 +44,7 @@ export default function Persons() {
     const [selectedPerson, setSelectedPerson] = useState(null);
     const [isMenuOpen, setIsMenuOpen] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [botFilter, setBotFilter] = useState("all"); // all, bot, not-bot
 
     const [formData, setFormData] = useState({
         name: "",
@@ -204,7 +205,7 @@ export default function Persons() {
                     <div className="flex items-center gap-6">
                         <div className="text-right hidden md:block shrink-0">
                             {person.telegram && (
-                                <a 
+                                <a
                                     href={`https://t.me/${person.telegram.replace('@', '')}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -254,29 +255,50 @@ export default function Persons() {
                             <div className="flex-1">
                                 <h2 className={`text-3xl font-bold ${textColor}`}>Persons</h2>
                                 <p className="text-gray-500 mt-2">Manage contacts.</p>
-                                
+
                                 <div className="mt-6 relative max-w-md group">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-orange-500 transition-colors" />
-                                    <input 
+                                    <input
                                         type="text"
                                         placeholder="Search by name, ID, area or telegram..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="w-full pl-12 pr-4 py-3 bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#222] rounded-2xl text-sm focus:ring-2 focus:ring-orange-500/20 outline-none transition-all shadow-sm group-hover:border-orange-200 dark:group-hover:border-orange-900/40"
                                     />
-                                    {searchTerm && (
-                                        <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500">
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                    )}
+
                                 </div>
                             </div>
-                            {canViewToggle && (
-                                <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm font-sans mb-1">
-                                    <button onClick={() => setViewMode("grid")} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-4 h-4" /></button>
-                                    <button onClick={() => setViewMode("list")} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-4 h-4" /></button>
+
+                            <div className="flex items-center gap-4">
+                                {/* LMS Bot Filter Toggle */}
+                                <div className="flex items-center gap-1 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm shrink-0">
+                                    <button
+                                        onClick={() => setBotFilter("all")}
+                                        className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${botFilter === 'all' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                                    >
+                                        All
+                                    </button>
+                                    <button
+                                        onClick={() => setBotFilter("bot")}
+                                        className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${botFilter === 'bot' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                                    >
+                                        LMS Bot
+                                    </button>
+                                    <button
+                                        onClick={() => setBotFilter("not-bot")}
+                                        className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${botFilter === 'not-bot' ? 'bg-slate-600 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                                    >
+                                        Regular
+                                    </button>
                                 </div>
-                            )}
+
+                                {canViewToggle && (
+                                    <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm font-sans">
+                                        <button onClick={() => setViewMode("grid")} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-4 h-4" /></button>
+                                        <button onClick={() => setViewMode("list")} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><List className="w-4 h-4" /></button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {loading ? (
@@ -284,12 +306,19 @@ export default function Persons() {
                         ) : (
                             <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-6" : "space-y-4"}>
                                 {persons
-                                    .filter(p => 
-                                        p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                        (p.name_id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                        (p.area || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                        (p.telegram || "").toLowerCase().includes(searchTerm.toLowerCase())
-                                    )
+                                    .filter(p => {
+                                        const isBot = p.telegram || p.telegram_chat_id;
+                                        const matchesBotFilter = botFilter === "all" ||
+                                            (botFilter === "bot" && isBot) ||
+                                            (botFilter === "not-bot" && !isBot);
+
+                                        const matchesSearch = p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                            (p.name_id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                            (p.area || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                            (p.telegram || "").toLowerCase().includes(searchTerm.toLowerCase());
+
+                                        return matchesBotFilter && matchesSearch;
+                                    })
                                     .map(renderCard)}
                             </div>
                         )}
