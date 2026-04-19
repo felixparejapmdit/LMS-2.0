@@ -1,6 +1,7 @@
 const { Letter, LetterAssignment, LetterLog, Person, User, ProcessStep, Status, Endorsement, Department, Tray, LetterKind, Comment, Attachment } = require('../models/associations');
 const sequelize = require('../config/db');
 const { Op } = require('sequelize');
+const TelegramService = require('../services/telegramService');
 
 class LetterController {
     static async getAll(req, res) {
@@ -499,6 +500,34 @@ class LetterController {
                     department_id: validAssignedDept || targetDeptId,
                     log_details: `Letter created with no initial workflow step assigned.`
                 }, { transaction });
+
+                // Telegram Notification for Guest or No-Step letters
+                if (TelegramService && letter) {
+                    setImmediate(async () => {
+                        try {
+                            const movementText = TelegramService.buildMovementText(letter, 'Incoming / Guest', 'Letter Encoded');
+                            const recipients = await User.findAll({
+                                where: { role: { [Op.in]: ['VIP', 'Administrator'] } }
+                            });
+
+                            if (letter.encoder_id && !recipients.some(r => r.id === letter.encoder_id)) {
+                                const encoder = await User.findByPk(letter.encoder_id);
+                                if (encoder && !TelegramService.isVipOnly(encoder)) recipients.push(encoder);
+                            }
+
+                            const recipientChatIds = await TelegramService.getChatIdsForUsers(recipients, Person, User);
+                            const senderChatIds = await TelegramService.getChatIdsForSenders(letter.sender, Person);
+                            const chatIds = [...new Set([...recipientChatIds, ...senderChatIds])];
+
+                            for (const chatId of chatIds) {
+                                const replyMarkup = TelegramService.buildMovementReplyMarkup(letter.id, { allowComment: false, allowAcknowledge: true });
+                                await TelegramService.sendMessage(chatId, movementText, replyMarkup);
+                            }
+                        } catch (bgErr) {
+                            console.error("Background Telegram error (Controller create):", bgErr.message);
+                        }
+                    });
+                }
             }
 
             await transaction.commit();

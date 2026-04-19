@@ -161,11 +161,11 @@ export default function MasterTable() {
             const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
             departmentService.getAll().then(setDepartments).catch(() => { });
-            statusService.getAll({ dept_id: userDeptId }).then(setStatuses).catch(() => { });
+            statusService.getAll({ dept_id: 'all' }).then(setStatuses).catch(() => { });
             axios.get(`${apiBase}/process-steps`).then(res => setSteps(res.data)).catch(() => { });
             letterKindService.getAll().then(setLetterKinds).catch(() => { });
             axios.get(`${apiBase}/persons`).then(res => setPersons(Array.isArray(res.data) ? res.data : [])).catch(() => { });
-            axios.get(`${apiBase}/trays?dept_id=${userDeptId}`).then(res => setTrays(res.data)).catch(() => { });
+            axios.get(`${apiBase}/trays?dept_id=all`).then(res => setTrays(res.data)).catch(() => { });
             axios.get(`${apiBase}/attachments?dept_id=${userDeptId}`).then(res => setAttachments(res.data)).catch(() => { });
 
         } catch (error) {

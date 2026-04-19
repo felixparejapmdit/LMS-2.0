@@ -48,6 +48,7 @@ export default function ResumenPage() {
     // QR Scanner States
     const [showScanner, setShowScanner] = useState(false);
     const [cameraError, setCameraError] = useState("");
+    const [showAddLetterModal, setShowAddLetterModal] = useState(false);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const requestRef = useRef();
@@ -242,6 +243,52 @@ export default function ResumenPage() {
     return (
         <>
             <PdfPanel pdfPanel={pdfPanel} setPdfPanel={setPdfPanel} />
+
+            {/* Add Letter Modal */}
+            {showAddLetterModal && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/10" onClick={() => setShowAddLetterModal(false)} />
+                    <div className={`${cardBg} w-full max-w-xs rounded-[2rem] border shadow-2xl relative z-10 overflow-hidden`}>
+                        <button onClick={() => setShowAddLetterModal(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors z-10">
+                            <X className="w-5 h-5 text-gray-400" />
+                        </button>
+                        <div className="p-8 pt-14">
+
+                            <form onSubmit={async (e) => {
+                                e.preventDefault();
+                                const prev = modalLetters.length;
+                                await handleAddLetter();
+                                setModalLetters(curr => {
+                                    if (curr.length > prev) setShowAddLetterModal(false);
+                                    return curr;
+                                });
+                            }} className="space-y-4">
+                                <div className="space-y-1.5">
+                                    <input
+                                        type="text"
+                                        autoFocus
+                                        placeholder="Type ATG No."
+                                        value={lmsIdInput}
+                                        onChange={(e) => { setLmsIdInput(e.target.value); setModalError(""); }}
+                                        className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
+                                    />
+                                    {modalError && <p className="text-[10px] text-red-500 font-black uppercase">{modalError}</p>}
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={isAddingLetter || !lmsIdInput.trim()}
+                                    className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20"
+                                >
+                                    {isAddingLetter ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                                    Add Letter
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className={`min-h-screen ${pageBg} flex font-sans`}>
                 <Sidebar />
                 <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
@@ -311,13 +358,12 @@ export default function ResumenPage() {
                             <div className={`${cardBg} rounded-[2rem] border shadow-sm flex flex-col overflow-hidden min-h-[calc(100vh - 12rem)] print:shadow-none print:border-none print:rounded-none`}>
 
                                 {/* Print Header */}
-                                <div className="hidden print:flex flex-col mb-8 border-b-2 border-slate-900 pb-4">
-                                    <div className="flex justify-between items-end">
-                                        <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Resumen</h2>
-                                        <div className="text-right">
-                                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mr-2">Date:</span>
-                                            <span className="text-xs font-bold text-slate-700">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                                        </div>
+                                <div className="hidden print:flex flex-col mb-3 border-b border-slate-900 pb-2">
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Incoming Letters</h2>
+                                        <span className="text-xs font-bold text-slate-700">
+                                            Printed:&nbsp;{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                        </span>
                                     </div>
                                 </div>
 
@@ -345,12 +391,12 @@ export default function ResumenPage() {
                                     <table className="w-full text-left border-collapse">
                                         <thead>
                                             <tr className="border-b-2 border-slate-100 dark:border-white/10 print:border-slate-900">
-                                                <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-12 print:text-slate-900">No.</th>
-                                                <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-32 print:text-slate-900">Date & Time</th>
-                                                <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-24 print:text-slate-900">LMS No.</th>
-                                                <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-20 print:text-slate-900">Attachment</th>
-                                                <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Sender</th>
-                                                <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Letter Summary</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-12 print:text-slate-900">No.</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-32 print:text-slate-900">Date & Time</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-24 print:text-slate-900">ATG No.</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-20 print:text-slate-900">Attachment</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Sender</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Letter Summary</th>
                                                 <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:hidden text-right">Remove</th>
                                             </tr>
                                         </thead>
@@ -367,15 +413,15 @@ export default function ResumenPage() {
                                             ) : (
                                                 modalLetters.map((l, idx) => (
                                                     <tr key={l.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/2 transition-colors print:border-slate-200">
-                                                        <td className="py-6 px-4 text-xs font-black text-slate-400 print:text-slate-900">{idx + 1}</td>
-                                                        <td className="py-6 px-4">
+                                                        <td className="py-6 px-4 print:py-1.5 print:px-2 text-xs font-black text-slate-400 print:text-slate-900">{idx + 1}</td>
+                                                        <td className="py-6 px-4 print:py-1.5 print:px-2">
                                                             <div className="flex flex-col text-[10px] font-bold text-slate-500 print:text-slate-900">
                                                                 <span>{new Date(l.date_received || l.createdAt).toLocaleDateString()}</span>
                                                                 <span className="text-orange-500 font-black">{new Date(l.date_received || l.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="py-6 px-4 text-xs font-black text-blue-600 uppercase print:text-slate-900">{l.lms_id}</td>
-                                                        <td className="py-6 px-4">
+                                                        <td className="py-6 px-4 print:py-1.5 print:px-2 text-xs font-black text-blue-600 uppercase print:text-slate-900">{l.lms_id}</td>
+                                                        <td className="py-6 px-4 print:py-1.5 print:px-2">
                                                             {(() => {
                                                                 const hasFile = l.scanned_copy || l.attachment_id || l.attachment?.file_path;
                                                                 if (!hasFile) return <span className="text-[10px] font-bold text-slate-300 uppercase">None</span>;
@@ -394,13 +440,13 @@ export default function ResumenPage() {
                                                                 {(l.scanned_copy || l.attachment_id || l.attachment?.file_path) ? 'Available' : 'No File'}
                                                             </span>
                                                         </td>
-                                                        <td className="py-6 px-4">
+                                                        <td className="py-6 px-4 print:py-1.5 print:px-2">
                                                             <div className="flex flex-col">
                                                                 <span className="text-xs font-black text-slate-800 dark:text-white uppercase print:text-slate-900">{l.sender}</span>
                                                                 <span className="text-[10px] text-slate-400 font-bold print:hidden">{l.locale || 'N/A'}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="py-6 px-4">
+                                                        <td className="py-6 px-4 print:py-1.5 print:px-2">
                                                             <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-w-lg print:text-slate-900 italic" dangerouslySetInnerHTML={{ __html: l.summary || 'No summary available' }}></div>
                                                         </td>
                                                         <td className="py-6 px-4 print:hidden text-right">
@@ -428,27 +474,19 @@ export default function ResumenPage() {
                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Print</span>
                                         </button>
 
-                                        {/* 2. Add LMS ID */}
-                                        <div className="flex items-center gap-2">
-                                            <form onSubmit={(e) => { e.preventDefault(); handleAddLetter(); }} className="relative flex items-center">
-                                                <input
-                                                    type="text"
-                                                    placeholder="LMS_ID..."
-                                                    value={lmsIdInput}
-                                                    onChange={(e) => setLmsIdInput(e.target.value)}
-                                                    className="pl-4 pr-10 py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-[#333] rounded-2xl text-[10px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48 transition-all uppercase"
-                                                />
-                                                <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-600 hover:scale-110 transition-transform">
-                                                    {isAddingLetter ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-4 h-4" />}
-                                                </button>
-                                                {modalError && <span className="absolute -bottom-5 left-0 text-[8px] text-red-500 font-black uppercase whitespace-nowrap">{modalError}</span>}
-                                            </form>
-                                        </div>
+                                        {/* 2. Add Letter Button → opens modal */}
+                                        <button
+                                            onClick={() => { setShowAddLetterModal(true); setModalError(""); setLmsIdInput(""); }}
+                                            className="px-6 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 rounded-2xl text-blue-600 hover:bg-blue-100 transition-all flex items-center gap-2 group"
+                                        >
+                                            <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Add Letter</span>
+                                        </button>
 
-                                        {/* 3. Scan QR */}
+                                        {/* 3. Scan QR - Hidden */}
                                         <button
                                             onClick={showScanner ? stopScanner : startScanner}
-                                            className={`px-6 py-3 rounded-2xl border transition-all flex items-center gap-2 ${showScanner ? 'bg-red-50 border-red-100 text-red-600' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 group'}`}
+                                            className={`hidden px-6 py-3 rounded-2xl border transition-all flex items-center gap-2 ${showScanner ? 'bg-red-50 border-red-100 text-red-600' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 group'}`}
                                         >
                                             {showScanner ? <X className="w-4 h-4" /> : <QrCode className="w-4 h-4 group-hover:scale-110 transition-transform" />}
                                             <span className="text-[10px] font-black uppercase tracking-widest">{showScanner ? 'Cancel' : 'Scan QR'}</span>
@@ -465,27 +503,9 @@ export default function ResumenPage() {
                                         </button>
                                     </div>
 
-                                    {/* Print Footer / Signatures */}
-                                    <div className="hidden print:block mt-20 pt-12 border-t-2 border-slate-900">
-                                        <div className="grid grid-cols-3 gap-12">
-                                            <div className="flex flex-col">
-                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-6">Prepared By / Naghanda:</span>
-                                                <div className="border-b border-slate-900 pb-2">
-                                                    <span className="text-xs font-black uppercase text-slate-900">{preparedBy}</span>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-6">Delivered By / Nagdala:</span>
-                                                <div className="border-b border-slate-900 h-6"></div>
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-6">Remarks / Notasyon:</span>
-                                                <div className="border-b border-slate-900 h-6"></div>
-                                            </div>
-                                        </div>
-                                        <div className="mt-8 text-right">
-                                            <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Total Letters: {modalLetters.length}</p>
-                                        </div>
+                                    {/* Print Footer - fixed bottom left */}
+                                    <div id="print-footer" className="hidden print:block">
+                                        <span className="text-xs font-bold text-slate-700">Prepared by: {preparedBy}</span>
                                     </div>
                                 </div>
                             </div>
@@ -534,14 +554,22 @@ export default function ResumenPage() {
 
                         /* Page settings */
                         @page { 
-                            margin: 1cm; 
-                            size: auto; 
+                            margin: 0.8cm; 
+                            size: portrait; 
                         }
 
                         /* Ensure clean text */
                         * { background: transparent !important; color: black !important; -webkit-print-color-adjust: exact !important; }
                         .text-blue-600 { color: black !important; }
                         .text-orange-500 { color: black !important; }
+
+                        /* Fixed bottom-left footer */
+                        #print-footer {
+                            position: fixed !important;
+                            bottom: 0 !important;
+                            left: 0 !important;
+                            padding: 0.3cm 0.8cm !important;
+                        }
                     }
                 `}</style>
                 </main>

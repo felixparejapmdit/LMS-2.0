@@ -26,6 +26,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # nginx config for SPA + internal reverse-proxy to backend/directus
 RUN echo 'server { \
     listen 80; \
+    client_max_body_size 50m; \
     root /usr/share/nginx/html; \
     index index.html; \
     location = /api { \
