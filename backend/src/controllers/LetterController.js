@@ -291,9 +291,30 @@ class LetterController {
                 return regex.test(s);
             };
 
-            const validEncoderId = isUUID(encoder_id) ? encoder_id : null;
+            let validEncoderId = isUUID(encoder_id) ? encoder_id : null;
 
-            console.log(`[LETTER_CREATE_DEBUG] Starting validation for: "${sender}" / "${summary}"`);
+            if (!validEncoderId && encoder && typeof encoder === 'string' && encoder.trim() !== '') {
+                // The frontend passes names like "Lastname, Firstname"
+                const parts = encoder.split(',').map(p => p.trim());
+                if (parts.length >= 2) {
+                    const lName = parts[0];
+                    const fName = parts.slice(1).join(' ');
+                    const possibleUser = await User.findOne({
+                        where: {
+                            [Op.and]: [
+                                sequelize.where(sequelize.fn('LOWER', sequelize.col('last_name')), 'LIKE', `%${lName.toLowerCase()}%`),
+                                sequelize.where(sequelize.fn('LOWER', sequelize.col('first_name')), 'LIKE', `%${fName.toLowerCase()}%`)
+                            ]
+                        },
+                        transaction
+                    });
+                    if (possibleUser) {
+                        validEncoderId = possibleUser.id;
+                    }
+                }
+            }
+
+            console.log(`[LETTER_CREATE_DEBUG] Starting validation for: "${sender}" / "${summary}" | Resolved Encoder_ID: ${validEncoderId}`);
             // 1. Core Validation
             if (!sender) {
                 console.warn("[LETTER_CREATE_DEBUG] Validation Failed: Sender missing");

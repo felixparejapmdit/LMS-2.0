@@ -81,11 +81,22 @@ export default function LetterTracker() {
 
         if ((isUserRole || isAccessManager) && !isSuperAdmin) {
             const isOwner = letter.encoder_id === user.id;
-            // Check if letter belongs to user's department via assignments
-            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
-            const isInUserDept = letter.assignments?.some(a => (a.department_id?.id ?? a.department_id) === userDeptId);
+            
+            const userLastName = user?.last_name?.toLowerCase() || '';
+            const userFirstName = user?.first_name?.toLowerCase() || '';
+            const fullName1 = `${userFirstName} ${userLastName}`.trim();
+            const fullName2 = `${userLastName}, ${userFirstName}`.trim();
+            
+            const senderStr = (letter.sender || '').toLowerCase();
+            const endorseStr = (letter.endorsed || '').toLowerCase();
+            
+            const isSenderOrEndorsed = 
+                (fullName1 && (senderStr.includes(fullName1) || endorseStr.includes(fullName1))) ||
+                (fullName2 && (senderStr.includes(fullName2) || endorseStr.includes(fullName2)));
 
-            if (!isOwner && !isInUserDept) return false;
+            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+            const isInDept = letter.assignments?.some(a => (a.department_id?.id ?? a.department_id) === userDeptId) || letter.dept_id === userDeptId;
+            if (!isOwner && !isInDept && !isSenderOrEndorsed) return false;
         }
 
         // 2. Search Filter

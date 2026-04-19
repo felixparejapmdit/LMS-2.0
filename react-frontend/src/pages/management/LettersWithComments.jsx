@@ -80,9 +80,22 @@ export default function LettersWithComments() {
 
         if ((isUserRole || isAccessManager) && !isSuperAdmin) {
             const isOwner = l.encoder_id === user.id;
+
+            const userLastName = user?.last_name?.toLowerCase() || '';
+            const userFirstName = user?.first_name?.toLowerCase() || '';
+            const fullName1 = `${userFirstName} ${userLastName}`.trim();
+            const fullName2 = `${userLastName}, ${userFirstName}`.trim();
+            
+            const senderStr = (l.sender || '').toLowerCase();
+            const endorseStr = (l.endorsed || '').toLowerCase();
+            
+            const isSenderOrEndorsed = 
+                (fullName1 && (senderStr.includes(fullName1) || endorseStr.includes(fullName1))) ||
+                (fullName2 && (senderStr.includes(fullName2) || endorseStr.includes(fullName2)));
+
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
-            const isInDept = l.assignments?.some(a => (a.department_id?.id ?? a.department_id) === userDeptId);
-            if (!isOwner && !isInDept) return false;
+            const isInDept = l.assignments?.some(a => (a.department_id?.id ?? a.department_id) === userDeptId) || l.dept_id === userDeptId;
+            if (!isOwner && !isInDept && !isSenderOrEndorsed) return false;
         }
 
         const step = getLatestStep(l).toLowerCase();

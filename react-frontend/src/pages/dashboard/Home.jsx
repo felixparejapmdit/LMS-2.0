@@ -77,7 +77,8 @@ export default function Home() {
                 params: {
                     user_id: user.id,
                     department_id: deptId,
-                    role: roleName
+                    role: roleName,
+                    full_name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim()
                 }
             });
             setStats(response.data);

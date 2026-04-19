@@ -111,19 +111,23 @@ export default function NewLetter() {
     const fetchRefs = async () => {
       try {
         const userDeptId = user?.dept_id?.id ?? user?.dept_id;
+        const roleName = user?.roleData?.name?.toUpperCase() || user?.role?.toUpperCase() || '';
+        const isAdmin = ['ADMIN', 'ADMINISTRATOR', 'VIP'].includes(roleName);
+        const fetchDeptId = isAdmin ? 'all' : userDeptId;
+
         const kindsData = await letterKindService.getAll({
-          dept_id: userDeptId,
+          dept_id: fetchDeptId,
         });
         const deptsData = await departmentService.getAll();
         const statusesData = await statusService.getAll({
-          dept_id: userDeptId,
+          dept_id: fetchDeptId,
         });
         const traysData = await trayService
-          .getAllTrays({ dept_id: userDeptId })
+          .getAllTrays({ dept_id: fetchDeptId })
           .catch(() => []);
         const stepsData = await processStepService.getAll().catch(() => []);
         const attachmentsData = await attachmentService
-          .getAll({ dept_id: userDeptId })
+          .getAll({ dept_id: fetchDeptId })
           .catch(() => []);
         const previews = await letterService.getPreviewIds().catch(() => null);
 
