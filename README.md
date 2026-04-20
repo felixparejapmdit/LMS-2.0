@@ -77,6 +77,28 @@ The backend currently uses these Sequelize models and tables:
 
 ---
 
+## 🚀 System Flow & Letter Lifecycle
+
+1. **Submission & Ingestion (Internal & Guest Portals)**  
+   - Letters can be officially encoded by registered users directly from the LMS dashboard or submitted anonymously via the external `Guest Portal/Send Letter` pipeline.
+   - **Smart Name Resolution**: When a guest encodes a letter on behalf of an existing entity, LMS 2.0 automatically performs a first name and last name resolution to link the `Encoder_ID` or `Sender` to the respective registered user—even without an active session login.
+
+2. **Real-time Notifications**  
+   - Webhook events securely broadcast `Telegram Bot` notifications, proactively notifying departmental teams or VIPs about new high-priority correspondence generated within the system.
+
+3. **Visibility & Tracking Queues**  
+   - The platform employs a robust dynamic client-and-server-side **Visibility Engine**.
+   - Standard users retain pervasive read-access over any correspondence where they are declared the `Sender`, `Endorsed Actionee`, or `Encoder`.
+   - Admin and VIP roles exercise cross-departmental supervision (via `dept_id=all`) dynamically fetching respective reference metadata (Statuses, Letter Kinds, Attachments) uninhibited.
+
+4. **Action Routing**  
+   - Assigned letters migrate across organizational queues (`Inbox`, `Tracker`, `Master Table`) progressing laterally through standard milestones (`Pending` → `For Review` → `For Signature` → `VEM Letter`). User interactions continuously log to the `comments` and `letter_logs` tables ensuring iron-clad auditability.
+
+5. **Completion & Archiving**  
+   - The workflow culminates when a correspondence reaches terminal status labels (`ATG Note`, `Hold`, or `Done`). Associated physical attachments and digitized PDFs populate the final `ref_attachments` and link chains permanently.
+
+---
+
 ## Deployment and Setup
 
 ### Prerequisites

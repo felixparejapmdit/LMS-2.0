@@ -3,7 +3,7 @@ const axios = require('axios');
 const http = require('http');
 const https = require('https');
 const sequelize = require('../config/db');
-const { Sequelize } = require('sequelize');
+const { Sequelize, Op } = require('sequelize');
 const argon2 = require('argon2');
 
 const DIRECTUS_URL = process.env.DIRECTUS_INTERNAL_URL || 'http://localhost:8055';
@@ -109,7 +109,7 @@ class AuthController {
             // STEP 1: PARALLEL LOCAL LOOKUP
             const [user, systemPages] = await Promise.all([
                 User.findOne({
-                    where: { username },
+                    where: { [Op.or]: [{ username }, { email: username }] },
                     include: ['roleData', 'department']
                 }),
                 (!cachedPages || (Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL)) 
