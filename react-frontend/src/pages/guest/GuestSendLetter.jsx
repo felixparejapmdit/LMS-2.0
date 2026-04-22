@@ -208,10 +208,7 @@ export default function GuestSendLetter() {
     };
 
     const handleSend = async () => {
-        if (isLoggedIn && !selectedDeptId) {
-            alert("Please select a department.");
-            return;
-        }
+        // Department is now optional for everyone on this page.
 
         // Only validate format if senders are provided
         const filledSenders = formData.senders.filter(s => s && s.trim());
@@ -516,29 +513,27 @@ export default function GuestSendLetter() {
                                 </div>
 
                                  <div className="grid grid-cols-1 gap-6">
-                                     {/* Department - Only shown if logged in */}
-                                     {isLoggedIn && (
-                                         <div className="space-y-3">
-                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                                                 <div className="flex items-center gap-2">
-                                                     <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
-                                                 </div>
-                                                 <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
-                                             </label>
-                                             <select
-                                                 value={selectedDeptId}
-                                                 onChange={(e) => setSelectedDeptId(e.target.value)}
-                                                 className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
-                                             >
-                                                 <option value="">Select department...</option>
-                                                 {departments.map((d) => (
-                                                     <option key={d.id} value={d.id}>
-                                                         {d.dept_name || d.name || d.department_name || `Department ${d.id}`}
-                                                     </option>
-                                                 ))}
-                                             </select>
-                                         </div>
-                                     )}
+                                     {/* Department - Optional for everyone */}
+                                     <div className="space-y-3">
+                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                                             <div className="flex items-center gap-2">
+                                                 <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
+                                             </div>
+                                             <span className="text-[9px] text-gray-400 font-bold tracking-widest">OPTIONAL</span>
+                                         </label>
+                                         <select
+                                             value={selectedDeptId}
+                                             onChange={(e) => setSelectedDeptId(e.target.value)}
+                                             className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
+                                         >
+                                             <option value="">Select department...</option>
+                                             {departments.map((d) => (
+                                                 <option key={d.id} value={d.id}>
+                                                     {d.dept_name || d.name || d.department_name || `Department ${d.id}`}
+                                                 </option>
+                                             ))}
+                                         </select>
+                                     </div>
 
                                      {/* Sender */}
                                      {canSenderField && <div className="space-y-3">
