@@ -98,6 +98,7 @@ export default function NewLetter() {
   const canKindDropdown = canField("new-letter", "kind_dropdown");
   const canTraySelector = canField("new-letter", "tray_selector");
   const canSave = canField("new-letter", "save_button");
+  const canPrintQR = canField("new-letter", "print_qr_button");
   const canEncoderField = canField("new-letter", "encoder_field");
 
   const [activeField, setActiveField] = useState(null);
@@ -130,7 +131,8 @@ export default function NewLetter() {
         const attachmentsData = await attachmentService
           .getAll({ dept_id: fetchDeptId })
           .catch(() => []);
-        const previews = await letterService.getPreviewIds().catch(() => null);
+        // Dept-based reference code requires a selected department
+        const previews = null;
 
         setKinds(kindsData);
         setDepartments(deptsData);
@@ -152,6 +154,9 @@ export default function NewLetter() {
             .getByLmsId(refCode)
             .catch(() => null);
           if (existing) {
+            if (existing.dept_id) {
+              setSelectedDept(String(existing.dept_id));
+            }
             setFormData((prev) => ({
               ...prev,
               sender: existing.sender || "",
@@ -164,8 +169,8 @@ export default function NewLetter() {
               dept_id: existing.dept_id || prev.dept_id,
             }));
           }
-        } else if (previews) {
-          setPredictedLmsId(previews.lms_id);
+        } else {
+          setPredictedLmsId("Select Department");
         }
 
         // Set defaults
@@ -194,6 +199,7 @@ export default function NewLetter() {
         // Default to user's department
         if (userDeptId) {
           setFormData((prev) => ({ ...prev, assigned_dept: userDeptId }));
+          setSelectedDept((prev) => prev || String(userDeptId));
         }
       } catch (err) {
         console.error("Refs fetch failed:", err);
@@ -204,18 +210,18 @@ export default function NewLetter() {
 
   useEffect(() => {
     const fetchNextId = async () => {
-      let prefix = "LMS";
-      if (selectedDept && selectedDept.toUpperCase() === "ATG'S OFFICE") {
-        prefix = "ATG";
-      }
-
       try {
-        const previews = await letterService.getPreviewIds(prefix);
+        if (!selectedDept) {
+          setPredictedLmsId("Select Department");
+          return;
+        }
+
+        const previews = await letterService.getPreviewIds("ATG", selectedDept);
         if (previews) {
           setPredictedLmsId(previews.lms_id);
         }
       } catch (err) {
-        console.error("Failed to fetch next ID for prefix:", prefix, err);
+        console.error("Failed to fetch next ID for selected department:", selectedDept, err);
       }
     };
 
@@ -496,6 +502,15 @@ export default function NewLetter() {
     setLoading(true);
     setError("");
 
+    if (!selectedDept) {
+      setError("Submission Failed: Please select a Department.");
+      setLoading(false);
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
+
     // 1. Validate Group Selection (Mandatory Signature or Review)
     const primarySteps = steps
       .filter((s) => ["For Signature", "For Review"].includes(s.step_name))
@@ -590,7 +605,8 @@ export default function NewLetter() {
         lms_id: predictedLmsId,
         scanned_copy: scannedCopyPath,
         encoder_id: user.id,
-        dept_id: user.dept_id?.id || user.dept_id,
+        dept_id: parseInt(selectedDept),
+        assigned_dept: parseInt(selectedDept),
       };
 
       let created;
@@ -737,12 +753,19 @@ export default function NewLetter() {
                       <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 pointer-events-none" />
                       <select
                         value={selectedDept}
-                        onChange={(e) => setSelectedDept(e.target.value)}
+                        onChange={(e) => {
+                          const nextDeptId = e.target.value;
+                          setSelectedDept(nextDeptId);
+                          setFormData((prev) => ({
+                            ...prev,
+                            assigned_dept: nextDeptId,
+                          }));
+                        }}
                         className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-orange-500 transition-all ${"bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300 uppercase"}`}
                       >
                         <option value="">Select Department</option>
                         {departments.map((d) => (
-                          <option key={d.id} value={d.dept_name}>
+                          <option key={d.id} value={d.id}>
                             {d.dept_name}
                           </option>
                         ))}
@@ -1335,6 +1358,7 @@ export default function NewLetter() {
           navigate("/master-table");
         }}
         referenceNo={predictedLmsId}
+        canPrintQr={canPrintQR}
       />
     </div>
   );

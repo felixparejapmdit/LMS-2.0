@@ -1,6 +1,8 @@
-const { Letter, LetterKind, LetterAssignment } = require('../models/associations');
+const { Letter, LetterKind, LetterAssignment, User, Person } = require('../models/associations');
 const Endorsement = require('../models/Endorsement');
 const { Op } = require('sequelize');
+const sequelize = require('../config/db');
+const TelegramService = require('../services/telegramService');
 const ALL_LETTER_ROLES = new Set(['ADMINISTRATOR']);
 
 // CREATE the table if it doesn't exist
@@ -66,7 +68,55 @@ class EndorsementController {
                 order: [['endorsed_at', 'DESC']]
             });
 
-            res.json(endorsements);
+            // Enrich with Telegram availability
+            const enriched = await Promise.all(endorsements.map(async (e) => {
+                const data = e.toJSON();
+                const personName = data.endorsed_to;
+                
+                let hasTelegram = false;
+                let isBot = personName?.toLowerCase().includes('lms bot');
+                let telegramChatId = null;
+
+                if (isBot) {
+                    hasTelegram = true;
+                } else {
+                    // Check User table
+                    const userMatch = await User.findOne({
+                        where: {
+                            [Op.or]: [
+                                { username: personName },
+                                sequelize.literal(`"last_name" || ', ' || "first_name" = '${personName.replace(/'/g, "''")}'`),
+                                sequelize.literal(`"first_name" || ' ' || "last_name" = '${personName.replace(/'/g, "''")}'`)
+                            ]
+                        }
+                    });
+
+                    if (userMatch && userMatch.telegram_chat_id) {
+                        hasTelegram = true;
+                        telegramChatId = userMatch.telegram_chat_id;
+                    } else {
+                        // Check Person table
+                        const personMatch = await Person.findOne({
+                            where: { name: personName }
+                        });
+                        if (personMatch && personMatch.telegram_chat_id) {
+                            hasTelegram = true;
+                            telegramChatId = personMatch.telegram_chat_id;
+                        }
+                    }
+                }
+
+                return {
+                    ...data,
+                    telegram_info: {
+                        has_telegram: hasTelegram,
+                        is_bot: isBot,
+                        chat_id: telegramChatId
+                    }
+                };
+            }));
+
+            res.json(enriched);
         } catch (error) {
             console.error('Endorsement.getAll error:', error);
             res.status(500).json({ error: error.message });
@@ -111,6 +161,63 @@ class EndorsementController {
             });
             res.json({ count });
         } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    // NOTIFY via Telegram
+    static async notifyTelegram(req, res) {
+        try {
+            const { endorsement_id } = req.body;
+            const endorsement = await Endorsement.findByPk(endorsement_id, {
+                include: [{ model: Letter, as: 'letter' }]
+            });
+
+            if (!endorsement) return res.status(404).json({ error: 'Endorsement not found' });
+
+            const personName = endorsement.endorsed_to;
+            let chatId = req.body.chat_id;
+
+            if (!chatId) {
+                // Look up chat ID if not provided
+                const userMatch = await User.findOne({
+                    where: {
+                        [Op.or]: [
+                            { username: personName },
+                            sequelize.literal(`"last_name" || ', ' || "first_name" = '${personName.replace(/'/g, "''")}'`),
+                            sequelize.literal(`"first_name" || ' ' || "last_name" = '${personName.replace(/'/g, "''")}'`)
+                        ]
+                    }
+                });
+                if (userMatch) chatId = userMatch.telegram_chat_id;
+                
+                if (!chatId) {
+                    const personMatch = await Person.findOne({ where: { name: personName } });
+                    if (personMatch) chatId = personMatch.telegram_chat_id;
+                }
+            }
+
+            // If it's a bot or we have a chat ID, send notification
+            if (personName.toLowerCase().includes('lms bot') || chatId) {
+                const text = 
+                    `<b>📢 Endorsement Notification</b>\n\n` +
+                    `📄 <b>Letter:</b> <code>${endorsement.letter?.lms_id || 'N/A'}</code>\n` +
+                    `👤 <b>To:</b> ${personName}\n` +
+                    `💬 <b>Notes:</b> ${endorsement.notes || 'No notes'}\n\n` +
+                    `Please check your LMS Inbox.`;
+
+                // If it's the bot, we might send to a default group or just log it
+                // For now, if chatID represents the destination, send it.
+                if (chatId) {
+                    await TelegramService.sendMessage(chatId, text);
+                }
+                
+                return res.json({ success: true, message: 'Notification sent' });
+            }
+
+            res.status(400).json({ error: 'No Telegram ID found for this person' });
+        } catch (error) {
+            console.error('notifyTelegram error:', error);
             res.status(500).json({ error: error.message });
         }
     }

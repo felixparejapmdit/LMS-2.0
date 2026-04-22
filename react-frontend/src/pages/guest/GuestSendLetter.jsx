@@ -49,7 +49,7 @@ export default function GuestSendLetter() {
     const attachmentSearchRef = useRef(null);
     const [attachments, setAttachments] = useState([]);
     const [refAttachments, setRefAttachments] = useState([]);
-    const [referenceNo, setReferenceNo] = useState("Generating...");
+    const [referenceNo, setReferenceNo] = useState("Select Department");
     const [departments, setDepartments] = useState([]);
     const [selectedDeptId, setSelectedDeptId] = useState("");
     const [kinds, setKinds] = useState([]);
@@ -70,6 +70,7 @@ export default function GuestSendLetter() {
     const canKindDropdown = canField("guest-send-letter", "kind_dropdown");
     const canSubmit = canField("guest-send-letter", "submit_button");
     const canClear = canField("guest-send-letter", "clear_button");
+    const canPrintQR = canField("guest-send-letter", "print_qr_button");
     const today = new Date().toLocaleDateString('en-US', {
         month: 'long',
         day: 'numeric',
@@ -90,7 +91,6 @@ export default function GuestSendLetter() {
 
     useEffect(() => {
         const fetchDepts = async () => {
-            if (!isLoggedIn) return;
             try {
                 const data = await departmentService.getAll();
                 setDepartments(Array.isArray(data) ? data : []);
@@ -99,22 +99,17 @@ export default function GuestSendLetter() {
             }
         };
         fetchDepts();
-    }, [isLoggedIn]);
+    }, []);
 
     useEffect(() => {
         const fetchKinds = async () => {
             try {
-                if (isLoggedIn) {
-                    if (!selectedDeptId) {
-                        setKinds([]);
-                        return;
-                    }
-                    const data = await letterKindService.getAll({ dept_id: selectedDeptId });
-                    setKinds(Array.isArray(data) ? data : []);
+                if (!selectedDeptId) {
+                    setKinds([]);
                     return;
                 }
 
-                const data = await letterKindService.getAll();
+                const data = await letterKindService.getAll({ dept_id: selectedDeptId });
                 setKinds(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error("Failed to fetch kinds:", err);
@@ -122,23 +117,17 @@ export default function GuestSendLetter() {
             }
         };
         fetchKinds();
-    }, [isLoggedIn, selectedDeptId]);
+    }, [selectedDeptId]);
 
     useEffect(() => {
         const syncPreview = async () => {
             try {
-                if (isLoggedIn) {
-                    if (!selectedDeptId) {
-                        setReferenceNo("Select Department");
-                        return;
-                    }
-                    setReferenceNo("Generating...");
-                    const preview = await letterService.getPreviewIds("ATG");
-                    if (preview?.lms_id) setReferenceNo(preview.lms_id);
+                if (!selectedDeptId) {
+                    setReferenceNo("Select Department");
                     return;
                 }
-
-                const preview = await letterService.getPreviewIds();
+                setReferenceNo("Generating...");
+                const preview = await letterService.getPreviewIds("ATG", selectedDeptId);
                 if (preview?.lms_id) setReferenceNo(preview.lms_id);
             } catch (err) {
                 console.error("Failed to fetch next Reference No:", err);
@@ -212,11 +201,11 @@ export default function GuestSendLetter() {
         });
         setAttachments([]);
         setSelectedDeptId("");
-        if (isLoggedIn) setReferenceNo("Select Department");
+        setReferenceNo("Select Department");
     };
 
     const handleSend = async () => {
-        if (isLoggedIn && !selectedDeptId) {
+        if (!selectedDeptId) {
             alert("Please select a department.");
             return;
         }
@@ -273,23 +262,12 @@ export default function GuestSendLetter() {
 
             let lmsIdToUse = referenceNo;
             const normalizedRef = (referenceNo || '').trim();
-            if (isLoggedIn) {
-                const isValidAtg = /^ATG\d{2}-\d{5}$/.test(normalizedRef);
-                if (!isValidAtg) {
-                    const preview = await letterService.getPreviewIds("ATG");
-                    if (preview?.lms_id) {
-                        lmsIdToUse = preview.lms_id;
-                        setReferenceNo(preview.lms_id);
-                    }
-                }
-            } else {
-                const isValidRef = /^[A-Z]{3}\d{2}-\d{5}$/.test(normalizedRef);
-                if (!isValidRef) {
-                    const preview = await letterService.getPreviewIds();
-                    if (preview?.lms_id) {
-                        lmsIdToUse = preview.lms_id;
-                        setReferenceNo(preview.lms_id);
-                    }
+            const isValidRef = /^ATG\d{2}-[A-Z0-9]+-\d{5}$/.test(normalizedRef);
+            if (!isValidRef) {
+                const preview = await letterService.getPreviewIds("ATG", selectedDeptId);
+                if (preview?.lms_id) {
+                    lmsIdToUse = preview.lms_id;
+                    setReferenceNo(preview.lms_id);
                 }
             }
 
@@ -307,8 +285,8 @@ export default function GuestSendLetter() {
                 scanned_copy: scannedCopyPath,
                 direction: 'Incoming',
                 kind: formData.kind ? parseInt(formData.kind) : null,
-                assigned_dept: isLoggedIn ? parseInt(selectedDeptId) : null,
-                dept_id: isLoggedIn ? parseInt(selectedDeptId) : null
+                assigned_dept: parseInt(selectedDeptId),
+                dept_id: parseInt(selectedDeptId)
             });
 
             if (response.data?.lms_id) {
@@ -531,29 +509,27 @@ export default function GuestSendLetter() {
                                 </div>
 
                                  <div className="grid grid-cols-1 gap-6">
-                                     {/* Department (Logged-in only) */}
-                                     {isLoggedIn && (
-                                         <div className="space-y-3">
-                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                                                 <div className="flex items-center gap-2">
-                                                     <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
-                                                 </div>
-                                                 <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
-                                             </label>
-                                             <select
-                                                 value={selectedDeptId}
-                                                 onChange={(e) => setSelectedDeptId(e.target.value)}
-                                                 className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
-                                             >
-                                                 <option value="">Select department...</option>
-                                                 {departments.map((d) => (
-                                                     <option key={d.id} value={d.id}>
-                                                         {d.dept_name || d.name || d.department_name || `Department ${d.id}`}
-                                                     </option>
-                                                 ))}
-                                             </select>
-                                         </div>
-                                     )}
+                                     {/* Department */}
+                                     <div className="space-y-3">
+                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                                             <div className="flex items-center gap-2">
+                                                 <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
+                                             </div>
+                                             <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
+                                         </label>
+                                         <select
+                                             value={selectedDeptId}
+                                             onChange={(e) => setSelectedDeptId(e.target.value)}
+                                             className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
+                                         >
+                                             <option value="">Select department...</option>
+                                             {departments.map((d) => (
+                                                 <option key={d.id} value={d.id}>
+                                                     {d.dept_name || d.name || d.department_name || `Department ${d.id}`}
+                                                 </option>
+                                             ))}
+                                         </select>
+                                     </div>
 
                                      {/* Sender */}
                                      {canSenderField && <div className="space-y-3">
@@ -955,6 +931,7 @@ export default function GuestSendLetter() {
             <SuccessModal
                 isOpen={isSuccessModalOpen}
                 isGuest={isGuest}
+                canPrintQr={canPrintQR}
                 onClose={async () => {
                     setIsSuccessModalOpen(false);
                     try {
@@ -966,7 +943,11 @@ export default function GuestSendLetter() {
                         }));
                         setAttachments([]);
 
-                        const preview = await letterService.getPreviewIds(isLoggedIn ? "ATG" : "LMS");
+                        if (!selectedDeptId) {
+                            setReferenceNo("Select Department");
+                            return;
+                        }
+                        const preview = await letterService.getPreviewIds("ATG", selectedDeptId);
                         if (preview?.lms_id) setReferenceNo(preview.lms_id);
                     } catch { }
                 }}

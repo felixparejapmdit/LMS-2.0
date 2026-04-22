@@ -13,6 +13,7 @@ export default function SuccessModal({
     onClose,
     referenceNo,
     isGuest = false,
+    canPrintQr = true,
     // Confirm variant props
     variant = 'success',
     title,
@@ -165,13 +166,15 @@ export default function SuccessModal({
                                     className="w-28 h-28"
                                 />
                             </div>
-                            <button
-                                onClick={handlePrintQR}
-                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:opacity-70 transition-all"
-                            >
-                                <Printer className="w-3.5 h-3.5" />
-                                Print QR Sticker
-                            </button>
+                            {canPrintQr && (
+                                <button
+                                    onClick={handlePrintQR}
+                                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:opacity-70 transition-all"
+                                >
+                                    <Printer className="w-3.5 h-3.5" />
+                                    Print QR Sticker
+                                </button>
+                            )}
                         </div>
                     )}
                     {/* Close button */}

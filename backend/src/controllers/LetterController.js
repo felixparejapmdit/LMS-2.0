@@ -209,7 +209,7 @@ class LetterController {
 
   static async getPreviewIds(req, res) {
     try {
-      const { prefix = "LMS" } = req.query;
+      const { prefix = "LMS", dept_id } = req.query;
       const now = new Date();
       const yearStr = now.getFullYear().toString();
       const shortYear = yearStr.slice(-2);
@@ -217,6 +217,53 @@ class LetterController {
         yearStr +
         (now.getMonth() + 1).toString().padStart(2, "0") +
         now.getDate().toString().padStart(2, "0");
+
+      // New Format (Dept-based):
+      // ATG[YY]-[DEPT_CODE]-00001 (per-year, per-department sequence)
+      if (dept_id) {
+        const dept = await Department.findByPk(dept_id, {
+          attributes: ["dept_code"],
+          raw: true,
+        });
+        const deptCodeRaw = dept?.dept_code ?? null;
+        const deptCode = deptCodeRaw ? String(deptCodeRaw).trim().toUpperCase() : "";
+
+        if (!deptCode) {
+          return res.status(400).json({
+            error: "Department code is required to generate a department-based reference code.",
+          });
+        }
+
+        const atgPrefix = "ATG";
+        const lastDeptYearEntry = await Letter.findOne({
+          where: { lms_id: { [Op.like]: `${atgPrefix}${shortYear}-${deptCode}-%` } },
+          order: [["lms_id", "DESC"]],
+        });
+
+        let annualSequence = 1;
+        if (lastDeptYearEntry?.lms_id) {
+          const parts = String(lastDeptYearEntry.lms_id).split("-");
+          const lastSeq = parseInt(parts[parts.length - 1]);
+          if (!Number.isNaN(lastSeq)) annualSequence = lastSeq + 1;
+        }
+
+        const lastDayEntry = await Letter.findOne({
+          where: { entry_id: { [Op.like]: `${ymd}%` } },
+          order: [["entry_id", "DESC"]],
+        });
+
+        let dailySequence = 1;
+        if (lastDayEntry?.entry_id) {
+          const lastSeqStr = String(lastDayEntry.entry_id).slice(-3);
+          const lastSeq = parseInt(lastSeqStr);
+          if (!Number.isNaN(lastSeq)) dailySequence = lastSeq + 1;
+        }
+
+        const lms_id = `${atgPrefix}${shortYear}-${deptCode}-${annualSequence.toString().padStart(5, "0")}`;
+        const entry_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
+
+        return res.json({ lms_id, entry_id });
+      }
 
       // Find counters via Max sequence for the specific prefix
       const lastYearEntry = await Letter.findOne({

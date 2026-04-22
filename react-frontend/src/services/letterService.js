@@ -42,9 +42,12 @@ class LetterService {
         return response.data;
     }
 
-    async getPreviewIds(prefix = 'LMS') {
+    async getPreviewIds(prefix = 'LMS', dept_id = null) {
         try {
-            const response = await axios.get(`${API_URL}/preview/ids?prefix=${prefix}`);
+            const params = new URLSearchParams();
+            if (prefix) params.set('prefix', prefix);
+            if (dept_id) params.set('dept_id', dept_id);
+            const response = await axios.get(`${API_URL}/preview/ids?${params.toString()}`);
             return response.data;
         } catch (error) {
             console.error('Error in LetterService.getPreviewIds:', error);

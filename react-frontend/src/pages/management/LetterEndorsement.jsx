@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
@@ -18,7 +17,8 @@ import {
     ChevronRight,
     Inbox,
     Menu,
-    Send
+    Send,
+    MessageSquare
 } from "lucide-react";
 
 export default function LetterEndorsement() {
@@ -35,6 +35,8 @@ export default function LetterEndorsement() {
     const canDelete = canField("endorsements", "delete_button");
     const canView = canField("endorsements", "view_button");
     const canRefresh = canField("endorsements", "refresh_button");
+    const [notifiedIds, setNotifiedIds] = useState(new Set());
+    const [notifyingId, setNotifyingId] = useState(null);
 
     const fetchEndorsements = async () => {
         if (!user) return;
@@ -73,6 +75,22 @@ export default function LetterEndorsement() {
             fetchEndorsements();
         } catch (e) {
             alert("Delete failed.");
+        }
+    };
+
+    const handleNotifyTelegram = async (endorsement) => {
+        if (notifyingId) return;
+        setNotifyingId(endorsement.id);
+        try {
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements/notify-telegram`, {
+                endorsement_id: endorsement.id,
+                chat_id: endorsement.telegram_info?.chat_id
+            });
+            setNotifiedIds(prev => new Set([...prev, endorsement.id]));
+        } catch (e) {
+            console.error("Notification failed:", e);
+        } finally {
+            setNotifyingId(null);
         }
     };
 
@@ -256,6 +274,27 @@ export default function LetterEndorsement() {
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <div className="flex items-center justify-end gap-2">
+                                                                {e.telegram_info?.has_telegram && (
+                                                                    <button
+                                                                        onClick={() => handleNotifyTelegram(e)}
+                                                                        disabled={notifyingId === e.id}
+                                                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border ${
+                                                                            notifiedIds.has(e.id)
+                                                                                ? "bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 border-emerald-100 dark:border-emerald-900/20 hover:bg-emerald-500 hover:text-white"
+                                                                                : "bg-indigo-50 dark:bg-indigo-900/10 text-indigo-600 border-indigo-100 dark:border-indigo-900/20 hover:bg-indigo-500 hover:text-white"
+                                                                        }`}
+                                                                        title={notifiedIds.has(e.id) ? "Resend Notification" : "Notify via Telegram"}
+                                                                    >
+                                                                        {notifyingId === e.id ? (
+                                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                                        ) : (
+                                                                            <MessageSquare className="w-3.5 h-3.5" />
+                                                                        )}
+                                                                        <span className="hidden sm:inline">
+                                                                            {notifiedIds.has(e.id) ? "Resend Notification" : "Notify via Telegram"}
+                                                                        </span>
+                                                                    </button>
+                                                                )}
                                                                 {canPrint && (
                                                                     <button
                                                                         onClick={() => handlePrint(e)}
