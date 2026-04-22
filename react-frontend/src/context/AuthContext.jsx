@@ -285,7 +285,7 @@ const authReducer = (state, action) => {
             const res = await axios.post(`${BACKEND_URL}/auth/login`, { username, password, provider });
             if (!res.data.success) throw new Error(res.data.error || "Login failed");
 
-            const { user: me, permissions: perms, directus_auth: directusAuth, timings } = res.data;
+            const { user: me, permissions: perms, directus_auth: directusAuth, directus_deferred: directusDeferred, timings } = res.data;
 
             if (timings) {
                 console.group(`[LOGIN Performance] ${username}`);
@@ -296,8 +296,23 @@ const authReducer = (state, action) => {
                 console.groupEnd();
             }
 
-            if (!directusAuth) throw new Error("Authentication session missing. Please try again.");
-            localStorage.setItem('directus_auth', JSON.stringify(directusAuth));
+            if (directusAuth) {
+                localStorage.setItem('directus_auth', JSON.stringify(directusAuth));
+            } else if (directusDeferred) {
+                console.log(`[AUTH] Directus session deferred. Continuing login and syncing in background...`);
+                axios.post(`${BACKEND_URL}/auth/directus-login`, { username, password, provider })
+                    .then((dRes) => {
+                        if (dRes?.data?.directus_auth) {
+                            localStorage.setItem('directus_auth', JSON.stringify(dRes.data.directus_auth));
+                            console.log(`[AUTH] Directus session synced.`);
+                        } else {
+                            console.warn(`[AUTH] Directus sync completed without a session.`);
+                        }
+                    })
+                    .catch((e) => {
+                        console.warn(`[AUTH] Directus session sync failed:`, e?.response?.data?.error || e?.message || e);
+                    });
+            }
             localStorage.removeItem("isGuest");
 
             writeCachedJson(AUTH_USER_KEY, me);
