@@ -133,20 +133,7 @@ class AuthController {
                 cachedPagesTimestamp = Date.now();
             }
 
-            // STEP 2: LOCAL PASSWORD VERIFICATION (FAST PATH)
-            let isPasswordValid = false;
-            try {
-                isPasswordValid = await argon2.verify(user.password, password);
-                lap('Local Pwd Check');
-            } catch (err) {
-                console.error('[LOGIN] Argon2 Error:', err);
-            }
-
-            if (!isPasswordValid) {
-                return res.status(401).json({ error: 'Invalid credentials' });
-            }
-
-            // STEP 3: ASYNC DIRECTUS AUTH
+            // STEP 2: DIRECTUS AUTH (Single source of truth for password verification)
             const directusAuthPromise = (async () => {
                 const directusStart = Date.now();
                 const hint = directusLoginHint.get(user.id) || 'username';
@@ -159,6 +146,9 @@ class AuthController {
                 // De-dupe and drop empties
                 const uniq = candidates.filter(Boolean).filter((v, idx, arr) => arr.indexOf(v) === idx);
 
+                let sawInvalidCredentials = false;
+                let sawNonAuthError = false;
+
                 for (const identifier of uniq) {
                     try {
                         const response = await directusClient.post('/auth/login', {
@@ -167,25 +157,35 @@ class AuthController {
                         });
                         timings['Directus Login'] = Date.now() - directusStart;
                         directusLoginHint.set(user.id, identifier === user.email ? 'email' : 'username');
-                        return response.data;
-                    } catch {
-                        // try next identifier
+                        return { kind: 'ok', data: response.data };
+                    } catch (error) {
+                        const status = error?.response?.status;
+                        if (status === 401 || status === 403) {
+                            sawInvalidCredentials = true;
+                        } else {
+                            sawNonAuthError = true;
+                        }
                     }
                 }
                 timings['Directus Login'] = Date.now() - directusStart;
-                return null;
+                if (sawInvalidCredentials && !sawNonAuthError) return { kind: 'invalid' };
+                return { kind: 'unavailable' };
             })();
 
-            // STEP 4: FETCH PERMISSIONS (PARALLEL)
+            // STEP 3: FETCH PERMISSIONS (PARALLEL)
             let normalizedPerms = getCachedPerms(user.role);
             const permissionsPromise = !normalizedPerms 
                 ? RolePermission.findAll({ where: { role_id: user.role } })
                 : Promise.resolve(null);
 
-            // STEP 5: WAIT FOR PERMISSIONS + DIRECTUS TOKEN
-            const [permsResult, directusAuth] = await Promise.all([permissionsPromise, directusAuthPromise]);
+            // STEP 4: WAIT FOR PERMISSIONS + DIRECTUS TOKEN
+            const [permsResult, directusAuthResult] = await Promise.all([permissionsPromise, directusAuthPromise]);
 
-            if (!directusAuth) {
+            if (directusAuthResult?.kind === 'invalid') {
+                return res.status(401).json({ error: 'Invalid credentials' });
+            }
+
+            if (!directusAuthResult || directusAuthResult.kind !== 'ok' || !directusAuthResult.data) {
                 return res.status(503).json({ error: 'Authentication provider unavailable. Please try again.' });
             }
 
@@ -210,7 +210,7 @@ class AuthController {
                     systemPages: systemPages.map(p => p.page_id)
                 },
                 permissions: normalizedPerms || [], // ROOT LEVEL as expected by frontend
-                directus_auth: directusAuth?.data || directusAuth,
+                directus_auth: directusAuthResult.data?.data || directusAuthResult.data,
                 timings
             });
 

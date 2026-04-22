@@ -68,6 +68,7 @@ class LetterAssignmentController {
       const isSpecificDept = isValidId(department_id);
 
       let atgStatusId = null;
+      let incomingStatusId = null;
       if (
         vip === "true" ||
         req.query.exclude_vip === "true" ||
@@ -77,6 +78,13 @@ class LetterAssignmentController {
           where: { status_name: "ATG Note" },
         });
         atgStatusId = atgStatus?.id || null;
+      }
+
+      if (named_filter === "atg_note") {
+        const incomingStatus = await Status.findOne({
+          where: { status_name: "Incoming" },
+        });
+        incomingStatusId = incomingStatus?.id || null;
       }
 
       const visibilityClauses = [];
@@ -165,12 +173,12 @@ class LetterAssignmentController {
             { "$letter.tray_id$": { [Op.or]: [null, 0] } },
           ];
         } else if (named_filter === "atg_note") {
-          // FOR ATG NOTE: Strictly ATG Note status with an existing tray
-          const atgStatusFilter = atgStatusId
-            ? { "$letter.global_status$": atgStatusId }
-            : { "$letter.status.status_name$": "ATG Note" };
+          // FOR ATG NOTE: Incoming status with an existing tray
+          const incomingStatusFilter = incomingStatusId
+            ? { "$letter.global_status$": incomingStatusId }
+            : { "$letter.status.status_name$": "Incoming" };
           where[Op.and] = [
-            atgStatusFilter,
+            incomingStatusFilter,
             { "$letter.tray_id$": { [Op.gt]: 0 } },
           ];
         } else if (named_filter === "vem") {
@@ -362,8 +370,8 @@ class LetterAssignmentController {
 
         // Add the specific filter for "Empty" or "ATG Note" or "Pending"
         if (named_filter === "atg_note") {
-          // Letter.global_status is the Status ID (see associations.js)
-          unassignedWhere.global_status = atgStatusId ?? -1;
+          // Incoming + tray
+          unassignedWhere.global_status = incomingStatusId ?? 1;
           unassignedWhere.tray_id = { [Op.gt]: 0 };
         } else {
           unassignedWhere.global_status = { [Op.in]: [1, 8] };

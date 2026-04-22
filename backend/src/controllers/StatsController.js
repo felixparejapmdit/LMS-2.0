@@ -319,12 +319,12 @@ class StatsController {
             const isValidId = (id) => id && id !== 'all' && id !== 'null' && id !== 'undefined' && id !== '';
             const isSpecificDept = isValidId(department_id);
 
-            const atgStatus = await Status.findOne({
-                where: { status_name: 'ATG Note' },
+            const incomingStatus = await Status.findOne({
+                where: { status_name: 'Incoming' },
                 attributes: ['id'],
                 raw: true
             });
-            const atgStatusId = atgStatus?.id ?? null;
+            const incomingStatusId = incomingStatus?.id ?? null;
 
             const visibilityClauses = [];
 
@@ -483,15 +483,15 @@ class StatsController {
                 }),
                 // ATG Note (Assigned + Unassigned)
                 (async () => {
-                    if (!atgStatusId) return 0;
+                    if (!incomingStatusId) return 0;
                     const assigned = await LetterAssignment.count({
-                        where: { ...where, '$letter.tray_id$': { [Op.gt]: 0 }, '$letter.global_status$': atgStatusId },
+                        where: { ...where, '$letter.tray_id$': { [Op.gt]: 0 }, '$letter.global_status$': incomingStatusId },
                         include: [{ model: Letter, as: 'letter' }],
                         distinct: true,
                         col: 'letter_id'
                     });
                     const unassigned = await Letter.count({
-                        where: { ...unassignedWhere, tray_id: { [Op.gt]: 0 }, global_status: atgStatusId, id: { [Op.notIn]: sequelize.literal('(SELECT letter_id FROM letter_assignments WHERE letter_id IS NOT NULL)') } }
+                        where: { ...unassignedWhere, tray_id: { [Op.gt]: 0 }, global_status: incomingStatusId, id: { [Op.notIn]: sequelize.literal('(SELECT letter_id FROM letter_assignments WHERE letter_id IS NOT NULL)') } }
                     });
                     return assigned + unassigned;
                 })(),
