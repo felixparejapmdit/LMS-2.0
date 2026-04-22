@@ -52,7 +52,7 @@ const PAGE_FIELD_PRESETS = {
     'letters-with-comments': ['search', 'pdf_button', 'tab_filter', 'refresh_button'],
     'letter-tracker': ['search', 'pdf_button', 'track_button', 'print_qr_button', 'refresh_button'],
     'upload-pdf': ['attachment_upload', 'save_button', 'pdf_button', 'delete_button', 'view_toggle'],
-    'guest-send-letter': ['sender_field', 'encoder_field', 'summary_field', 'attachment_selector', 'kind_dropdown', 'attachment_upload', 'submit_button', 'clear_button', 'print_qr_button'],
+    'guest-send-letter': ['sender_field', 'encoder_field', 'summary_field', 'department_selector', 'attachment_selector', 'kind_dropdown', 'attachment_upload', 'submit_button', 'clear_button', 'print_qr_button'],
     'endorsements': ['search', 'print_button', 'delete_button', 'view_button', 'refresh_button'],
     'settings': ['save_button', 'layout_selector', 'font_selector'],
     'attachments': ['add_button', 'edit_button', 'delete_button', 'save_button', 'refresh_button', 'view_toggle'],

@@ -68,6 +68,7 @@ export default function GuestSendLetter() {
     const canAttachmentSelector = canField("guest-send-letter", "attachment_selector");
     const canAttachmentUpload = canField("guest-send-letter", "attachment_upload");
     const canKindDropdown = canField("guest-send-letter", "kind_dropdown");
+    const canDepartmentSelector = canField("guest-send-letter", "department_selector");
     const canSubmit = canField("guest-send-letter", "submit_button");
     const canClear = canField("guest-send-letter", "clear_button");
     const canPrintQR = canField("guest-send-letter", "print_qr_button");
@@ -514,26 +515,28 @@ export default function GuestSendLetter() {
 
                                  <div className="grid grid-cols-1 gap-6">
                                      {/* Department - Optional for everyone */}
-                                     <div className="space-y-3">
-                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                                             <div className="flex items-center gap-2">
-                                                 <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
-                                             </div>
-                                             <span className="text-[9px] text-gray-400 font-bold tracking-widest">OPTIONAL</span>
-                                         </label>
-                                         <select
-                                             value={selectedDeptId}
-                                             onChange={(e) => setSelectedDeptId(e.target.value)}
-                                             className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
-                                         >
-                                             <option value="">Select department...</option>
-                                             {departments.map((d) => (
-                                                 <option key={d.id} value={d.id}>
-                                                     {d.dept_name || d.name || d.department_name || `Department ${d.id}`}
-                                                 </option>
-                                             ))}
-                                         </select>
-                                     </div>
+                                     {canDepartmentSelector && (
+                                         <div className="space-y-3">
+                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                                                 <div className="flex items-center gap-2">
+                                                     <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
+                                                 </div>
+                                                 <span className="text-[9px] text-gray-400 font-bold tracking-widest">OPTIONAL</span>
+                                             </label>
+                                             <select
+                                                 value={selectedDeptId}
+                                                 onChange={(e) => setSelectedDeptId(e.target.value)}
+                                                 className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
+                                             >
+                                                 <option value="">Select department...</option>
+                                                 {departments.map((d) => (
+                                                     <option key={d.id} value={d.id}>
+                                                         {d.dept_name || d.name || d.department_name || `Department ${d.id}`}
+                                                     </option>
+                                                 ))}
+                                             </select>
+                                         </div>
+                                     )}
 
                                      {/* Sender */}
                                      {canSenderField && <div className="space-y-3">

@@ -33,6 +33,7 @@ export const useAccess = () => {
         step_selector: ["step_selector", "step_select", "process_step"],
         endorse_button: ["endorse_button", "endorse", "endorse_btn"],
         print_button: ["print_button", "print", "print_btn"],
+        print_qr_button: ["print_qr_button", "print_qr", "qr_print"],
         edit_field: ["edit_field", "field_editor", "field_permissions"]
     };
 
