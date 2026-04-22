@@ -104,12 +104,9 @@ export default function GuestSendLetter() {
     useEffect(() => {
         const fetchKinds = async () => {
             try {
-                if (!selectedDeptId) {
-                    setKinds([]);
-                    return;
-                }
-
-                const data = await letterKindService.getAll({ dept_id: selectedDeptId });
+                // If not logged in (guest), or no department is selected, fetch all kinds
+                const params = (isLoggedIn && selectedDeptId) ? { dept_id: selectedDeptId } : {};
+                const data = await letterKindService.getAll(params);
                 setKinds(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error("Failed to fetch kinds:", err);
@@ -117,20 +114,26 @@ export default function GuestSendLetter() {
             }
         };
         fetchKinds();
-    }, [selectedDeptId]);
+    }, [isLoggedIn, selectedDeptId]);
 
     useEffect(() => {
         const syncPreview = async () => {
             try {
-                if (!selectedDeptId) {
+                // Determine prefix and deptId for preview
+                const prefix = isLoggedIn ? "ATG" : "LMS";
+                const targetDeptId = isLoggedIn ? selectedDeptId : null;
+
+                if (isLoggedIn && !selectedDeptId) {
                     setReferenceNo("Select Department");
                     return;
                 }
+
                 setReferenceNo("Generating...");
-                const preview = await letterService.getPreviewIds("ATG", selectedDeptId);
+                const preview = await letterService.getPreviewIds(prefix, targetDeptId);
                 if (preview?.lms_id) setReferenceNo(preview.lms_id);
             } catch (err) {
                 console.error("Failed to fetch next Reference No:", err);
+                setReferenceNo("Check Connection");
             }
         };
         syncPreview();
@@ -205,7 +208,7 @@ export default function GuestSendLetter() {
     };
 
     const handleSend = async () => {
-        if (!selectedDeptId) {
+        if (isLoggedIn && !selectedDeptId) {
             alert("Please select a department.");
             return;
         }
@@ -262,9 +265,13 @@ export default function GuestSendLetter() {
 
             let lmsIdToUse = referenceNo;
             const normalizedRef = (referenceNo || '').trim();
-            const isValidRef = /^ATG\d{2}-[A-Z0-9]+-\d{5}$/.test(normalizedRef);
+            const isValidRef = isLoggedIn 
+                ? /^ATG\d{2}-[A-Z0-9]+-\d{5}$/.test(normalizedRef)
+                : /^LMS\d{2}-\d{5}$/.test(normalizedRef);
+
             if (!isValidRef) {
-                const preview = await letterService.getPreviewIds("ATG", selectedDeptId);
+                const prefix = isLoggedIn ? "ATG" : "LMS";
+                const preview = await letterService.getPreviewIds(prefix, selectedDeptId || null);
                 if (preview?.lms_id) {
                     lmsIdToUse = preview.lms_id;
                     setReferenceNo(preview.lms_id);
@@ -509,27 +516,29 @@ export default function GuestSendLetter() {
                                 </div>
 
                                  <div className="grid grid-cols-1 gap-6">
-                                     {/* Department */}
-                                     <div className="space-y-3">
-                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                                             <div className="flex items-center gap-2">
-                                                 <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
-                                             </div>
-                                             <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
-                                         </label>
-                                         <select
-                                             value={selectedDeptId}
-                                             onChange={(e) => setSelectedDeptId(e.target.value)}
-                                             className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
-                                         >
-                                             <option value="">Select department...</option>
-                                             {departments.map((d) => (
-                                                 <option key={d.id} value={d.id}>
-                                                     {d.dept_name || d.name || d.department_name || `Department ${d.id}`}
-                                                 </option>
-                                             ))}
-                                         </select>
-                                     </div>
+                                     {/* Department - Only shown if logged in */}
+                                     {isLoggedIn && (
+                                         <div className="space-y-3">
+                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                                                 <div className="flex items-center gap-2">
+                                                     <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
+                                                 </div>
+                                                 <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
+                                             </label>
+                                             <select
+                                                 value={selectedDeptId}
+                                                 onChange={(e) => setSelectedDeptId(e.target.value)}
+                                                 className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
+                                             >
+                                                 <option value="">Select department...</option>
+                                                 {departments.map((d) => (
+                                                     <option key={d.id} value={d.id}>
+                                                         {d.dept_name || d.name || d.department_name || `Department ${d.id}`}
+                                                     </option>
+                                                 ))}
+                                             </select>
+                                         </div>
+                                     )}
 
                                      {/* Sender */}
                                      {canSenderField && <div className="space-y-3">
