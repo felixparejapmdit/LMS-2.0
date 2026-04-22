@@ -37,6 +37,7 @@ export default function LetterTracker() {
     const canSearch = canField("letter-tracker", "search");
     const canPdf = canField("letter-tracker", "pdf_button");
     const canTrack = canField("letter-tracker", "track_button");
+    const canPrintQR = canField("letter-tracker", "print_qr_button");
     const canRefresh = canField("letter-tracker", "refresh_button");
 
     // Theme Variables
@@ -274,13 +275,17 @@ export default function LetterTracker() {
                                                 </td>
                                                 <td className="px-5 py-4 text-center">
                                                     <div className="flex justify-center">
-                                                        <button
-                                                            onClick={() => handlePrintQR(letter.entry_id)}
-                                                            className="p-2 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all border border-blue-100 dark:border-blue-900/20 shadow-sm"
-                                                            title="Print QR Code"
-                                                        >
-                                                            <Printer className="w-3.5 h-3.5" />
-                                                        </button>
+                                                        {canPrintQR ? (
+                                                            <button
+                                                                onClick={() => handlePrintQR(letter.entry_id)}
+                                                                className="p-2 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all border border-blue-100 dark:border-blue-900/20 shadow-sm"
+                                                                title="Print QR Code"
+                                                            >
+                                                                <Printer className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-gray-300">-</span>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td className="px-5 py-4 text-center">

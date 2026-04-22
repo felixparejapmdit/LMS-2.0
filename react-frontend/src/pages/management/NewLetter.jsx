@@ -83,6 +83,7 @@ export default function NewLetter() {
   const [scannedFiles, setScannedFiles] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
   const fileInputRef = useRef(null);
   const suggestionRef = useRef(null);
   const scrollContainerRef = useRef(null);
@@ -259,6 +260,7 @@ export default function NewLetter() {
     if (!query || query.length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
+      setHighlightedSuggestionIndex(-1);
       return;
     }
     try {
@@ -278,10 +280,15 @@ export default function NewLetter() {
 
       setSuggestions(cleaned);
       setShowSuggestions(cleaned.length > 0);
+      setHighlightedSuggestionIndex(cleaned.length > 0 ? 0 : -1);
     } catch (error) {
       console.error("Error fetching suggestions:", error);
     }
   };
+
+  useEffect(() => {
+    if (!showSuggestions) setHighlightedSuggestionIndex(-1);
+  }, [showSuggestions]);
 
   const toggleStep = (stepId) => {
     const step = steps.find((s) => String(s.id) === String(stepId));
@@ -374,6 +381,63 @@ export default function NewLetter() {
       setFormData({ ...formData, sender: newValue + "; " });
     }
     setShowSuggestions(false);
+    setHighlightedSuggestionIndex(-1);
+  };
+
+  const scrollHighlightedSuggestionIntoView = (index) => {
+    if (!suggestionRef.current) return;
+    const el = suggestionRef.current.querySelector(
+      `[data-suggestion-index="${index}"]`,
+    );
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest" });
+    }
+  };
+
+  const handleSenderKeyDown = (e) => {
+    if (activeField !== "sender") return;
+    if (!suggestions || suggestions.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showSuggestions) setShowSuggestions(true);
+      setHighlightedSuggestionIndex((prev) => {
+        const next = Math.min(
+          prev < 0 ? 0 : prev + 1,
+          suggestions.length - 1,
+        );
+        scrollHighlightedSuggestionIntoView(next);
+        return next;
+      });
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!showSuggestions) setShowSuggestions(true);
+      setHighlightedSuggestionIndex((prev) => {
+        const next = Math.max(prev < 0 ? 0 : prev - 1, 0);
+        scrollHighlightedSuggestionIntoView(next);
+        return next;
+      });
+      return;
+    }
+
+    if (e.key === "Enter" && showSuggestions) {
+      const idx = highlightedSuggestionIndex < 0 ? 0 : highlightedSuggestionIndex;
+      const picked = suggestions[idx];
+      if (picked) {
+        e.preventDefault();
+        selectSuggestion(picked.name);
+      }
+      return;
+    }
+
+    if (e.key === "Escape" && showSuggestions) {
+      e.preventDefault();
+      setShowSuggestions(false);
+      setHighlightedSuggestionIndex(-1);
+    }
   };
 
   const handleFileChange = (e) => {
@@ -849,6 +913,7 @@ export default function NewLetter() {
                         placeholder="Name"
                         value={formData.sender}
                         onChange={handleSenderChange}
+                        onKeyDown={handleSenderKeyDown}
                         onFocus={() => {
                           setActiveField("sender");
                           if (suggestions.length > 0) setShowSuggestions(true);
@@ -862,11 +927,17 @@ export default function NewLetter() {
                           ref={suggestionRef}
                           className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${"bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]"}`}
                         >
-                          {suggestions.map((person) => (
+                          {suggestions.map((person, idx) => (
                             <div
                               key={person.id}
                               onClick={() => selectSuggestion(person.name)}
-                              className="px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600 transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3"
+                              onMouseEnter={() => setHighlightedSuggestionIndex(idx)}
+                              data-suggestion-index={idx}
+                              className={`px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${
+                                idx === highlightedSuggestionIndex
+                                  ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
+                                  : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
+                              }`}
                             >
                               <User className="w-3 h-3 text-orange-400" />
                               <span>{person.name}</span>

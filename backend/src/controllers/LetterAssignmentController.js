@@ -56,10 +56,12 @@ class LetterAssignmentController {
         `[ASSIGNMENTS] Lookup started: role="${normalizedRole}", dept="${department_id}", name="${full_name}"`,
       );
 
-      const SUPER_ROLES = ["ADMINISTRATOR", "ADMIN", "VIP"];
-      const isSuperAdmin = SUPER_ROLES.includes(normalizedRole);
-      const isAdminActual =
-        isSuperAdmin || SUPER_ROLES.includes(normalizedRole);
+      const SUPER_ADMIN_ROLES = ["ADMINISTRATOR", "ADMIN", "SUPER ADMIN"];
+      const DEPT_ADMIN_ROLES = ["ACCESS MANAGER", "VIP", "MANAGER"];
+
+      const isSuperAdmin = SUPER_ADMIN_ROLES.includes(normalizedRole);
+      const isDeptAdmin = DEPT_ADMIN_ROLES.includes(normalizedRole);
+      const isAdmin = isSuperAdmin || isDeptAdmin;
 
       const isValidId = (id) =>
         id && id !== "all" && id !== "null" && id !== "undefined" && id !== "";
@@ -111,23 +113,17 @@ class LetterAssignmentController {
       // 2. Department-based Visibility
       if (isSuperAdmin) {
         visibilityClauses.push(sequelize.literal("1=1"));
-      } else if (isAdminActual) {
-        if (myDeptId) {
-          if (!isSpecificDept || department_id == myDeptId) {
-            visibilityClauses.push({ department_id: String(myDeptId) });
-            visibilityClauses.push(
-              sequelize.literal(`EXISTS (
-                            SELECT 1 FROM directus_users du
-                            JOIN letters l ON l.id = LetterAssignment.letter_id
-                            WHERE du.dept_id = ${sequelize.escape(String(myDeptId))}
-                            AND (
-                                du.id IN (l.encoder_id, l.sender, l.endorsed)
-                                OR (du.first_name || ' ' || du.last_name) = l.sender
-                                OR (du.first_name || ' ' || du.last_name) = l.endorsed
-                            )
-                        )`),
-            );
-          }
+      } else if (isAdmin) {
+        const deptToUse = department_id || myDeptId;
+        if (isSuperAdmin && !isSpecificDept) {
+          // Super admin without specific department sees everything
+          visibilityClauses.push(sequelize.literal("1=1"));
+        } else if (deptToUse) {
+          // Admin sees their own department or the specifically requested department
+          visibilityClauses.push({ department_id: String(deptToUse) });
+        } else if (isSuperAdmin) {
+          // Fallback for super admin
+          visibilityClauses.push(sequelize.literal("1=1"));
         }
       }
 
@@ -144,7 +140,7 @@ class LetterAssignmentController {
       // status filter from query now maps to status_id if numeric, otherwise we filter by joined status name
       if (status && status !== "null") {
         if (!isNaN(status)) {
-          where.status_id = parseInt(status);
+          where["$letter.global_status$"] = parseInt(status);
         } else if (named_filter !== "hold" && named_filter !== "atg_note") {
           // Fallback to searching by status name in the joined table if it's not a numeric ID
           where["$letter.status.status_name$"] = status;
@@ -169,9 +165,12 @@ class LetterAssignmentController {
             { "$letter.tray_id$": { [Op.or]: [null, 0] } },
           ];
         } else if (named_filter === "atg_note") {
-          // FOR ATG NOTE: Only Incoming (1) with tray
+          // FOR ATG NOTE: Strictly ATG Note status with an existing tray
+          const atgStatusFilter = atgStatusId
+            ? { "$letter.global_status$": atgStatusId }
+            : { "$letter.status.status_name$": "ATG Note" };
           where[Op.and] = [
-            { "$letter.global_status$": 1 },
+            atgStatusFilter,
             { "$letter.tray_id$": { [Op.gt]: 0 } },
           ];
         } else if (named_filter === "vem") {
@@ -327,7 +326,7 @@ class LetterAssignmentController {
                 named_filter === "signature" ||
                 named_filter === "vem" ||
                 named_filter === "avem" ||
-                (named_filter === "pending" && isAdminActual),
+                (named_filter === "pending" && isAdmin),
             },
             { model: Department, as: "department" },
           ],
@@ -348,12 +347,7 @@ class LetterAssignmentController {
         named_filter === "empty_entry" ||
         named_filter === "atg_note"
       ) {
-        const validStatuses = [1, 8];
-        if (named_filter === "atg_note") validStatuses.push(2);
-
-        const unassignedWhere = {
-          global_status: { [Op.in]: validStatuses },
-        };
+        const unassignedWhere = {};
         if (isSpecificDept && !isSuperAdmin) {
           unassignedWhere[Op.or] = [
             { dept_id: department_id },
@@ -361,15 +355,18 @@ class LetterAssignmentController {
               `EXISTS (SELECT 1 FROM directus_users u WHERE u.id = Letter.encoder_id AND u.dept_id = ${sequelize.escape(department_id)})`,
             ),
           ];
-          if (isAdminActual) {
+          if (isAdmin) {
             unassignedWhere[Op.or].push({ dept_id: { [Op.or]: [null, 0] } });
           }
         }
 
         // Add the specific filter for "Empty" or "ATG Note" or "Pending"
         if (named_filter === "atg_note") {
+          // Letter.global_status is the Status ID (see associations.js)
+          unassignedWhere.global_status = atgStatusId ?? -1;
           unassignedWhere.tray_id = { [Op.gt]: 0 };
         } else {
+          unassignedWhere.global_status = { [Op.in]: [1, 8] };
           unassignedWhere.tray_id = { [Op.or]: [null, 0] };
           if (named_filter === "empty_entry") {
             unassignedWhere[Op.and] = [
@@ -459,8 +456,10 @@ class LetterAssignmentController {
   }
 
   static async update(req, res) {
+    let transaction;
     try {
       let id = req.params.id;
+      transaction = await sequelize.transaction();
 
       // Handle virtual 'mock-' IDs from Pending/Unassigned view
       if (id.toString().startsWith("mock-")) {
@@ -469,27 +468,60 @@ class LetterAssignmentController {
 
         // Infer department from step if missing
         if (!department_id && step_id) {
-          const step = await ProcessStep.findByPk(step_id);
+          const step = await ProcessStep.findByPk(step_id, { transaction });
           if (step) department_id = step.dept_id;
         }
+
+        if (status_id !== undefined && status_id !== null && status_id !== "") {
+          await Letter.update(
+            { global_status: status_id === "" ? null : parseInt(status_id) },
+            { where: { id: letterId }, transaction },
+          );
+        }
+
+        const letter = await Letter.findByPk(letterId, { transaction });
+        const effectiveStatusId = letter?.global_status ?? 8;
 
         // Create a real assignment instead of updating
         const newAssignment = await LetterAssignment.create({
           letter_id: letterId,
           step_id: step_id || null,
-          status_id: status_id || 8, // Default to Pending
+          status_id: effectiveStatusId, // Denormalized mirror of Letter.global_status
           department_id: department_id || null,
           assigned_by: req.query.user_id || null,
-        });
+        }, { transaction });
+
+        await transaction.commit();
         return res.json(newAssignment);
       }
 
-      const assignment = await LetterAssignment.findByPk(id);
-      if (!assignment)
+      const assignment = await LetterAssignment.findByPk(id, { transaction });
+      if (!assignment) {
+        await transaction.rollback();
         return res.status(404).json({ error: "Assignment not found" });
-      await assignment.update(req.body);
+      }
+
+      const updates = { ...(req.body || {}) };
+      if (Object.prototype.hasOwnProperty.call(updates, "status_id")) {
+        const nextStatus = updates.status_id;
+        delete updates.status_id;
+        if (nextStatus !== undefined && nextStatus !== null && nextStatus !== "") {
+          await Letter.update(
+            { global_status: parseInt(nextStatus) },
+            { where: { id: assignment.letter_id }, transaction },
+          );
+        }
+      }
+
+      await assignment.update(updates, { transaction });
+      await transaction.commit();
       res.json(assignment);
     } catch (error) {
+      if (transaction) {
+        try {
+          await transaction.rollback();
+        } catch {}
+      }
       res.status(400).json({ error: error.message });
     }
   }

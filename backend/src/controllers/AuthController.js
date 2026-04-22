@@ -21,6 +21,10 @@ let cachedPages = null;
 let cachedPagesTimestamp = 0;
 const PAGES_CACHE_TTL = 3600000;
 
+// Heuristic cache to avoid "try email then username" every login.
+// Most installs treat Directus "email" as the LMS username, so default to username first.
+const directusLoginHint = new Map();
+
 const getCachedPerms = (roleId) => {
     if (!roleId || !Number.isFinite(PERMS_CACHE_TTL_MS) || PERMS_CACHE_TTL_MS <= 0) return null;
     const cached = permsCache.get(roleId);
@@ -44,11 +48,11 @@ const PAGE_FIELD_PRESETS = {
     'inbox': ['search', 'refresh_button', 'tab_filter', 'tray_selector'],
     'outbox': ['search', 'refresh_button'],
     'spam': ['search', 'submit_button', 'clear_button', 'save_button', 'refresh_button'],
-    'master-table': ['search', 'edit_button', 'delete_button', 'status_dropdown', 'department_selector', 'step_selector', 'pdf_button', 'save_button', 'attachment_upload', 'endorse_button', 'track_button', 'refresh_button'],
+    'master-table': ['search', 'edit_button', 'delete_button', 'status_dropdown', 'department_selector', 'step_selector', 'pdf_button', 'save_button', 'attachment_upload', 'endorse_button', 'track_button', 'print_qr_button', 'refresh_button'],
     'letters-with-comments': ['search', 'pdf_button', 'tab_filter', 'refresh_button'],
-    'letter-tracker': ['search', 'pdf_button', 'track_button', 'refresh_button'],
+    'letter-tracker': ['search', 'pdf_button', 'track_button', 'print_qr_button', 'refresh_button'],
     'upload-pdf': ['attachment_upload', 'save_button', 'pdf_button', 'delete_button', 'view_toggle'],
-    'guest-send-letter': ['sender_field', 'encoder_field', 'summary_field', 'attachment_selector', 'attachment_upload', 'submit_button', 'clear_button'],
+    'guest-send-letter': ['sender_field', 'encoder_field', 'summary_field', 'attachment_selector', 'kind_dropdown', 'attachment_upload', 'submit_button', 'clear_button'],
     'endorsements': ['search', 'print_button', 'delete_button', 'view_button', 'refresh_button'],
     'settings': ['save_button', 'layout_selector', 'font_selector'],
     'attachments': ['add_button', 'edit_button', 'delete_button', 'save_button', 'refresh_button', 'view_toggle'],
@@ -144,25 +148,32 @@ class AuthController {
 
             // STEP 3: ASYNC DIRECTUS AUTH
             const directusAuthPromise = (async () => {
-                const searchEmail = user.email || `${user.username}@example.com`;
-                try {
-                    const response = await directusClient.post('/auth/login', {
-                        email: searchEmail,
-                        password: password
-                    });
-                    return response.data;
-                } catch (error) {
-                    // Fallback to username
+                const directusStart = Date.now();
+                const hint = directusLoginHint.get(user.id) || 'username';
+                const candidates = [];
+
+                if (hint === 'email' && user.email) candidates.push(user.email);
+                candidates.push(user.username);
+                if (user.email) candidates.push(user.email);
+
+                // De-dupe and drop empties
+                const uniq = candidates.filter(Boolean).filter((v, idx, arr) => arr.indexOf(v) === idx);
+
+                for (const identifier of uniq) {
                     try {
                         const response = await directusClient.post('/auth/login', {
-                            email: user.username,
+                            email: identifier,
                             password: password
                         });
+                        timings['Directus Login'] = Date.now() - directusStart;
+                        directusLoginHint.set(user.id, identifier === user.email ? 'email' : 'username');
                         return response.data;
-                    } catch (e) {
-                        return null;
+                    } catch {
+                        // try next identifier
                     }
                 }
+                timings['Directus Login'] = Date.now() - directusStart;
+                return null;
             })();
 
             // STEP 4: FETCH PERMISSIONS (PARALLEL)
@@ -171,15 +182,12 @@ class AuthController {
                 ? RolePermission.findAll({ where: { role_id: user.role } })
                 : Promise.resolve(null);
 
-            // STEP 5: WAIT FOR PERMISSIONS + EXTENDED TIMEOUT FOR TOKEN
-            // 5s is a good balance: users wait a bit more but get a fully working session with assets enabled
-            const [permsResult, directusAuth] = await Promise.all([
-                permissionsPromise,
-                Promise.race([
-                    directusAuthPromise,
-                    new Promise(resolve => setTimeout(() => resolve('PENDING'), 5000))
-                ])
-            ]);
+            // STEP 5: WAIT FOR PERMISSIONS + DIRECTUS TOKEN
+            const [permsResult, directusAuth] = await Promise.all([permissionsPromise, directusAuthPromise]);
+
+            if (!directusAuth) {
+                return res.status(503).json({ error: 'Authentication provider unavailable. Please try again.' });
+            }
 
             if (permsResult) {
                 normalizedPerms = normalizePermissions(permsResult);
@@ -193,7 +201,7 @@ class AuthController {
             // Background update
             User.update({ islogin: true }, { where: { id: user.id } }).catch(() => {});
 
-            console.log(`[LOGIN] Fast-path successful for ${user.username} in ${Date.now() - startTime}ms. Directus: ${typeof directusAuth === 'string' ? 'PENDING' : 'READY'}`);
+            console.log(`[LOGIN] Fast-path successful for ${user.username} in ${Date.now() - startTime}ms. Directus: READY`);
 
             return res.json({
                 success: true,
@@ -202,8 +210,7 @@ class AuthController {
                     systemPages: systemPages.map(p => p.page_id)
                 },
                 permissions: normalizedPerms || [], // ROOT LEVEL as expected by frontend
-                directus_auth: (directusAuth === 'PENDING' || !directusAuth) ? null : directusAuth?.data || directusAuth,
-                token_pending: directusAuth === 'PENDING',
+                directus_auth: directusAuth?.data || directusAuth,
                 timings
             });
 
@@ -215,10 +222,19 @@ class AuthController {
 
     static async getConfig(req, res) {
         try {
-            const { userId } = req.query;
-            if (!userId) return res.status(400).json({ error: 'User ID required' });
+            const authHeader = req.headers?.authorization || '';
+            const match = authHeader.match(/^Bearer\s+(.+)$/i);
+            if (!match) return res.status(401).json({ error: 'Missing Authorization token' });
 
-            const user = await User.findByPk(userId, { include: ['roleData', 'department'] });
+            const token = match[1];
+            const meRes = await directusClient.get('/users/me', {
+                headers: { Authorization: `Bearer ${token}` },
+                params: { fields: 'id' }
+            });
+            const directusUserId = meRes?.data?.data?.id ?? meRes?.data?.id;
+            if (!directusUserId) return res.status(401).json({ error: 'Invalid session' });
+
+            const user = await User.findByPk(directusUserId, { include: ['roleData', 'department'] });
             if (!user) return res.status(404).json({ error: 'User not found' });
 
             let normalizedPerms = getCachedPerms(user.role);
@@ -230,6 +246,10 @@ class AuthController {
 
             res.json({ user, permissions: normalizedPerms });
         } catch (error) {
+            const status = error.response?.status;
+            if (status === 401 || status === 403) {
+                return res.status(401).json({ error: 'Invalid or expired session' });
+            }
             res.status(500).json({ error: error.message });
         }
     }

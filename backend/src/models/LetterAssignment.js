@@ -66,21 +66,18 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
             }
 
             try {
+                const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
+                const effectiveStatusId = letter?.global_status ?? assignment.status_id ?? null;
+
                 await LetterLog.create({
                     letter_id: assignment.letter_id,
                     user_id: assignment.assigned_by || null,
                     action_type: 'Assigned',
                     department_id: assignment.department_id,
                     step_id: assignment.step_id,
-                    status_id: assignment.status_id,
+                    status_id: effectiveStatusId,
                     log_details: `Letter assigned to ${deptName} (Step: ${stepName}).`
                 }, { transaction: options.transaction });
-
-                // Synchronize Letter global_status
-                const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
-                if (letter && letter.global_status !== assignment.status_id) {
-                    await letter.update({ global_status: assignment.status_id }, { transaction: options.transaction });
-                }
 
                 if (TelegramService && letter) {
                     // Telegram Notification - Non-blocking
@@ -118,7 +115,7 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
 
             if (!LetterLog || !Department || !ProcessStep) return;
 
-            if (assignment.changed('status_id') || assignment.changed('endorsed') || assignment.changed('department_id') || assignment.changed('step_id')) {
+            if (assignment.changed('endorsed') || assignment.changed('department_id') || assignment.changed('step_id')) {
                 let deptName = 'Unknown Department';
                 let stepName = 'Unknown Step';
 
@@ -134,38 +131,27 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
                 let actionType = 'Assigned';
                 let logDetails = `Letter assignment parameter updated in ${deptName} (Step: ${stepName}).`;
 
-                const DONE_ID = 9;
-                const HOLD_ID = 7;
-
                 if (assignment.changed('endorsed') && assignment.endorsed === 'Yes') {
                     actionType = 'Endorsed';
                     logDetails = `Letter effectively endorsed by ${deptName} (Step: ${stepName}).`;
-                } else if (assignment.changed('status_id') && assignment.status_id === DONE_ID) {
-                    actionType = 'Completed';
-                    logDetails = `Step ${stepName} completed by ${deptName}.`;
-                } else if (assignment.changed('status_id') && assignment.status_id === HOLD_ID) {
-                    actionType = 'Hold';
-                    logDetails = `Letter placed on Hold by ${deptName}.`;
                 } else if (assignment.changed('department_id') || assignment.changed('step_id')) {
                     actionType = 'Assigned';
                     logDetails = `Letter routed to ${deptName} (Step: ${stepName}).`;
                 }
 
                 try {
+                    const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
+                    const effectiveStatusId = letter?.global_status ?? assignment.status_id ?? null;
+
                     await LetterLog.create({
                         letter_id: assignment.letter_id,
                         user_id: assignment.assigned_by || null,
                         action_type: actionType,
                         department_id: assignment.department_id,
                         step_id: assignment.step_id,
-                        status_id: assignment.status_id,
+                        status_id: effectiveStatusId,
                         log_details: logDetails
                     }, { transaction: options.transaction });
-
-                    const letter = await Letter.findByPk(assignment.letter_id, { transaction: options.transaction });
-                    if (letter && letter.global_status !== assignment.status_id) {
-                        await letter.update({ global_status: assignment.status_id }, { transaction: options.transaction });
-                    }
 
                     if (TelegramService && letter) {
                         // Telegram Notification - Non-blocking

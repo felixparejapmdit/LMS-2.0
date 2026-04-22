@@ -21,6 +21,8 @@ import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import attachmentService from "../../services/attachmentService";
+import departmentService from "../../services/departmentService";
+import letterKindService from "../../services/letterKindService";
 import letterService from "../../services/letterService";
 import axios from "axios";
 import SuccessModal from "../../components/SuccessModal";
@@ -30,12 +32,17 @@ export default function GuestSendLetter() {
     const { user, logout, layoutStyle, isMobileMenuOpen, setIsMobileMenuOpen, isGuest } = useAuth();
     const access = useAccess();
     const navigate = useNavigate();
+
+    // isLoggedIn means a real authenticated user (not a guest)
+    const isLoggedIn = !!user?.id && !isGuest;
+
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         regarding: "",
         encoder: "",
         senders: [""],
         selectedRefIds: [],
+        kind: "",
     });
     const [attachmentSearch, setAttachmentSearch] = useState("");
     const [showAttachmentResults, setShowAttachmentResults] = useState(false);
@@ -43,9 +50,13 @@ export default function GuestSendLetter() {
     const [attachments, setAttachments] = useState([]);
     const [refAttachments, setRefAttachments] = useState([]);
     const [referenceNo, setReferenceNo] = useState("Generating...");
+    const [departments, setDepartments] = useState([]);
+    const [selectedDeptId, setSelectedDeptId] = useState("");
+    const [kinds, setKinds] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeSenderIndex, setActiveSenderIndex] = useState(null); // numeric for senders, 'encoder' for encoder
+    const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [isExitModalOpen, setIsExitModalOpen] = useState(false);
     const fileInputRef = useRef(null);
@@ -56,6 +67,7 @@ export default function GuestSendLetter() {
     const canSummaryField = canField("guest-send-letter", "summary_field");
     const canAttachmentSelector = canField("guest-send-letter", "attachment_selector");
     const canAttachmentUpload = canField("guest-send-letter", "attachment_upload");
+    const canKindDropdown = canField("guest-send-letter", "kind_dropdown");
     const canSubmit = canField("guest-send-letter", "submit_button");
     const canClear = canField("guest-send-letter", "clear_button");
     const today = new Date().toLocaleDateString('en-US', {
@@ -69,18 +81,71 @@ export default function GuestSendLetter() {
             try {
                 const data = await attachmentService.getAll();
                 setRefAttachments(data);
-
-                // Fetch next Reference No
-                const preview = await letterService.getPreviewIds();
-                if (preview && preview.lms_id) {
-                    setReferenceNo(preview.lms_id);
-                }
             } catch (err) {
-                console.error("Failed to fetch ref attachments or IDs:", err);
+                console.error("Failed to fetch ref attachments:", err);
             }
         };
         fetchRefs();
     }, []);
+
+    useEffect(() => {
+        const fetchDepts = async () => {
+            if (!isLoggedIn) return;
+            try {
+                const data = await departmentService.getAll();
+                setDepartments(Array.isArray(data) ? data : []);
+            } catch (err) {
+                console.error("Failed to fetch departments:", err);
+            }
+        };
+        fetchDepts();
+    }, [isLoggedIn]);
+
+    useEffect(() => {
+        const fetchKinds = async () => {
+            try {
+                if (isLoggedIn) {
+                    if (!selectedDeptId) {
+                        setKinds([]);
+                        return;
+                    }
+                    const data = await letterKindService.getAll({ dept_id: selectedDeptId });
+                    setKinds(Array.isArray(data) ? data : []);
+                    return;
+                }
+
+                const data = await letterKindService.getAll();
+                setKinds(Array.isArray(data) ? data : []);
+            } catch (err) {
+                console.error("Failed to fetch kinds:", err);
+                setKinds([]);
+            }
+        };
+        fetchKinds();
+    }, [isLoggedIn, selectedDeptId]);
+
+    useEffect(() => {
+        const syncPreview = async () => {
+            try {
+                if (isLoggedIn) {
+                    if (!selectedDeptId) {
+                        setReferenceNo("Select Department");
+                        return;
+                    }
+                    setReferenceNo("Generating...");
+                    const preview = await letterService.getPreviewIds("ATG");
+                    if (preview?.lms_id) setReferenceNo(preview.lms_id);
+                    return;
+                }
+
+                const preview = await letterService.getPreviewIds();
+                if (preview?.lms_id) setReferenceNo(preview.lms_id);
+            } catch (err) {
+                console.error("Failed to fetch next Reference No:", err);
+            }
+        };
+        syncPreview();
+    }, [isLoggedIn, selectedDeptId]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -99,6 +164,7 @@ export default function GuestSendLetter() {
         if (!query || query.length < 2) {
             setSuggestions([]);
             setShowSuggestions(false);
+            setHighlightedSuggestionIndex(-1);
             return;
         }
         try {
@@ -116,10 +182,19 @@ export default function GuestSendLetter() {
 
             setSuggestions(cleaned);
             setShowSuggestions(cleaned.length > 0);
+            setHighlightedSuggestionIndex(cleaned.length > 0 ? 0 : -1);
         } catch (error) {
             console.error("Error fetching suggestions:", error);
         }
     };
+
+    useEffect(() => {
+        setHighlightedSuggestionIndex(-1);
+    }, [activeSenderIndex]);
+
+    useEffect(() => {
+        if (!showSuggestions) setHighlightedSuggestionIndex(-1);
+    }, [showSuggestions]);
 
     const validateFormat = (text) => {
         if (!text) return true; // Let required validator handle empty
@@ -132,12 +207,20 @@ export default function GuestSendLetter() {
             regarding: "",
             encoder: "",
             senders: [""],
-            selectedRefIds: []
+            selectedRefIds: [],
+            kind: "",
         });
         setAttachments([]);
+        setSelectedDeptId("");
+        if (isLoggedIn) setReferenceNo("Select Department");
     };
 
     const handleSend = async () => {
+        if (isLoggedIn && !selectedDeptId) {
+            alert("Please select a department.");
+            return;
+        }
+
         // Only validate format if senders are provided
         const filledSenders = formData.senders.filter(s => s && s.trim());
         if (filledSenders.length === 0) {
@@ -188,8 +271,31 @@ export default function GuestSendLetter() {
                 scannedCopyPath = response.data.file_path;
             }
 
+            let lmsIdToUse = referenceNo;
+            const normalizedRef = (referenceNo || '').trim();
+            if (isLoggedIn) {
+                const isValidAtg = /^ATG\d{2}-\d{5}$/.test(normalizedRef);
+                if (!isValidAtg) {
+                    const preview = await letterService.getPreviewIds("ATG");
+                    if (preview?.lms_id) {
+                        lmsIdToUse = preview.lms_id;
+                        setReferenceNo(preview.lms_id);
+                    }
+                }
+            } else {
+                const isValidRef = /^[A-Z]{3}\d{2}-\d{5}$/.test(normalizedRef);
+                if (!isValidRef) {
+                    const preview = await letterService.getPreviewIds();
+                    if (preview?.lms_id) {
+                        lmsIdToUse = preview.lms_id;
+                        setReferenceNo(preview.lms_id);
+                    }
+                }
+            }
+
             // 3. Save the letter
             const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letters`, {
+                lms_id: lmsIdToUse,
                 sender: senderStr,
                 encoder: formData.encoder,
                 summary: formData.regarding,
@@ -200,8 +306,9 @@ export default function GuestSendLetter() {
                 attachment_id: (formData.selectedRefIds && formData.selectedRefIds.length > 0) ? parseInt(formData.selectedRefIds[0]) : null,
                 scanned_copy: scannedCopyPath,
                 direction: 'Incoming',
-                kind: null,
-                assigned_dept: null
+                kind: formData.kind ? parseInt(formData.kind) : null,
+                assigned_dept: isLoggedIn ? parseInt(selectedDeptId) : null,
+                dept_id: isLoggedIn ? parseInt(selectedDeptId) : null
             });
 
             if (response.data?.lms_id) {
@@ -292,6 +399,58 @@ export default function GuestSendLetter() {
             setFormData(prev => ({ ...prev, senders: newSenders }));
         }
         setShowSuggestions(false);
+        setHighlightedSuggestionIndex(-1);
+    };
+
+    const scrollHighlightedSuggestionIntoView = (index) => {
+        if (!suggestionRef.current) return;
+        const el = suggestionRef.current.querySelector(`[data-suggestion-index="${index}"]`);
+        if (el && typeof el.scrollIntoView === "function") {
+            el.scrollIntoView({ block: "nearest" });
+        }
+    };
+
+    const handleSuggestionKeyDown = (e, fieldKey) => {
+        if (activeSenderIndex !== fieldKey) return;
+        if (!suggestions || suggestions.length === 0) return;
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (!showSuggestions) setShowSuggestions(true);
+            setHighlightedSuggestionIndex(prev => {
+                const next = Math.min(prev < 0 ? 0 : prev + 1, suggestions.length - 1);
+                scrollHighlightedSuggestionIntoView(next);
+                return next;
+            });
+            return;
+        }
+
+        if (e.key === "ArrowUp") {
+            e.preventDefault();
+            if (!showSuggestions) setShowSuggestions(true);
+            setHighlightedSuggestionIndex(prev => {
+                const next = Math.max(prev < 0 ? 0 : prev - 1, 0);
+                scrollHighlightedSuggestionIntoView(next);
+                return next;
+            });
+            return;
+        }
+
+        if (e.key === "Enter" && showSuggestions) {
+            const idx = highlightedSuggestionIndex < 0 ? 0 : highlightedSuggestionIndex;
+            const picked = suggestions[idx];
+            if (picked) {
+                e.preventDefault();
+                selectSuggestion(picked.name);
+            }
+            return;
+        }
+
+        if (e.key === "Escape" && showSuggestions) {
+            e.preventDefault();
+            setShowSuggestions(false);
+            setHighlightedSuggestionIndex(-1);
+        }
     };
 
     // Layout-specific styling
@@ -303,8 +462,17 @@ export default function GuestSendLetter() {
     const subTextColor = 'text-blue-600';
     const inputBg = 'bg-slate-50 dark:bg-white/5 border-slate-50 dark:border-[#333] text-slate-800 dark:text-white';
 
-    // isLoggedIn means a real authenticated user (not a guest)
-    const isLoggedIn = !!user?.id && !isGuest;
+    useEffect(() => {
+        if (!isLoggedIn) return;
+        setFormData(prev => {
+            if ((prev.encoder || "").trim()) return prev;
+            const first = (user?.first_name || "").trim();
+            const last = (user?.last_name || "").trim();
+            const fullName = `${first} ${last}`.trim();
+            if (!fullName) return prev;
+            return { ...prev, encoder: fullName };
+        });
+    }, [isLoggedIn, user?.first_name, user?.last_name]);
 
     return (
         <div className={`flex min-h-screen ${pageBg} font-sans transition-colors duration-300`}>
@@ -362,12 +530,36 @@ export default function GuestSendLetter() {
                                     <h2 className={`text-lg font-bold uppercase tracking-tight ${textColor}`}>Letter</h2>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-6">
-                                    {/* Sender */}
-                                    {canSenderField && <div className="space-y-3">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <User className={`w-3 h-3 ${subTextColor}`} /> Sender
+                                 <div className="grid grid-cols-1 gap-6">
+                                     {/* Department (Logged-in only) */}
+                                     {isLoggedIn && (
+                                         <div className="space-y-3">
+                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                                                 <div className="flex items-center gap-2">
+                                                     <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
+                                                 </div>
+                                                 <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
+                                             </label>
+                                             <select
+                                                 value={selectedDeptId}
+                                                 onChange={(e) => setSelectedDeptId(e.target.value)}
+                                                 className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
+                                             >
+                                                 <option value="">Select department...</option>
+                                                 {departments.map((d) => (
+                                                     <option key={d.id} value={d.id}>
+                                                         {d.dept_name || d.name || d.department_name || `Department ${d.id}`}
+                                                     </option>
+                                                 ))}
+                                             </select>
+                                         </div>
+                                     )}
+
+                                     {/* Sender */}
+                                     {canSenderField && <div className="space-y-3">
+                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                                             <div className="flex items-center gap-2">
+                                                 <User className={`w-3 h-3 ${subTextColor}`} /> Sender
                                             </div>
                                             <div className="flex items-center gap-4">
                                                 <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
@@ -379,33 +571,40 @@ export default function GuestSendLetter() {
                                                 const isValid = validateFormat(sender);
                                                 return (
                                                     <div key={index} className="relative group">
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Dela Cruz, Juan M."
-                                                            value={sender}
-                                                            onChange={(e) => updateSender(index, e.target.value)}
-                                                            onFocus={() => {
-                                                                setActiveSenderIndex(index);
-                                                                if (sender.length >= 2) fetchSuggestions(sender.split(',').pop().trim());
-                                                            }}
-                                                            className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none ${!isValid && sender ? 'border-red-500/50' : ''}`}
-                                                        />
+                                                         <input
+                                                             type="text"
+                                                             placeholder="Dela Cruz, Juan M."
+                                                             value={sender}
+                                                             onChange={(e) => updateSender(index, e.target.value)}
+                                                             onKeyDown={(e) => handleSuggestionKeyDown(e, index)}
+                                                             onFocus={() => {
+                                                                 setActiveSenderIndex(index);
+                                                                 if (sender.length >= 2) fetchSuggestions(sender.split(',').pop().trim());
+                                                             }}
+                                                             className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none ${!isValid && sender ? 'border-red-500/50' : ''}`}
+                                                         />
 
                                                         {showSuggestions && activeSenderIndex === index && (
                                                             <div
                                                                 ref={suggestionRef}
                                                                 className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
                                                             >
-                                                                {suggestions.map((person) => (
-                                                                    <div
-                                                                        key={person.id}
-                                                                        onClick={() => selectSuggestion(person.name)}
-                                                                        className="px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600 transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3"
-                                                                    >
-                                                                        <User className="w-3 h-3 text-orange-400" />
-                                                                        <span>{person.name}</span>
-                                                                    </div>
-                                                                ))}
+                                                                 {suggestions.map((person, idx) => (
+                                                                     <div
+                                                                         key={person.id}
+                                                                         onClick={() => selectSuggestion(person.name)}
+                                                                         onMouseEnter={() => setHighlightedSuggestionIndex(idx)}
+                                                                         data-suggestion-index={idx}
+                                                                         className={`px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${
+                                                                             idx === highlightedSuggestionIndex
+                                                                                 ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
+                                                                                 : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
+                                                                         }`}
+                                                                     >
+                                                                         <User className="w-3 h-3 text-orange-400" />
+                                                                         <span>{person.name}</span>
+                                                                     </div>
+                                                                 ))}
                                                             </div>
                                                         )}
 
@@ -464,37 +663,44 @@ export default function GuestSendLetter() {
                                                 </div>
                                             </label>
                                             <div className="relative">
-                                                <input
-                                                    type="text"
-                                                    value={formData.encoder}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
-                                                        setFormData({ ...formData, encoder: val });
-                                                        setActiveSenderIndex('encoder');
-                                                        fetchSuggestions(val.split(',').pop().trim());
-                                                    }}
-                                                    onFocus={() => {
-                                                        setActiveSenderIndex('encoder');
-                                                        if (formData.encoder.length >= 2) fetchSuggestions(formData.encoder.split(',').pop().trim());
-                                                    }}
-                                                    className={`w-full px-5 py-3 border-2 rounded-xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-sm font-bold uppercase tracking-wider outline-none ${!validateFormat(formData.encoder) ? 'border-red-500/50' : ''} ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] text-slate-600 dark:text-slate-200'}`}
-                                                />
+                                                 <input
+                                                     type="text"
+                                                     value={formData.encoder}
+                                                     onChange={(e) => {
+                                                         const val = e.target.value;
+                                                         setFormData({ ...formData, encoder: val });
+                                                         setActiveSenderIndex('encoder');
+                                                         fetchSuggestions(val.split(',').pop().trim());
+                                                     }}
+                                                     onKeyDown={(e) => handleSuggestionKeyDown(e, 'encoder')}
+                                                     onFocus={() => {
+                                                         setActiveSenderIndex('encoder');
+                                                         if (formData.encoder.length >= 2) fetchSuggestions(formData.encoder.split(',').pop().trim());
+                                                     }}
+                                                     className={`w-full px-5 py-3 border-2 rounded-xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-sm font-bold uppercase tracking-wider outline-none ${!validateFormat(formData.encoder) ? 'border-red-500/50' : ''} ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] text-slate-600 dark:text-slate-200'}`}
+                                                 />
 
                                                 {showSuggestions && activeSenderIndex === 'encoder' && (
                                                     <div
                                                         ref={suggestionRef}
                                                         className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
                                                     >
-                                                        {suggestions.map((person) => (
-                                                            <div
-                                                                key={person.id}
-                                                                onClick={() => selectSuggestion(person.name)}
-                                                                className="px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600 transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3"
-                                                            >
-                                                                <User className="w-3 h-3 text-orange-400" />
-                                                                <span>{person.name}</span>
-                                                            </div>
-                                                        ))}
+                                                         {suggestions.map((person, idx) => (
+                                                             <div
+                                                                 key={person.id}
+                                                                 onClick={() => selectSuggestion(person.name)}
+                                                                 onMouseEnter={() => setHighlightedSuggestionIndex(idx)}
+                                                                 data-suggestion-index={idx}
+                                                                 className={`px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${
+                                                                     idx === highlightedSuggestionIndex
+                                                                         ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
+                                                                         : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
+                                                                 }`}
+                                                             >
+                                                                 <User className="w-3 h-3 text-orange-400" />
+                                                                 <span>{person.name}</span>
+                                                             </div>
+                                                         ))}
                                                     </div>
                                                 )}
                                                 {!validateFormat(formData.encoder) && (
@@ -634,6 +840,28 @@ export default function GuestSendLetter() {
                                                 </div>
                                             )}
 
+                                            {/* Kind Dropdown (below Attachment dropdown) */}
+                                            {canKindDropdown && (
+                                                <div className="space-y-3">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                        Kind
+                                                    </label>
+                                                    <select
+                                                        value={formData.kind}
+                                                        onChange={(e) => setFormData(prev => ({ ...prev, kind: e.target.value }))}
+                                                        className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-sm font-bold outline-none`}
+                                                        disabled={isLoggedIn && !selectedDeptId}
+                                                    >
+                                                        <option value="">{isLoggedIn && !selectedDeptId ? "Select department first..." : "None"}</option>
+                                                        {kinds.map((k) => (
+                                                            <option key={k.id} value={k.id}>
+                                                                {k.kind_name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
+
                                             {/* Digital Upload */}
                                             {canAttachmentUpload && <div className={`space-y-6 transition-all duration-300`}>
                                                 <div className="flex items-center justify-between">
@@ -729,9 +957,16 @@ export default function GuestSendLetter() {
                 isGuest={isGuest}
                 onClose={async () => {
                     setIsSuccessModalOpen(false);
-                    handleClear();
                     try {
-                        const preview = await letterService.getPreviewIds();
+                        setFormData(prev => ({
+                            regarding: "",
+                            encoder: prev.encoder || "",
+                            senders: [""],
+                            selectedRefIds: [],
+                        }));
+                        setAttachments([]);
+
+                        const preview = await letterService.getPreviewIds(isLoggedIn ? "ATG" : "LMS");
                         if (preview?.lms_id) setReferenceNo(preview.lms_id);
                     } catch { }
                 }}

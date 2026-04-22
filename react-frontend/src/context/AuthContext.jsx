@@ -61,7 +61,7 @@ const authReducer = (state, action) => {
                 permissions: action.payload.permissions || [],
                 permissionsLoaded: action.payload.permissionsLoaded,
                 isGuest: action.payload.isGuest || false,
-                loading: false
+                loading: typeof action.payload.loading === 'boolean' ? action.payload.loading : false
             };
         case 'SET_SETUP_STATUS':
             return {
@@ -97,7 +97,7 @@ const authReducer = (state, action) => {
 
 // --- PROVIDER ---
 
-export const AuthProvider = ({ children }) => {
+    export const AuthProvider = ({ children }) => {
     // 1. AUTH STATE (Session, Permissions)
     const [authState, dispatch] = useReducer(authReducer, {
         user: null,
@@ -185,28 +185,33 @@ export const AuthProvider = ({ children }) => {
             return;
         }
 
-        const directusJson = JSON.parse(directusStored);
-        const isPending = directusJson?.pending === true;
+        let directusJson = null;
+        try {
+            directusJson = JSON.parse(directusStored);
+        } catch {
+            dispatch({ type: 'LOGOUT' });
+            return;
+        }
+
+        if (directusJson?.pending === true) {
+            dispatch({ type: 'LOGOUT' });
+            return;
+        }
+
+        const accessToken =
+            directusJson?.access_token ||
+            directusJson?.token ||
+            directusJson?.data?.access_token ||
+            directusJson?.data?.token;
+
+        if (!accessToken) {
+            dispatch({ type: 'LOGOUT' });
+            return;
+        }
 
         const cachedUser = readCachedJson(AUTH_USER_KEY, null);
         const cachedPermsRaw = localStorage.getItem(AUTH_PERMS_KEY);
         const cachedPerms = cachedPermsRaw ? readCachedJson(AUTH_PERMS_KEY, []) : null;
-
-        if (isPending) {
-            console.log("AuthContext: Token is still pending in background, using cached user if available.");
-            if (cachedUser) {
-                dispatch({
-                    type: 'INIT_SESSION',
-                    payload: {
-                        user: cachedUser,
-                        permissions: Array.isArray(cachedPerms) ? cachedPerms : [],
-                        permissionsLoaded: cachedPermsRaw !== null,
-                        isGuest: false
-                    }
-                });
-                return; // Continue using the cached user while token resolves
-            }
-        }
 
         // Fast Load: Use Cache first
         if (cachedUser) {
@@ -216,31 +221,18 @@ export const AuthProvider = ({ children }) => {
                     user: cachedUser,
                     permissions: Array.isArray(cachedPerms) ? cachedPerms : [],
                     permissionsLoaded: cachedPermsRaw !== null,
-                    isGuest: false
+                    isGuest: false,
+                    loading: true
                 }
             });
         }
 
         try {
-            // Throttle: Don't refresh if we did it recently
-            const lastRefresh = Number(localStorage.getItem(LAST_REFRESH_KEY) || 0);
-            const isFresh = (Date.now() - lastRefresh) < REFRESH_THROTTLE_MS;
-
-            if (cachedUser && cachedPerms && isFresh) {
-                console.log("AuthContext: Using fresh cached session, skipping network refresh.");
-                return;
-            }
-
-            // Sync Grace: Reduce to 100ms for high performance
-            const cachedAuth = localStorage.getItem('directus_auth');
-            if (cachedAuth && cachedAuth.includes('"pending":true')) {
-                console.log("AuthContext: Token is pending, fast-syncing (100ms)...");
-                await new Promise(r => setTimeout(r, 100));
-            }
-
             // Parallelize critical auth resolution
-            const meId = await directus.request(readMe({ fields: ['id'] })).then(r => r.id).catch(() => cachedUser?.id);
-            const configRes = await axios.get(`${BACKEND_URL}/auth/access-config?userId=${meId}`);
+            const meId = await directus.request(readMe({ fields: ['id'] })).then(r => r.id);
+            const configRes = await axios.get(`${BACKEND_URL}/auth/access-config?userId=${meId}`, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
             
             console.log(`[BOOT] Auth parallel resolve in ${Date.now() - checkStartTime}ms`);
             const { user: me, permissions: perms } = configRes.data;
@@ -293,23 +285,19 @@ export const AuthProvider = ({ children }) => {
             const res = await axios.post(`${BACKEND_URL}/auth/login`, { username, password, provider });
             if (!res.data.success) throw new Error(res.data.error || "Login failed");
 
-            const { user: me, permissions: perms, directus_auth: directusAuth, token_pending, timings } = res.data;
+            const { user: me, permissions: perms, directus_auth: directusAuth, timings } = res.data;
 
             if (timings) {
                 console.group(`[LOGIN Performance] ${username}`);
                 Object.entries(timings).forEach(([step, duration]) => {
                     console.log(`${step.padEnd(30)}: ${duration}ms`);
                 });
-                console.log(`Directus Token: ${token_pending ? 'PENDING' : 'READY'}`);
+                console.log(`Directus Token: READY`);
                 console.groupEnd();
             }
 
-            if (directusAuth) {
-                localStorage.setItem('directus_auth', JSON.stringify(directusAuth));
-            } else if (token_pending) {
-                // If the token is slow, we set a temporary pending status to prevent checkAuth from logging us out immediately
-                localStorage.setItem('directus_auth', JSON.stringify({ pending: true, timestamp: Date.now() }));
-            }
+            if (!directusAuth) throw new Error("Authentication session missing. Please try again.");
+            localStorage.setItem('directus_auth', JSON.stringify(directusAuth));
             localStorage.removeItem("isGuest");
 
             writeCachedJson(AUTH_USER_KEY, me);

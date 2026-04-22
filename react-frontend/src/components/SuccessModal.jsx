@@ -21,14 +21,17 @@ export default function SuccessModal({
     cancelLabel = 'Cancel',
     onConfirm,
 }) {
+    const normalizedRef = (referenceNo || '').toString().trim();
+    const canShowQr = !!normalizedRef && normalizedRef !== 'Generating...' && normalizedRef !== 'Select Department';
+
     const handlePrintQR = () => {
         const printWindow = window.open('', '_blank');
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${referenceNo}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${normalizedRef}`;
 
         printWindow.document.write(`
             <html>
                 <head>
-                    <title>Reference QR - ${referenceNo}</title>
+                    <title>Reference QR - ${normalizedRef}</title>
                     <style>
                         body { 
                             margin: 0; 
@@ -60,7 +63,7 @@ export default function SuccessModal({
                 <body>
                     <div class="container">
                         <img src="${qrUrl}" />
-                        <div class="ref">${referenceNo}</div>
+                        <div class="ref">${normalizedRef}</div>
                     </div>
                     <script>
                         window.onload = () => {
@@ -145,19 +148,19 @@ export default function SuccessModal({
                         <p className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
                             Letter sent.
                         </p>
-                        {referenceNo && (
+                        {normalizedRef && (
                             <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 font-mono">
-                                Ref: <span className="text-green-600 dark:text-green-400 font-bold">{referenceNo}</span>
+                                Ref: <span className="text-green-600 dark:text-green-400 font-bold">{normalizedRef}</span>
                             </p>
                         )}
                     </div>
 
                     {/* QR Code Section */}
-                    {referenceNo && referenceNo !== "Generating..." && (
+                    {canShowQr && (
                         <div className="w-full flex flex-col items-center gap-4 py-4 px-6 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5">
                             <div className="bg-white p-2 rounded-lg shadow-sm">
                                 <img
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${referenceNo}`}
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${normalizedRef}`}
                                     alt="QR Code"
                                     className="w-28 h-28"
                                 />

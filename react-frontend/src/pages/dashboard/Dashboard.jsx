@@ -4,6 +4,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import LetterCard from "../../components/LetterCard";
 import EmptyEntryView from "./EmptyEntryView";
+import ResumenPage from "../management/ResumenPage";
 import axios from "axios";
 import { useSession, useUI } from "../../context/AuthContext";
 import {
@@ -36,6 +37,7 @@ import {
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import trayService from "../../services/trayService";
+import statusService from "../../services/statusService";
 import useAccess from "../../hooks/useAccess";
 
 export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
@@ -54,10 +56,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const [inboxStats, setInboxStats] = useState({ review: 0, signature: 0, vem: 0, pending: 0, hold: 0, empty_entry: 0 });
   const [trays, setTrays] = useState([]);
   const [steps, setSteps] = useState([]);
-  const [modalLetters, setModalLetters] = useState([]);
-  const [lmsIdInput, setLmsIdInput] = useState('');
-  const [isAddingLetter, setIsAddingLetter] = useState(false);
-  const [modalError, setModalError] = useState('');
+  const [atgNoteStatusId, setAtgNoteStatusId] = useState(2);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -198,6 +197,19 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     }
   };
 
+  const fetchAtgNoteStatusId = async () => {
+    try {
+      const statuses = await statusService.getAll();
+      const atg = Array.isArray(statuses)
+        ? statuses.find(s => (s?.status_name || '').toString().trim().toLowerCase() === 'atg note')
+        : null;
+      if (atg?.id) setAtgNoteStatusId(atg.id);
+    } catch (err) {
+      // Non-blocking: keep the fallback value (2)
+      console.error("Error fetching ATG Note status ID:", err?.message || err);
+    }
+  };
+
   useEffect(() => {
     if (user?.id) {
       if (view !== 'inbox' && activeStepTab !== 'signature') {
@@ -206,6 +218,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       fetchAssignments();
       fetchTrays();
       fetchSteps();
+      fetchAtgNoteStatusId();
       if (view === 'inbox') fetchInboxStats();
 
       const statsInterval = setInterval(() => { if (view === 'inbox') fetchInboxStats(); }, 15000);
@@ -214,19 +227,18 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     }
   }, [user?.id, view, activeStepTab, currentPage]);
 
-  useEffect(() => {
-    if (isPrintModalOpen) {
-      if (selectedIds.length > 0) {
-        setModalLetters(assignments.filter(a => selectedIds.includes(a.id)).map(a => a.letter).filter(l => !!l));
-      } else {
-        setModalLetters([]);
-      }
-    } else {
-      setModalLetters([]);
-      setModalError('');
-      setLmsIdInput('');
+  const handleOpenResumenModal = () => {
+    try {
+      const letters = assignments
+        .filter(a => selectedIds.includes(a.id))
+        .map(a => a.letter)
+        .filter(Boolean);
+      localStorage.setItem('resumen_letters', JSON.stringify(letters));
+    } catch (err) {
+      console.warn("Failed to prepare Resumen data:", err);
     }
-  }, [isPrintModalOpen, selectedIds, assignments]);
+    setIsPrintModalOpen(true);
+  };
 
   const toggleSelection = (e, id) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -266,21 +278,21 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       } else if (action === 'hold') {
         const holdStatusId = 7;
         await Promise.all(letterIds.map(id => letterService.update(id, { global_status: holdStatusId })));
-        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { status_id: holdStatusId })));
       } else if (action === 'atg_incoming') {
         const incomingStatusId = 1;
         await Promise.all(letterIds.map(id => letterService.update(id, { global_status: incomingStatusId })));
-        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { status_id: 8, step_id: null })));
+        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { step_id: null })));
       } else if (action === 'atg_note_step') {
-        const atgNoteStatusId = 2;
         await Promise.all(letterIds.map(id => letterService.update(id, { global_status: atgNoteStatusId })));
-        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { status_id: 8, step_id: null })));
+        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { step_id: null })));
       } else if (action === 'print') {
         window.print();
         setLoading(false); return;
       } else if (['approve_signature', 'approve_review'].includes(action)) {
         const stepId = action === 'approve_signature' ? 1 : 2;
-        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { step_id: stepId, status_id: 8 })));
+        const pendingStatusId = 8;
+        await Promise.all(letterIds.map(id => letterService.update(id, { global_status: pendingStatusId })));
+        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { step_id: stepId })));
       } else if (action === 'delete') {
         if (!window.confirm(`Delete ${selectedIds.length} letters?`)) { setLoading(false); return; }
         await Promise.all(letterIds.map(id => letterService.delete(id)));
@@ -427,7 +439,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         {showPrintHold && (
           <>
             <button onClick={() => handleBulkAction('print')} disabled={selectedIds.length === 0} className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">Print List</button>
-            <button onClick={() => setIsPrintModalOpen(true)} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${isGrid ? 'bg-blue-600' : 'bg-orange-500'} text-white shadow-sm`}>Print Resumen</button>
+            <button onClick={handleOpenResumenModal} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${isGrid ? 'bg-blue-600' : 'bg-orange-500'} text-white shadow-sm`}>Print Resumen</button>
             {activeStepTab !== 'hold' && <button onClick={() => handleBulkAction('hold')} disabled={selectedIds.length === 0} className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-orange-200 text-orange-600 hover:bg-orange-50 transition-all">Hold</button>}
           </>
         )}
@@ -442,226 +454,20 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     );
   };
 
-  const handleAddModalLetter = async (e) => {
-    e.preventDefault();
-    if (!lmsIdInput.trim()) return;
-    setIsAddingLetter(true);
-    setModalError('');
-    try {
-      const letter = await letterService.getByLmsId(lmsIdInput.trim());
-      if (modalLetters.find(l => l.id === letter.id)) {
-        setModalError('Letter already in the list.');
-      } else {
-        setModalLetters(prev => [letter, ...prev]);
-        setLmsIdInput('');
-      }
-    } catch (err) {
-      setModalError('Letter not found.');
-    } finally {
-      setIsAddingLetter(false);
-    }
-  };
-
-  const handleAtgViewBulk = async () => {
-    if (modalLetters.length === 0) return;
-    setLoading(true);
-    try {
-      // For each letter in the modal, update it to ATG Note (Status 2) and clear tray (null)
-      await Promise.all(modalLetters.map(l =>
-        letterService.update(l.id, { global_status: 2, tray_id: null })
-      ));
-
-      // Also update any existing assignments for these letters to "incoming" (Status 8) but clear step
-      const letterIds = modalLetters.map(l => l.id);
-      const relevantAssignments = assignments.filter(a => letterIds.includes(a.letter?.id));
-      if (relevantAssignments.length > 0) {
-        await Promise.all(relevantAssignments.map(a =>
-          axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${a.id}`, {
-            status_id: 8,
-            step_id: 2 // Move to 'For Review' by default for VIP View
-          })
-        ));
-      }
-
-      setIsPrintModalOpen(false);
-      navigate('/vip-view');
-    } catch (err) {
-      console.error("ATG View transition failed:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const renderPrintSummaryModal = () => {
     if (!isPrintModalOpen) return null;
     return (
-      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={() => setIsPrintModalOpen(false)} />
-        <div className="bg-white dark:bg-[#141414] w-full max-w-5xl rounded-[2.5rem] border shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[95vh] print:max-h-none print:shadow-none print:border-none print:p-0 print:m-0">
-
-          {/* Header */}
-          <div className="p-8 border-b flex items-center justify-between bg-slate-50 dark:bg-white/5 print:hidden">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white dark:bg-[#141414] rounded-2xl flex items-center justify-center shadow-sm border border-slate-200 dark:border-[#222]">
-                <FileText className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-black uppercase tracking-tight">{activeTabLabel}</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Summary Mode</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <form onSubmit={handleAddModalLetter} className="relative mr-4">
-                <input
-                  type="text"
-                  placeholder="Type LMS_ID to Add..."
-                  value={lmsIdInput}
-                  onChange={(e) => setLmsIdInput(e.target.value)}
-                  className="pl-4 pr-10 py-2.5 bg-white dark:bg-white/5 border border-slate-200 dark:border-[#333] rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48 transition-all uppercase"
-                />
-                <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-50 rounded-lg text-blue-600">
-                  {isAddingLetter ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                </button>
-                {modalError && <span className="absolute -bottom-6 left-0 text-[10px] text-red-500 font-bold uppercase tracking-tighter whitespace-nowrap">{modalError}</span>}
-              </form>
-              <button onClick={() => setIsPrintModalOpen(false)} className="p-3 bg-white dark:bg-white/5 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all border border-slate-100 dark:border-white/10 flex items-center justify-center shadow-sm">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-auto p-12 custom-scrollbar print:overflow-visible print:p-0">
-            <div className="hidden print:flex flex-col mb-8 border-b-2 border-slate-900 pb-4">
-              <div className="flex justify-between items-end">
-                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Correspondence Summary</h2>
-                <div className="text-right">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mr-2">Date:</span>
-                  <span className="text-xs font-bold text-slate-700">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                </div>
-              </div>
-            </div>
-
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b-2 border-slate-200 dark:border-white/10 print:border-slate-900">
-                  <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-12 print:text-slate-900">#</th>
-                  <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-32 print:text-slate-900">Date & Time</th>
-                  <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-24 print:text-slate-900">LMS Code</th>
-                  <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Sender</th>
-                  <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Letter Summary</th>
-                  <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:hidden">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {modalLetters.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="py-32 text-center">
-                      <div className="flex flex-col items-center gap-4 text-slate-200 dark:text-gray-800">
-                        <Inbox className="w-20 h-20" />
-                        <span className="text-base font-black uppercase tracking-widest">No Selected letters</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  modalLetters.map((l, idx) => (
-                    <tr key={l.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 transition-colors print:border-slate-200">
-                      <td className="py-6 px-4 text-xs font-black text-slate-400 print:text-slate-900">{idx + 1}</td>
-                      <td className="py-6 px-4">
-                        <div className="flex flex-col text-[10px] font-bold text-slate-500 print:text-slate-900">
-                          <span>{new Date(l.date_received || l.createdAt).toLocaleDateString()}</span>
-                          <span className="text-orange-500 font-black">{new Date(l.date_received || l.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
-                        </div>
-                      </td>
-                      <td className="py-6 px-4 text-xs font-black text-blue-600 uppercase print:text-slate-900">{l.lms_id}</td>
-                      <td className="py-6 px-4">
-                        <div className="flex flex-col">
-                          <span className="text-xs font-black text-slate-800 dark:text-white uppercase print:text-slate-900">{l.sender}</span>
-                          <span className="text-[10px] text-slate-400 font-bold print:hidden">{l.locale || 'N/A'}</span>
-                        </div>
-                      </td>
-                      <td className="py-6 px-4">
-                        <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-w-md print:text-slate-900" dangerouslySetInnerHTML={{ __html: l.summary }}></div>
-                      </td>
-                      <td className="py-6 px-4 print:hidden">
-                        <button
-                          onClick={() => setModalLetters(prev => prev.filter(x => x.id !== l.id))}
-                          className="p-2 hover:bg-red-50 hover:text-red-500 rounded-xl text-slate-300 transition-all"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-
-            {/* Print Footer / Signatures (Visible only on print or report view) */}
-            <div className="hidden print:block mt-20 pt-12 border-t-2 border-slate-900">
-              <div className="grid grid-cols-3 gap-12">
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-6">Naghanda:</span>
-                  <div className="border-b border-slate-900 pb-2">
-                    <span className="text-xs font-black uppercase">{user?.first_name} {user?.last_name}</span>
-                  </div>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-6">Pangalan ng nagdala:</span>
-                  <div className="border-b border-slate-900 h-6"></div>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-6">Notasyon:</span>
-                  <div className="border-b border-slate-900 h-6"></div>
-                </div>
-              </div>
-              <div className="mt-8 text-right">
-                <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Total Count: {modalLetters.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-8 border-t flex items-center justify-between bg-slate-50 dark:bg-white/5 print:hidden">
-            <button
-              onClick={handleAtgViewBulk}
-              disabled={modalLetters.length === 0}
-              className="px-6 py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-indigo-600 text-[10px] font-black rounded-2xl uppercase tracking-widest shadow-sm hover:shadow-md transition-all flex items-center gap-2"
-            >
-              <Zap className="w-4 h-4" />
-              ATG View (Move to VIP)
-            </button>
-            <div className="flex items-center gap-3">
-              <button onClick={() => window.print()} disabled={modalLetters.length === 0} className="px-8 py-3 bg-blue-600 text-white text-[10px] font-black rounded-2xl shadow-xl hover:bg-blue-700 uppercase tracking-widest flex items-center gap-2">
-                <Printer className="w-4 h-4" />
-                Print Summary
-              </button>
-            </div>
-          </div>
+      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 resumen-modal-root">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-md resumen-modal-backdrop" onClick={() => setIsPrintModalOpen(false)} />
+        <div className="bg-white dark:bg-[#141414] w-full max-w-7xl h-[95vh] min-h-0 rounded-[2.5rem] border shadow-2xl relative z-10 overflow-hidden resumen-modal-shell">
+          <ResumenPage embedded onClose={() => setIsPrintModalOpen(false)} />
         </div>
 
         <style>{`
           @media print {
-            body { background: white !important; margin: 0 !important; padding: 0 !important; }
-            .print-hidden { display: none !important; }
-            #root > div > main > header,
-            #root > div > div.print-hidden { display: none !important; }
-            .fixed.inset-0.z-\\[110\\] { 
-                position: static !important; 
-                display: block !important; 
-                background: white !important;
-                padding: 0 !important;
-            }
-            .fixed.inset-0.z-\\[110\\] > div:first-child { display: none !important; } /* Hide backdrop */
-            .bg-white.dark\\:bg-\\[\\#141414\\].w-full.max-w-5xl {
-                max-width: 100% !important;
-                width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                border: none !important;
-                box-shadow: none !important;
-                position: static !important;
-            }
-            @page { margin: 10mm; size: portrait; }
-            * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+            .resumen-modal-backdrop { display: none !important; }
+            .resumen-modal-root { position: static !important; display: block !important; padding: 0 !important; }
+            .resumen-modal-shell { max-width: 100% !important; width: 100% !important; height: auto !important; margin: 0 !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; }
           }
         `}</style>
       </div>
