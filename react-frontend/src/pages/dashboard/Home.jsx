@@ -287,12 +287,14 @@ export default function Home() {
                         icon={Users}
                         gradientClass="bg-gradient-to-br from-indigo-600 to-violet-500"
                     />
-                    <StatCard
-                        title="Departments"
-                        value={stats.totalDepartments || stats.totalDepartment || 0}
-                        icon={Building2}
-                        gradientClass="bg-gradient-to-br from-orange-600 to-amber-500"
-                    />
+                    {(!user?.dept_id || isSuperAdmin) && (
+                        <StatCard
+                            title="Departments"
+                            value={stats.totalDepartments || stats.totalDepartment || 0}
+                            icon={Building2}
+                            gradientClass="bg-gradient-to-br from-orange-600 to-amber-500"
+                        />
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
@@ -453,11 +455,13 @@ export default function Home() {
                                     <p className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.2em] mb-2 relative z-10">USERS</p>
                                     <h3 className="text-4xl font-black text-white relative z-10">{stats.totalUsers}</h3>
                                 </div>
-                                <div className="bg-gradient-to-br from-orange-600 to-amber-500 p-6 rounded-3xl border border-transparent shadow-lg text-white relative overflow-hidden group hover:scale-[1.02] transition-all">
-                                    <div className="absolute -right-4 -bottom-4 opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform"><Building2 className="w-32 h-32" /></div>
-                                    <p className="text-[10px] font-black text-orange-100 uppercase tracking-[0.2em] mb-2 relative z-10">Departments</p>
-                                    <h3 className="text-4xl font-black text-white relative z-10">{stats.totalDepartments || stats.totalDepartment || 0}</h3>
-                                </div>
+                                {(!user?.dept_id || isSuperAdmin) && (
+                                    <div className="bg-gradient-to-br from-orange-600 to-amber-500 p-6 rounded-3xl border border-transparent shadow-lg text-white relative overflow-hidden group hover:scale-[1.02] transition-all">
+                                        <div className="absolute -right-4 -bottom-4 opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform"><Building2 className="w-32 h-32" /></div>
+                                        <p className="text-[10px] font-black text-orange-100 uppercase tracking-[0.2em] mb-2 relative z-10">Departments</p>
+                                        <h3 className="text-4xl font-black text-white relative z-10">{stats.totalDepartments || stats.totalDepartment || 0}</h3>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
