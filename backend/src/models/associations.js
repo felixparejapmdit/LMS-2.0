@@ -65,9 +65,7 @@ RolePermission.belongsTo(Role, { foreignKey: 'role_id' });
 
 // --- Pluggable DNA Associations ---
 Tray.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
-Status.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 LetterKind.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
-ProcessStep.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 Attachment.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 Role.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 Letter.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });

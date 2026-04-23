@@ -13,10 +13,6 @@ const ProcessStep = sequelize.define('ProcessStep', {
     },
     description: {
         type: DataTypes.TEXT
-    },
-    dept_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true
     }
 }, {
     tableName: 'ref_process_steps',
@@ -24,7 +20,7 @@ const ProcessStep = sequelize.define('ProcessStep', {
     indexes: [
         {
             unique: true,
-            fields: ['step_name', 'dept_id']
+            fields: ['step_name']
         }
     ]
 });

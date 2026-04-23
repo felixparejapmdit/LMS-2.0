@@ -1,14 +1,24 @@
-const { LetterKind, Department } = require('../models/associations');
+const { LetterKind, Department, User } = require('../models/associations');
 
 class LetterKindController {
     static async getAll(req, res) {
         try {
-            const { dept_id } = req.query;
+            const { user_id } = req.query;
             const where = {};
             
-            if (dept_id && dept_id !== 'all') {
-                where.dept_id = (dept_id === 'null' || dept_id === 'undefined') ? null : dept_id;
+            if (user_id) {
+                const user = await User.findByPk(user_id);
+                if (user) {
+                    // Force their assigned department (assigned or null)
+                    where.dept_id = user.dept_id || null;
+                }
+            } else {
+                const { dept_id: queryDeptId } = req.query;
+                if (queryDeptId && queryDeptId !== 'all') {
+                    where.dept_id = (queryDeptId === 'null' || queryDeptId === 'undefined') ? null : queryDeptId;
+                }
             }
+
             const kinds = await LetterKind.findAll({ 
                 where,
                 include: [{ model: Department, as: 'department' }]

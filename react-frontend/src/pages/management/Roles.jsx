@@ -57,20 +57,13 @@ export default function Roles() {
         try {
             const userDeptId = user?.dept_id?.id ?? user?.dept_id ?? null;
 
-            let params;
-            if (isSuperAdmin) {
-                // Administrator: filter by deptFilter selection (no admin exclusion — they see everything)
-                params = deptFilter !== 'all' ? { dept_id: deptFilter } : {};
-            } else {
-                // Access Manager: must have a valid dept_id, exclude admin-level roles
-                if (!userDeptId) {
-                    // No dept assigned → show nothing
-                    setRoles([]);
-                    setLoading(false);
-                    return;
-                }
-                params = { dept_id: userDeptId, exclude_admin: 'true' };
-            }
+            const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
+            const params = {
+                role: roleName,
+                user_id: user?.id,
+                dept_id: isSuperAdmin ? (deptFilter !== 'all' ? deptFilter : null) : userDeptId,
+                exclude_admin: isSuperAdmin ? 'false' : 'true'
+            };
 
             const data = await rolePermissionService.getRoles(params);
             const rawRoles = Array.isArray(data) ? data : [];

@@ -61,9 +61,11 @@ export default function Attachments() {
         if (isRefreshing) setRefreshing(true);
         try {
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
-            const params = isSuperAdmin 
-                ? (deptFilter !== 'all' ? { dept_id: deptFilter } : {}) 
-                : { dept_id: userDeptId };
+            const params = {
+                role: roleName,
+                user_id: user?.id,
+                dept_id: isSuperAdmin ? (deptFilter !== 'all' ? deptFilter : null) : userDeptId
+            };
             
             const data = await attachmentService.getAll(params);
             setAttachments(Array.isArray(data) ? data : []);

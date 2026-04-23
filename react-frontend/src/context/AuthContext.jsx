@@ -119,6 +119,34 @@ const authReducer = (state, action) => {
     const [fontSize, setFontSize] = useState(localStorage.getItem("fontSize") || "14px");
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(localStorage.getItem("isSidebarExpanded") !== "false");
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+    const [expandedMenus, setExpandedMenus] = useState(() => {
+        const saved = localStorage.getItem('sidebar_expanded_menus');
+        return saved ? JSON.parse(saved) : {};
+    });
+
+    const toggleSubmenu = useCallback((label) => {
+        setExpandedMenus(prev => ({
+            ...prev,
+            [label]: !prev[label]
+        }));
+        if (!isSidebarExpanded) {
+            setIsSidebarExpanded(true);
+            localStorage.setItem("isSidebarExpanded", "true");
+        }
+    }, [isSidebarExpanded]);
+
+    useEffect(() => {
+        localStorage.setItem('sidebar_expanded_menus', JSON.stringify(expandedMenus));
+    }, [expandedMenus]);
+
+    const startTutorial = useCallback(() => {
+        setIsTutorialOpen(true);
+    }, []);
+
+    const closeTutorial = useCallback(() => {
+        setIsTutorialOpen(false);
+    }, []);
 
     // --- HELPER ACTIONS ---
 
@@ -507,8 +535,10 @@ const authReducer = (state, action) => {
         fontFamily, changeFontFamily,
         fontSize, changeFontSize,
         isSidebarExpanded, toggleSidebar,
-        isMobileMenuOpen, setIsMobileMenuOpen
-    }), [theme, layoutStyle, fontFamily, fontSize, isSidebarExpanded, isMobileMenuOpen]);
+        isMobileMenuOpen, setIsMobileMenuOpen,
+        isTutorialOpen, startTutorial, closeTutorial,
+        expandedMenus, setExpandedMenus, toggleSubmenu
+    }), [theme, layoutStyle, fontFamily, fontSize, isSidebarExpanded, isMobileMenuOpen, isTutorialOpen, startTutorial, closeTutorial, expandedMenus, toggleSubmenu]);
 
     return (
         <AuthContext.Provider value={authContextValue}>

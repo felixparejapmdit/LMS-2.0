@@ -10,10 +10,6 @@ const Status = sequelize.define('Status', {
     status_name: {
         type: DataTypes.STRING,
         allowNull: false
-    },
-    dept_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true
     }
 }, {
     tableName: 'ref_statuses',
@@ -21,7 +17,7 @@ const Status = sequelize.define('Status', {
     indexes: [
         {
             unique: true,
-            fields: ['status_name', 'dept_id']
+            fields: ['status_name']
         }
     ]
 });

@@ -31,8 +31,10 @@ import {
     ArrowRightLeft,
     ShieldCheck,
     Contact,
-    Building2
+    Building2,
+    HelpCircle
 } from "lucide-react";
+import TutorialGuide from "../../components/TutorialGuide";
 import useAccess from "../../hooks/useAccess";
 import API_BASE from "../../config/apiConfig";
 
@@ -41,6 +43,7 @@ export default function Home() {
     const { layoutStyle, setIsMobileMenuOpen } = useUI();
     const access = useAccess();
     const navigate = useNavigate();
+    const { startTutorial } = useUI();
     const [stats, setStats] = useState({
         activeTasks: 0,
         archivedTasks: 0,
@@ -429,7 +432,15 @@ export default function Home() {
                             </div>
                         </div>
                         {canRefresh && (
-                            <div className="flex items-center gap-4 hidden md:flex">
+                            <div className="flex items-center gap-2 hidden md:flex">
+                                <button 
+                                    id="btn-help"
+                                    onClick={startTutorial} 
+                                    className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400 group"
+                                    title="Open Tutorial"
+                                >
+                                    <HelpCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                </button>
                                 <button onClick={() => fetchStats(true)} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
                                     <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
                                 </button>
@@ -566,7 +577,21 @@ export default function Home() {
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-400 md:hidden"><Menu className="w-5 h-5" /></button>
                         <h1 className="text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-widest">Home</h1>
                     </div>
-                    {canRefresh && <button onClick={() => fetchStats(true)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-all"><RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /></button>}
+                    {canRefresh && (
+                        <div className="flex items-center gap-2">
+                             <button 
+                                id="btn-help"
+                                onClick={startTutorial} 
+                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-all group"
+                                title="Open Tutorial"
+                            >
+                                <HelpCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            </button>
+                            <button onClick={() => fetchStats(true)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-all">
+                                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                            </button>
+                        </div>
+                    )}
                 </header>
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
                     <div className="w-full">

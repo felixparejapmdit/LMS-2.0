@@ -72,11 +72,12 @@ export default function Trays() {
         if (isRefreshing) setRefreshing(true);
         else setLoading(true);
         try {
+            const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
             const params = {
                 include_letters: 'true',
-                ...(isSuperAdmin 
-                    ? (deptFilter !== 'all' ? { dept_id: deptFilter } : {}) 
-                    : { dept_id: userDeptId })
+                role: roleName,
+                user_id: user?.id,
+                dept_id: isSuperAdmin ? (deptFilter !== 'all' ? deptFilter : null) : userDeptId
             };
             
             const data = await trayService.getAllTrays(params);

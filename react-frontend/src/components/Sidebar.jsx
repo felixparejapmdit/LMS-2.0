@@ -47,21 +47,13 @@ import { getPageKeyFromPath, humanizePageId } from "../utils/pageAccess";
 
 export default function Sidebar() {
   const { user, logout, isSuperAdmin, hasPermission, isSetupComplete } = useSession();
-  const { theme, toggleTheme, layoutStyle, isSidebarExpanded, toggleSidebar, isMobileMenuOpen, setIsMobileMenuOpen } = useUI();
+  const { theme, toggleTheme, layoutStyle, isSidebarExpanded, toggleSidebar, isMobileMenuOpen, setIsMobileMenuOpen, expandedMenus, setExpandedMenus, toggleSubmenu } = useUI();
   const navigate = useNavigate();
   const location = useLocation();
   const navScrollRef = useRef(null);
   const NAV_SCROLL_KEY = "sidebar_nav_scroll";
-  const [expandedMenus, setExpandedMenus] = useState(() => {
-    const saved = localStorage.getItem('sidebar_expanded_menus');
-    return saved ? JSON.parse(saved) : {};
-  });
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
-
-  useEffect(() => {
-    localStorage.setItem('sidebar_expanded_menus', JSON.stringify(expandedMenus));
-  }, [expandedMenus]);
 
   useEffect(() => {
     if (!user) return;
@@ -104,12 +96,7 @@ export default function Sidebar() {
     navigate("/login", { replace: true });
   };
 
-  const toggleSubmenu = (label) => {
-    setExpandedMenus(prev => ({ ...prev, [label]: !prev[label] }));
-    if (!isSidebarExpanded && !isMobileMenuOpen) {
-      toggleSidebar();
-    }
-  };
+
 
   const navItems = [
     { icon: Home, label: "Home", path: "/" },
@@ -259,6 +246,7 @@ export default function Sidebar() {
             {filteredNavItems.map((item) => (
               <div key={item.label} className="flex flex-col">
                 <NavLink
+                  id={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                   to={item.path}
                   onClick={(e) => {
                     if (item.children) {
@@ -306,6 +294,7 @@ export default function Sidebar() {
                   <div className="pl-4 pr-1 mt-1 space-y-1 animate-in slide-in-from-top-2 opacity-100 fade-in duration-200">
                     {item.children.map(child => (
                       <NavLink
+                        id={`nav-child-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
                         key={child.path}
                         to={child.path}
                         onClick={() => setIsMobileMenuOpen(false)}
@@ -419,6 +408,7 @@ export default function Sidebar() {
             {filteredNavItems.map((item) => (
               <div key={item.label} className="flex flex-col">
                 <NavLink
+                  id={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                   to={item.path}
                   onClick={(e) => {
                     if (item.children) {
@@ -463,6 +453,7 @@ export default function Sidebar() {
                   <div className="pl-6 mt-0.5 space-y-0.5 relative before:absolute before:left-[17px] before:top-0 before:bottom-0 before:w-px before:bg-gray-200">
                     {item.children.map(child => (
                       <NavLink
+                        id={`nav-child-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
                         key={child.path}
                         to={child.path}
                         onClick={() => setIsMobileMenuOpen(false)}
@@ -565,6 +556,7 @@ export default function Sidebar() {
             {filteredNavItems.map((item) => (
               <div key={item.label} className="flex flex-col">
                 <NavLink
+                  id={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                   to={item.path}
                   onClick={(e) => {
                     if (item.children) {
@@ -611,7 +603,8 @@ export default function Sidebar() {
                 {item.children && expandedMenus[item.label] && (isSidebarExpanded || isMobileMenuOpen) && (
                   <div className="ml-6 border-l border-[#E5E5E5] mt-1 space-y-1">
                     {item.children.map(child => (
-                      <NavLink
+                       <NavLink
+                        id={`nav-child-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
                         key={child.path}
                         to={child.path}
                         className={({ isActive }) => {
@@ -694,6 +687,7 @@ export default function Sidebar() {
           {filteredNavItems.map((item) => (
             <div key={item.label} className="flex flex-col">
               <NavLink
+                id={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                 to={item.path}
                 onClick={(e) => {
                   if (item.children) {
@@ -736,6 +730,7 @@ export default function Sidebar() {
                 <div className="pl-4 mt-1 space-y-1">
                   {item.children.map(child => (
                     <NavLink
+                      id={`nav-child-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
                       key={child.path}
                       to={child.path}
                       onClick={() => setIsMobileMenuOpen(false)}

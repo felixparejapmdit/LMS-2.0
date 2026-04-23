@@ -3,16 +3,7 @@ const { Status, Department } = require('../models/associations');
 class StatusController {
     static async getAll(req, res) {
         try {
-            const { dept_id } = req.query;
-            const where = {};
-            
-            if (dept_id && dept_id !== 'all') {
-                where.dept_id = (dept_id === 'null' || dept_id === 'undefined') ? null : dept_id;
-            }
-            const statuses = await Status.findAll({ 
-                where,
-                include: [{ model: Department, as: 'department' }]
-            });
+            const statuses = await Status.findAll();
             res.json(statuses);
         } catch (error) {
             res.status(500).json({ error: error.message });

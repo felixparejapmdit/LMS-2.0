@@ -134,6 +134,7 @@ function AppRoutes() {
 
   return (
     <Router>
+      <TutorialGuideOverlay />
       <Routes>
         <Route path="/login" element={<Login />} />
 
@@ -178,6 +179,8 @@ function AppRoutes() {
     </Router>
   );
 }
+
+import TutorialGuideOverlay from "./components/TutorialGuide";
 
 export default function App() {
   return (

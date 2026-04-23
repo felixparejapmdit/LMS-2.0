@@ -11,13 +11,9 @@ class ProcessStepController {
   static async getAll(req, res) {
     console.log(`[PROCESS_STEPS_HIT] Query: ${JSON.stringify(req.query)}`);
     try {
-      const { vip, dept_id } = req.query;
+      const { vip } = req.query;
       const stepWhere = {};
 
-      if (dept_id && dept_id !== "all") {
-        stepWhere.dept_id =
-          dept_id === "null" || dept_id === "undefined" ? null : dept_id;
-      }
       let atgStatusId = null;
       const includeCfg = [
         {
@@ -49,7 +45,7 @@ class ProcessStepController {
 
       const steps = await ProcessStep.findAll({
         where: stepWhere,
-        include: [...includeCfg, { model: Department, as: "department" }],
+        include: includeCfg,
         subQuery: false,
       });
 

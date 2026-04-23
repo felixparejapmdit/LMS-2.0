@@ -1,4 +1,4 @@
-const { Attachment, Department } = require('../models/associations');
+const { Attachment, Department, User } = require('../models/associations');
 const path = require('path');
 const fs = require('fs');
 
@@ -113,11 +113,21 @@ class AttachmentController {
 
     static async getAll(req, res) {
         try {
-            const { dept_id } = req.query;
+            const { user_id } = req.query;
             const where = {};
             
-            if (dept_id && dept_id !== 'all') {
-                where.dept_id = (dept_id === 'null' || dept_id === 'undefined') ? null : dept_id;
+            if (user_id) {
+                const user = await User.findByPk(user_id);
+                if (user) {
+                    // Force their assigned department (assigned or null)
+                    where.dept_id = user.dept_id || null;
+                }
+            } else {
+                // If no user_id is provided, default to null for safety OR handle legacy calls
+                const { dept_id: queryDeptId } = req.query;
+                if (queryDeptId && queryDeptId !== 'all') {
+                    where.dept_id = (queryDeptId === 'null' || queryDeptId === 'undefined') ? null : queryDeptId;
+                }
             }
             
             const results = await Attachment.findAll({ 

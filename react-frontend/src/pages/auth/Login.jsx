@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, Loader2, User, FileStack, ArrowRight, ShieldCheck } from "lucide-react";
+import { Mail, Lock, Loader2, User, FileStack, ArrowRight, ShieldCheck, HelpCircle } from "lucide-react";
+import { useUI } from "../../context/AuthContext";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -11,6 +12,7 @@ export default function Login() {
 
   const { login, loginGuest } = useAuth();
   const navigate = useNavigate();
+  const { startTutorial } = useUI();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,7 +48,7 @@ export default function Login() {
               <div className="w-12 h-12 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-black/10 transition-transform group-hover:scale-110 duration-500">
                 <FileStack className="text-white dark:text-black w-6 h-6" />
               </div>
-              <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white">
+            <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white">
                 LMS <span className="text-orange-500 tracking-normal">2026</span>
               </h1>
             </div>

@@ -1,18 +1,23 @@
-const { Tray, Letter, Department } = require('../models/associations');
+const { Tray, Letter, Department, User } = require('../models/associations');
 const { Op } = require('sequelize');
 
 class TrayController {
     static async getAll(req, res) {
         try {
-            const { dept_id, include_letters } = req.query;
+            const { user_id, include_letters } = req.query;
             const where = {};
             
-            if (dept_id === 'all' || !dept_id) {
-                // Show everything
-            } else if (dept_id === 'null' || dept_id === 'undefined') {
-                where.dept_id = null;
+            if (user_id) {
+                const user = await User.findByPk(user_id);
+                if (user) {
+                    // Force their assigned department (assigned or null)
+                    where.dept_id = user.dept_id || null;
+                }
             } else {
-                where.dept_id = dept_id;
+                const { dept_id: queryDeptId } = req.query;
+                if (queryDeptId && queryDeptId !== 'all') {
+                    where.dept_id = (queryDeptId === 'null' || queryDeptId === 'undefined') ? null : queryDeptId;
+                }
             }
 
             const include = [{ model: Department, as: 'department' }];

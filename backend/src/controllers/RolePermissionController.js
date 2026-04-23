@@ -161,26 +161,32 @@ class RolePermissionController {
 
     static async getRolesWithPermissions(req, res) {
         try {
-            const { dept_id, exclude_admin } = req.query;
+            const { user_id, exclude_admin } = req.query;
 
             // Roles that should NEVER be visible to non-admin users
             const ADMIN_ROLE_NAMES = ['ADMINISTRATOR'];
 
             // Build where clause for dept_id filtering
             const where = {};
-            if (dept_id !== undefined && dept_id !== 'all' && dept_id !== 'undefined') {
-                if (dept_id === 'null' || dept_id === '') {
-                    where.dept_id = null;
-                } else {
-                    where.dept_id = parseInt(dept_id, 10) || dept_id;
+            
+            if (user_id) {
+                const user = await User.findByPk(user_id);
+                if (user) {
+                    // Force their assigned department (assigned or null)
+                    where.dept_id = user.dept_id || null;
+                    if (user.dept_id) {
+                        where.name = { [Op.notIn]: ADMIN_ROLE_NAMES };
+                    }
+                }
+            } else {
+                const { dept_id: queryDeptId } = req.query;
+                if (queryDeptId && queryDeptId !== 'all') {
+                    where.dept_id = (queryDeptId === 'null' || queryDeptId === 'undefined' || queryDeptId === '') ? null : queryDeptId;
                 }
             }
 
-            // When dept_id filter is active OR exclude_admin=true, exclude system admin roles
-            if (dept_id !== undefined || exclude_admin === 'true') {
-                where.name = {
-                    [Op.notIn]: ADMIN_ROLE_NAMES
-                };
+            if (exclude_admin === 'true') {
+                where.name = { [Op.notIn]: ADMIN_ROLE_NAMES };
             }
 
             const roles = await Role.findAll({
@@ -219,25 +225,31 @@ class RolePermissionController {
 
     static async getRoles(req, res) {
         try {
-            const { dept_id, exclude_admin } = req.query;
+            const { user_id, exclude_admin } = req.query;
 
             // Roles that should NEVER be visible to non-admin users
             const ADMIN_ROLE_NAMES = ['ADMINISTRATOR'];
 
             const where = {};
-            if (dept_id !== undefined && dept_id !== 'all' && dept_id !== 'undefined') {
-                if (dept_id === 'null' || dept_id === '') {
-                    where.dept_id = null;
-                } else {
-                    where.dept_id = parseInt(dept_id, 10) || dept_id;
+            
+            if (user_id) {
+                const user = await User.findByPk(user_id);
+                if (user) {
+                    // Force their assigned department (assigned or null)
+                    where.dept_id = user.dept_id || null;
+                    if (user.dept_id) {
+                        where.name = { [Op.notIn]: ADMIN_ROLE_NAMES };
+                    }
+                }
+            } else {
+                const { dept_id: queryDeptId } = req.query;
+                if (queryDeptId && queryDeptId !== 'all') {
+                    where.dept_id = (queryDeptId === 'null' || queryDeptId === 'undefined' || queryDeptId === '') ? null : queryDeptId;
                 }
             }
 
-            // When dept_id filter is active OR exclude_admin=true, exclude system admin roles
-            if (dept_id !== undefined || exclude_admin === 'true') {
-                where.name = {
-                    [Op.notIn]: ADMIN_ROLE_NAMES
-                };
+            if (exclude_admin === 'true') {
+                where.name = { [Op.notIn]: ADMIN_ROLE_NAMES };
             }
 
             const roles = await Role.findAll({
