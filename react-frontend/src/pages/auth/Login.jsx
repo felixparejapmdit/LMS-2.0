@@ -23,7 +23,7 @@ export default function Login() {
     if (result.success) {
       const roleName = (result.user?.roleData?.name || result.user?.role || '').toString().toUpperCase();
       const targetPath = roleName === 'USER' ? '/letter-tracker' : (roleName === 'VIP' ? '/vip-view' : '/inbox');
-      console.log(`[NAV] Starting navigation to ${targetPath} for ${username}...`);
+      console.log(`[NAV] Redirection to ${targetPath}...`);
       navigate(targetPath);
     } else {
       setError(result.error || "Login failed. Please check your credentials.");

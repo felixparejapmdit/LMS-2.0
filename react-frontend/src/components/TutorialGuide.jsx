@@ -310,22 +310,46 @@ export default function TutorialGuide() {
         }
     }, [isTutorialOpen]);
 
+    // --- DETAILED DIAGNOSTIC LOGS ---
     useEffect(() => {
-        const count = parseInt(localStorage.getItem(TUTORIAL_COUNT_KEY) || "0");
+        const countRaw = localStorage.getItem(TUTORIAL_COUNT_KEY);
+        const count = parseInt(countRaw || "0");
         const isDismissed = localStorage.getItem(TUTORIAL_DISMISSED_KEY);
+        const isPending = sessionStorage.getItem("lms_tutorial_pending") === "true";
         
-        // Wait for user AND permissions to be fully ready before checking for auto-start
-        if (count < 3 && !isDismissed && user && permissionsLoaded && location.pathname !== "/login") {
+        // Detailed reasons array for debugging
+        const failureReasons = [];
+        if (location.pathname === "/login") failureReasons.push("Currently on Login page");
+        if (!isPending) failureReasons.push("Not marked as 'Pending' (already shown or refresh)");
+        if (count > 3) failureReasons.push(`Limit reached (Count: ${count})`);
+        if (isDismissed && count > 3) failureReasons.push("User has explicitly dismissed tutorial (Intro phase over)");
+        if (!user) failureReasons.push("User not authenticated");
+        if (!permissionsLoaded) failureReasons.push("Permissions still loading");
+        if (steps.length === 0) failureReasons.push("No steps available");
+        if (isTutorialOpen) failureReasons.push("Guide is already active");
+
+        console.groupCollapsed(`%c[TUTORIAL DIAGNOSTIC] Path: ${location.pathname}`, "color: #ff6b6b; font-weight: bold;");
+        console.log(`%cCount: ${count}/3 | Pending: ${isPending} | Open: ${isTutorialOpen}`, "color: #4dabf7;");
+        if (failureReasons.length > 0) {
+            console.log("%cStatus: WAITING / BLOCKED", "color: #fab005; font-weight: bold;");
+            failureReasons.forEach(r => console.log(` - ${r}`));
+        } else {
+            console.log("%cStatus: TRIGGERING...", "color: #40c057; font-weight: bold;");
+        }
+        console.groupEnd();
+
+        // Exposed for manual console checking
+        window.LMS_TUTORIAL_STATE = { count, isPending, isTutorialOpen, permissionsLoaded, steps: steps.length, failureReasons };
+
+        if (failureReasons.length === 0 && !isTutorialOpen) {
             const timer = setTimeout(() => {
-                if (!isTutorialOpen) {
-                    console.log(`[TUTORIAL] Auto-triggering guide (Session #${count + 1})...`);
-                    startTutorial();
-                    localStorage.setItem(TUTORIAL_COUNT_KEY, (count + 1).toString());
-                }
-            }, 2500); // Slightly longer delay to ensure full render
+                startTutorial();
+                sessionStorage.setItem("lms_tutorial_pending", "false");
+                console.log("%c[TUTORIAL] SUCCESS: Guide opened on Inbox.", "color: #40c057; font-weight: bold;");
+            }, 2500);
             return () => clearTimeout(timer);
         }
-    }, [location.pathname, isTutorialOpen, startTutorial, user, permissionsLoaded]);
+    }, [location.pathname, isTutorialOpen, startTutorial, user, permissionsLoaded, steps.length]);
 
     // Orchestrate UI
     useEffect(() => {

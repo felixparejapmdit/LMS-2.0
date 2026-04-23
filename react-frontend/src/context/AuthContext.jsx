@@ -355,6 +355,17 @@ const authReducer = (state, action) => {
 
             localStorage.setItem(LAST_REFRESH_KEY, Date.now().toString());
 
+            // --- Tutorial Orchestration ---
+            try {
+                const count = parseInt(localStorage.getItem('lms_tutorial_auto_count') || "0");
+                // Reset dismissed flag for the first 3 sessions to ensure the walkthrough persists as requested
+                if (count < 3) {
+                    localStorage.setItem('lms_tutorial_auto_count', (count + 1).toString());
+                    sessionStorage.setItem('lms_tutorial_pending', 'true');
+                    console.log(`[AUTH] Tutorial session #${count + 1} primed (Ignoring dismissal during intro phase).`);
+                }
+            } catch (e) { console.error("Tutorial storage error:", e); }
+
             // Check setup status - NON-BLOCKING
             const roleName = (me.roleData?.name || me.role || '').toString().toUpperCase();
             if (roleName === 'ACCESS MANAGER') {
