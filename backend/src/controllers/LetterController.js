@@ -84,35 +84,55 @@ class LetterController {
         }
       }
 
-      // 2. Department-based Visibility
-      if (isSuperAdmin) {
-        visibilityClauses.push(sequelize.literal("1=1"));
-      } else if (isAdmin) {
-        const deptToUse = targetDeptId || myDeptId;
-        if (isSuperAdmin && !isSpecificDept) {
-          // Super admin without specific department sees everything
-          visibilityClauses.push(sequelize.literal("1=1"));
-        } else if (deptToUse) {
-          // Admin sees their own department or the specifically requested department
-          visibilityClauses.push({ dept_id: String(deptToUse) });
-          visibilityClauses.push(
-            sequelize.literal(
-              `EXISTS (SELECT 1 FROM letter_assignments la WHERE la.letter_id = Letter.id AND la.department_id = ${sequelize.escape(String(deptToUse))})`,
-            ),
-          );
-        } else if (isSuperAdmin) {
-          // Fallback for super admin
-          visibilityClauses.push(sequelize.literal("1=1"));
-        }
-      }
+      // 2. Main Query Construction
+      // We use visibilityClauses to define what a user CAN see based on involvement.
+      // But if a specific department is requested, it should act as a hard filter (AND).
 
-      if (visibilityClauses.length > 0) {
-        where[Op.or] = visibilityClauses;
-      }
-      // Super admins see everything if no specific involvement or dept is set
-      else if (!isSuperAdmin) {
-        // Non-super-admins with no involvement and no valid department access see nothing
-        where.id = null;
+      const departmentFilter = targetDeptId ? {
+        [Op.or]: [
+          { dept_id: targetDeptId },
+          sequelize.literal(
+            `EXISTS (SELECT 1 FROM letter_assignments la WHERE la.letter_id = Letter.id AND la.department_id = ${sequelize.escape(String(targetDeptId))})`
+          )
+        ]
+      } : null;
+
+      if (isSuperAdmin) {
+        // SuperAdmins see everything by default
+        if (departmentFilter) {
+          where[Op.and] = [departmentFilter];
+        } else {
+          // Global view: no restrictions
+          where[Op.and] = [sequelize.literal("1=1")];
+        }
+      } else {
+        // For non-SuperAdmins, visibility is restricted by involvement OR their assigned department
+        const involvementClause = visibilityClauses.length > 0 ? { [Op.or]: visibilityClauses } : null;
+        
+        let baselineVisibility;
+        if (isDeptAdmin && myDeptId) {
+           const deptAccess = {
+             [Op.or]: [
+               { dept_id: myDeptId },
+               sequelize.literal(
+                 `EXISTS (SELECT 1 FROM letter_assignments la WHERE la.letter_id = Letter.id AND la.department_id = ${sequelize.escape(String(myDeptId))})`
+               )
+             ]
+           };
+           baselineVisibility = involvementClause ? { [Op.or]: [deptAccess, involvementClause] } : deptAccess;
+        } else if (involvementClause) {
+           baselineVisibility = involvementClause;
+        } else {
+           // No involvement and no department access = see nothing
+           baselineVisibility = { id: null };
+        }
+
+        where[Op.and] = [baselineVisibility];
+
+        // If a specific department filter was also requested (e.g. from the deep dive/card click)
+        if (departmentFilter) {
+          where[Op.and].push(departmentFilter);
+        }
       }
 
       const { count, rows } = await Letter.findAndCountAll({

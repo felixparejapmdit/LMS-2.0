@@ -21,6 +21,7 @@ import {
 import rolePermissionService from "../../services/rolePermissionService";
 import departmentService from "../../services/departmentService";
 import useAccess from "../../hooks/useAccess";
+import SearchableSelect from "../../components/SearchableSelect";
 
 export default function Roles() {
     const { user, layoutStyle, setIsMobileMenuOpen, refreshSetupStatus } = useAuth();
@@ -211,21 +212,19 @@ export default function Roles() {
                                 </div>
                             </div>
                             {isSuperAdmin && (
-                                <div className={`${cardBg} rounded-[2.5rem] border shadow-2xl p-6 relative overflow-hidden group shrink-0 min-w-[250px]`}>
-                                    <div className="relative flex items-center gap-3">
-                                        <Filter className="w-4 h-4 text-slate-400" />
-                                        <select 
-                                            value={deptFilter}
-                                            onChange={e => setDeptFilter(e.target.value)}
-                                            className="bg-transparent text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 outline-none cursor-pointer w-full"
-                                        >
-                                            <option value="all">All Departments</option>
-                                            <option value="null">Admin Defaults</option>
-                                            {departments.map(d => (
-                                                <option key={d.id} value={d.id}>{d.dept_name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                <div className="flex-1 min-w-[250px]">
+                                    <SearchableSelect 
+                                        options={[
+                                            { id: 'all', dept_name: 'All Departments' },
+                                            { id: 'null', dept_name: 'Admin Defaults' },
+                                            ...departments
+                                        ]}
+                                        value={deptFilter}
+                                        onChange={setDeptFilter}
+                                        placeholder="Filter by Department"
+                                        icon={Filter}
+                                        allowClear={false}
+                                    />
                                 </div>
                             )}
                             {canViewToggle && (
@@ -382,7 +381,7 @@ export default function Roles() {
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setIsModalOpen(false)} />
-                    <div className={`${cardBg} w-full max-w-lg rounded-[2.5rem] border shadow-2xl relative z-10 overflow-hidden animate-in zoom-in-95 duration-300`}>
+                    <div className={`${cardBg} w-full max-w-lg rounded-[2.5rem] border shadow-2xl relative z-10 overflow-visible animate-in zoom-in-95 duration-300`}>
                         <div className="p-8 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
@@ -421,19 +420,13 @@ export default function Roles() {
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
                                         Assigned Department
                                     </label>
-                                    <div className="relative group">
-                                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                        <select 
-                                            value={currentRole.dept_id || ""} 
-                                            onChange={e => setCurrentRole(prev => ({ ...prev, dept_id: e.target.value }))} 
-                                            className="w-full pl-12 pr-6 py-4 rounded-2xl border border-gray-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 text-sm font-bold appearance-none outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                                        >
-                                            <option value="">Administrator Default</option>
-                                            {departments.map(d => (
-                                                <option key={d.id} value={d.id}>{d.dept_name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    <SearchableSelect 
+                                        options={departments}
+                                        value={currentRole.dept_id}
+                                        onChange={val => setCurrentRole(prev => ({ ...prev, dept_id: val }))}
+                                        placeholder="Select Department"
+                                        emptyMessage="No departments found."
+                                    />
                                 </div>
                             )}
 

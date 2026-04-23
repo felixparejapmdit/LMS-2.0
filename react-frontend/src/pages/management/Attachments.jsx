@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import attachmentService from "../../services/attachmentService";
 import departmentService from "../../services/departmentService";
+import SearchableSelect from "../../components/SearchableSelect";
 
 export default function Attachments() {
     const access = useAccess();
@@ -224,19 +225,19 @@ export default function Attachments() {
                             <div className="flex flex-col md:flex-row md:items-center gap-6">
                                 <h2 className={`text-3xl font-bold ${textColor}`}>Reference Attachments</h2>
                                 {isSuperAdmin && (
-                                    <div className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-[#141414] rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm">
-                                        <Filter className="w-3.5 h-3.5 text-slate-400" />
-                                        <select 
+                                    <div className="flex-1 min-w-[200px]">
+                                        <SearchableSelect 
+                                            options={[
+                                                { id: 'all', dept_name: 'All Departments' },
+                                                { id: 'null', dept_name: 'Admin Defaults' },
+                                                ...departments
+                                            ]}
                                             value={deptFilter}
-                                            onChange={e => setDeptFilter(e.target.value)}
-                                            className="bg-transparent text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 outline-none cursor-pointer"
-                                        >
-                                            <option value="all">All Departments</option>
-                                            <option value="null">Admin Defaults</option>
-                                            {departments.map(d => (
-                                                <option key={d.id} value={d.id}>{d.dept_name}</option>
-                                            ))}
-                                        </select>
+                                            onChange={setDeptFilter}
+                                            placeholder="Filter by Department"
+                                            icon={Filter}
+                                            allowClear={false}
+                                        />
                                     </div>
                                 )}
                             </div>
@@ -261,7 +262,7 @@ export default function Attachments() {
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
-                    <div className={`${cardBg} w-full max-w-md rounded-[2.5rem] border shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 overflow-hidden`}>
+                    <div className={`${cardBg} w-full max-w-md rounded-[2.5rem] border shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 overflow-visible`}>
                         <div className="p-8">
                             <div className="flex items-center justify-between mb-8">
                                 <h3 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>{modalMode === "create" ? "Create Attachment" : "Edit Attachment"}</h3>
@@ -280,16 +281,13 @@ export default function Attachments() {
                                 {isSuperAdmin && (
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Assigned Department</label>
-                                        <select 
-                                            value={formData.dept_id || ""} 
-                                            onChange={e => setFormData({ ...formData, dept_id: e.target.value })} 
-                                            className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold appearance-none outline-none focus:ring-2 focus:ring-emerald-500/20"
-                                        >
-                                            <option value="">Administrator Default</option>
-                                            {departments.map(d => (
-                                                <option key={d.id} value={d.id}>{d.dept_name}</option>
-                                            ))}
-                                        </select>
+                                        <SearchableSelect 
+                                            options={departments}
+                                            value={formData.dept_id}
+                                            onChange={val => setFormData({ ...formData, dept_id: val })}
+                                            placeholder="Select Department"
+                                            emptyMessage="No departments found."
+                                        />
                                     </div>
                                 )}
                                 <div className="pt-4">

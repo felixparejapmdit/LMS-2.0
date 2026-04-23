@@ -19,8 +19,13 @@ import {
     UserCircle,
     Search,
     Camera,
-    Upload
+    Upload,
+    Building2,
+    Check,
+    ChevronDown,
+    Filter
 } from "lucide-react";
+import SearchableSelect from "../../components/SearchableSelect";
 import { directus, directusUrl, getAssetUrl } from "../../hooks/useDirectus";
 import useAccess from "../../hooks/useAccess";
 import { uploadFiles } from "@directus/sdk";
@@ -411,15 +416,20 @@ export default function Users() {
                                     </select>
                                 )}
                                 {isSuperAdmin && canDepartmentFilter && (
-                                    <select
-                                        value={selectedDepartment}
-                                        onChange={(e) => setSelectedDepartment(e.target.value)}
-                                        className="px-4 py-3 rounded-2xl border bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all min-w-[150px] font-bold text-gray-500"
-                                    >
-                                        <option value="">All Departments</option>
-                                        <option value="null">Admin Defaults</option>
-                                        {departments.map(d => <option key={d.id} value={d.id}>{d.dept_name}</option>)}
-                                    </select>
+                                    <div className="min-w-[200px]">
+                                        <SearchableSelect 
+                                            options={[
+                                                { id: 'all', dept_name: 'All Departments' },
+                                                { id: 'null', dept_name: 'Admin Defaults' },
+                                                ...departments
+                                            ]}
+                                            value={selectedDepartment}
+                                            onChange={setSelectedDepartment}
+                                            placeholder="Filter by Department"
+                                            icon={Filter}
+                                            allowClear={false}
+                                        />
+                                    </div>
                                 )}
                             </div>
                             {canViewToggle && (
@@ -497,7 +507,7 @@ export default function Users() {
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
-                    <div className={`${cardBg} w-full h-full md:h-auto md:max-h-[90vh] md:max-w-xl md:rounded-[2.5rem] border-0 md:border shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col`}>
+                    <div className={`${cardBg} w-full h-full md:h-auto md:max-h-[90vh] md:max-w-xl md:rounded-[2.5rem] border-0 md:border shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 overflow-visible flex flex-col`}>
                         <div className="p-6 md:p-8 flex-1 overflow-y-auto custom-scrollbar">
                             <div className="flex items-center justify-between mb-8">
                                 <h3 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>{modalMode === 'create' ? 'Create User' : 'Edit User'}</h3>
@@ -582,10 +592,13 @@ export default function Users() {
                                     {isSuperAdmin && (
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Department</label>
-                                            <select value={formData.dept_id} onChange={e => setFormData({ ...formData, dept_id: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold">
-                                                <option value="">None / Default</option>
-                                                {departments.map(d => <option key={d.id} value={d.id}>{d.dept_name}</option>)}
-                                            </select>
+                                            <SearchableSelect 
+                                                options={departments}
+                                                value={formData.dept_id}
+                                                onChange={val => setFormData({ ...formData, dept_id: val })}
+                                                placeholder="Select Department"
+                                                emptyMessage="No departments found."
+                                            />
                                         </div>
                                     )}
                                 </div>

@@ -18,7 +18,11 @@ class TrayController {
             const include = [{ model: Department, as: 'department' }];
 
             if (include_letters === 'true') {
-                include.push({ model: Letter, as: 'letters', attributes: ['id'] });
+                include.push({ 
+                    model: Letter, 
+                    as: 'letters', 
+                    attributes: ['id', 'lms_id', 'sender', 'summary', 'global_status', 'created_at'] 
+                });
             }
 
             const trays = await Tray.findAll({ where, include });

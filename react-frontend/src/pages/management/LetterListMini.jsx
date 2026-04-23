@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Loader2, FileText, ChevronRight, Inbox } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 export default function LetterListMini({ deptId }) {
+  const { user } = useAuth();
   const [letters, setLetters] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -11,9 +13,12 @@ export default function LetterListMini({ deptId }) {
     const fetchLetters = async () => {
       setLoading(true);
       try {
+        const userRole = user?.role?.name || user?.role || "";
+        const userId = user?.id || "";
+
         // Fetch letters for this specific department
         const response = await axios.get(
-          `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/letters?dept_id=${deptId}&limit=5`,
+          `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/letters?dept_id=${deptId}&limit=5&role=${userRole}&user_id=${userId}`,
         );
         setLetters(response.data.data || []);
       } catch (error) {
@@ -23,8 +28,8 @@ export default function LetterListMini({ deptId }) {
       }
     };
 
-    if (deptId) fetchLetters();
-  }, [deptId]);
+    if (deptId && user) fetchLetters();
+  }, [deptId, user]);
 
   if (loading)
     return (
