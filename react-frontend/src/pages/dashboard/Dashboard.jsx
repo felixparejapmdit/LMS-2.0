@@ -129,7 +129,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         url += '&exclude_vip=true';
         if (activeStepTab) url += `&named_filter=${activeStepTab}`;
       } else if (view === 'outbox') {
-        url += '&global_status=8&outbox=true&exclude_vip=true';
+        url += '&outbox=true&exclude_vip=true';
       }
 
       url += `&page=${currentPage}&limit=${recordsPerPage}`;
@@ -604,6 +604,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                           step={assignment.step?.step_name}
                           tray={assignment.letter?.tray}
                           layout="minimalist"
+                          isOutbox={view === 'outbox'}
+                          endorsements={assignment.letter?.endorsements}
                           actions={
                             <div className="flex items-center gap-2">
                               {renderTrayActions(assignment)}

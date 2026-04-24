@@ -27,6 +27,8 @@ export default function LetterCard({
   attachment,
   tray,
   layout = "notion",
+  isOutbox = false,
+  endorsements = [],
   actions = null
 }) {
   const isPastDue = dueDate && new Date(dueDate) < new Date();
@@ -138,6 +140,14 @@ export default function LetterCard({
                   <div className="flex items-center gap-1.5">
                     <Paperclip className="w-3 h-3 text-[#A3A3A3] dark:text-gray-500" />
                     <span className="text-[10px] font-medium text-[#737373] dark:text-gray-400">{attachment.attachment_name}</span>
+                  </div>
+                )}
+                {isOutbox && Array.isArray(endorsements) && endorsements.length > 0 && (
+                  <div className="flex items-center gap-1.5 pt-0.5">
+                    <User className="w-3 h-3 text-orange-400 dark:text-orange-500 shrink-0" />
+                    <span className="text-[10px] font-medium text-orange-500 dark:text-orange-400 truncate">
+                      Forwarded to: {endorsements.map(e => e.endorsed_to).filter(Boolean).join(', ')}
+                    </span>
                   </div>
                 )}
               </div>

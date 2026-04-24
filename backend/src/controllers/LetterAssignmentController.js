@@ -279,8 +279,8 @@ class LetterAssignmentController {
         if (!where[Op.and]) where[Op.and] = [];
         where[Op.and].push({
           [Op.or]: [
-            { "$letter.global_status$": 3 },
-            { "$letter.status.status_name$": "Review" },
+            { "$letter.id$": { [Op.not]: null } },
+            { "$letter.id$": { [Op.not]: null } },
           ],
         });
       }
