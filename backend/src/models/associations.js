@@ -16,6 +16,8 @@ const RolePermission = require('./RolePermission');
 const SystemPage = require('./SystemPage');
 const Endorsement = require('./Endorsement');
 const UserDeptAccess = require('./UserDeptAccess');
+const RefSectionRegistry = require('./RefSectionRegistry');
+const DeptSectionUsage = require('./DeptSectionUsage');
 const sequelize = require('../config/db');
 
 // --- Letter Relationships ---
@@ -82,6 +84,12 @@ UserDeptAccess.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 UserDeptAccess.belongsTo(Department, { foreignKey: 'department_id', as: 'department' });
 Department.hasMany(UserDeptAccess, { foreignKey: 'department_id', as: 'userAccess' });
 
+// --- Section Management ---
+Department.hasMany(DeptSectionUsage, { foreignKey: 'dept_id', as: 'sectionUsage' });
+DeptSectionUsage.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
+RefSectionRegistry.belongsTo(Department, { foreignKey: 'assigned_to_dept_id', as: 'department' });
+Department.hasOne(RefSectionRegistry, { foreignKey: 'assigned_to_dept_id', as: 'activeRegistrySection' });
+
 module.exports = {
     Letter,
     User,
@@ -101,5 +109,7 @@ module.exports = {
     SystemPage,
     Endorsement,
     UserDeptAccess,
+    RefSectionRegistry,
+    DeptSectionUsage,
     sequelize
 };

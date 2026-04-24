@@ -9,7 +9,12 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const axios = require('axios');
 const app = require('./app');
 const sequelize = require('./config/db');
-const { Person, User, Endorsement, RolePermission, SystemPage, LetterKind, Status, ProcessStep, Letter, Tray, LetterAssignment, LetterLog, Attachment, Comment, LinkLetter, Role } = require('./models/associations');
+const { 
+    Person, User, Endorsement, RolePermission, SystemPage, 
+    LetterKind, Status, ProcessStep, Letter, Tray, 
+    LetterAssignment, LetterLog, Attachment, Comment, 
+    LinkLetter, Role, RefSectionRegistry, DeptSectionUsage 
+} = require('./models/associations');
 
 const PORT = process.env.PORT || 5000;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -75,7 +80,7 @@ async function startServer() {
             Person, User, Endorsement, RolePermission, SystemPage,
             LetterKind, Status, ProcessStep, Letter, Tray,
             LetterAssignment, LetterLog, Attachment, Comment,
-            LinkLetter, Role
+            LinkLetter, Role, RefSectionRegistry, DeptSectionUsage
         ];
 
         for (const model of models) {
@@ -87,6 +92,22 @@ async function startServer() {
             }
         }
 
+        // 1.5. Seed Registry if empty
+        try {
+            const count = await RefSectionRegistry.count();
+            if (count === 0) {
+                console.log('[DATABASE] Seeding Section Registry (01-99)...');
+                const sections = [];
+                for (let i = 1; i <= 99; i++) {
+                    sections.push({ section_code: i.toString().padStart(2, '0'), status: 'AVAILABLE' });
+                }
+                await RefSectionRegistry.bulkCreate(sections);
+                console.log('[DATABASE] Seeding complete.');
+            }
+        } catch (seedErr) {
+            console.warn('[DATABASE] Registry seeding failed:', seedErr.message);
+        }
+
         // 2. Self-Healing: Specific Column additions (Legacy/Directus tables)
         await ensureColumn('person', 'telegram_chat_id', 'VARCHAR(255)');
         await ensureColumn('directus_users', 'layout_style', "VARCHAR(255) DEFAULT 'notion'");
@@ -95,6 +116,7 @@ async function startServer() {
         await ensureColumn('letter_logs', 'step_id', "INTEGER");
         await ensureColumn('letter_logs', 'department_id', "INTEGER");
         await ensureColumn('letter_logs', 'status_id', "INTEGER");
+        await ensureColumn('dept_section_usage', 'year', "INTEGER");
 
         // Normalize any invalid tray_id=0 back to NULL (FK-safe unassigned tray)
         try {

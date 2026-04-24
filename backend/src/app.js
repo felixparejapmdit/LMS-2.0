@@ -19,6 +19,7 @@ const pdfSyncRoutes = require("./routes/pdfSyncRoutes");
 const telegramRoutes = require("./routes/telegramRoutes");
 const authRoutes = require("./routes/authRoutes");
 const interDeptRoutes = require("./routes/interDeptRoutes");
+const sectionRoutes = require("./routes/sectionRoutes");
 
 const path = require("path");
 
@@ -125,6 +126,7 @@ apiRouter.use("/role-permissions", rolePermissionRoutes);
 apiRouter.use("/system-pages", systemPageRoutes);
 apiRouter.use("/telegram", telegramRoutes);
 apiRouter.use("/inter-dept", interDeptRoutes);
+apiRouter.use("/sections", sectionRoutes);
 apiRouter.use("/import", require("./routes/importRoutes"));
 
 // Catch-all inside apiRouter to help diagnose missing routes

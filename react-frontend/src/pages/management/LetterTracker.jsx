@@ -291,11 +291,19 @@ export default function LetterTracker() {
                                                 <td className="px-5 py-4 text-center">
                                                     <div className="flex justify-center">
                                                         {(letter.scanned_copy || letter.attachment_id) ? (
-                                                            canPdf ? (
-                                                                <button onClick={() => handleViewPDF(letter)} className="p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-3.5 h-3.5" /></button>
-                                                            ) : (
-                                                                <span className="text-gray-300">-</span>
-                                                            )
+                                                            (() => {
+                                                                const isHidden = letter.is_hidden === true || letter.is_hidden === 1 || letter.is_hidden === 'true';
+                                                                const isAuthorized = !isHidden;
+
+                                                                if (!canPdf || !isAuthorized) {
+                                                                    return <span className="p-2 rounded-lg bg-gray-50 dark:bg-white/5 text-gray-300 border border-gray-100 dark:border-white/10 opacity-50 cursor-not-allowed" title={isHidden ? "Hidden Letter: Access Restricted" : "No Permission"}><FileText className="w-3.5 h-3.5" /></span>;
+                                                                }
+                                                                return <button onClick={() => handleViewPDF(letter)} className="p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-3.5 h-3.5" /></button>;
+                                                            })()
+
+
+
+
                                                         ) : (
                                                             <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 opacity-60">No File</span>
                                                         )}

@@ -37,6 +37,7 @@ import {
   CloudDownload,
   UserCircle,
   LayoutDashboard,
+  LayoutGrid,
   Users,
   Eye,
   Settings2
@@ -129,6 +130,7 @@ export default function Sidebar() {
         { icon: GitMerge, label: "Steps", path: "/setup/process-steps" },
         { icon: Box, label: "Trays", path: "/setup/trays" },
         { icon: Users, label: "Users", path: "/setup/users" },
+        { icon: LayoutGrid, label: "Section Registry", path: "/setup/sections" },
         { icon: Settings2, label: "Inter-Dept Management", path: "/setup/inter-dept", hidden: !hasPermission('inter-dept') },
       ]
     },

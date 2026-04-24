@@ -98,6 +98,11 @@ export default function MasterTable() {
   const [isCombining, setIsCombining] = useState(false);
   const [newFile, setNewFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  const [authorizedSuggestions, setAuthorizedSuggestions] = useState([]);
+  const [showAuthorizedSuggestions, setShowAuthorizedSuggestions] = useState(false);
+  const [highlightedAuthIndex, setHighlightedAuthIndex] = useState(-1);
+  const authorizedRef = useRef(null);
   const canSearch = canField("master-table", "search");
   const canEdit = canField("master-table", "edit_button");
   const canDelete = canField("master-table", "delete_button");
@@ -167,7 +172,7 @@ export default function MasterTable() {
         setTotalPages(response.totalPages || 1);
         setTotalRecords(
           response.total ||
-            (Array.isArray(response.data) ? response.data.length : 0),
+          (Array.isArray(response.data) ? response.data.length : 0),
         );
       } else {
         setLetters(Array.isArray(response) ? response : []);
@@ -180,31 +185,31 @@ export default function MasterTable() {
       departmentService
         .getAll()
         .then(setDepartments)
-        .catch(() => {});
+        .catch(() => { });
       statusService
         .getAll({ dept_id: "all" })
         .then(setStatuses)
-        .catch(() => {});
+        .catch(() => { });
       axios
         .get(`${apiBase}/process-steps`)
         .then((res) => setSteps(res.data))
-        .catch(() => {});
+        .catch(() => { });
       letterKindService
         .getAll()
         .then(setLetterKinds)
-        .catch(() => {});
+        .catch(() => { });
       axios
         .get(`${apiBase}/persons`)
         .then((res) => setPersons(Array.isArray(res.data) ? res.data : []))
-        .catch(() => {});
+        .catch(() => { });
       axios
         .get(`${apiBase}/trays?dept_id=all`)
         .then((res) => setTrays(res.data))
-        .catch(() => {});
+        .catch(() => { });
       axios
         .get(`${apiBase}/attachments?dept_id=${userDeptId}`)
         .then((res) => setAttachments(res.data))
-        .catch(() => {});
+        .catch(() => { });
     } catch (error) {
       console.error("Fetch failed:", error.message);
       // Retry logic for Brave/Aborted requests
@@ -254,7 +259,7 @@ export default function MasterTable() {
       );
       setEndorseSuggestions(res.data);
       setShowEndorseSuggestions(res.data.length > 0);
-    } catch {}
+    } catch { }
   };
 
   // Close endorse suggestions on outside click
@@ -262,6 +267,8 @@ export default function MasterTable() {
     const handler = (e) => {
       if (endorseRef.current && !endorseRef.current.contains(e.target))
         setShowEndorseSuggestions(false);
+      if (authorizedRef.current && !authorizedRef.current.contains(e.target))
+        setShowAuthorizedSuggestions(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -278,6 +285,52 @@ export default function MasterTable() {
     setIsDrawerOpen(true);
     setIsCombining(false);
     setNewFile(null);
+  };
+
+  const fetchAuthorizedSuggestions = async (query) => {
+    if (!query || query.length < 2) {
+      setAuthorizedSuggestions([]);
+      setShowAuthorizedSuggestions(false);
+      setHighlightedAuthIndex(-1);
+      return;
+    }
+    try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/persons/search?query=${query}`,
+      );
+      setAuthorizedSuggestions(res.data);
+      setShowAuthorizedSuggestions(res.data.length > 0);
+      setHighlightedAuthIndex(res.data.length > 0 ? 0 : -1);
+    } catch { }
+  };
+
+  const selectAuthorizedSuggestion = (name) => {
+    const cleanName = name.replace(/,+$/, "").trim();
+    const parts = (selectedLetter.authorized_users || "").split(";").map((p) => p.trim());
+    parts[parts.length - 1] = cleanName;
+    const newValue = parts.filter((p) => p !== "").join("; ");
+    setSelectedLetter({ ...selectedLetter, authorized_users: newValue + "; " });
+    setShowAuthorizedSuggestions(false);
+    setHighlightedAuthIndex(-1);
+  };
+
+  const handleAuthorizedKeyDown = (e) => {
+    if (!authorizedSuggestions || authorizedSuggestions.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showAuthorizedSuggestions) setShowAuthorizedSuggestions(true);
+      setHighlightedAuthIndex((prev) => Math.min(prev < 0 ? 0 : prev + 1, authorizedSuggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedAuthIndex((prev) => Math.max(prev < 0 ? 0 : prev - 1, 0));
+    } else if (e.key === "Enter" && showAuthorizedSuggestions) {
+      e.preventDefault();
+      const picked = authorizedSuggestions[highlightedAuthIndex < 0 ? 0 : highlightedAuthIndex];
+      if (picked) selectAuthorizedSuggestion(picked.name);
+    } else if (e.key === "Escape") {
+      setShowAuthorizedSuggestions(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -577,7 +630,7 @@ export default function MasterTable() {
       // Prioritize current origin if VITE_API_URL is relative
       const baseUrl =
         import.meta.env.VITE_API_URL &&
-        import.meta.env.VITE_API_URL.startsWith("http")
+          import.meta.env.VITE_API_URL.startsWith("http")
           ? import.meta.env.VITE_API_URL
           : window.location.origin + (import.meta.env.VITE_API_URL || "/api");
 
@@ -588,7 +641,7 @@ export default function MasterTable() {
     } else if (letter.attachment_id) {
       const baseUrl =
         import.meta.env.VITE_API_URL &&
-        import.meta.env.VITE_API_URL.startsWith("http")
+          import.meta.env.VITE_API_URL.startsWith("http")
           ? import.meta.env.VITE_API_URL
           : window.location.origin + (import.meta.env.VITE_API_URL || "/api");
       window.open(
@@ -719,7 +772,7 @@ export default function MasterTable() {
       statusService
         .getAll({ dept_id: user?.dept_id?.id ?? user?.dept_id })
         .then(setStatuses)
-        .catch(() => {});
+        .catch(() => { });
       setStatusForm({ status_name: "", dept_id: "" });
     } catch (error) {
       alert("Failed to create status: " + error.message);
@@ -737,7 +790,7 @@ export default function MasterTable() {
       statusService
         .getAll({ dept_id: user?.dept_id?.id ?? user?.dept_id })
         .then(setStatuses)
-        .catch(() => {});
+        .catch(() => { });
       setEditingStatus(null);
       setStatusForm({ status_name: "", dept_id: "" });
     } catch (error) {
@@ -755,7 +808,7 @@ export default function MasterTable() {
       statusService
         .getAll({ dept_id: user?.dept_id?.id ?? user?.dept_id })
         .then(setStatuses)
-        .catch(() => {});
+        .catch(() => { });
     } catch (error) {
       alert("Failed to delete status: " + error.message);
     }
@@ -934,7 +987,7 @@ export default function MasterTable() {
                           className="text-gray-400 hover:text-orange-500 transition-colors"
                         >
                           {selectedIds.length === filteredLetters.length &&
-                          filteredLetters.length > 0 ? (
+                            filteredLetters.length > 0 ? (
                             <CheckSquare className="w-5 h-5 text-orange-500" />
                           ) : (
                             <Square className="w-5 h-5" />
@@ -1039,13 +1092,12 @@ export default function MasterTable() {
                           </td>
                           <td className="p-5 whitespace-nowrap text-xs font-bold">
                             <span
-                              className={`px-3 py-1 rounded-full text-[10px] uppercase font-black tracking-widest ${
-                                letter.status?.status_name === "Incoming"
+                              className={`px-3 py-1 rounded-full text-[10px] uppercase font-black tracking-widest ${letter.status?.status_name === "Incoming"
                                   ? "bg-blue-50 text-blue-600"
                                   : letter.status?.status_name === "Forwarded"
                                     ? "bg-purple-50 text-purple-600"
                                     : "bg-gray-50 text-gray-600"
-                              }`}
+                                }`}
                             >
                               {letter.status?.status_name || "N/A"}
                             </span>
@@ -1319,8 +1371,8 @@ export default function MasterTable() {
                         {!(selectedLetter.global_status
                           ? [1, 2].includes(selectedLetter.global_status)
                           : ["Incoming", "ATG Note"].includes(
-                              selectedLetter.status?.status_name,
-                            )) && <span className="text-red-500">*</span>}
+                            selectedLetter.status?.status_name,
+                          )) && <span className="text-red-500">*</span>}
                       </label>
                       <select
                         value={selectedLetter.tray_id || ""}
@@ -1418,10 +1470,10 @@ export default function MasterTable() {
                             (s) =>
                               !s.dept_id ||
                               Number(s.dept_id) ===
-                                Number(
-                                  selectedLetter?.dept_id?.id ??
-                                    selectedLetter?.dept_id,
-                                ),
+                              Number(
+                                selectedLetter?.dept_id?.id ??
+                                selectedLetter?.dept_id,
+                              ),
                           )
                           .map((s) => {
                             const dept = departments.find(
@@ -1588,6 +1640,74 @@ export default function MasterTable() {
                     </select>
                   </div>
 
+                  <div className="pt-4 border-t border-dashed border-gray-100 dark:border-[#222] space-y-4">
+                    <label className="flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group bg-gray-50 border-transparent dark:bg-[#1a1a1a] hover:border-orange-500/50">
+                      <input
+                        type="checkbox"
+                        checked={selectedLetter.is_hidden || false}
+                        onChange={(e) =>
+                          setSelectedLetter({
+                            ...selectedLetter,
+                            is_hidden: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-orange-500 focus:ring-orange-500 border-gray-300 rounded"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black uppercase tracking-tight text-gray-700 dark:text-gray-300">
+                          Hidden Letter
+                        </span>
+                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">
+                          Restricted visibility
+                        </span>
+                      </div>
+                    </label>
+
+                    <div className={`space-y-1 transition-all duration-300 ${!selectedLetter.is_hidden ? "opacity-50" : "opacity-100"}`}>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        Authorized Users
+                      </label>
+                      <div className="relative" ref={authorizedRef}>
+                        <input
+                          type="text"
+                          disabled={!selectedLetter.is_hidden}
+                          placeholder={selectedLetter.is_hidden ? "Search users to authorize..." : "Check 'Hidden Letter' to assign viewers"}
+                          value={selectedLetter.authorized_users || ""}
+                          onChange={(e) => {
+                            setSelectedLetter({
+                              ...selectedLetter,
+                              authorized_users: e.target.value,
+                            });
+                            const parts = e.target.value.split(";");
+                            const lastPart = parts[parts.length - 1].trim();
+                            fetchAuthorizedSuggestions(lastPart);
+                          }}
+                          onKeyDown={handleAuthorizedKeyDown}
+                          onFocus={() => {
+                            if (authorizedSuggestions.length > 0)
+                              setShowAuthorizedSuggestions(true);
+                          }}
+                          className="w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none border-gray-100 dark:border-[#333] bg-slate-50 dark:bg-[#1a1a1a] text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500"
+                        />
+                        {showAuthorizedSuggestions && (
+                          <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl overflow-hidden max-h-40 overflow-y-auto">
+                            {authorizedSuggestions.map((person, idx) => (
+                              <div
+                                key={person.id}
+                                onClick={() =>
+                                  selectAuthorizedSuggestion(person.name)
+                                }
+                                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${idx === highlightedAuthIndex ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600" : "text-gray-900 dark:text-white"}`}
+                              >
+                                <span>{person.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                       VEM Number
@@ -1684,10 +1804,10 @@ export default function MasterTable() {
                         {/* Auto-combining indicator */}
                         {(selectedLetter.attachment_id ||
                           selectedLetter.scanned_copy) && (
-                          <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/30">
-                            Will Auto-Combine
-                          </span>
-                        )}
+                            <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/30">
+                              Will Auto-Combine
+                            </span>
+                          )}
                       </div>
 
                       <div

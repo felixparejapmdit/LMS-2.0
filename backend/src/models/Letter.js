@@ -76,6 +76,13 @@ const Letter = sequelize.define('Letter', {
     },
     dept_id: {
         type: DataTypes.INTEGER
+    },
+    is_hidden: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    authorized_users: {
+        type: DataTypes.TEXT
     }
 }, {
     tableName: 'letters',
@@ -88,9 +95,9 @@ const Letter = sequelize.define('Letter', {
             if (LetterAssignment && letter.changed('global_status')) {
                 await LetterAssignment.update(
                     { status_id: letter.global_status },
-                    { 
+                    {
                         where: { letter_id: letter.id },
-                        transaction: options.transaction 
+                        transaction: options.transaction
                     }
                 );
             }

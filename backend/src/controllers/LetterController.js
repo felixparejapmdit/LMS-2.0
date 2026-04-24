@@ -15,6 +15,7 @@ const {
 } = require("../models/associations");
 const sequelize = require("../config/db");
 const { Op } = require("sequelize");
+const SectionService = require("../services/SectionService");
 const TelegramService = require("../services/telegramService");
 
 class LetterController {
@@ -108,31 +109,49 @@ class LetterController {
       } else {
         // For non-SuperAdmins, visibility is restricted by involvement OR their assigned department
         const involvementClause = visibilityClauses.length > 0 ? { [Op.or]: visibilityClauses } : null;
-        
+
         let baselineVisibility;
         if (isDeptAdmin && myDeptId) {
-           const deptAccess = {
-             [Op.or]: [
-               { dept_id: myDeptId },
-               sequelize.literal(
-                 `EXISTS (SELECT 1 FROM letter_assignments la WHERE la.letter_id = Letter.id AND la.department_id = ${sequelize.escape(String(myDeptId))})`
-               )
-             ]
-           };
-           baselineVisibility = involvementClause ? { [Op.or]: [deptAccess, involvementClause] } : deptAccess;
+          const deptAccess = {
+            [Op.or]: [
+              { dept_id: myDeptId },
+              sequelize.literal(
+                `EXISTS (SELECT 1 FROM letter_assignments la WHERE la.letter_id = Letter.id AND la.department_id = ${sequelize.escape(String(myDeptId))})`
+              )
+            ]
+          };
+          baselineVisibility = involvementClause ? { [Op.or]: [deptAccess, involvementClause] } : deptAccess;
         } else if (involvementClause) {
-           baselineVisibility = involvementClause;
+          baselineVisibility = involvementClause;
         } else {
-           // No involvement and no department access = see nothing
-           baselineVisibility = { id: null };
+          // No involvement and no department access = see nothing
+          baselineVisibility = { id: null };
         }
 
         where[Op.and] = [baselineVisibility];
 
-        // If a specific department filter was also requested (e.g. from the deep dive/card click)
+        // If a specific department filter was also requested
         if (departmentFilter) {
           where[Op.and].push(departmentFilter);
         }
+
+        // 3. Hidden Letters Restriction
+        const nameMatch = full_name ? `%${full_name}%` : null;
+        const nameParts = full_name ? full_name.split(" ").filter(p => p.length > 0) : [];
+        let alternateNameMatch = null;
+        if (nameParts.length >= 2) {
+          alternateNameMatch = `%${nameParts[nameParts.length - 1]}, ${nameParts[0]}%`;
+        }
+
+        where[Op.and].push({
+          [Op.or]: [
+            { is_hidden: false },
+            { is_hidden: null },
+            { encoder_id: user_id },
+            ...(nameMatch ? [{ authorized_users: { [Op.like]: nameMatch } }] : []),
+            ...(alternateNameMatch ? [{ authorized_users: { [Op.like]: alternateNameMatch } }] : [])
+          ]
+        });
       }
 
       const { count, rows } = await Letter.findAndCountAll({
@@ -238,81 +257,65 @@ class LetterController {
         (now.getMonth() + 1).toString().padStart(2, "0") +
         now.getDate().toString().padStart(2, "0");
 
-      // New Format (Dept-based):
-      // ATG[YY]-[DEPT_CODE]-00001 (per-year, per-department sequence)
-      if (dept_id) {
-        const dept = await Department.findByPk(dept_id, {
-          attributes: ["dept_code"],
-          raw: true,
-        });
-        const deptCodeRaw = dept?.dept_code ?? null;
-        const deptCode = deptCodeRaw ? String(deptCodeRaw).trim().toUpperCase() : "";
-
-        if (!deptCode) {
-          return res.status(400).json({
-            error: "Department code is required to generate a department-based reference code.",
-          });
-        }
-
-        const atgPrefix = "ATG";
-        const lastDeptYearEntry = await Letter.findOne({
-          where: { lms_id: { [Op.like]: `${atgPrefix}${shortYear}-${deptCode}-%` } },
+      if (!dept_id) {
+        const lastYearEntry = await Letter.findOne({
+          where: { lms_id: { [Op.like]: `${prefix}${shortYear}-%` } },
           order: [["lms_id", "DESC"]],
         });
-
         let annualSequence = 1;
-        if (lastDeptYearEntry?.lms_id) {
-          const parts = String(lastDeptYearEntry.lms_id).split("-");
-          const lastSeq = parseInt(parts[parts.length - 1]);
-          if (!Number.isNaN(lastSeq)) annualSequence = lastSeq + 1;
+        if (lastYearEntry) {
+          const parts = lastYearEntry.lms_id.split("-");
+          if (parts.length > 1) {
+            const lastSeq = parseInt(parts[1]);
+            if (!isNaN(lastSeq)) annualSequence = lastSeq + 1;
+          }
         }
-
+        const lms_id = `${prefix}${shortYear}-${annualSequence.toString().padStart(5, "0")}`;
         const lastDayEntry = await Letter.findOne({
           where: { entry_id: { [Op.like]: `${ymd}%` } },
           order: [["entry_id", "DESC"]],
         });
-
         let dailySequence = 1;
-        if (lastDayEntry?.entry_id) {
-          const lastSeqStr = String(lastDayEntry.entry_id).slice(-3);
+        if (lastDayEntry) {
+          const lastSeqStr = lastDayEntry.entry_id.slice(-3);
           const lastSeq = parseInt(lastSeqStr);
-          if (!Number.isNaN(lastSeq)) dailySequence = lastSeq + 1;
+          if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
         }
-
-        const lms_id = `${atgPrefix}${shortYear}-${deptCode}-${annualSequence.toString().padStart(5, "0")}`;
         const entry_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
-
         return res.json({ lms_id, entry_id });
       }
 
-      // Find counters via Max sequence for the specific prefix
-      const lastYearEntry = await Letter.findOne({
-        where: { lms_id: { [Op.like]: `${prefix}${shortYear}-%` } },
-        order: [["lms_id", "DESC"]],
-      });
+      const dept = await Department.findByPk(dept_id);
+      if (!dept) return res.status(404).json({ error: "Department not found" });
 
+      const deptCode = dept.dept_code || prefix;
+      const usage = await SectionService.getActiveSection(dept_id);
+      
+      let previewSeq = usage.current_sequence + 1;
+      let previewCode = usage.section_code;
+
+      if (previewSeq >= 1000) {
+        const { RefSectionRegistry } = require('../models/associations');
+        const nextAvailable = await RefSectionRegistry.findOne({
+          where: { status: 'AVAILABLE' },
+          order: [['section_code', 'ASC']]
+        });
+        previewCode = nextAvailable ? nextAvailable.section_code : "XX";
+        previewSeq = 1;
+      }
+
+      const lms_id = `${deptCode}${shortYear}-${previewCode}${previewSeq.toString().padStart(3, "0")}`;
+      
       const lastDayEntry = await Letter.findOne({
         where: { entry_id: { [Op.like]: `${ymd}%` } },
         order: [["entry_id", "DESC"]],
       });
-
-      let annualSequence = 1;
-      if (lastYearEntry) {
-        const parts = lastYearEntry.lms_id.split("-");
-        if (parts.length > 1) {
-          const lastSeq = parseInt(parts[1]);
-          if (!isNaN(lastSeq)) annualSequence = lastSeq + 1;
-        }
-      }
-
       let dailySequence = 1;
       if (lastDayEntry) {
         const lastSeqStr = lastDayEntry.entry_id.slice(-3);
         const lastSeq = parseInt(lastSeqStr);
         if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
       }
-
-      const lms_id = `${prefix}${shortYear}-${annualSequence.toString().padStart(5, "0")}`;
       const entry_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
 
       res.json({ lms_id, entry_id });
@@ -355,6 +358,27 @@ class LetterController {
         ],
       });
       if (!result) return res.status(404).json({ error: "Not found" });
+
+      // Enforcement of Hidden Letter privacy
+      if (result.is_hidden) {
+        const { user_id, role, full_name } = req.query;
+        const normalizedRole = role ? role.toString().toUpperCase().trim() : "";
+        const SUPER_ADMIN_ROLES = ["ADMINISTRATOR", "ADMIN", "SUPER ADMIN"];
+        const isSuperAdmin = SUPER_ADMIN_ROLES.includes(normalizedRole);
+
+        const fullName = full_name || "";
+        const isAuthorized = isSuperAdmin || 
+                           result.encoder_id === user_id || 
+                           (result.authorized_users && (
+                             result.authorized_users.toLowerCase().includes(fullName.toLowerCase()) ||
+                             result.authorized_users.toLowerCase().includes(`${fullName.split(" ").reverse().join(", ")}`.toLowerCase())
+                           ));
+
+        if (!isAuthorized) {
+          return res.status(403).json({ error: "Access Restricted: This letter is hidden." });
+        }
+      }
+
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -487,12 +511,31 @@ class LetterController {
         (now.getMonth() + 1).toString().padStart(2, "0") +
         now.getDate().toString().padStart(2, "0");
 
-      // Find counters via Max sequence
-      const lastYearEntry = await Letter.findOne({
-        where: { lms_id: { [Op.like]: `LMS${shortYear}-%` } },
-        order: [["lms_id", "DESC"]],
-        transaction,
-      });
+      const targetDeptIdForId = isValidId(dept_id) ? dept_id : null;
+
+      let lms_id;
+      if (targetDeptIdForId) {
+        const dept = await Department.findByPk(targetDeptIdForId, { transaction });
+        if (!dept) throw new Error("Department not found for ID generation");
+        const { section_code, sequence } = await SectionService.incrementAndGetNextSequence(targetDeptIdForId, transaction);
+        lms_id = `${dept.dept_code || "LMS"}${shortYear}-${section_code}${sequence.toString().padStart(3, "0")}`;
+      } else {
+        // Fallback for global sequence (rare in new system)
+        const lastYearEntry = await Letter.findOne({
+          where: { lms_id: { [Op.like]: `LMS${shortYear}-%` } },
+          order: [["lms_id", "DESC"]],
+          transaction,
+        });
+        let annualSequence = 1;
+        if (lastYearEntry) {
+          const parts = lastYearEntry.lms_id.split("-");
+          if (parts.length > 1) {
+            const lastSeq = parseInt(parts[1]);
+            if (!isNaN(lastSeq)) annualSequence = lastSeq + 1;
+          }
+        }
+        lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, "0")}`;
+      }
 
       const lastDayEntry = await Letter.findOne({
         where: { entry_id: { [Op.like]: `${ymd}%` } },
@@ -500,55 +543,30 @@ class LetterController {
         transaction,
       });
 
-      console.log(
-        `[LETTER_CREATE_DEBUG] ID Scan: Last Year=${lastYearEntry?.lms_id}, Last Day=${lastDayEntry?.entry_id}`,
-      );
-
-      let annualSequence = 1;
-      if (lastYearEntry) {
-        const parts = lastYearEntry.lms_id.split("-");
-        if (parts.length > 1) {
-          const lastSeq = parseInt(parts[1]);
-          if (!isNaN(lastSeq)) annualSequence = lastSeq + 1;
-        }
-      }
-
       let dailySequence = 1;
       if (lastDayEntry) {
         const lastSeqStr = lastDayEntry.entry_id.slice(-3);
         const lastSeq = parseInt(lastSeqStr);
         if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
       }
-
-      // Collision Defense: Keep incrementing if ID exists (handles gaps/manual inserts)
-      let lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, "0")}`;
       let entry_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
 
-      let attempts = 0;
-      while (attempts < 50) {
-        const existingLms = await Letter.findOne({
-          where: { lms_id },
-          transaction,
-        });
-        const existingEntry = await Letter.findOne({
-          where: { entry_id },
-          transaction,
-        });
+      // Check for collisions (should be rare with SectionService)
+      const existingLms = await Letter.findOne({ where: { lms_id }, transaction });
+      if (existingLms) {
+          throw new Error(`Collision detected: LMS_ID ${lms_id} already exists. Please try again.`);
+      }
 
-        if (!existingLms && !existingEntry) break;
-
-        console.warn(
-          `[LETTER_CREATE_DEBUG] ID Collision detected for ${lms_id}/${entry_id}. Retrying...`,
-        );
-        if (existingLms) {
-          annualSequence++;
-          lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, "0")}`;
-        }
-        if (existingEntry) {
-          dailySequence++;
-          entry_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
-        }
-        attempts++;
+      const existingEntry = await Letter.findOne({ where: { entry_id }, transaction });
+      if (existingEntry) {
+          // If entry_id collides (daily sequence), we can still try to increment it manually as it's just a timestamp-based ID
+          let altDailySeq = dailySequence;
+          let altEntryId = entry_id;
+          while (await Letter.findOne({ where: { entry_id: altEntryId }, transaction })) {
+              altDailySeq++;
+              altEntryId = `${ymd}${altDailySeq.toString().padStart(3, "0")}`;
+          }
+          entry_id = altEntryId;
       }
 
       console.log(
@@ -598,6 +616,8 @@ class LetterController {
         scanned_copy: req.body.scanned_copy || null,
         encoder_id: validEncoderId || null,
         dept_id: sanitizeInt(dept_id) || null,
+        is_hidden: req.body.is_hidden === true || req.body.is_hidden === 1 || req.body.is_hidden === 'true',
+        authorized_users: req.body.authorized_users || null,
         show_atg: false,
         processed_by: null,
         processed_date: null,
@@ -779,7 +799,7 @@ class LetterController {
         const fs = require("fs");
         const logMsg = `[${new Date().toISOString()}] ERROR: ${error.message}\nSTACK: ${error.stack}\nBODY: ${JSON.stringify(req.body, null, 2)}\nDATA: ${JSON.stringify(error.parent || {}, null, 2)}\n\n`;
         fs.appendFileSync("./backend_error.log", logMsg);
-      } catch (e) {}
+      } catch (e) { }
 
       res.status(400).json({
         error: `Database Rejection: ${error.message}`,
@@ -807,8 +827,8 @@ class LetterController {
       if (Object.prototype.hasOwnProperty.call(updates, "kind")) {
         const parsed =
           updates.kind === "" ||
-          updates.kind === undefined ||
-          updates.kind === null
+            updates.kind === undefined ||
+            updates.kind === null
             ? null
             : parseInt(updates.kind);
         updates.kind = Number.isNaN(parsed) ? null : parsed;
@@ -816,8 +836,8 @@ class LetterController {
       if (Object.prototype.hasOwnProperty.call(updates, "tray_id")) {
         const parsed =
           updates.tray_id === "" ||
-          updates.tray_id === undefined ||
-          updates.tray_id === null
+            updates.tray_id === undefined ||
+            updates.tray_id === null
             ? null
             : parseInt(updates.tray_id);
         updates.tray_id = Number.isNaN(parsed) ? null : parsed;
@@ -830,7 +850,16 @@ class LetterController {
             : parseInt(updates.global_status)
           : oldStatusId;
 
-      await letter.update(updates, { transaction });
+      const { is_hidden, authorized_users, ...otherUpdates } = updates;
+      
+      // Explicitly handle is_hidden to support boolean/string/number from frontend
+      const finalIsHidden = is_hidden === true || is_hidden === 1 || is_hidden === 'true';
+
+      await letter.update({
+        ...otherUpdates,
+        is_hidden: finalIsHidden,
+        authorized_users: authorized_users || null
+      }, { transaction });
 
       // Create log if status changed
       if (newStatusId !== oldStatusId) {

@@ -33,6 +33,7 @@ import ProcessSteps from "./pages/management/ProcessSteps";
 import Statuses from "./pages/management/Statuses";
 import Attachments from "./pages/management/Attachments";
 import UploadPDFFiles from "./pages/management/UploadPDFFiles";
+import SectionRegistry from "./pages/management/SectionRegistry";
 
 // Setup
 import SetupWizard from "./pages/setup/SetupWizard";
@@ -166,6 +167,7 @@ function AppRoutes() {
         <Route path="/letter-tracker" element={<ProtectedRoute><LetterTracker /></ProtectedRoute>} />
         <Route path="/legacy-data" element={<ProtectedRoute><LegacyData /></ProtectedRoute>} />
         <Route path="/upload-pdf" element={<ProtectedRoute><UploadPDFFiles /></ProtectedRoute>} />
+        <Route path="/setup/sections" element={<ProtectedRoute><SectionRegistry /></ProtectedRoute>} />
         <Route path="/guest/send-letter" element={<ProtectedRoute><GuestSendLetter /></ProtectedRoute>} />
         <Route path="/endorsements" element={<ProtectedRoute><LetterEndorsement /></ProtectedRoute>} />
         <Route path="/letter/:id" element={<ProtectedRoute><LetterDetail /></ProtectedRoute>} />

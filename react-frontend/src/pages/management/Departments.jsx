@@ -22,6 +22,8 @@ import {
     ChevronDown
 } from "lucide-react";
 import departmentService from "../../services/departmentService";
+import sectionService from "../../services/sectionService";
+import { History, Zap, ShieldAlert, CheckCircle2 } from "lucide-react";
 
 export default function Departments() {
     const access = useAccess();
@@ -56,12 +58,23 @@ export default function Departments() {
     });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [sectionHistory, setSectionHistory] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
-            const data = await departmentService.getAll();
-            setDepartments(Array.isArray(data) ? data : []);
+            const [deptData, sectionData] = await Promise.all([
+                departmentService.getAll(),
+                sectionService.getOverview()
+            ]);
+            
+            const merged = (Array.isArray(deptData) ? deptData : []).map(dept => {
+                const section = sectionData.find(s => s.id === dept.id);
+                return { ...dept, ...section };
+            });
+            
+            setDepartments(merged);
         } catch (error) {
             console.error("Fetch failed", error);
             setError("Failed to fetch data.");
@@ -114,7 +127,7 @@ export default function Departments() {
         setIsModalOpen(true);
     };
 
-    const openEditModal = (item) => {
+    const openEditModal = async (item) => {
         if (!canEdit) return;
         setModalMode("edit");
         setFormData({
@@ -124,6 +137,28 @@ export default function Departments() {
         setSelectedDept(item);
         setIsModalOpen(true);
         setIsMenuOpen(null);
+
+        // Fetch history
+        setLoadingHistory(true);
+        try {
+            const history = await sectionService.getDeptHistory(item.id);
+            setSectionHistory(history);
+        } catch (err) {
+            console.error("History fetch failed", err);
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
+
+    const handleForceNewSection = async () => {
+        if (!window.confirm("Force assign a new section for this department? This will close the current sequence.")) return;
+        try {
+            await sectionService.forceNewSection(selectedDept.id);
+            setIsModalOpen(false);
+            fetchData();
+        } catch (err) {
+            alert("Failed to force new section: " + err.message);
+        }
     };
 
     const toggleExpand = (id) => {
@@ -164,7 +199,38 @@ export default function Departments() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-4">
+                        <div className="hidden md:flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Current Section</span>
+                                <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 text-[10px] font-black rounded-lg border border-emerald-500/20">
+                                    {item.active_section || "None"}
+                                </span>
+                            </div>
+                            <div className="w-32 h-1.5 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden border border-gray-50 dark:border-white/5">
+                                <div 
+                                    className={`h-full transition-all duration-1000 ${
+                                        item.progress >= 95 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 
+                                        item.progress >= 75 ? 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]' : 
+                                        'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                                    }`}
+                                    style={{ width: `${item.progress || 0}%` }}
+                                />
+                            </div>
+                            <div className="flex justify-between w-full mt-0.5">
+                                <span className={`text-[8px] font-black uppercase ${
+                                    item.progress >= 95 ? 'text-red-500' : 
+                                    item.progress >= 75 ? 'text-orange-500' : 
+                                    'text-emerald-500'
+                                }`}>
+                                    {item.progress >= 95 ? 'Critical' : item.progress >= 75 ? 'Warning' : 'Stable'}
+                                </span>
+                                <span className="text-[8px] font-bold text-gray-400">
+                                    {item.current_sequence || 0} / 999
+                                </span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                         <div className="relative">
                             <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(isMenuOpen === item.id ? null : item.id); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors">
                                 <MoreVertical className="w-4 h-4 text-gray-400" />
@@ -179,8 +245,9 @@ export default function Departments() {
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {isExpanded && (
+            {isExpanded && (
                     <div className="mt-8 pt-8 border-t border-gray-100 dark:border-white/5 animate-in slide-in-from-top-4 duration-500">
                         <LetterListMini deptId={item.id} />
                     </div>
@@ -280,10 +347,64 @@ export default function Departments() {
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Dept Name</label>
                                         <input type="text" required value={formData.dept_name} onChange={e => setFormData({ ...formData, dept_name: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" />
                                     </div>
-                                    <div className="space-y-1">
+                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Dept Code</label>
                                         <input type="text" required value={formData.dept_code} onChange={e => setFormData({ ...formData, dept_code: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" />
                                     </div>
+
+                                    {modalMode === 'edit' && (
+                                        <div className="space-y-6 pt-6 border-t border-dashed border-gray-100 dark:border-white/5">
+                                            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-gray-100 dark:border-white/10">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center text-emerald-500 shadow-sm">
+                                                        <Zap className="w-5 h-5" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-tight">Active Section</p>
+                                                        <p className={`text-sm font-black uppercase tracking-tight ${textColor}`}>{selectedDept?.active_section || "N/A"}</p>
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    type="button"
+                                                    onClick={handleForceNewSection}
+                                                    className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 text-[8px] font-black uppercase rounded-lg border border-gray-100 dark:border-white/5 transition-all shadow-sm"
+                                                >
+                                                    <RefreshCw className="w-3 h-3" /> Force New
+                                                </button>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2 text-gray-400">
+                                                    <History className="w-3 h-3" />
+                                                    <p className="text-[10px] font-black uppercase tracking-widest">Section History</p>
+                                                </div>
+                                                <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                                    {loadingHistory ? (
+                                                        <div className="py-8 flex justify-center"><Loader2 className="w-4 h-4 animate-spin text-emerald-500" /></div>
+                                                    ) : sectionHistory.length === 0 ? (
+                                                        <p className="text-[10px] text-gray-400 font-bold italic py-2">No history recorded.</p>
+                                                    ) : (
+                                                        sectionHistory.map(usage => (
+                                                            <div key={usage.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-50 dark:border-white/5 bg-white dark:bg-white/5 text-[10px]">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-black text-emerald-500">#{usage.section_code}</span>
+                                                                    <span className="text-gray-300">|</span>
+                                                                    <span className="text-gray-500 font-bold">{usage.current_sequence} letters</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    {usage.is_active ? (
+                                                                        <span className="flex items-center gap-1 text-emerald-500 font-black uppercase tracking-widest text-[8px]"><Zap className="w-2 h-2" /> Active</span>
+                                                                    ) : (
+                                                                        <span className="text-gray-400 font-bold">Filled: {new Date(usage.filled_at || usage.updated_at).toLocaleDateString()}</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="pt-4">
                                         {canSave && <button disabled={submitting} className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2">{submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Department"}</button>}
                                     </div>
