@@ -10,9 +10,10 @@ services:
       - ./directus/extensions:/directus/extensions
     environment:
       KEY: "${DIRECTUS_KEY:-felix-lms-key}"
-      SECRET: "${DIRECTUS_SECRET:-felix-lms-secret-must-be-32-chars-long}"
+      SECRET: "${DIRECTUS_SECRET:-felix-lms-secret-32-chars-long-!!}"
       DB_CLIENT: "sqlite3"
       DB_FILENAME: "/directus/database/data.db"
+      AUTH_PROVIDERS: "local"
       ADMIN_EMAIL: "${DIRECTUS_ADMIN_EMAIL:-admin@example.com}"
       ADMIN_PASSWORD: "${DIRECTUS_ADMIN_PASSWORD:-password}"
       CORS_ENABLED: "true"

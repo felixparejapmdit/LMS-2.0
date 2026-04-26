@@ -61,7 +61,7 @@ class LetterAssignmentController {
 
       const isSuperAdmin = SUPER_ADMIN_ROLES.includes(normalizedRole);
       const isDeptAdmin = DEPT_ADMIN_ROLES.includes(normalizedRole);
-      const isAdmin = isSuperAdmin || isDeptAdmin;
+      const isAdmin = !!(isSuperAdmin || isDeptAdmin);
 
       const isValidId = (id) =>
         id && id !== "all" && id !== "null" && id !== "undefined" && id !== "";

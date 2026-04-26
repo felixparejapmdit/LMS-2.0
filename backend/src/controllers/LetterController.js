@@ -50,7 +50,7 @@ class LetterController {
 
       const isSuperAdmin = SUPER_ADMIN_ROLES.includes(normalizedRole);
       const isDeptAdmin = DEPT_ADMIN_ROLES.includes(normalizedRole);
-      const isAdmin = isSuperAdmin || isDeptAdmin;
+      const isAdmin = !!(isSuperAdmin || isDeptAdmin);
 
       // Fetch the user's actual department from the database for secure filtering
       const userRecord = user_id ? await User.findByPk(user_id) : null;
@@ -248,7 +248,8 @@ class LetterController {
 
   static async getPreviewIds(req, res) {
     try {
-      const { prefix = "LMS", dept_id } = req.query;
+      const { prefix = "LMS" } = req.query;
+      const dept_id = req.query.dept_id;
       const now = new Date();
       const yearStr = now.getFullYear().toString();
       const shortYear = yearStr.slice(-2);

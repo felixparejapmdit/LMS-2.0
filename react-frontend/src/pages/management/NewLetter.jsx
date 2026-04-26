@@ -110,11 +110,7 @@ export default function NewLetter() {
 
   const [activeField, setActiveField] = useState(null);
 
-  const validateFormat = (text) => {
-    if (!text) return true;
-    const regex = /^[A-Z,\s.]+$/i;
-    return regex.test(text) && text.includes(",");
-  };
+  const validateFormat = (text) => true;
 
   useEffect(() => {
     const fetchRefs = async () => {
@@ -551,17 +547,8 @@ export default function NewLetter() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const senderParts = formData.sender
-      .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s !== "");
-    const invalidSender = senderParts.find((s) => !validateFormat(s));
-    if (invalidSender) {
-      alert(
-        "Each sender/recipient name must follow the format: LASTNAME, FIRSTNAME",
-      );
-      return;
-    }
+    // Validation removed as per user request: any format is now allowed.
+
 
     setLoading(true);
     setError("");
@@ -890,36 +877,40 @@ export default function NewLetter() {
                         </label>
                       ))}
 
-                    {hasReviewStep() &&
-                      steps
-                        .filter((s) =>
-                          ["VEM Letter", "AEVM Letter"].includes(s.step_name),
-                        )
-                        .map((step) => (
-                          <label
-                            key={step.id}
-                            className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group ${isStepSelected(step.id) ? "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800" : "bg-gray-50 border-transparent dark:bg-white/5 hover:border-gray-200 dark:hover:border-white/10"}`}
-                          >
-                            <input
-                              type="radio"
-                              name="secondary-step"
-                              checked={isStepSelected(step.id)}
-                              onChange={() => toggleStep(step.id)}
-                              onClick={(e) => {
-                                if (isStepSelected(step.id)) {
-                                  toggleStep(step.id);
-                                  e.preventDefault();
-                                }
-                              }}
-                              className="w-4 h-4 text-blue-500 focus:ring-blue-500 border-gray-300 dark:bg-black/40 rounded shadow-sm"
-                            />
-                            <span
-                              className={`text-[10px] font-black uppercase tracking-tight transition-colors ${isStepSelected(step.id) ? "text-blue-600" : "text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300"}`}
+                    {hasReviewStep() && (
+                      <>
+                        <div className="col-span-full border-t-[3px] border-dashed border-gray-100 dark:border-white/5 my-2" />
+                        {steps
+                          .filter((s) =>
+                            ["VEM Letter", "AEVM Letter"].includes(s.step_name),
+                          )
+                          .map((step) => (
+                            <label
+                              key={step.id}
+                              className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group ${isStepSelected(step.id) ? "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800" : "bg-gray-50 border-transparent dark:bg-white/5 hover:border-gray-200 dark:hover:border-white/10"}`}
                             >
-                              {step.step_name}
-                            </span>
-                          </label>
-                        ))}
+                              <input
+                                type="radio"
+                                name="secondary-step"
+                                checked={isStepSelected(step.id)}
+                                onChange={() => toggleStep(step.id)}
+                                onClick={(e) => {
+                                  if (isStepSelected(step.id)) {
+                                    toggleStep(step.id);
+                                    e.preventDefault();
+                                  }
+                                }}
+                                className="w-4 h-4 text-blue-500 focus:ring-blue-500 border-gray-300 dark:bg-black/40 rounded shadow-sm"
+                              />
+                              <span
+                                className={`text-[10px] font-black uppercase tracking-tight transition-colors ${isStepSelected(step.id) ? "text-blue-600" : "text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300"}`}
+                              >
+                                {step.step_name}
+                              </span>
+                            </label>
+                          ))}
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1006,7 +997,7 @@ export default function NewLetter() {
                           if (suggestions.length > 0) setShowSuggestions(true);
                         }}
                         autoComplete="off"
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all ${!validateFormat(formData.sender) && formData.sender ? "border-red-500/50" : ""} ${"bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300"}`}
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all ${"bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300"}`}
                       />
 
                       {showSuggestions && activeField === "sender" && (

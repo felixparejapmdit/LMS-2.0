@@ -189,11 +189,7 @@ export default function GuestSendLetter() {
         if (!showSuggestions) setHighlightedSuggestionIndex(-1);
     }, [showSuggestions]);
 
-    const validateFormat = (text) => {
-        if (!text) return true; // Let required validator handle empty
-        const regex = /^[A-Z,\s.]+$/i; // Allowing characters, spaces, dots, and COMMA
-        return regex.test(text) && text.includes(',');
-    };
+    const validateFormat = (text) => true;
 
     const handleClear = () => {
         setFormData({
@@ -218,22 +214,9 @@ export default function GuestSendLetter() {
             return;
         }
 
-        // Encoder is optional for guest submissions
-        if (formData.encoder && !validateFormat(formData.encoder)) {
-            alert("Encoder name must follow the format: LASTNAME, FIRSTNAME");
-            return;
-        }
-
-        if (!formData.regarding) {
-            alert("Please enter a summary of the correspondence.");
-            return;
-        }
-
         try {
             setLoading(true);
             let scannedCopyPath = null;
-
-            // Filter out any blank sender entries before joining
             const validSenders = formData.senders.filter(s => s && s.trim());
             const senderStr = validSenders.join('; ').trim();
             if (!senderStr) {
@@ -564,7 +547,7 @@ export default function GuestSendLetter() {
                                                                  setActiveSenderIndex(index);
                                                                  if (sender.length >= 2) fetchSuggestions(sender.split(',').pop().trim());
                                                              }}
-                                                             className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none ${!isValid && sender ? 'border-red-500/50' : ''}`}
+                                                             className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
                                                          />
 
                                                         {showSuggestions && activeSenderIndex === index && (
@@ -660,7 +643,7 @@ export default function GuestSendLetter() {
                                                          setActiveSenderIndex('encoder');
                                                          if (formData.encoder.length >= 2) fetchSuggestions(formData.encoder.split(',').pop().trim());
                                                      }}
-                                                     className={`w-full px-5 py-3 border-2 rounded-xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-sm font-bold uppercase tracking-wider outline-none ${!validateFormat(formData.encoder) ? 'border-red-500/50' : ''} ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] text-slate-600 dark:text-slate-200'}`}
+                                                     className={`w-full px-5 py-3 border-2 rounded-xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-sm font-bold uppercase tracking-wider outline-none ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] text-slate-600 dark:text-slate-200'}`}
                                                  />
 
                                                 {showSuggestions && activeSenderIndex === 'encoder' && (
