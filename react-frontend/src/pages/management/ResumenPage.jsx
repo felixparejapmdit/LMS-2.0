@@ -46,6 +46,9 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         if (saved) return saved;
         return `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
     });
+    const [timeframe, setTimeframe] = useState("today");
+    const [dateRange, setDateRange] = useState({ start: "", end: "" });
+    const [isFetching, setIsFetching] = useState(false);
 
     // QR Scanner States
     const [showScanner, setShowScanner] = useState(false);
@@ -56,25 +59,89 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
     const requestRef = useRef();
     const lastAutoSubmitRef = useRef(null);
 
-    // Sync modalLetters data from server on mount
-    useEffect(() => {
-        const syncLetters = async () => {
-            if (modalLetters.length === 0) return;
-            const updated = await Promise.all(
-                modalLetters.map(async (l) => {
-                    try {
-                        // Re-fetch each letter by LMS_ID to get latest attachment/status
-                        return await letterService.getByLmsId(l.lms_id);
-                    } catch (err) {
-                        return l; // Keep old if fetch fails
-                    }
-                })
-            );
-            setModalLetters(updated);
-        };
-        syncLetters();
-    }, []);
+    // Fetch "Incoming" letters based on timeframe and filters
+    const fetchIncomingLetters = async () => {
+        setIsFetching(true);
+        try {
+            const params = {
+                user_id: user?.id,
+                role: user?.roleData?.name || user?.role || '',
+                department_id: user?.dept_id?.id ?? user?.dept_id,
+                full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+                global_status: 1, // Incoming
+                limit: 500
+            };
 
+            const now = new Date();
+            let start = null;
+
+            if (timeframe === 'today') {
+                const todayStart = new Date(now);
+                todayStart.setHours(0, 0, 0, 0);
+                start = todayStart.toISOString();
+                
+                const todayEnd = new Date(now);
+                todayEnd.setHours(23, 59, 59, 999);
+                params.end_date = todayEnd.toISOString();
+            } else if (timeframe === 'weekly') {
+                const weeklyStart = new Date(now);
+                weeklyStart.setDate(weeklyStart.getDate() - 7);
+                weeklyStart.setHours(0, 0, 0, 0);
+                start = weeklyStart.toISOString();
+            } else if (timeframe === 'monthly') {
+                const monthlyStart = new Date(now);
+                monthlyStart.setMonth(monthlyStart.getMonth() - 1);
+                monthlyStart.setHours(0, 0, 0, 0);
+                start = monthlyStart.toISOString();
+            } else if (timeframe === 'yearly') {
+                const yearlyStart = new Date(now);
+                yearlyStart.setFullYear(yearlyStart.getFullYear() - 1);
+                yearlyStart.setHours(0, 0, 0, 0);
+                start = yearlyStart.toISOString();
+            } else if (timeframe === 'range' && dateRange.start) {
+                const rangeStart = new Date(dateRange.start);
+                rangeStart.setHours(0, 0, 0, 0);
+                start = rangeStart.toISOString();
+                if (dateRange.end) {
+                    const rangeEnd = new Date(dateRange.end);
+                    rangeEnd.setHours(23, 59, 59, 999);
+                    params.end_date = rangeEnd.toISOString();
+                }
+            }
+
+            if (start && timeframe !== 'all') {
+                params.start_date = start;
+            }
+
+            console.log("[RESUMEN] Fetching with params:", params);
+            const response = await letterService.getAll(params);
+            console.log("[RESUMEN] API Response:", response);
+            
+            // Handle both { data: [...] } and [...] response formats
+            let letterArray = [];
+            if (response && Array.isArray(response.data)) {
+                letterArray = response.data;
+            } else if (Array.isArray(response)) {
+                letterArray = response;
+            } else if (response && typeof response === 'object' && response.data && Array.isArray(response.data)) {
+                letterArray = response.data;
+            }
+
+            console.log("[RESUMEN] Setting letters count:", letterArray.length);
+            setModalLetters(letterArray);
+        } catch (err) {
+            console.error("Failed to fetch incoming letters:", err);
+            setModalLetters([]);
+        } finally {
+            setIsFetching(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchIncomingLetters();
+    }, [timeframe, dateRange.start, dateRange.end]);
+
+    // Initial sync removed in favor of timeframe-based fetch
     useEffect(() => {
         const fetchSteps = async () => {
             try {
@@ -315,6 +382,14 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         ? modalLetters.filter((l) => String(getLatestStepId(l) || "") === String(selectedStepId))
         : modalLetters;
 
+    const printHeaderStyle = (() => {
+        if (!selectedStepId) return { bg: 'transparent', text: 'text-slate-900' };
+        const label = selectedStepLabel.toLowerCase();
+        if (label.includes('signature')) return { bg: '#D1FAE5', text: 'text-slate-900' };
+        if (label.includes('review')) return { bg: '#BDC7C1', text: 'text-slate-900' };
+        return { bg: 'transparent', text: 'text-slate-900' };
+    })();
+
     return (
         <>
             <PdfPanel pdfPanel={pdfPanel} setPdfPanel={setPdfPanel} />
@@ -474,46 +549,93 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                             <div className={`${cardBg} rounded-[2rem] border shadow-sm flex flex-col overflow-hidden min-h-[calc(100vh - 12rem)] print:shadow-none print:border-none print:rounded-none`}>
 
                                 {/* Print Header */}
-                                <div className="hidden print:flex flex-col mb-3 border-b border-slate-900 pb-2">
-                                    <div className="flex justify-between items-center">
-                                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">
-                                            Incoming Letters{selectedStepId ? ` — ${selectedStepLabel}` : ""}
+                                <div className="hidden print:flex flex-col mb-4 border-b border-slate-900 pb-2">
+                                    <div className="flex justify-between items-end">
+                                        <h2 className="text-sm font-bold text-slate-900 uppercase">
+                                            INCOMING LETTERS - {selectedStepLabel}
                                         </h2>
-                                        <span className="text-xs font-bold text-slate-700">
-                                            Printed:&nbsp;{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                        <span className="text-[11px] font-medium text-slate-900">
+                                            Printed:{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
                                         </span>
                                     </div>
                                 </div>
 
                                 <div className="flex-1 p-8 lg:p-12 flex flex-col">
                                     {/* Dashboard Info Section */}
-                                    <div className="mb-8 print:hidden flex items-end justify-between gap-6 flex-wrap">
-                                        <div className="flex flex-col gap-2 max-w-xs">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prepared by:</label>
-                                            <input
-                                                type="text"
-                                                value={preparedBy}
-                                                onChange={(e) => setPreparedBy(e.target.value)}
-                                                placeholder="Enter name..."
-                                                className="px-6 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all uppercase text-slate-600 dark:text-slate-300"
-                                            />
+                                    <div className="mb-8 print:hidden flex items-end justify-between gap-6 flex-wrap bg-slate-50/50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/10">
+                                        <div className="flex flex-col gap-2 min-w-[150px]">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Timeframe:</label>
+                                            <select
+                                                value={timeframe}
+                                                onChange={(e) => setTimeframe(e.target.value)}
+                                                className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all uppercase text-slate-600 dark:text-slate-300"
+                                            >
+                                                <option value="today">Today</option>
+                                                <option value="weekly">Weekly</option>
+                                                <option value="monthly">Monthly</option>
+                                                <option value="yearly">Yearly</option>
+                                                <option value="all">All Time</option>
+                                                <option value="range">Date Range</option>
+                                            </select>
                                         </div>
 
-                                        <div className="flex flex-col gap-2 min-w-[220px]">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Letter Type:</label>
+                                        {timeframe === 'range' && (
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex flex-col gap-2">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Start Date:</label>
+                                                    <input
+                                                        type="date"
+                                                        value={dateRange.start}
+                                                        onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                                        className="px-4 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-2">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">End Date:</label>
+                                                    <input
+                                                        type="date"
+                                                        value={dateRange.end}
+                                                        onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                                        className="px-4 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="flex flex-col gap-2 min-w-[200px]">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Letter Type (Step):</label>
                                             <select
                                                 value={selectedStepId}
                                                 onChange={(e) => setSelectedStepId(e.target.value)}
-                                                className="px-6 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all uppercase text-slate-600 dark:text-slate-300"
+                                                className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all uppercase text-slate-600 dark:text-slate-300"
                                             >
-                                                <option value="">All</option>
+                                                <option value="">All Types</option>
                                                 {steps.map((s) => (
                                                     <option key={s.id} value={s.id}>{s.step_name}</option>
                                                 ))}
                                             </select>
                                         </div>
 
+                                        <div className="flex flex-col gap-2 min-w-[150px]">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prepared by:</label>
+                                            <input
+                                                type="text"
+                                                value={preparedBy}
+                                                onChange={(e) => setPreparedBy(e.target.value)}
+                                                placeholder="Enter name..."
+                                                className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all uppercase text-slate-600 dark:text-slate-300"
+                                            />
+                                        </div>
+
                                         <div className="text-right flex flex-col items-end gap-1 ml-auto">
+                                            <button 
+                                                onClick={fetchIncomingLetters}
+                                                disabled={isFetching}
+                                                className="mb-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
+                                                title="Refresh Results"
+                                            >
+                                                <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+                                            </button>
                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700">Printed:</span>
                                             <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight">
                                                 {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -521,14 +643,14 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                         </div>
                                     </div>
 
-                                    <table className="w-full text-left border-collapse">
+                                    <table className="w-full text-left border-collapse print:border print:border-slate-300">
                                         <thead>
-                                            <tr className="border-b-2 border-slate-100 dark:border-white/10 print:border-slate-900">
-                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-12 print:text-slate-900">No.</th>
-                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-32 print:text-slate-900">Date & Time</th>
-                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-24 print:text-slate-900">ATG No.</th>
-                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-20 print:text-slate-900">Attachment</th>
-                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Sender</th>
+                                            <tr className="border-b-2 border-slate-100 dark:border-white/10 print:border-slate-300" style={{ backgroundColor: printHeaderStyle.bg }}>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-12 print:text-slate-900">No.</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-32 print:text-slate-900">Date & Time</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-24 print:text-slate-900">ATG No.</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-20 print:text-slate-900">Attach<br/>ment</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Sender</th>
                                                 <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Letter Summary</th>
                                                 <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:hidden text-right">Remove</th>
                                             </tr>
@@ -545,20 +667,20 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                 </tr>
                                             ) : (
                                                 filteredLetters.map((l, idx) => (
-                                                    <tr key={l.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/2 transition-colors print:border-slate-200">
-                                                        <td className="py-6 px-4 print:py-1.5 print:px-2 text-xs font-black text-slate-400 print:text-slate-900">{idx + 1}</td>
-                                                        <td className="py-6 px-4 print:py-1.5 print:px-2">
+                                                    <tr key={l.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/2 transition-colors print:border-slate-300">
+                                                        <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300 text-xs font-black text-slate-400 print:text-slate-900">{idx + 1}</td>
+                                                        <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300">
                                                             <div className="flex flex-col text-[10px] font-bold text-slate-500 print:text-slate-900">
                                                                 <span>{new Date(l.date_received || l.createdAt).toLocaleDateString()}</span>
                                                                 <span className="text-orange-500 font-black">{new Date(l.date_received || l.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="py-6 px-4 print:py-1.5 print:px-2 text-xs font-black text-blue-600 uppercase print:text-slate-900">{l.lms_id}</td>
-                                                        <td className="py-6 px-4 print:py-1.5 print:px-2">
+                                                        <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300 text-xs font-black text-blue-600 uppercase print:text-slate-900">{l.lms_id}</td>
+                                                        <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300">
                                                             {(() => {
                                                                 const hasFile = l.scanned_copy || l.attachment_id || l.attachment?.file_path;
                                                                 if (!hasFile) return <span className="text-[10px] font-bold text-slate-300 uppercase">None</span>;
-
+ 
                                                                 return (
                                                                     <button
                                                                         onClick={() => handleViewPDF(l)}
@@ -573,7 +695,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                                 {(l.scanned_copy || l.attachment_id || l.attachment?.file_path) ? 'Available' : 'No File'}
                                                             </span>
                                                         </td>
-                                                        <td className="py-6 px-4 print:py-1.5 print:px-2">
+                                                        <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300">
                                                             <div className="flex flex-col">
                                                                 <span className="text-xs font-black text-slate-800 dark:text-white uppercase print:text-slate-900">{l.sender}</span>
                                                                 <span className="text-[10px] text-slate-400 font-bold print:hidden">{l.locale || 'N/A'}</span>
@@ -636,9 +758,10 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                         </button>
                                     </div>
 
-                                    {/* Print Footer - fixed bottom left */}
-                                    <div id="print-footer" className="hidden print:block">
-                                        <span className="text-xs font-bold text-slate-700">Prepared by: {preparedBy}</span>
+                                    {/* Print Footer */}
+                                    <div id="print-footer" className="hidden print:flex items-center justify-between w-full mt-8">
+                                        <span className="text-xs font-bold text-slate-900">Prepared by: {preparedBy}</span>
+                                        <span className="text-xs font-bold text-slate-900">Page 1</span>
                                     </div>
                                 </div>
                             </div>
@@ -691,10 +814,10 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                             size: portrait; 
                         }
 
-                        /* Ensure clean text */
-                        * { background: transparent !important; color: black !important; -webkit-print-color-adjust: exact !important; }
-                        .text-blue-600 { color: black !important; }
-                        .text-orange-500 { color: black !important; }
+                        /* Ensure clean text and allow background colors */
+                        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                        .text-blue-600 { color: #2563eb !important; }
+                        .text-orange-500 { color: #f97316 !important; }
 
                         /* Fixed bottom-left footer */
                         #print-footer {

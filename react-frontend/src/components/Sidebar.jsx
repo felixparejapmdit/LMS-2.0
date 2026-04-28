@@ -29,6 +29,7 @@ import {
   Table as TableIcon,
   AlertCircle,
   ShieldAlert,
+  Shield,
   Sparkles,
   Plus,
   Bell,
@@ -132,6 +133,7 @@ export default function Sidebar() {
         { icon: Users, label: "Users", path: "/setup/users" },
         { icon: LayoutGrid, label: "Section Registry", path: "/setup/sections" },
         { icon: Settings2, label: "Inter-Dept Management", path: "/setup/inter-dept", hidden: !hasPermission('inter-dept') },
+        { icon: Shield, label: "Audit Logs", path: "/setup/audit-logs" },
       ]
     },
 

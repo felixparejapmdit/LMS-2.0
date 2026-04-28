@@ -18,6 +18,7 @@ const Endorsement = require('./Endorsement');
 const UserDeptAccess = require('./UserDeptAccess');
 const RefSectionRegistry = require('./RefSectionRegistry');
 const DeptSectionUsage = require('./DeptSectionUsage');
+const AuditLog = require('./AuditLog');
 const sequelize = require('../config/db');
 
 // --- Letter Relationships ---
@@ -111,5 +112,6 @@ module.exports = {
     UserDeptAccess,
     RefSectionRegistry,
     DeptSectionUsage,
+    AuditLog,
     sequelize
 };

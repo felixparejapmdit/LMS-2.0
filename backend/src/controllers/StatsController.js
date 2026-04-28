@@ -7,7 +7,7 @@ class StatsController {
     static async getDashboardStats(req, res) {
         const startTime = Date.now();
         try {
-            const { department_id, user_id, role, full_name: queryFullName } = req.query;
+            const { department_id, user_id, role, full_name: queryFullName, period } = req.query;
             const userRecord = user_id ? await User.findByPk(user_id, {
                 include: [{ model: Role, as: 'roleData' }]
             }) : null;
@@ -219,6 +219,7 @@ class StatsController {
                 distinct: true
             });
 
+
             // 7. Recent Log Activity
             const logWhere = {};
             if (isSpecificDept && !isAdmin) {
@@ -228,7 +229,7 @@ class StatsController {
                 where: logWhere,
                 include: [
                     { model: User, as: 'user' },
-                    { model: Letter } // Removed "as: 'letter'" because it's not aliased in associations.js
+                    { model: Letter }
                 ],
                 order: [['timestamp', 'DESC'], ['id', 'DESC']],
                 limit: 8
@@ -238,13 +239,39 @@ class StatsController {
             });
 
             // 8. Task Distribution Map (by Step)
+            let periodDate = null;
+            const now = new Date();
+            if (period === 'weekly') {
+                periodDate = new Date(now.setDate(now.getDate() - 7));
+            } else if (period === 'monthly') {
+                periodDate = new Date(now.setMonth(now.getMonth() - 1));
+            } else if (period === 'yearly') {
+                periodDate = new Date(now.setFullYear(now.getFullYear() - 1));
+            } else if (period === 'today') {
+                periodDate = new Date(now.setHours(0, 0, 0, 0));
+            }
+            // 'all' or undefined => periodDate stays null (no date filter)
+
+            // Always fetch all process steps so we can show 0-count rows when period filters empty out data
+            const allSteps = await ProcessStep.findAll({ attributes: ['step_name'], raw: true });
+
             const distributionWhere = {};
             if (isSpecificDept) distributionWhere.department_id = department_id;
+            
+            const distAssignmentsInclude = [{ model: ProcessStep, as: 'step', attributes: ['step_name'] }];
+            if (periodDate) {
+                distAssignmentsInclude.push({
+                    model: Letter,
+                    as: 'letter',
+                    where: { created_at: { [Op.gte]: periodDate } },
+                    attributes: ['id', 'created_at']
+                });
+            }
 
             const distAssignments = await LetterAssignment.findAll({
                 where: distributionWhere,
                 attributes: ['id'],
-                include: [{ model: ProcessStep, as: 'step', attributes: ['step_name'] }]
+                include: distAssignmentsInclude
             });
             const distributionMap = {};
             distAssignments.forEach(a => {
@@ -252,11 +279,20 @@ class StatsController {
                     distributionMap[a.step.step_name] = (distributionMap[a.step.step_name] || 0) + 1;
                 }
             });
-            const taskDistribution = Object.entries(distributionMap).map(([name, count]) => ({ name, value: count }));
+
+            // Always merge with all steps so 0-count entries are shown for every period
+            const mergedMap = {};
+            allSteps.forEach(s => { mergedMap[s.step_name] = 0; });
+            Object.entries(distributionMap).forEach(([name, count]) => { mergedMap[name] = count; });
+            const taskDistribution = Object.entries(mergedMap).map(([name, value]) => ({ name, value }));
 
             // 9. Status Distribution Map (by Global Status)
+            const statusBaseWhere = { ...baseLetterWhere };
+            if (periodDate) {
+                statusBaseWhere.created_at = { [Op.gte]: periodDate };
+            }
             const allLettersForStats = await Letter.findAll({
-                where: baseLetterWhere,
+                where: statusBaseWhere,
                 attributes: ['id', 'global_status'],
                 include: [{ model: Status, as: 'status', attributes: ['status_name'] }]
             });
@@ -267,14 +303,11 @@ class StatsController {
                 statusCountMap[name] = (statusCountMap[name] || 0) + 1;
             });
 
-            const statusDistribution = Object.entries(statusCountMap).map(([name, count]) => ({
-                name,
-                value: count
-            })).filter(d => d.value > 0);
-
-            console.log(`[STATS] Dashboard status distribution: ${statusDistribution.length} statuses found. Total letters: ${allLettersForStats.length}, Depts: ${totalDepartments}`);
-
-            console.log(`[STATS] Dashboard metrics optimized for ${normalizedRole} in ${Date.now() - startTime}ms`);
+            // Always merge with all statuses so 0-count entries are shown for every period
+            const mergedStatusMap = {};
+            allStatuses.forEach(s => { mergedStatusMap[s.status_name] = 0; });
+            Object.entries(statusCountMap).forEach(([name, count]) => { mergedStatusMap[name] = count; });
+            const statusDistribution = Object.entries(mergedStatusMap).map(([name, value]) => ({ name, value }));
 
             res.json({
                 activeTasks,
@@ -301,7 +334,7 @@ class StatsController {
 
     static async getInboxStats(req, res) {
         try {
-            const { department_id, user_id, role, full_name: queryFullName } = req.query;
+            const { department_id, user_id, role, full_name: queryFullName, period } = req.query;
             const where = {};
             
             const userRecord = user_id ? await User.findByPk(user_id, {

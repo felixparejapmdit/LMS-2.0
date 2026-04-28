@@ -62,6 +62,7 @@ export default function Home() {
     });
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [period, setPeriod] = useState('today');
     const [systemStatus, setSystemStatus] = useState({ isOnline: false, uptime: 0 });
     const canField = access?.canField || (() => true);
     const canRefresh = canField("home", "refresh_button");
@@ -81,7 +82,8 @@ export default function Home() {
                     user_id: user.id,
                     department_id: deptId,
                     role: roleName,
-                    full_name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim()
+                    full_name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
+                    period
                 }
             });
             setStats(response.data);
@@ -113,13 +115,13 @@ export default function Home() {
 
     useEffect(() => {
         if (user?.id) {
-            fetchStats();
+            fetchStats(true); // show refresh indicator when changing period
 
             // Sync stats every 60s
             const interval = setInterval(() => fetchStats(), 60000);
             return () => clearInterval(interval);
         }
-    }, [user?.id]);
+    }, [user?.id, period]);
 
     const formatUptime = (seconds) => {
         const d = Math.floor(seconds / (3600 * 24));
@@ -135,7 +137,7 @@ export default function Home() {
             <div className="absolute -right-4 -bottom-4 opacity-20 transform -rotate-12">
                 <Icon className="w-32 h-32" />
             </div>
-            
+
             <div className="relative z-10">
                 <div className="flex justify-between items-start mb-6">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-white/20 backdrop-blur-md shrink-0`}>
@@ -162,71 +164,115 @@ export default function Home() {
 
     const colors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'];
 
-    const SummaryChart = ({ title, data, icon: Icon, colorClass = "text-indigo-500" }) => {
+    const SummaryChart = ({ title, data, icon: Icon, gradientFrom = 'from-indigo-600', gradientTo = 'to-violet-500', colorClass = "text-indigo-500", onItemClick }) => {
         const total = data?.reduce((acc, d) => acc + d.value, 0) || 0;
+        const allZero = data?.length > 0 && total === 0;
         let cumulativeAngle = 0;
 
         return (
-            <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
-                <h3 className="text-xs font-black uppercase tracking-widest mb-6 flex items-center gap-2 text-gray-400">
-                    <Icon className={`w-4 h-4 ${colorClass}`} /> {title}
-                </h3>
-                {(!data || data.length === 0) ? (
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-6">No data</p>
-                ) : (
-                    <div className="flex flex-col items-center">
-                        <svg viewBox="0 0 100 100" className="w-28 h-28 -rotate-90 drop-shadow-sm">
-                            <circle cx="50" cy="50" r="40" fill="transparent" className="stroke-slate-100 dark:stroke-[#222]" strokeWidth="15" />
-                            {data.map((d, i) => {
-                                const percentage = total > 0 ? (d.value / total) : 0;
-                                const strokeDasharray = `${percentage * 251.2} 251.2`;
-                                const strokeDashoffset = `-${cumulativeAngle * 251.2}`;
-                                cumulativeAngle += percentage;
-                                return (
-                                    <circle key={d.name} cx="50" cy="50" r="40" fill="transparent" stroke={colors[i % colors.length]} strokeWidth="15"
-                                        strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} className="transition-all duration-1000 ease-out" />
-                                );
-                            })}
-                        </svg>
-                        <div className="mt-6 w-full space-y-2.5">
-                            {data.map((d, i) => (
-                                <div key={d.name} className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: colors[i % colors.length] }}></span>
-                                        <span className="text-gray-500 dark:text-gray-400 line-clamp-1 max-w-[120px]">{d.name}</span>
-                                    </div>
-                                    <span className="text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-white/5 px-2 py-0.5 rounded-lg">{d.value}</span>
-                                </div>
-                            ))}
+            <div className={`rounded-[2rem] border border-transparent shadow-lg relative overflow-hidden transition-all hover:scale-[1.01] hover:shadow-xl`}>
+                {/* Gradient Header — mirrors the stat cards */}
+                <div className={`bg-gradient-to-br ${gradientFrom} ${gradientTo} p-5 flex items-center justify-between`}>
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/20 backdrop-blur-md shrink-0">
+                            <Icon className="w-5 h-5 text-white" />
                         </div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/80">{title}</span>
                     </div>
-                )}
+                    <span className="text-2xl font-black text-white">{total}</span>
+                </div>
+
+                {/* Body */}
+                <div className={`p-5 ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : 'bg-white dark:bg-[#141414]'}`}>
+                    {(!data || data.length === 0) ? (
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-8">No data</p>
+                    ) : (
+                        <div className="flex gap-4 items-start">
+                            {/* Donut */}
+                            <div className="relative shrink-0 w-24 h-24">
+                                <svg viewBox="0 0 100 100" className="w-24 h-24 -rotate-90 drop-shadow-sm">
+                                    <circle cx="50" cy="50" r="40" fill="transparent" className="stroke-slate-100 dark:stroke-[#333]" strokeWidth="15" />
+                                    {!allZero && data.map((d, i) => {
+                                        const percentage = total > 0 ? (d.value / total) : 0;
+                                        const strokeDasharray = `${percentage * 251.2} 251.2`;
+                                        const strokeDashoffset = `-${cumulativeAngle * 251.2}`;
+                                        cumulativeAngle += percentage;
+                                        return (
+                                            <circle key={d.name} cx="50" cy="50" r="40" fill="transparent" stroke={colors[i % colors.length]} strokeWidth="15"
+                                                strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} className="transition-all duration-1000 ease-out" />
+                                        );
+                                    })}
+                                </svg>
+                                {/* Center label when all zero */}
+                                {allZero && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <span className="text-lg font-black text-gray-300 dark:text-gray-600">0</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Legend */}
+                            <div className="flex-1 space-y-2 min-w-0">
+                                {data.map((d, i) => (
+                                    <div key={d.name}
+                                        onClick={() => onItemClick && d.value > 0 && onItemClick(d.name)}
+                                        className={`flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-widest rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${onItemClick && d.value > 0 ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10' : ''}`}
+                                    >
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                            <span className="w-2 h-2 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: allZero ? '#d1d5db' : colors[i % colors.length] }}></span>
+                                            <span className={`truncate ${allZero ? 'text-gray-400 dark:text-gray-600' : 'text-gray-500 dark:text-gray-400'}`}>{d.name}</span>
+                                        </div>
+                                        <span className={`px-2 py-0.5 rounded-lg shrink-0 ${allZero ? 'text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-white/5' : 'text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-white/5'}`}>{d.value}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         );
     };
+
 
     const SideWidgets = () => {
-        const totalStats = stats.taskDistribution?.reduce((acc, d) => acc + d.value, 0) || 0;
-        let angle = 0;
-
         return (
-            <div className="space-y-6">
-                <SummaryChart
-                    title="Group Summary"
-                    data={stats.taskDistribution}
-                    icon={PieChart}
-                />
-
-                <SummaryChart
-                    title="Status Summary"
-                    data={stats.statusDistribution}
-                    icon={Activity}
-                    colorClass="text-emerald-500"
-                />
-
+            <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                    <select
+                        value={period}
+                        onChange={(e) => setPeriod(e.target.value)}
+                        className="bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#222] text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/50"
+                    >
+                        <option value="today">Today</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                    <SummaryChart
+                        title="Group Summary"
+                        data={stats.taskDistribution}
+                        icon={PieChart}
+                        gradientFrom="from-indigo-600"
+                        gradientTo="to-violet-500"
+                        onItemClick={(name) => navigate(`/letter-tracker?group=${encodeURIComponent(name)}&period=${period}`)}
+                    />
+                    <SummaryChart
+                        title="Status Summary"
+                        data={stats.statusDistribution}
+                        onItemClick={(name) => navigate(`/letter-tracker?status=${encodeURIComponent(name)}&period=${period}`)}
+                        icon={Activity}
+                        gradientFrom="from-emerald-600"
+                        gradientTo="to-teal-500"
+                        colorClass="text-emerald-500"
+                    />
+                </div>
             </div>
         );
     };
+
 
     const OverdueWidget = () => (
         <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-red-100 dark:border-red-900/30' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'}`}>
@@ -270,35 +316,8 @@ export default function Home() {
 
         return (
             <div className="space-y-8">
-                {/* Metric Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                    <StatCard
-                        title="Pending"
-                        value={stats.activeTasks}
-                        icon={Activity}
-                        gradientClass="bg-gradient-to-br from-blue-600 to-cyan-500"
-                    />
-                    <StatCard
-                        title="Completed"
-                        value={stats.archivedTasks}
-                        icon={CheckCircle2}
-                        gradientClass="bg-gradient-to-br from-emerald-600 to-teal-500"
-                    />
-                    <StatCard
-                        title="Users"
-                        value={stats.totalUsers}
-                        icon={Users}
-                        gradientClass="bg-gradient-to-br from-indigo-600 to-violet-500"
-                    />
-                    {(!user?.dept_id || isSuperAdmin) && (
-                        <StatCard
-                            title="Departments"
-                            value={stats.totalDepartments || stats.totalDepartment || 0}
-                            icon={Building2}
-                            gradientClass="bg-gradient-to-br from-orange-600 to-amber-500"
-                        />
-                    )}
-                </div>
+                {/* 1. Group and Status Cards (SideWidgets) on top */}
+                <SideWidgets />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
                     {/* Main Content - Recent Work */}
@@ -344,9 +363,9 @@ export default function Home() {
                                 </div>
                             </div>
                         )}
-                        
+
                         <OverdueWidget />
-                        
+
                         {/* ATG Dashboard Letters REMOVED as per user request */}
                     </div>
 
@@ -411,7 +430,41 @@ export default function Home() {
                                 )}
                             </div>
                         </div>
-                        <SideWidgets />
+
+                        {/* Consolidated Metrics Card */}
+                        <div className={`p-6 rounded-[2rem] border ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
+                            <h3 className={`text-xs font-black uppercase tracking-widest mb-4 ${'text-gray-400'}`}>Metrics</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50/50 dark:bg-blue-900/10">
+                                    <Activity className="w-4 h-4 text-blue-500" />
+                                    <div>
+                                        <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{stats.activeTasks}</p>
+                                        <p className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mt-0.5">Active</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10">
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                    <div>
+                                        <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{stats.archivedTasks}</p>
+                                        <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-0.5">Processed</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/10">
+                                    <Users className="w-4 h-4 text-indigo-500" />
+                                    <div>
+                                        <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{stats.totalUsers}</p>
+                                        <p className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-0.5">Users</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 p-3 rounded-xl bg-orange-50/50 dark:bg-orange-900/10">
+                                    <Building2 className="w-4 h-4 text-orange-500" />
+                                    <div>
+                                        <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{stats.totalDepartments || stats.totalDepartment || 0}</p>
+                                        <p className="text-[9px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest mt-0.5">Departments</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div >
@@ -433,9 +486,9 @@ export default function Home() {
                         </div>
                         {canRefresh && (
                             <div className="flex items-center gap-2 hidden md:flex">
-                                <button 
+                                <button
                                     id="btn-help"
-                                    onClick={startTutorial} 
+                                    onClick={startTutorial}
                                     className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400 group"
                                     title="Open Tutorial"
                                 >
@@ -449,31 +502,8 @@ export default function Home() {
                     </header>
                     <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pt-6 md:pt-10 custom-scrollbar">
                         <div className="w-full space-y-8 md:space-y-10 lg:space-y-12">
-                            {/* Metric Cards */}
-                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <div className="bg-gradient-to-br from-blue-600 to-cyan-500 p-6 rounded-3xl border border-transparent shadow-lg text-white relative overflow-hidden group hover:scale-[1.02] transition-all">
-                                    <div className="absolute -right-4 -bottom-4 opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform"><Activity className="w-32 h-32" /></div>
-                                    <p className="text-[10px] font-black text-blue-100 uppercase tracking-[0.2em] mb-2 relative z-10">Active</p>
-                                    <h3 className="text-4xl font-black text-white relative z-10">{stats.activeTasks}</h3>
-                                </div>
-                                <div className="bg-gradient-to-br from-emerald-600 to-teal-500 p-6 rounded-3xl border border-transparent shadow-lg text-white relative overflow-hidden group hover:scale-[1.02] transition-all">
-                                    <div className="absolute -right-4 -bottom-4 opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform"><CheckCircle2 className="w-32 h-32" /></div>
-                                    <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.2em] mb-2 relative z-10">Processed</p>
-                                    <h3 className="text-4xl font-black text-white relative z-10">{stats.archivedTasks}</h3>
-                                </div>
-                                <div className="bg-gradient-to-br from-indigo-600 to-violet-500 p-6 rounded-3xl border border-transparent shadow-lg text-white relative overflow-hidden group hover:scale-[1.02] transition-all">
-                                    <div className="absolute -right-4 -bottom-4 opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform"><Users className="w-32 h-32" /></div>
-                                    <p className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.2em] mb-2 relative z-10">USERS</p>
-                                    <h3 className="text-4xl font-black text-white relative z-10">{stats.totalUsers}</h3>
-                                </div>
-                                {(!user?.dept_id || isSuperAdmin) && (
-                                    <div className="bg-gradient-to-br from-orange-600 to-amber-500 p-6 rounded-3xl border border-transparent shadow-lg text-white relative overflow-hidden group hover:scale-[1.02] transition-all">
-                                        <div className="absolute -right-4 -bottom-4 opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform"><Building2 className="w-32 h-32" /></div>
-                                        <p className="text-[10px] font-black text-orange-100 uppercase tracking-[0.2em] mb-2 relative z-10">Departments</p>
-                                        <h3 className="text-4xl font-black text-white relative z-10">{stats.totalDepartments || stats.totalDepartment || 0}</h3>
-                                    </div>
-                                )}
-                            </div>
+                            {/* Group and Status Cards (SideWidgets) on top */}
+                            <SideWidgets />
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
                                 <div className="lg:col-span-2 space-y-8">
@@ -558,9 +588,44 @@ export default function Home() {
                                             )}
                                         </div>
                                     </div>
-                                    <SideWidgets />
+
+                                    {/* Consolidated Metrics Card */}
+                                    <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
+                                        <h3 className="text-[10px] font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] mb-6">Metrics</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50/50 dark:bg-blue-900/10">
+                                                <Activity className="w-4 h-4 text-blue-500" />
+                                                <div>
+                                                    <p className="text-lg font-black text-[#1A1A1B] dark:text-white leading-none">{stats.activeTasks}</p>
+                                                    <p className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mt-0.5">Active</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10">
+                                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                                <div>
+                                                    <p className="text-lg font-black text-[#1A1A1B] dark:text-white leading-none">{stats.archivedTasks}</p>
+                                                    <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-0.5">Processed</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/10">
+                                                <Users className="w-4 h-4 text-indigo-500" />
+                                                <div>
+                                                    <p className="text-lg font-black text-[#1A1A1B] dark:text-white leading-none">{stats.totalUsers}</p>
+                                                    <p className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-0.5">Users</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3 p-3 rounded-xl bg-orange-50/50 dark:bg-orange-900/10">
+                                                <Building2 className="w-4 h-4 text-orange-500" />
+                                                <div>
+                                                    <p className="text-lg font-black text-[#1A1A1B] dark:text-white leading-none">{stats.totalDepartments || stats.totalDepartment || 0}</p>
+                                                    <p className="text-[9px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest mt-0.5">Departments</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+
                         </div>
                     </div>
                 </main>
@@ -579,9 +644,9 @@ export default function Home() {
                     </div>
                     {canRefresh && (
                         <div className="flex items-center gap-2">
-                             <button 
+                            <button
                                 id="btn-help"
-                                onClick={startTutorial} 
+                                onClick={startTutorial}
                                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-all group"
                                 title="Open Tutorial"
                             >

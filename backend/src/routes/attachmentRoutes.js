@@ -22,6 +22,7 @@ const upload = multer({
 router.get("/", AttachmentController.getAll);
 router.post("/upload", upload.single("file"), AttachmentController.upload);
 router.get("/view/:id", AttachmentController.view);
+router.get("/view-combined/:letter_id", AttachmentController.viewCombinedForLetter);
 router.get("/view-path", AttachmentController.viewByPath);
 router.get("/:id", AttachmentController.getById);
 router.post("/", AttachmentController.create);

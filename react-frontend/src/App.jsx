@@ -17,6 +17,7 @@ import LetterEndorsement from "./pages/management/LetterEndorsement";
 import LetterDetail from "./pages/management/LetterDetail";
 import LegacyData from "./pages/management/LegacyData";
 import VemResumen from "./pages/management/VemResumen";
+import AevmResumen from "./pages/management/AevmResumen";
 import ResumenPage from "./pages/management/ResumenPage";
 import RoleAccessMatrix from "./pages/management/RoleAccessMatrix";
 import DeptAccessMatrix from "./pages/management/DeptAccessMatrix";
@@ -34,6 +35,7 @@ import Statuses from "./pages/management/Statuses";
 import Attachments from "./pages/management/Attachments";
 import UploadPDFFiles from "./pages/management/UploadPDFFiles";
 import SectionRegistry from "./pages/management/SectionRegistry";
+import AuditLogs from "./pages/management/AuditLogs";
 
 // Setup
 import SetupWizard from "./pages/setup/SetupWizard";
@@ -117,13 +119,18 @@ function AppRoutes() {
   useEffect(() => {
     let sequence = '';
     const handleKeyDown = (e) => {
-        // Look for Ctrl+Y followed by X
+        // Ctrl+Y followed by X → VEM Resumen
+        // Ctrl+A followed by M → AEVM Resumen
         if (e.ctrlKey && e.key.toLowerCase() === 'y') {
             sequence = 'ctrl_y';
-            // Prevent default browser behavior for Ctrl+Y if necessary
-            // e.preventDefault(); 
+        } else if (e.ctrlKey && e.key.toLowerCase() === 'a') {
+            sequence = 'ctrl_a';
+            e.preventDefault(); // prevent select-all
         } else if (sequence === 'ctrl_y' && e.key.toLowerCase() === 'x') {
             window.location.href = '/vem-resumen';
+            sequence = '';
+        } else if (sequence === 'ctrl_a' && e.key.toLowerCase() === 'm') {
+            window.location.href = '/aevm-resumen';
             sequence = '';
         } else {
             sequence = '';
@@ -168,10 +175,12 @@ function AppRoutes() {
         <Route path="/legacy-data" element={<ProtectedRoute><LegacyData /></ProtectedRoute>} />
         <Route path="/upload-pdf" element={<ProtectedRoute><UploadPDFFiles /></ProtectedRoute>} />
         <Route path="/setup/sections" element={<ProtectedRoute><SectionRegistry /></ProtectedRoute>} />
+        <Route path="/setup/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
         <Route path="/guest/send-letter" element={<ProtectedRoute><GuestSendLetter /></ProtectedRoute>} />
         <Route path="/endorsements" element={<ProtectedRoute><LetterEndorsement /></ProtectedRoute>} />
         <Route path="/letter/:id" element={<ProtectedRoute><LetterDetail /></ProtectedRoute>} />
         <Route path="/vem-resumen" element={<ProtectedRoute><VemResumen /></ProtectedRoute>} />
+        <Route path="/aevm-resumen" element={<ProtectedRoute><AevmResumen /></ProtectedRoute>} />
         <Route path="/resumen" element={<ProtectedRoute><ResumenPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

@@ -260,6 +260,66 @@ class AttachmentController {
         }
     }
 
+    static async viewCombinedForLetter(req, res) {
+        try {
+            const { letter_id } = req.params;
+            console.log(`[DEBUG] viewCombinedForLetter called for ID: ${letter_id}, URL: ${req.originalUrl}`);
+            const { Letter, Attachment } = require('../models/associations');
+            const { PDFDocument } = require('pdf-lib');
+
+            const letter = await Letter.findByPk(letter_id);
+            if (!letter) return res.status(404).json({ error: 'Letter not found' });
+
+            const mergedPdf = await PDFDocument.create();
+            let pagesAdded = 0;
+
+            // 1. Additional Attachments (Processed first, newest was prepended in frontend)
+            if (letter.attachment_id) {
+                const ids = String(letter.attachment_id).split(',');
+                for (const id of ids) {
+                    const att = await Attachment.findByPk(id.trim());
+                    if (att && att.file_path && fs.existsSync(att.file_path)) {
+                        try {
+                            const bytes = fs.readFileSync(att.file_path);
+                            const pdf = await PDFDocument.load(bytes);
+                            const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                            pages.forEach(page => mergedPdf.addPage(page));
+                            pagesAdded += pages.length;
+                        } catch (err) {
+                            console.warn(`Failed to process attachment ${id}:`, err.message);
+                        }
+                    }
+                }
+            }
+
+            // 2. Main Letter (Scanned Copy) - Processed last (bottom of stack)
+            if (letter.scanned_copy && fs.existsSync(letter.scanned_copy)) {
+                try {
+                    const bytes = fs.readFileSync(letter.scanned_copy);
+                    const pdf = await PDFDocument.load(bytes);
+                    const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                    pages.forEach(page => mergedPdf.addPage(page));
+                    pagesAdded += pages.length;
+                } catch (err) {
+                    console.warn(`Failed to process scanned_copy:`, err.message);
+                }
+            }
+
+            if (pagesAdded === 0) {
+                return res.status(404).json({ error: 'No PDF files found for this letter' });
+            }
+
+            const mergedPdfBytes = await mergedPdf.save();
+            const filename = `${letter.lms_id || 'document'}.pdf`;
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+            res.send(Buffer.from(mergedPdfBytes));
+        } catch (error) {
+            console.error('View combined error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    }
+
     static async viewByPath(req, res) {
         try {
             const encodedPath = req.query.path;

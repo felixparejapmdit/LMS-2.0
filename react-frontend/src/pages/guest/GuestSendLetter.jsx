@@ -59,6 +59,7 @@ export default function GuestSendLetter() {
     const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const fileInputRef = useRef(null);
     const suggestionRef = useRef(null);
     const canField = access?.canField || (() => true);
@@ -202,6 +203,19 @@ export default function GuestSendLetter() {
         setAttachments([]);
         setSelectedDeptId("");
         setReferenceNo("Select Department");
+    };
+
+    const handleReview = () => {
+        const filledSenders = formData.senders.filter(s => s && s.trim());
+        if (filledSenders.length === 0) {
+            alert("At least one sender name is required.");
+            return;
+        }
+        if (!formData.regarding.trim()) {
+            alert("Letter summary/regarding field is required.");
+            return;
+        }
+        setIsReviewModalOpen(true);
     };
 
     const handleSend = async () => {
@@ -891,7 +905,7 @@ export default function GuestSendLetter() {
                                 <div className="mt-8 space-y-3">
                                     {canSubmit && (
                                         <button
-                                            onClick={handleSend}
+                                            onClick={handleReview}
                                             className={`w-full py-4 ${accentColor} text-white font-bold text-xs uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-3 transition-all shadow-md active:scale-[0.98] ${'shadow-orange-100'}`}
                                         >
                                             <Send className="w-4 h-4" /> Submit
@@ -943,6 +957,55 @@ export default function GuestSendLetter() {
                 }}
                 referenceNo={referenceNo}
             />
+
+            {/* Review Confirmation Modal */}
+            {isReviewModalOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsReviewModalOpen(false)} />
+                    <div className="relative w-full max-w-md bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#333] animate-in zoom-in-95 slide-in-from-bottom-6 duration-300 overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-6 border-b border-gray-100 dark:border-[#333] flex items-center justify-between">
+                            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Review Details</h3>
+                            <button onClick={() => setIsReviewModalOpen(false)} className="p-2 text-slate-400 hover:text-red-500 rounded-xl transition-colors">
+                                <XIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto custom-scrollbar space-y-4">
+                            <div className="space-y-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Department</span>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{departments.find(d => String(d.id) === String(selectedDeptId))?.dept_name || departments.find(d => String(d.id) === String(selectedDeptId))?.name || "None Selected"}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sender(s)</span>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{formData.senders.filter(s => s.trim()).join('; ')}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Regarding (RE)</span>
+                                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{formData.regarding}</p>
+                            </div>
+                            {formData.encoder && (
+                                <div className="space-y-1">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Encoded By</span>
+                                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{formData.encoder}</p>
+                                </div>
+                            )}
+                            <div className="space-y-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Attachments</span>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                                    {attachments.length > 0 ? `${attachments.length} file(s) attached` : 'None'}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-gray-100 dark:border-[#333] flex gap-3">
+                            <button onClick={() => setIsReviewModalOpen(false)} className="flex-1 py-3 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 font-black text-xs uppercase tracking-widest rounded-xl transition-all hover:bg-slate-200 dark:hover:bg-white/10">
+                                Edit
+                            </button>
+                            <button onClick={() => { setIsReviewModalOpen(false); handleSend(); }} disabled={loading} className={`flex-1 py-3 ${accentColor} text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-[0.98] disabled:opacity-50 flex justify-center items-center gap-2`}>
+                                {loading ? <AlertCircle className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Exit Confirmation Modal */}
             <SuccessModal

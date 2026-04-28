@@ -20,6 +20,7 @@ const telegramRoutes = require("./routes/telegramRoutes");
 const authRoutes = require("./routes/authRoutes");
 const interDeptRoutes = require("./routes/interDeptRoutes");
 const sectionRoutes = require("./routes/sectionRoutes");
+const auditLogRoutes = require("./routes/auditLogRoutes");
 
 const path = require("path");
 
@@ -127,6 +128,7 @@ apiRouter.use("/system-pages", systemPageRoutes);
 apiRouter.use("/telegram", telegramRoutes);
 apiRouter.use("/inter-dept", interDeptRoutes);
 apiRouter.use("/sections", sectionRoutes);
+apiRouter.use("/audit-logs", auditLogRoutes);
 apiRouter.use("/import", require("./routes/importRoutes"));
 
 // Catch-all inside apiRouter to help diagnose missing routes

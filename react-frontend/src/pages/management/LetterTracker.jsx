@@ -17,16 +17,18 @@ import {
     ChevronRight,
     GitMerge,
     Menu,
-    Printer
+    Printer,
+    X
 } from "lucide-react";
 import letterService from "../../services/letterService";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function LetterTracker() {
     const { user, isSuperAdmin } = useSession();
     const { layoutStyle, setIsMobileMenuOpen } = useUI();
     const { canField } = useAccess();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const [letters, setLetters] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -34,6 +36,25 @@ export default function LetterTracker() {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedLetter, setSelectedLetter] = useState(null);
     const [isTrackDrawerOpen, setIsTrackDrawerOpen] = useState(false);
+
+    // Filters from query params (set via Home page summary cards)
+    const [filterGroup, setFilterGroup] = useState(searchParams.get('group') || '');
+    const [filterStatus, setFilterStatus] = useState(searchParams.get('status') || '');
+    const [filterPeriod, setFilterPeriod] = useState(searchParams.get('period') || '');
+
+    const periodLabels = { today: 'Today', weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly', all: 'All Time' };
+
+    // Compute period date cutoff (matches StatsController logic)
+    const getPeriodCutoff = (period) => {
+        if (!period || period === 'all') return null;
+        const now = new Date();
+        if (period === 'today') { now.setHours(0, 0, 0, 0); return now; }
+        if (period === 'weekly') { now.setDate(now.getDate() - 7); return now; }
+        if (period === 'monthly') { now.setMonth(now.getMonth() - 1); return now; }
+        if (period === 'yearly') { now.setFullYear(now.getFullYear() - 1); return now; }
+        return null;
+    };
+
     const canSearch = canField("letter-tracker", "search");
     const canPdf = canField("letter-tracker", "pdf_button");
     const canTrack = canField("letter-tracker", "track_button");
@@ -45,6 +66,15 @@ export default function LetterTracker() {
     const cardBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#111] border-[#E5E5E5] dark:border-[#222] shadow-sm' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] shadow-sm';
     const pageBg = layoutStyle === 'minimalist' ? 'bg-[#F7F7F7] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
     const headerBg = layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222] shadow-sm';
+
+    const clearFilter = (key) => {
+        if (key === 'group') setFilterGroup('');
+        if (key === 'status') setFilterStatus('');
+        if (key === 'period') setFilterPeriod('');
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete(key);
+        setSearchParams(newParams, { replace: true });
+    };
 
     const fetchLetters = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
@@ -82,16 +112,16 @@ export default function LetterTracker() {
 
         if ((isUserRole || isAccessManager) && !isSuperAdmin) {
             const isOwner = letter.encoder_id === user.id;
-            
+
             const userLastName = user?.last_name?.toLowerCase() || '';
             const userFirstName = user?.first_name?.toLowerCase() || '';
             const fullName1 = `${userFirstName} ${userLastName}`.trim();
             const fullName2 = `${userLastName}, ${userFirstName}`.trim();
-            
+
             const senderStr = (letter.sender || '').toLowerCase();
             const endorseStr = (letter.endorsed || '').toLowerCase();
-            
-            const isSenderOrEndorsed = 
+
+            const isSenderOrEndorsed =
                 (fullName1 && (senderStr.includes(fullName1) || endorseStr.includes(fullName1))) ||
                 (fullName2 && (senderStr.includes(fullName2) || endorseStr.includes(fullName2)));
 
@@ -100,7 +130,30 @@ export default function LetterTracker() {
             if (!isOwner && !isInDept && !isSenderOrEndorsed) return false;
         }
 
-        // 2. Search Filter
+        // 2. Period filter (date range)
+        if (filterPeriod && filterPeriod !== 'all') {
+            const cutoff = getPeriodCutoff(filterPeriod);
+            if (cutoff) {
+                const letterDate = new Date(letter.created_at || letter.date_received);
+                if (letterDate < cutoff) return false;
+            }
+        }
+
+        // 3. Group filter (process step name)
+        if (filterGroup) {
+            const stepMatch = letter.assignments?.some(a => 
+                a.step?.step_name?.toLowerCase() === filterGroup.toLowerCase()
+            );
+            if (!stepMatch) return false;
+        }
+
+        // 4. Status filter (status name)
+        if (filterStatus) {
+            const statusName = letter.status?.status_name?.toLowerCase() || '';
+            if (statusName !== filterStatus.toLowerCase()) return false;
+        }
+
+        // 4. Search Filter
         if (!canSearch) return true;
 
         return (
@@ -110,6 +163,7 @@ export default function LetterTracker() {
         );
     });
 
+
     const handleTrackOpen = async (letter) => {
         try {
             // Fetch full letter with logs when opening track
@@ -118,19 +172,22 @@ export default function LetterTracker() {
             setIsTrackDrawerOpen(true);
         } catch (error) {
             console.error("Failed to fetch full tracking details:", error);
-            // Fallback to what we have if fetch fails
-            setSelectedLetter(letter);
-            setIsTrackDrawerOpen(true);
+
         }
     };
 
     const handleViewPDF = (letter) => {
         if (!letter.scanned_copy && !letter.attachment_id) return;
         const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-        const url = letter.scanned_copy
-            ? `${apiBase}/attachments/view-path?path=${btoa(letter.scanned_copy)}`
-            : `${apiBase}/attachments/view/${letter.attachment_id}`;
-        window.open(url, '_blank');
+
+        if ((letter.scanned_copy && letter.attachment_id) || (letter.attachment_id && String(letter.attachment_id).includes(','))) {
+            window.open(`${apiBase}/attachments/view-combined/${letter.id}`, "_blank");
+        } else {
+            const url = letter.scanned_copy
+                ? `${apiBase}/attachments/view-path?path=${btoa(letter.scanned_copy)}`
+                : `${apiBase}/attachments/view/${letter.attachment_id}`;
+            window.open(url, "_blank");
+        }
     };
 
     const handlePrintQR = (entry_id) => {
@@ -223,12 +280,45 @@ export default function LetterTracker() {
                             )}
                         </div>
 
+                        {/* Active Filter Pills */}
+                        {(filterGroup || filterStatus || filterPeriod) && (
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Filtered by:</span>
+                                {filterPeriod && filterPeriod !== 'all' && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-[10px] font-black uppercase tracking-widest border border-amber-100 dark:border-amber-800/30">
+                                        Period: {periodLabels[filterPeriod] || filterPeriod}
+                                        <button onClick={() => clearFilter('period')} className="hover:bg-amber-200 dark:hover:bg-amber-800/40 rounded-full p-0.5 transition-colors">
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </span>
+                                )}
+                                {filterGroup && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 text-[10px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-800/30">
+                                        Group: {filterGroup}
+                                        <button onClick={() => clearFilter('group')} className="hover:bg-indigo-200 dark:hover:bg-indigo-800/40 rounded-full p-0.5 transition-colors">
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </span>
+                                )}
+                                {filterStatus && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-black uppercase tracking-widest border border-emerald-100 dark:border-emerald-800/30">
+                                        Status: {filterStatus}
+                                        <button onClick={() => clearFilter('status')} className="hover:bg-emerald-200 dark:hover:bg-emerald-800/40 rounded-full p-0.5 transition-colors">
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+
                         {/* Table Container */}
                         <div className={`rounded-3xl border overflow-hidden shadow-sm ${cardBg}`}>
                             <div className="overflow-x-auto custom-scrollbar">
                                 <table className="w-full text-left border-collapse min-w-[1000px]">
                                     <thead>
                                         <tr className={`border-b ${'border-gray-50 dark:border-[#222] bg-gray-50/50'}`}>
+                                            <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500 w-12 text-center">#</th>
                                             <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Reference #</th>
                                             <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Date Received</th>
                                             <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Sender</th>
@@ -241,11 +331,12 @@ export default function LetterTracker() {
                                     </thead>
                                     <tbody className="divide-y divide-gray-50 dark:divide-[#222]">
                                         {loading ? (
-                                            <tr><td colSpan="8" className="p-20 text-center"><Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto" /></td></tr>
+                                            <tr><td colSpan="9" className="p-20 text-center"><Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto" /></td></tr>
                                         ) : filteredLetters.length === 0 ? (
-                                            <tr><td colSpan="8" className="p-20 text-center text-gray-400 font-bold uppercase tracking-widest">No matching records found</td></tr>
-                                        ) : filteredLetters.map((letter) => (
+                                            <tr><td colSpan="9" className="p-20 text-center text-gray-400 font-bold uppercase tracking-widest">No matching records found</td></tr>
+                                        ) : filteredLetters.map((letter, index) => (
                                             <tr key={letter.id} className="hover:bg-gray-50/80 dark:hover:bg-white/5 transition-colors group">
+                                                <td className="px-5 py-4 text-center text-[10px] font-bold text-gray-400">{index + 1}</td>
                                                 <td className="px-5 py-4 whitespace-nowrap">
                                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 ${textColor}`}>
                                                         {letter.entry_id}

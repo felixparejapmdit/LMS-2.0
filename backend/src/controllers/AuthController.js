@@ -68,7 +68,8 @@ const PAGE_FIELD_PRESETS = {
     'setup': ['department_field', 'dept_code_field', 'template_selector', 'add_button', 'delete_button', 'submit_button', 'next_button', 'back_button'],
     'letter-detail': ['pdf_button', 'back_button'],
     'department-letters': ['back_button', 'search', 'refresh_button', 'tab_filter', 'tray_selector'],
-    'profile': ['save_button', 'password_field', 'avatar_upload', 'username_field']
+    'profile': ['save_button', 'password_field', 'avatar_upload', 'username_field'],
+    'audit-logs': ['search', 'refresh_button']
 };
 
 const withDefaultFieldPermissions = (pageName, raw = {}) => {
@@ -166,6 +167,37 @@ class AuthController {
 
             // Background update
             User.update({ islogin: true }, { where: { id: user.id } }).catch(() => {});
+
+            // Audit Log: record login event
+            const AuditLogController = require('./AuditLogController');
+            const ua = req.headers['user-agent'] || '';
+            const ipAddr = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.connection?.remoteAddress || 'unknown';
+            // Parse browser and OS from user-agent
+            const parseBrowser = (uaStr) => {
+                if (uaStr.includes('Edg/')) return 'Edge';
+                if (uaStr.includes('Chrome/')) return 'Chrome';
+                if (uaStr.includes('Firefox/')) return 'Firefox';
+                if (uaStr.includes('Safari/') && !uaStr.includes('Chrome')) return 'Safari';
+                if (uaStr.includes('Opera') || uaStr.includes('OPR/')) return 'Opera';
+                return 'Other';
+            };
+            const parseOS = (uaStr) => {
+                if (uaStr.includes('Windows NT 10')) return 'Windows 10/11';
+                if (uaStr.includes('Windows')) return 'Windows';
+                if (uaStr.includes('Mac OS X')) return 'macOS';
+                if (uaStr.includes('Android')) return 'Android';
+                if (uaStr.includes('iPhone') || uaStr.includes('iPad')) return 'iOS';
+                if (uaStr.includes('Linux')) return 'Linux';
+                return 'Unknown';
+            };
+            AuditLogController.logLogin({
+                user_id: user.id,
+                user_name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
+                ip_address: ipAddr,
+                browser: parseBrowser(ua),
+                device_os: parseOS(ua),
+                details: ua.substring(0, 255)
+            }).catch(() => {});
 
             console.log(`[LOGIN] Fast-path successful for ${user.username} in ${Date.now() - startTime}ms. Directus: DEFERRED`);
 

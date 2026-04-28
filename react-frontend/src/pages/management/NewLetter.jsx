@@ -836,7 +836,7 @@ export default function NewLetter() {
                   </div>
                 </div>
 
-                <div className="space-y-4 pt-4 border-t border-dashed border-gray-100 dark:border-[#222]">
+                <div className="space-y-4 pt-4 border-t border-solid border-black dark:border-white/20">
                   <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Clock className="w-3 h-3 text-orange-400" />
@@ -879,7 +879,7 @@ export default function NewLetter() {
 
                     {hasReviewStep() && (
                       <>
-                        <div className="col-span-full border-t-[3px] border-dashed border-gray-100 dark:border-white/5 my-2" />
+                        <div className="col-span-full border-t-[3px] border-solid border-black dark:border-white/20 my-2" />
                         {steps
                           .filter((s) =>
                             ["VEM Letter", "AEVM Letter"].includes(s.step_name),
@@ -914,7 +914,7 @@ export default function NewLetter() {
                   </div>
                 </div>
 
-                <div className="space-y-4 pt-4 border-t border-dashed border-gray-100 dark:border-[#222]">
+                <div className="space-y-4 pt-4 border-t border-solid border-black dark:border-white/20">
                   <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-2">
                     <User className="w-3 h-3 text-blue-400" />
                     Encoded By
@@ -1028,7 +1028,7 @@ export default function NewLetter() {
 
                 {/* Summary / Regarding - Grouped under Sender */}
                 {canSummaryField && (
-                  <div className="space-y-2 pt-4 border-t border-dashed border-gray-100 dark:border-[#222]">
+                  <div className="space-y-2 pt-4 border-t border-solid border-black dark:border-white/20">
                     <div className="flex items-center justify-between mb-1">
                       <label
                         className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${"text-gray-500 dark:text-gray-400"}`}
@@ -1080,7 +1080,7 @@ export default function NewLetter() {
                   </select>
                 </div>
 
-                <div className="pt-4 border-t border-dashed border-gray-100 dark:border-[#222] space-y-4">
+                <div className="pt-4 border-t border-solid border-black dark:border-white/20 space-y-4">
                   <label className="flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group bg-gray-50 border-transparent dark:bg-white/5 hover:border-gray-200 dark:hover:border-white/10">
                     <input
                       type="checkbox"
@@ -1170,7 +1170,7 @@ export default function NewLetter() {
                 </div>
 
                 {/* Moved Authority Notes here */}
-                <div className="space-y-4 pt-4 border-t border-dashed border-gray-100 dark:border-[#222]">
+                <div className="space-y-4 pt-4 border-t border-solid border-black dark:border-white/20">
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                       EVM Note

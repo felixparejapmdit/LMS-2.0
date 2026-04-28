@@ -15,7 +15,7 @@ import {
   Paperclip
 } from "lucide-react";
 
-export default function LetterCard({
+export default React.memo(function LetterCard({
   id,
   letterId,
   atgId,
@@ -260,4 +260,4 @@ export default function LetterCard({
       </div>
     </Link>
   );
-}
+});

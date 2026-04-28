@@ -10,7 +10,7 @@ import letterService from '../../services/letterService';
 import Sidebar from '../../components/Sidebar';
 import jsQR from 'jsqr';
 
-export default function VemResumen() {
+export default function AevmResumen() {
     const navigate = useNavigate();
     const { user } = useSession();
     const { layoutStyle } = useUI();

@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import LetterCard from "../../components/LetterCard";
@@ -240,9 +240,9 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     setIsPrintModalOpen(true);
   };
 
-  const toggleSelection = (e, id) => {
+  const toggleSelection = useCallback((e, id) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
+  }, []);
 
   const handleSelectAll = () => {
     const visibleIds = filteredBySteps.map(a => a.id);
@@ -290,8 +290,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         setLoading(false); return;
       } else if (['approve_signature', 'approve_review'].includes(action)) {
         const stepId = action === 'approve_signature' ? 1 : 2;
-        const pendingStatusId = 8;
-        await Promise.all(letterIds.map(id => letterService.update(id, { global_status: pendingStatusId })));
+        const incomingStatusId = 1; // Change from Pending to Incoming when assigning
+        await Promise.all(letterIds.map(id => letterService.update(id, { global_status: incomingStatusId })));
         await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { step_id: stepId })));
       } else if (action === 'delete') {
         if (!window.confirm(`Delete ${selectedIds.length} letters?`)) { setLoading(false); return; }
@@ -318,6 +318,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     const stepId = action === 'signature' ? 1 : 2;
     try {
       setAssignments(prev => prev.filter(a => a.id !== assignment.id));
+      // Update status from Pending to Incoming when assigning for review/signature
+      await letterService.update(assignment.letter.id, { global_status: 1 });
       await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${assignment.id}`, { step_id: stepId });
       fetchAssignments();
     } catch (err) { console.error(err); fetchAssignments(); }
@@ -581,13 +583,18 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
               <div className="space-y-6">
                 {renderBulkActions()}
                 <div className="space-y-4">
-                  {filteredBySteps.map((assignment) => (
+                {filteredBySteps.map((assignment) => {
+                    // Memoize tray/quick action rendering key based on actual dependencies
+                    const trayActions = renderTrayActions(assignment);
+                    const quickActions = renderQuickActions(assignment);
+                    const isSelected = selectedIds.includes(assignment.id);
+                    return (
                     <div key={assignment.id} className="flex items-start gap-4 group">
                       {view === 'inbox' && (
                         <div className="flex-shrink-0 pt-6">
                           <input
                             type="checkbox"
-                            checked={selectedIds.includes(assignment.id)}
+                            checked={isSelected}
                             onChange={(e) => toggleSelection(e, assignment.id)}
                             className="w-5 h-5 rounded-md border-2 border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer bg-white"
                           />
@@ -607,15 +614,18 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                           isOutbox={view === 'outbox'}
                           endorsements={assignment.letter?.endorsements}
                           actions={
-                            <div className="flex items-center gap-2">
-                              {renderTrayActions(assignment)}
-                              {renderQuickActions(assignment)}
-                            </div>
+                            (trayActions || quickActions) ? (
+                              <div className="flex items-center gap-2">
+                                {trayActions}
+                                {quickActions}
+                              </div>
+                            ) : null
                           }
                         />
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Pagination */}

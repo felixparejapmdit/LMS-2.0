@@ -9,6 +9,7 @@ router.get('/:id', LetterController.getById);
 router.post('/', LetterController.create);
 router.post('/bulk-create-empty', LetterController.bulkCreateEmpty);
 router.put('/:id', LetterController.update);
+router.delete('/:id/scanned-copy', LetterController.deleteScannedCopy);
 router.delete('/:id', LetterController.delete);
 
 module.exports = router;

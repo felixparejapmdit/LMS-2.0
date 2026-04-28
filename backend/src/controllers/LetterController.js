@@ -29,6 +29,9 @@ class LetterController {
         page = 1,
         limit = 50,
         full_name,
+        global_status,
+        start_date,
+        end_date,
       } = req.query;
       const where = {};
 
@@ -153,6 +156,32 @@ class LetterController {
           ]
         });
       }
+
+      // 4. Additional Filters (Status, Date Range)
+      const extraFilters = [];
+      if (global_status && global_status !== 'all') {
+        extraFilters.push({ global_status: parseInt(global_status) });
+      }
+
+      if (start_date || end_date) {
+        const dateRangeFilter = {};
+        if (start_date) dateRangeFilter[Op.gte] = start_date;
+        if (end_date) dateRangeFilter[Op.lte] = end_date;
+        
+        extraFilters.push({
+          [Op.or]: [
+            { date_received: dateRangeFilter },
+            { created_at: dateRangeFilter }
+          ]
+        });
+      }
+
+      if (extraFilters.length > 0) {
+        if (!where[Op.and]) where[Op.and] = [];
+        where[Op.and].push(...extraFilters);
+      }
+
+      console.log("[DEBUG] LetterController.getAll final WHERE:", JSON.stringify(where, null, 2));
 
       const { count, rows } = await Letter.findAndCountAll({
         where,
@@ -808,6 +837,27 @@ class LetterController {
         stack: error.stack,
         fullError: error,
       });
+    }
+  }
+
+  static async deleteScannedCopy(req, res) {
+    try {
+      const letter = await Letter.findByPk(req.params.id);
+      if (!letter) return res.status(404).json({ error: "Letter not found" });
+      if (letter.scanned_copy) {
+        const fs = require('fs');
+        if (fs.existsSync(letter.scanned_copy)) {
+          try {
+            fs.unlinkSync(letter.scanned_copy);
+          } catch (err) {
+            console.warn("Failed to delete physical file:", err);
+          }
+        }
+        await letter.update({ scanned_copy: null });
+      }
+      res.json({ message: "Scanned copy deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
   }
 

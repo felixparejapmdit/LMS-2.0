@@ -13,7 +13,7 @@ const {
     Person, User, Endorsement, RolePermission, SystemPage, 
     LetterKind, Status, ProcessStep, Letter, Tray, 
     LetterAssignment, LetterLog, Attachment, Comment, 
-    LinkLetter, Role, RefSectionRegistry, DeptSectionUsage 
+    LinkLetter, Role, RefSectionRegistry, DeptSectionUsage, AuditLog 
 } = require('./models/associations');
 
 const PORT = process.env.PORT || 5000;
@@ -80,7 +80,7 @@ async function startServer() {
             Person, User, Endorsement, RolePermission, SystemPage,
             LetterKind, Status, ProcessStep, Letter, Tray,
             LetterAssignment, LetterLog, Attachment, Comment,
-            LinkLetter, Role, RefSectionRegistry, DeptSectionUsage
+            LinkLetter, Role, RefSectionRegistry, DeptSectionUsage, AuditLog
         ];
 
         for (const model of models) {

@@ -100,6 +100,7 @@ export default function MasterTable() {
   const [isDragging, setIsDragging] = useState(false);
 
   const [authorizedSuggestions, setAuthorizedSuggestions] = useState([]);
+  const [highlightedEndorseIndex, setHighlightedEndorseIndex] = useState(-1);
   const [showAuthorizedSuggestions, setShowAuthorizedSuggestions] = useState(false);
   const [highlightedAuthIndex, setHighlightedAuthIndex] = useState(-1);
   const authorizedRef = useRef(null);
@@ -333,6 +334,28 @@ export default function MasterTable() {
     }
   };
 
+  const handleEndorseKeyDown = (e) => {
+    if (!endorseSuggestions || endorseSuggestions.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showEndorseSuggestions) setShowEndorseSuggestions(true);
+      setHighlightedEndorseIndex((prev) => Math.min(prev < 0 ? 0 : prev + 1, endorseSuggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedEndorseIndex((prev) => Math.max(prev < 0 ? 0 : prev - 1, 0));
+    } else if (e.key === "Enter" && showEndorseSuggestions) {
+      e.preventDefault();
+      const picked = endorseSuggestions[highlightedEndorseIndex < 0 ? 0 : highlightedEndorseIndex];
+      if (picked) {
+        setSelectedLetter({ ...selectedLetter, endorse_to: picked.name });
+        setShowEndorseSuggestions(false);
+      }
+    } else if (e.key === "Escape") {
+      setShowEndorseSuggestions(false);
+    }
+  };
+
   const handleDelete = async (id) => {
     if (
       !window.confirm(
@@ -450,7 +473,7 @@ export default function MasterTable() {
     return true;
   };
 
-  const updateDetailsInternal = async () => {
+  const updateDetailsInternal = async (forceCombine = null) => {
     if (!selectedLetter.currentStepId) {
       setValidationError(
         "Please select a valid Stage (e.g. FOR REVIEW, FOR SIGNATURE, VEM LETTER) before saving.",
@@ -458,43 +481,68 @@ export default function MasterTable() {
       return null;
     }
 
-    const isAtgOrIncoming = selectedLetter.global_status
-      ? [1, 2].includes(selectedLetter.global_status)
-      : ["Incoming", "ATG Note"].includes(selectedLetter.status?.status_name);
-
-    if (
-      !isAtgOrIncoming &&
-      (!selectedLetter.tray_id || selectedLetter.tray_id <= 0)
-    ) {
-      alert("Please assign a tray first.");
-      return null;
-    }
-
     let updatedLetter = { ...selectedLetter };
+    const activeCombining = forceCombine !== null ? forceCombine : isCombining;
 
     // 0. Handle File Upload if newFile is present
     if (newFile) {
       const formData = new FormData();
       formData.append("file", newFile);
-      formData.append("no_record", "true");
 
-      // Auto-combine if there is an existing attachment
-      if (selectedLetter.scanned_copy) {
-        formData.append("existing_path", selectedLetter.scanned_copy);
-      } else if (selectedLetter.attachment_id) {
-        formData.append("combine_with", selectedLetter.attachment_id);
+      if (activeCombining) {
+        // Instead of merging physically, we upload it as a separate attachment and link it
+        formData.append("no_record", "false"); 
+        formData.append("attachment_name", newFile.name);
+        formData.append("dept_id", user?.dept_id?.id || user?.dept_id || null);
+
+        const uploadRes = await axios.post(
+          `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/upload`,
+          formData,
+          { headers: { "Content-Type": "multipart/form-data" } }
+        );
+
+        const newAttachmentId = uploadRes.data.id;
+        const currentIds = updatedLetter.attachment_id ? String(updatedLetter.attachment_id).split(',').filter(id => id.trim()) : [];
+        currentIds.unshift(newAttachmentId);
+        updatedLetter.attachment_id = currentIds.join(',');
+      } else {
+        // Overwrite flow: delete ALL old physical files (primary and secondary)
+        if (selectedLetter.scanned_copy) {
+          try {
+            await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/letters/${selectedLetter.id}/scanned-copy`);
+          } catch (e) {
+            console.warn("Could not delete old scanned_copy prior to replace:", e);
+          }
+        }
+
+        // Also delete all secondary attachments linked to this letter
+        if (selectedLetter.attachment_id) {
+          const ids = String(selectedLetter.attachment_id).split(',').filter(id => id.trim());
+          for (const id of ids) {
+            try {
+              await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/${id}`);
+            } catch (e) {
+              console.warn(`Could not delete attachment ${id}:`, e);
+            }
+          }
+        }
+        
+        formData.append("no_record", "true");
+        const uploadRes = await axios.post(
+          `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/upload`,
+          formData,
+          { headers: { "Content-Type": "multipart/form-data" } }
+        );
+        updatedLetter.scanned_copy = uploadRes.data.file_path;
+        updatedLetter.attachment_id = null; // Clear all secondary links
       }
-
-      const uploadRes = await axios.post(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/upload`,
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
-
-      updatedLetter.scanned_copy = uploadRes.data.file_path;
     }
+
+    console.log("Saving updated letter:", { 
+      id: updatedLetter.id, 
+      scanned_copy: updatedLetter.scanned_copy, 
+      attachment_id: updatedLetter.attachment_id 
+    });
 
     // 1. Update core letter details with user context for logging
     const shouldMarkPending =
@@ -548,13 +596,30 @@ export default function MasterTable() {
     return updatedLetter;
   };
 
-  const handleUpdateDetails = async () => {
+  const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null); // 'save' or 'save-endorse'
+
+  const handleUpdateDetails = async (forceOverwrite = false, forceCombine = null) => {
+    // Validation: If files exist and we are NOT combining, ask for confirmation
+    const hasExistingFiles = (selectedLetter?.scanned_copy && selectedLetter.scanned_copy.trim() !== "") || 
+                             (selectedLetter?.attachment_id && String(selectedLetter.attachment_id).trim() !== "");
+                             
+    const activeCombining = forceCombine !== null ? forceCombine : isCombining;
+
+    if (newFile && !activeCombining && hasExistingFiles && !forceOverwrite) {
+      setPendingAction('save');
+      setShowOverwriteConfirm(true);
+      return;
+    }
+
     try {
       setLoading(true);
-      const updated = await updateDetailsInternal();
+      const updated = await updateDetailsInternal(forceCombine);
       if (!updated) return;
       resetDrawerState();
       fetchData();
+      setShowOverwriteConfirm(false);
+      setPendingAction(null);
     } catch (error) {
       console.error("Update failed", error);
       const errMsg =
@@ -566,6 +631,47 @@ export default function MasterTable() {
       setLoading(false);
     }
   };
+
+  const handleDeleteFile = async (type, specificId = null) => {
+    if (!window.confirm("Are you sure you want to delete this file? This action cannot be undone.")) return;
+    
+    try {
+      setLoading(true);
+      if (type === 'primary') {
+        await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/letters/${selectedLetter.id}/scanned-copy`);
+        setSelectedLetter(prev => ({ ...prev, scanned_copy: null }));
+      } else if (type === 'secondary') {
+        if (specificId) {
+          // 1. Delete physical file & record via AttachmentController
+          await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/${specificId}`);
+          
+          // 2. Remove from the letter's comma-separated list
+          const currentIds = String(selectedLetter.attachment_id || "").split(',').filter(id => id.trim() !== String(specificId));
+          const newAttachmentId = currentIds.length > 0 ? currentIds.join(',') : null;
+          
+          await letterService.update(selectedLetter.id, { attachment_id: newAttachmentId });
+          setSelectedLetter(prev => ({ ...prev, attachment_id: newAttachmentId }));
+        } else {
+          // Delete all (fallback)
+          const ids = String(selectedLetter.attachment_id || "").split(',');
+          for (const aid of ids) {
+            if (aid.trim()) {
+              await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/${aid.trim()}`);
+            }
+          }
+          await letterService.update(selectedLetter.id, { attachment_id: null });
+          setSelectedLetter(prev => ({ ...prev, attachment_id: null }));
+        }
+      }
+      fetchData();
+    } catch (error) {
+      console.error("Failed to delete file", error);
+      alert("Failed to delete file. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const handleEndorseOnly = async () => {
     if (!selectedLetter?.id) return;
@@ -588,15 +694,29 @@ export default function MasterTable() {
     }
   };
 
-  const handleSaveAndEndorse = async () => {
+  const handleSaveAndEndorse = async (forceOverwrite = false, forceCombine = null) => {
+    // Validation: If files exist and we are NOT combining, ask for confirmation
+    const hasExistingFiles = (selectedLetter?.scanned_copy && selectedLetter.scanned_copy.trim() !== "") || 
+                             (selectedLetter?.attachment_id && String(selectedLetter.attachment_id).trim() !== "");
+
+    const activeCombining = forceCombine !== null ? forceCombine : isCombining;
+
+    if (newFile && !activeCombining && hasExistingFiles && !forceOverwrite) {
+      setPendingAction('save-endorse');
+      setShowOverwriteConfirm(true);
+      return;
+    }
+
     try {
       setLoading(true);
-      const updated = await updateDetailsInternal();
+      const updated = await updateDetailsInternal(forceCombine);
       if (!updated) return;
       const ok = await createEndorsement(updated.id);
       if (!ok) return;
       resetDrawerState();
       fetchData();
+      setShowOverwriteConfirm(false);
+      setPendingAction(null);
       navigate("/endorsements");
     } catch (error) {
       console.error("Save and endorse failed", error);
@@ -623,33 +743,22 @@ export default function MasterTable() {
   };
 
   const handleViewPDF = (letter) => {
-    if (letter.scanned_copy) {
-      // Use a more robust base64 encoding for paths with special characters
-      const pathValue = letter.scanned_copy;
-      const encodedPath = btoa(unescape(encodeURIComponent(pathValue)));
-      // Prioritize current origin if VITE_API_URL is relative
-      const baseUrl =
-        import.meta.env.VITE_API_URL &&
-          import.meta.env.VITE_API_URL.startsWith("http")
-          ? import.meta.env.VITE_API_URL
-          : window.location.origin + (import.meta.env.VITE_API_URL || "/api");
-
-      window.open(
-        `${baseUrl}/attachments/view-path?path=${encodedPath}`,
-        "_blank",
-      );
-    } else if (letter.attachment_id) {
-      const baseUrl =
-        import.meta.env.VITE_API_URL &&
-          import.meta.env.VITE_API_URL.startsWith("http")
-          ? import.meta.env.VITE_API_URL
-          : window.location.origin + (import.meta.env.VITE_API_URL || "/api");
-      window.open(
-        `${baseUrl}/attachments/view/${letter.attachment_id}`,
-        "_blank",
-      );
-    } else {
+    if (!letter.scanned_copy && !letter.attachment_id) {
       alert("No document available to view.");
+      return;
+    }
+    if (!letter.scanned_copy && !letter.attachment_id) return;
+    const apiBase =
+      import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+    // Use combined view if there are multiple parts (or forced merge)
+    if ((letter.scanned_copy && letter.attachment_id) || (letter.attachment_id && String(letter.attachment_id).includes(','))) {
+      window.open(`${apiBase}/attachments/view-combined/${letter.id}`, "_blank");
+    } else {
+      const url = letter.scanned_copy
+        ? `${apiBase}/attachments/view-path?path=${btoa(letter.scanned_copy)}`
+        : `${apiBase}/attachments/view/${letter.attachment_id}`;
+      window.open(url, "_blank");
     }
   };
 
@@ -1241,9 +1350,18 @@ export default function MasterTable() {
               className={`p-8 border-b ${"border-gray-50 dark:border-[#222]"} flex items-center justify-between`}
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-900/10 flex items-center justify-center text-red-500">
+                <button
+                  onClick={() => handleViewPDF(selectedLetter)}
+                  disabled={!selectedLetter?.scanned_copy && !selectedLetter?.attachment_id}
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+                    (selectedLetter?.scanned_copy || selectedLetter?.attachment_id)
+                      ? "bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white shadow-lg shadow-red-500/20 cursor-pointer"
+                      : "bg-gray-50 dark:bg-white/5 text-gray-300 opacity-50 cursor-not-allowed"
+                  }`}
+                  title="View Combined PDF"
+                >
                   <FileText className="w-6 h-6" />
-                </div>
+                </button>
                 <div>
                   <h2
                     className={`text-xl font-black uppercase tracking-tight ${textColor}`}
@@ -1364,49 +1482,7 @@ export default function MasterTable() {
 
                 {/* Detailed Fields */}
                 <div className="space-y-4 pt-4 px-2">
-                  {canDepartmentSelector && (
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                        Tray{" "}
-                        {!(selectedLetter.global_status
-                          ? [1, 2].includes(selectedLetter.global_status)
-                          : ["Incoming", "ATG Note"].includes(
-                            selectedLetter.status?.status_name,
-                          )) && <span className="text-red-500">*</span>}
-                      </label>
-                      <select
-                        value={selectedLetter.tray_id || ""}
-                        onChange={(e) => {
-                          setSelectedLetter({
-                            ...selectedLetter,
-                            tray_id:
-                              e.target.value === ""
-                                ? null
-                                : parseInt(e.target.value),
-                          });
-                          setValidationError("");
-                        }}
-                        style={{ backgroundColor: "white", color: "black" }}
-                        className="w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm"
-                      >
-                        <option
-                          value=""
-                          style={{ color: "black", backgroundColor: "white" }}
-                        >
-                          -- No Tray Assigned --
-                        </option>
-                        {trays.map((t) => (
-                          <option
-                            key={t.id}
-                            value={t.id}
-                            style={{ color: "black", backgroundColor: "white" }}
-                          >
-                            {t.tray_no}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+
 
                   {canStatusDropdown && (
                     <div className="space-y-1">
@@ -1577,12 +1653,16 @@ export default function MasterTable() {
                             });
                             fetchEndorseSuggestions(e.target.value);
                           }}
+                          onKeyDown={handleEndorseKeyDown}
+                          onFocus={() => {
+                             if (selectedLetter.endorse_to?.length >= 2) fetchEndorseSuggestions(selectedLetter.endorse_to);
+                          }}
                           className="w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-400/30 bg-white border-orange-100 text-gray-900 shadow-sm"
                         />
                         {showEndorseSuggestions &&
                           endorseSuggestions.length > 0 && (
                             <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl overflow-hidden max-h-40 overflow-y-auto">
-                              {endorseSuggestions.map((p) => (
+                              {endorseSuggestions.map((p, idx) => (
                                 <button
                                   key={p.id}
                                   type="button"
@@ -1593,7 +1673,8 @@ export default function MasterTable() {
                                     });
                                     setShowEndorseSuggestions(false);
                                   }}
-                                  className="w-full text-left px-4 py-2.5 text-sm font-bold text-gray-900 dark:text-white hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-colors"
+                                  onMouseEnter={() => setHighlightedEndorseIndex(idx)}
+                                  className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-colors ${idx === highlightedEndorseIndex ? "bg-orange-50 text-orange-600 dark:bg-orange-900/10" : "text-gray-900 dark:text-white hover:bg-orange-50 dark:hover:bg-orange-900/10"}`}
                                 >
                                   {p.name}
                                 </button>
@@ -1801,13 +1882,20 @@ export default function MasterTable() {
                           <Paperclip className="w-3 h-3" /> Digital Attachment
                         </label>
 
-                        {/* Auto-combining indicator */}
-                        {(selectedLetter.attachment_id ||
-                          selectedLetter.scanned_copy) && (
-                            <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/30">
-                              Will Auto-Combine
+                        {/* Combine Checkbox */}
+                        {(selectedLetter.attachment_id || selectedLetter.scanned_copy) && (
+                          <label className="flex items-center gap-2 cursor-pointer bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-900/30 transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900/40">
+                            <input
+                              type="checkbox"
+                              checked={isCombining}
+                              onChange={(e) => setIsCombining(e.target.checked)}
+                              className="w-3.5 h-3.5 text-indigo-500 rounded border-gray-300 focus:ring-indigo-500"
+                            />
+                            <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
+                              Combine PDF
                             </span>
-                          )}
+                          </label>
+                        )}
                       </div>
 
                       <div
@@ -1842,52 +1930,125 @@ export default function MasterTable() {
                           <p
                             className={`text-xs font-black uppercase tracking-tight ${textColor}`}
                           >
-                            {newFile ? newFile.name : "Select PDF File"}
+                            {newFile ? newFile.name : (isCombining ? "Select PDF to Merge" : "Select PDF to Replace")}
                           </p>
                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
                             {newFile
                               ? (newFile.size / 1024 / 1024).toFixed(2) + " MB"
-                              : "Drag or click to upload new document"}
+                              : "Drag or click to upload document"}
                           </p>
                         </div>
                       </div>
 
-                      {/* Current / Selected Attachment Info */}
-                      {selectedLetter.scanned_copy && (
-                        <div
-                          className={`p-4 mb-4 rounded-2xl border ${"bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20"} flex items-center justify-between`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
-                              <FileText className="w-5 h-5" />
+                      {/* Uploaded Files List */}
+                      {(selectedLetter.scanned_copy || selectedLetter.attachment_id) && (
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">
+                            Uploaded Files
+                          </label>
+                          
+                          {/* Primary File (Scanned Copy) */}
+                          {selectedLetter.scanned_copy && (
+                            <div className={`p-4 rounded-2xl border ${"bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20"} flex items-center justify-between`}>
+                              <div className="flex items-center gap-3 truncate pr-4">
+                                <div className="w-10 h-10 shrink-0 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
+                                  <FileText className="w-5 h-5" />
+                                </div>
+                                <div className="truncate">
+                                  <div className="flex items-center gap-2">
+                                    <p className={`text-xs font-black uppercase tracking-tight truncate ${textColor}`}>
+                                      {selectedLetter.scanned_copy.split(/[\\/]/).pop()}
+                                    </p>
+                                    <span className="text-[8px] font-bold text-blue-500 bg-blue-100 dark:bg-blue-900/30 px-1.5 py-0.5 rounded uppercase tracking-widest shrink-0">
+                                      Primary
+                                    </span>
+                                  </div>
+                                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate mt-0.5">
+                                    Main Letter Document
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {canPdf && (
+                                  <button
+                                    onClick={(e) => { e.preventDefault(); handleViewPDF(selectedLetter); }}
+                                    className="p-2.5 rounded-xl bg-white dark:bg-white/5 text-blue-500 hover:bg-blue-500 hover:text-white border border-blue-100 dark:border-white/10 transition-all shadow-sm"
+                                    title="View Scan"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                )}
+                                {canDelete && (
+                                  <button
+                                    onClick={(e) => { e.preventDefault(); handleDeleteFile('primary', null); }}
+                                    className="p-2.5 rounded-xl bg-white dark:bg-white/5 text-red-500 hover:bg-red-500 hover:text-white border border-red-100 dark:border-white/10 transition-all shadow-sm"
+                                    title="Delete Primary File"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <p
-                                className={`text-xs font-black uppercase tracking-tight ${textColor}`}
-                              >
-                                Scan
-                              </p>
-                              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest line-clamp-1">
-                                {selectedLetter.scanned_copy
-                                  .split(/[\\/]/)
-                                  .pop()}
-                              </p>
-                            </div>
-                          </div>
-                          {canPdf && (
-                            <button
-                              onClick={() => handleViewPDF(selectedLetter)}
-                              className="p-2.5 rounded-xl bg-white dark:bg-white/5 text-blue-500 hover:bg-blue-500 hover:text-white border border-blue-100 dark:border-white/10 transition-all shadow-sm"
-                              title="View Scan"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
                           )}
+
+                          {/* Secondary Files (Attachment ID - comma separated) */}
+                          {selectedLetter.attachment_id && String(selectedLetter.attachment_id).split(',').map((id) => {
+                            const aid = id.trim();
+                            if (!aid) return null;
+                            const att = attachments.find((a) => String(a.id) === aid);
+                            return (
+                              <div key={aid} className={`p-4 rounded-2xl border ${"bg-orange-50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/20"} flex items-center justify-between`}>
+                                <div className="flex items-center gap-3 truncate pr-4">
+                                  <div className="w-10 h-10 shrink-0 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/20">
+                                    <FileText className="w-5 h-5" />
+                                  </div>
+                                  <div className="truncate">
+                                    <div className="flex items-center gap-2">
+                                      <p className={`text-xs font-black uppercase tracking-tight truncate ${textColor}`}>
+                                        {att?.attachment_name || `Attachment ID: ${aid}`}
+                                      </p>
+                                      <span className="text-[8px] font-bold text-orange-500 bg-orange-100 dark:bg-orange-900/30 px-1.5 py-0.5 rounded uppercase tracking-widest shrink-0">
+                                        Secondary
+                                      </span>
+                                    </div>
+                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate mt-0.5">
+                                      {att?.description || "Reference Content"}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {canPdf && (
+                                    <button
+                                      onClick={(e) => { 
+                                        e.preventDefault(); 
+                                        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+                                        window.open(`${apiBase}/attachments/view/${aid}`, '_blank');
+                                      }}
+                                      className="p-2.5 rounded-xl bg-white dark:bg-white/5 text-orange-500 hover:bg-orange-500 hover:text-white border border-orange-100 dark:border-white/10 transition-all shadow-sm"
+                                      title="View Secondary Document"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  {canDelete && (
+                                    <button
+                                      onClick={(e) => { e.preventDefault(); handleDeleteFile('secondary', aid); }}
+                                      className="p-2.5 rounded-xl bg-white dark:bg-white/5 text-red-500 hover:bg-red-500 hover:text-white border border-red-100 dark:border-white/10 transition-all shadow-sm"
+                                      title="Delete Secondary File"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
-                      <div className="flex flex-col gap-2">
+
+                      <div className="flex flex-col gap-2 pt-2 border-t border-dashed border-gray-100 dark:border-[#222]">
                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                          Link
+                          Link Reference File
                         </label>
                         <select
                           value={selectedLetter.attachment_id || ""}
@@ -1926,42 +2087,6 @@ export default function MasterTable() {
                           ))}
                         </select>
                       </div>
-
-                      {selectedLetter.attachment_id && (
-                        <div
-                          className={`p-4 rounded-2xl border ${"bg-orange-50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/20"} flex items-center justify-between`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/20">
-                              <FileText className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <p
-                                className={`text-xs font-black uppercase tracking-tight ${textColor}`}
-                              >
-                                {attachments.find(
-                                  (a) => a.id === selectedLetter.attachment_id,
-                                )?.attachment_name ||
-                                  `Attachment ID: ${selectedLetter.attachment_id}`}
-                              </p>
-                              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                                {attachments.find(
-                                  (a) => a.id === selectedLetter.attachment_id,
-                                )?.description || "Reference Content"}
-                              </p>
-                            </div>
-                          </div>
-                          {canPdf && (
-                            <button
-                              onClick={() => handleViewPDF(selectedLetter)}
-                              className="p-2.5 rounded-xl bg-white dark:bg-white/5 text-orange-500 hover:bg-orange-500 hover:text-white border border-orange-100 dark:border-white/10 transition-all shadow-sm"
-                              title="View Document"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -1984,7 +2109,7 @@ export default function MasterTable() {
             >
               {canSave && (
                 <button
-                  onClick={handleUpdateDetails}
+                  onClick={() => handleUpdateDetails(false)}
                   disabled={loading}
                   className="flex-1 py-4 px-6 rounded-2xl bg-orange-500 text-white text-xs font-black uppercase tracking-widest shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
@@ -1994,7 +2119,7 @@ export default function MasterTable() {
               )}
               {canSave && canEndorse && (
                 <button
-                  onClick={handleSaveAndEndorse}
+                  onClick={() => handleSaveAndEndorse(false)}
                   disabled={loading}
                   className="flex-1 py-4 px-6 rounded-2xl bg-emerald-600 text-white text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
@@ -2355,6 +2480,54 @@ export default function MasterTable() {
                   );
                 })
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Overwrite Confirmation Modal */}
+      {showOverwriteConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-[#0D0D0D] w-full max-w-md rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-white/5 overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-8">
+              <div className="w-16 h-16 rounded-3xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center mx-auto mb-6">
+                <AlertCircle className="w-8 h-8 text-orange-500" />
+              </div>
+              <h3 className={`text-xl font-black uppercase tracking-tight text-center mb-2 ${textColor}`}>
+                Existing Files Detected
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center leading-relaxed mb-8">
+                This record already has attached documents. Would you like to replace all existing files with the new one, or merge it into the current collection?
+              </p>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    if (pendingAction === 'save-endorse') handleSaveAndEndorse(true, false);
+                    else handleUpdateDetails(true, false);
+                  }}
+                  className="w-full py-4 rounded-2xl bg-red-500 text-white font-black uppercase tracking-widest text-xs hover:bg-red-600 transition-all shadow-lg shadow-red-500/20 active:scale-[0.98]"
+                >
+                  Replace All Files
+                </button>
+                <button
+                  onClick={() => {
+                    if (pendingAction === 'save-endorse') handleSaveAndEndorse(true, true);
+                    else handleUpdateDetails(true, true);
+                  }}
+                  className="w-full py-4 rounded-2xl bg-[#064e3b] text-white font-black uppercase tracking-widest text-xs hover:bg-[#064e3b]/90 transition-all shadow-lg shadow-[#064e3b]/20 active:scale-[0.98]"
+                >
+                  Merge with Existing
+                </button>
+                <button
+                  onClick={() => {
+                    setShowOverwriteConfirm(false);
+                    setPendingAction(null);
+                  }}
+                  className="w-full py-4 rounded-2xl bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest text-xs hover:bg-gray-100 dark:hover:bg-white/10 transition-all active:scale-[0.98]"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
