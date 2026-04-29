@@ -79,7 +79,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                 const todayStart = new Date(now);
                 todayStart.setHours(0, 0, 0, 0);
                 start = todayStart.toISOString();
-                
+
                 const todayEnd = new Date(now);
                 todayEnd.setHours(23, 59, 59, 999);
                 params.end_date = todayEnd.toISOString();
@@ -116,7 +116,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
             console.log("[RESUMEN] Fetching with params:", params);
             const response = await letterService.getAll(params);
             console.log("[RESUMEN] API Response:", response);
-            
+
             // Handle both { data: [...] } and [...] response formats
             let letterArray = [];
             if (response && Array.isArray(response.data)) {
@@ -385,8 +385,8 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
     const printHeaderStyle = (() => {
         if (!selectedStepId) return { bg: 'transparent', text: 'text-slate-900' };
         const label = selectedStepLabel.toLowerCase();
-        if (label.includes('signature')) return { bg: '#D1FAE5', text: 'text-slate-900' };
-        if (label.includes('review')) return { bg: '#BDC7C1', text: 'text-slate-900' };
+        if (label.includes('signature')) return { bg: '#e2efda', text: 'text-slate-900' };
+        if (label.includes('review')) return { bg: '#b7b7b7', text: 'text-slate-900' };
         return { bg: 'transparent', text: 'text-slate-900' };
     })();
 
@@ -628,7 +628,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                         </div>
 
                                         <div className="text-right flex flex-col items-end gap-1 ml-auto">
-                                            <button 
+                                            <button
                                                 onClick={fetchIncomingLetters}
                                                 disabled={isFetching}
                                                 className="mb-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
@@ -646,10 +646,10 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                     <table className="w-full text-left border-collapse print:border print:border-slate-300">
                                         <thead>
                                             <tr className="border-b-2 border-slate-100 dark:border-white/10 print:border-slate-300" style={{ backgroundColor: printHeaderStyle.bg }}>
-                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-12 print:text-slate-900">No.</th>
-                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-32 print:text-slate-900">Date & Time</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-12 print:text-slate-900 whitespace-nowrap">No.</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-40 print:text-slate-900 whitespace-nowrap">Date & Time</th>
                                                 <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-24 print:text-slate-900">ATG No.</th>
-                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-20 print:text-slate-900">Attach<br/>ment</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-20 print:text-slate-900">Attach<br />ment</th>
                                                 <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Sender</th>
                                                 <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Letter Summary</th>
                                                 <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:hidden text-right">Remove</th>
@@ -669,7 +669,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                 filteredLetters.map((l, idx) => (
                                                     <tr key={l.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/2 transition-colors print:border-slate-300">
                                                         <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300 text-xs font-black text-slate-400 print:text-slate-900">{idx + 1}</td>
-                                                        <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300">
+                                                        <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300 whitespace-nowrap">
                                                             <div className="flex flex-col text-[10px] font-bold text-slate-500 print:text-slate-900">
                                                                 <span>{new Date(l.date_received || l.createdAt).toLocaleDateString()}</span>
                                                                 <span className="text-orange-500 font-black">{new Date(l.date_received || l.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
@@ -680,7 +680,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                             {(() => {
                                                                 const hasFile = l.scanned_copy || l.attachment_id || l.attachment?.file_path;
                                                                 if (!hasFile) return <span className="text-[10px] font-bold text-slate-300 uppercase">None</span>;
- 
+
                                                                 return (
                                                                     <button
                                                                         onClick={() => handleViewPDF(l)}
@@ -692,7 +692,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                                 );
                                                             })()}
                                                             <span className="hidden print:inline text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                                                                {(l.scanned_copy || l.attachment_id || l.attachment?.file_path) ? 'Available' : 'No File'}
+                                                                {(l.scanned_copy || l.attachment_id || l.attachment?.file_path) ? 'Available' : ''}
                                                             </span>
                                                         </td>
                                                         <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300">
@@ -816,8 +816,9 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
 
                         /* Ensure clean text and allow background colors */
                         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-                        .text-blue-600 { color: #2563eb !important; }
-                        .text-orange-500 { color: #f97316 !important; }
+                        /* Force black text for all table elements in print */
+                        .print-footer, table, th, td, span, div, h2, h1 { color: black !important; }
+                        .text-blue-600, .text-orange-500 { color: black !important; }
 
                         /* Fixed bottom-left footer */
                         #print-footer {
