@@ -46,6 +46,7 @@ services:
     volumes:
       - ./directus/database:/directus/database
       - ./backend/uploads:/app/uploads
+      - ./scripts:/app/scripts
     networks:
       - lms-net
     environment:

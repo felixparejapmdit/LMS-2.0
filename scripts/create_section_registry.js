@@ -1,4 +1,12 @@
-const sequelize = require('../backend/src/config/db');
+const path = require('path');
+const fs = require('fs');
+
+// Dynamic path resolution for Docker vs Host
+const dbPath = fs.existsSync(path.join(__dirname, '../src/config/db.js')) 
+    ? '../src/config/db' 
+    : '../backend/src/config/db';
+
+const sequelize = require(dbPath);
 
 async function run() {
     try {

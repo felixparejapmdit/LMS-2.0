@@ -1,19 +1,24 @@
 #!/bin/bash
 
-# This script runs the database migration scripts
+# This script runs the database migration scripts inside the lms-backend container
 # Usage: ./scripts/setup_db.sh
 
-# Get the directory where the script is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-PROJECT_ROOT="$SCRIPT_DIR/.."
+echo "------------------------------------------------"
+echo "LMS 2.0 - Database Migration Utility (Docker)"
+echo "------------------------------------------------"
 
-echo "------------------------------------------------"
-echo "LMS 2.0 - Database Migration Utility"
-echo "------------------------------------------------"
+# Check if the container is running
+CONTAINER_NAME="lms-backend"
+
+if ! docker ps --format '{{.Names}}' | grep -q "$CONTAINER_NAME"; then
+    echo "Error: Container '$CONTAINER_NAME' is not running."
+    echo "Please ensure your docker containers are up: 'docker compose up -d'"
+    exit 1
+fi
 
 # 1. Add Hidden Fields and Authorized Users
 echo "[1/2] Updating letters table (is_hidden, authorized_users)..."
-node "$PROJECT_ROOT/scripts/add_hidden_fields.js"
+docker exec $CONTAINER_NAME node scripts/add_hidden_fields.js
 
 if [ $? -eq 0 ]; then
     echo "Done."
@@ -26,7 +31,7 @@ echo ""
 
 # 2. Create Section Registry
 echo "[2/2] Creating Section Registry tables..."
-node "$PROJECT_ROOT/scripts/create_section_registry.js"
+docker exec $CONTAINER_NAME node scripts/create_section_registry.js
 
 if [ $? -eq 0 ]; then
     echo "Done."
