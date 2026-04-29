@@ -18,6 +18,9 @@ const { Op } = require("sequelize");
 const SectionService = require("../services/SectionService");
 const TelegramService = require("../services/telegramService");
 
+const isValidId = (id) =>
+  id && id !== "all" && id !== "null" && id !== "undefined" && id !== "";
+
 class LetterController {
   static async getAll(req, res) {
     try {
@@ -39,8 +42,7 @@ class LetterController {
       const offset = (parseInt(page) - 1) * parseInt(limit);
       const queryLimit = parseInt(limit);
 
-      const isValidId = (id) =>
-        id && id !== "all" && id !== "null" && id !== "undefined" && id !== "";
+
       const isSpecificDept = isValidId(department_id) || isValidId(dept_id);
       const targetDeptId = isValidId(department_id)
         ? department_id

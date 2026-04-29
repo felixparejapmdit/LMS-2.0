@@ -81,6 +81,9 @@ export default function NewLetter() {
   const [attachmentSearch, setAttachmentSearch] = useState("");
   const [showAttachmentResults, setShowAttachmentResults] = useState(false);
   const attachmentSearchRef = useRef(null);
+  const [deptSearch, setDeptSearch] = useState("");
+  const [showDeptResults, setShowDeptResults] = useState(false);
+  const deptSearchRef = useRef(null);
 
   const [scannedFiles, setScannedFiles] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -88,6 +91,7 @@ export default function NewLetter() {
   const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
   const fileInputRef = useRef(null);
   const suggestionRef = useRef(null);
+  const regardingRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const authorizedRef = useRef(null);
 
@@ -107,6 +111,20 @@ export default function NewLetter() {
   const canSave = canField("new-letter", "save_button");
   const canPrintQR = canField("new-letter", "print_qr_button");
   const canEncoderField = canField("new-letter", "encoder_field");
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        deptSearchRef.current &&
+        !deptSearchRef.current.contains(event.target)
+      ) {
+        setShowDeptResults(false);
+        setDeptSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const [activeField, setActiveField] = useState(null);
 
@@ -397,6 +415,8 @@ export default function NewLetter() {
     }
     setShowSuggestions(false);
     setHighlightedSuggestionIndex(-1);
+    // Focus the subject/regarding field after selecting a suggestion
+    setTimeout(() => regardingRef.current?.focus(), 50);
   };
 
   const scrollHighlightedSuggestionIntoView = (index) => {
@@ -411,16 +431,20 @@ export default function NewLetter() {
 
   const handleSenderKeyDown = (e) => {
     if (activeField !== "sender") return;
-    if (!suggestions || suggestions.length === 0) return;
+
+    if (!suggestions || suggestions.length === 0) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        regardingRef.current?.focus();
+      }
+      return;
+    }
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (!showSuggestions) setShowSuggestions(true);
       setHighlightedSuggestionIndex((prev) => {
-        const next = Math.min(
-          prev < 0 ? 0 : prev + 1,
-          suggestions.length - 1,
-        );
+        const next = Math.min(prev < 0 ? 0 : prev + 1, suggestions.length - 1);
         scrollHighlightedSuggestionIntoView(next);
         return next;
       });
@@ -439,12 +463,19 @@ export default function NewLetter() {
     }
 
     if (e.key === "Enter" && showSuggestions) {
-      const idx = highlightedSuggestionIndex < 0 ? 0 : highlightedSuggestionIndex;
+      const idx =
+        highlightedSuggestionIndex < 0 ? 0 : highlightedSuggestionIndex;
       const picked = suggestions[idx];
       if (picked) {
         e.preventDefault();
         selectSuggestion(picked.name);
       }
+      return;
+    }
+
+    if (e.key === "Enter" && !showSuggestions) {
+      e.preventDefault();
+      regardingRef.current?.focus();
       return;
     }
 
@@ -454,6 +485,7 @@ export default function NewLetter() {
       setHighlightedSuggestionIndex(-1);
     }
   };
+
 
   const fetchAuthorizedSuggestions = async (query) => {
     if (!query || query.length < 2) {
@@ -805,27 +837,98 @@ export default function NewLetter() {
                         Required
                       </span>
                     </label>
-                    <div className="relative">
-                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 pointer-events-none" />
-                      <select
-                        value={selectedDept}
-                        onChange={(e) => {
-                          const nextDeptId = e.target.value;
-                          setSelectedDept(nextDeptId);
-                          setFormData((prev) => ({
-                            ...prev,
-                            assigned_dept: nextDeptId,
-                          }));
-                        }}
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-orange-500 transition-all ${"bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300 uppercase"}`}
+                    <div className="relative" ref={deptSearchRef}>
+                      {/* Custom Searchable Dropdown Toggle */}
+                      <div
+                        onClick={() => setShowDeptResults(!showDeptResults)}
+                        className={`w-full px-4 py-2.5 rounded-xl border transition-all outline-none text-xs font-black flex items-center justify-between cursor-pointer ${"bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] hover:border-orange-500/50 uppercase"}`}
                       >
-                        <option value="">Select Department</option>
-                        {departments.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.dept_name}
-                          </option>
-                        ))}
-                      </select>
+                        <div className="flex items-center gap-2 truncate pr-4">
+                          <Building2 className="w-4 h-4 text-gray-300 pointer-events-none" />
+                          <span className="truncate">
+                            {selectedDept
+                              ? departments.find(
+                                  (d) => String(d.id) === String(selectedDept),
+                                )?.dept_name || "Department Selected"
+                              : "Select Department"}
+                          </span>
+                        </div>
+                        <ChevronDown
+                          className={`w-4 h-4 transition-transform text-gray-400 ${showDeptResults ? "rotate-180" : ""}`}
+                        />
+                      </div>
+
+                      {/* Dropdown Menu */}
+                      {showDeptResults && (
+                        <div
+                          className={`absolute shadow-2xl z-[120] w-full mt-1 max-h-64 overflow-y-auto rounded-xl border animate-in fade-in slide-in-from-top-1 overflow-hidden ${"bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]"}`}
+                        >
+                          {/* Internal Search Input */}
+                          <div className="p-2 border-b border-gray-50 dark:border-white/5 bg-gray-50/30 dark:bg-white/10">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                              <input
+                                type="text"
+                                placeholder="Search department..."
+                                className="w-full pl-9 pr-4 py-2 text-xs bg-white dark:bg-black/20 border border-gray-100 dark:border-[#333] rounded-lg outline-none focus:ring-2 focus:ring-orange-500/20"
+                                value={deptSearch}
+                                onChange={(e) => setDeptSearch(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                autoFocus
+                              />
+                            </div>
+                          </div>
+
+                          {/* Options List */}
+                          <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDept("");
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  assigned_dept: "",
+                                }));
+                                setShowDeptResults(false);
+                                setDeptSearch("");
+                              }}
+                              className={`w-full text-left px-4 py-2.5 text-[10px] font-black rounded-lg transition-colors flex items-center justify-between uppercase ${!selectedDept ? "bg-orange-50 dark:bg-orange-900/20 text-orange-600" : "text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5"}`}
+                            >
+                              <span>NONE</span>
+                              {!selectedDept && <Check className="w-3 h-3" />}
+                            </button>
+
+                            {departments
+                              .filter((d) =>
+                                (d.dept_name || "")
+                                  .toLowerCase()
+                                  .includes(deptSearch.toLowerCase()),
+                              )
+                              .map((d) => (
+                                <button
+                                  key={d.id}
+                                  type="button"
+                                  onClick={() => {
+                                    const nextId = String(d.id);
+                                    setSelectedDept(nextId);
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      assigned_dept: nextId,
+                                    }));
+                                    setDeptSearch("");
+                                    setShowDeptResults(false);
+                                  }}
+                                  className={`w-full text-left px-4 py-2.5 text-[10px] font-black rounded-lg transition-colors flex items-center justify-between uppercase ${String(selectedDept) === String(d.id) ? "bg-orange-50 dark:bg-orange-900/20 text-orange-600" : "text-slate-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5"}`}
+                                >
+                                  <span className="truncate">{d.dept_name}</span>
+                                  {String(selectedDept) === String(d.id) && (
+                                    <Check className="w-3 h-3" />
+                                  )}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -1046,6 +1149,7 @@ export default function NewLetter() {
                       </span>
                     </div>
                     <textarea
+                      ref={regardingRef}
                       rows="3"
                       required
                       value={formData.summary}

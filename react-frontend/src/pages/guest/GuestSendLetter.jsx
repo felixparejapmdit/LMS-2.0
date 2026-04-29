@@ -45,7 +45,9 @@ export default function GuestSendLetter() {
         kind: "",
     });
     const [attachmentSearch, setAttachmentSearch] = useState("");
+    const [deptSearch, setDeptSearch] = useState("");
     const [showAttachmentResults, setShowAttachmentResults] = useState(false);
+    const [showDeptResults, setShowDeptResults] = useState(false);
     const attachmentSearchRef = useRef(null);
     const [attachments, setAttachments] = useState([]);
     const [refAttachments, setRefAttachments] = useState([]);
@@ -60,8 +62,11 @@ export default function GuestSendLetter() {
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [isExitModalOpen, setIsExitModalOpen] = useState(false);
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+    const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
     const fileInputRef = useRef(null);
     const suggestionRef = useRef(null);
+    const regardingRef = useRef(null);
+    const deptSearchRef = useRef(null);
     const canField = access?.canField || (() => true);
     const canSenderField = canField("guest-send-letter", "sender_field");
     const canEncoderField = canField("guest-send-letter", "encoder_field");
@@ -101,6 +106,17 @@ export default function GuestSendLetter() {
             }
         };
         fetchDepts();
+    }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (deptSearchRef.current && !deptSearchRef.current.contains(event.target)) {
+                setShowDeptResults(false);
+                setDeptSearch("");
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
     useEffect(() => {
@@ -382,6 +398,8 @@ export default function GuestSendLetter() {
         }
         setShowSuggestions(false);
         setHighlightedSuggestionIndex(-1);
+        // Focus RE field after selection
+        setTimeout(() => regardingRef.current?.focus(), 50);
     };
 
     const scrollHighlightedSuggestionIntoView = (index) => {
@@ -391,10 +409,16 @@ export default function GuestSendLetter() {
             el.scrollIntoView({ block: "nearest" });
         }
     };
-
     const handleSuggestionKeyDown = (e, fieldKey) => {
         if (activeSenderIndex !== fieldKey) return;
-        if (!suggestions || suggestions.length === 0) return;
+
+        if (!suggestions || suggestions.length === 0) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                regardingRef.current?.focus();
+            }
+            return;
+        }
 
         if (e.key === "ArrowDown") {
             e.preventDefault();
@@ -424,7 +448,15 @@ export default function GuestSendLetter() {
             if (picked) {
                 e.preventDefault();
                 selectSuggestion(picked.name);
+                // After selecting, wait for state update then focus RE
+                setTimeout(() => regardingRef.current?.focus(), 50);
             }
+            return;
+        }
+
+        if (e.key === "Enter" && !showSuggestions) {
+            e.preventDefault();
+            regardingRef.current?.focus();
             return;
         }
 
@@ -515,25 +547,85 @@ export default function GuestSendLetter() {
                                 <div className="grid grid-cols-1 gap-6">
                                     {/* Department - Optional for everyone */}
                                     {canDepartmentSelector && (
-                                        <div className="space-y-3">
+                                        <div className="space-y-3" ref={deptSearchRef}>
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
                                                     <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
                                                 </div>
                                                 <span className="text-[9px] text-gray-400 font-bold tracking-widest">OPTIONAL</span>
                                             </label>
-                                            <select
-                                                value={selectedDeptId}
-                                                onChange={(e) => setSelectedDeptId(e.target.value)}
-                                                className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
-                                            >
-                                                <option value="">Select department...</option>
-                                                {departments.map((d) => (
-                                                    <option key={d.id} value={d.id}>
-                                                        {d.dept_name || d.name || d.department_name || `Department ${d.id}`}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            
+                                            <div className="relative">
+                                                {/* Custom Searchable Dropdown Toggle */}
+                                                <div
+                                                    onClick={() => setShowDeptResults(!showDeptResults)}
+                                                    className={`w-full px-5 py-3 rounded-xl border-2 transition-all outline-none text-base font-semibold flex items-center justify-between cursor-pointer ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] hover:border-orange-500/50'}`}
+                                                >
+                                                    <span className="truncate max-w-[85%] uppercase tracking-wider">
+                                                        {selectedDeptId
+                                                            ? departments.find(d => String(d.id) === String(selectedDeptId))?.dept_name || 
+                                                              departments.find(d => String(d.id) === String(selectedDeptId))?.name || 
+                                                              "Department Selected"
+                                                            : "Select department..."}
+                                                    </span>
+                                                    <ChevronDown className={`w-4 h-4 transition-transform ${showDeptResults ? 'rotate-180' : ''}`} />
+                                                </div>
+
+                                                {/* Dropdown Menu */}
+                                                {showDeptResults && (
+                                                    <div className={`absolute shadow-2xl z-[120] w-full mt-1 max-h-60 overflow-y-auto rounded-xl border animate-in fade-in slide-in-from-top-1 overflow-hidden ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}>
+                                                        {/* Internal Search Input */}
+                                                        <div className="p-2 border-b border-gray-50 dark:border-white/5 bg-gray-50/30 dark:bg-white/10">
+                                                            <div className="relative">
+                                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Search department..."
+                                                                    className="w-full pl-9 pr-4 py-2 text-xs bg-white dark:bg-black/20 border border-gray-100 dark:border-[#333] rounded-lg outline-none focus:ring-2 focus:ring-orange-500/20"
+                                                                    value={deptSearch}
+                                                                    onChange={(e) => setDeptSearch(e.target.value)}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    autoFocus
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Options List */}
+                                                        <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelectedDeptId("");
+                                                                    setShowDeptResults(false);
+                                                                    setDeptSearch("");
+                                                                }}
+                                                                className={`w-full text-left px-4 py-2.5 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-between uppercase ${!selectedDeptId ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                                                            >
+                                                                <span>NONE</span>
+                                                                {!selectedDeptId && <Check className="w-3 h-3" />}
+                                                            </button>
+
+                                                            {departments
+                                                                .filter(d => (d.dept_name || d.name || "").toLowerCase().includes(deptSearch.toLowerCase()))
+                                                                .map(d => (
+                                                                    <button
+                                                                        key={d.id}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setSelectedDeptId(String(d.id));
+                                                                            setDeptSearch("");
+                                                                            setShowDeptResults(false);
+                                                                        }}
+                                                                        className={`w-full text-left px-4 py-2.5 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-between uppercase ${String(selectedDeptId) === String(d.id) ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600' : 'text-slate-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                                                                    >
+                                                                        <span className="truncate">{d.dept_name || d.name}</span>
+                                                                        {String(selectedDeptId) === String(d.id) && <Check className="w-3 h-3" />}
+                                                                    </button>
+                                                                ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
 
@@ -578,8 +670,8 @@ export default function GuestSendLetter() {
                                                                         onMouseEnter={() => setHighlightedSuggestionIndex(idx)}
                                                                         data-suggestion-index={idx}
                                                                         className={`px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${idx === highlightedSuggestionIndex
-                                                                                ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
-                                                                                : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
+                                                                            ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
+                                                                            : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
                                                                             }`}
                                                                     >
                                                                         <User className="w-3 h-3 text-orange-400" />
@@ -625,6 +717,7 @@ export default function GuestSendLetter() {
                                             <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
                                         </label>
                                         <textarea
+                                            ref={regardingRef}
                                             rows={4}
                                             value={formData.regarding}
                                             onChange={(e) => setFormData({ ...formData, regarding: e.target.value })}
@@ -673,8 +766,8 @@ export default function GuestSendLetter() {
                                                                 onMouseEnter={() => setHighlightedSuggestionIndex(idx)}
                                                                 data-suggestion-index={idx}
                                                                 className={`px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${idx === highlightedSuggestionIndex
-                                                                        ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
-                                                                        : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
+                                                                    ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
+                                                                    : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
                                                                     }`}
                                                             >
                                                                 <User className="w-3 h-3 text-orange-400" />
@@ -988,11 +1081,36 @@ export default function GuestSendLetter() {
                                     <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{formData.encoder}</p>
                                 </div>
                             )}
-                            <div className="space-y-1">
+                            <div className="space-y-3">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Attachments</span>
-                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                                    {attachments.length > 0 ? `${attachments.length} file(s) attached` : 'None'}
-                                </p>
+                                <div className="space-y-2">
+                                    {attachments.length > 0 ? (
+                                        attachments.map((file, idx) => (
+                                            <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+                                                <div className="flex items-center gap-3 truncate">
+                                                    <div className="w-8 h-8 bg-white dark:bg-white/10 rounded-lg flex items-center justify-center text-blue-500">
+                                                        <FileText className="w-4 h-4" />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">{file.name}</span>
+                                                </div>
+                                                {file.type === 'application/pdf' && (
+                                                    <button 
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setPdfPreviewUrl(URL.createObjectURL(file));
+                                                        }}
+                                                        className="text-[8px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600 px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20"
+                                                    >
+                                                        Preview
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm font-bold text-slate-400">None</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                         <div className="p-6 border-t border-gray-100 dark:border-[#333] flex gap-3">
@@ -1022,6 +1140,30 @@ export default function GuestSendLetter() {
                     navigate('/login');
                 }}
             />
+
+            {/* PDF Preview Modal */}
+            {pdfPreviewUrl && (
+                <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setPdfPreviewUrl(null)} />
+                    <div className="relative w-full max-w-5xl h-[90vh] bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+                        <div className="p-4 border-b border-gray-100 dark:border-[#333] flex items-center justify-between bg-white dark:bg-[#1a1a1a]">
+                            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-blue-500" /> PDF Preview
+                            </h3>
+                            <button onClick={() => setPdfPreviewUrl(null)} className="p-2 text-slate-400 hover:text-red-500 rounded-xl transition-colors">
+                                <XIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="flex-1 bg-slate-100 dark:bg-black/20">
+                            <iframe 
+                                src={pdfPreviewUrl} 
+                                title="PDF Preview"
+                                className="w-full h-full border-none"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
