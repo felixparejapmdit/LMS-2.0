@@ -546,10 +546,10 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
 
                         <div className="w-full space-y-8">
                             {/* Summary Content */}
-                            <div className={`${cardBg} rounded-[2rem] border shadow-sm flex flex-col overflow-hidden min-h-[calc(100vh - 12rem)] print:shadow-none print:border-none print:rounded-none`}>
+                            <div className={`${cardBg} rounded-[2rem] border shadow-sm flex flex-col overflow-hidden min-h-[calc(100vh - 12rem)] print:shadow-none print:border-none print:rounded-none print:bg-white`}>
 
                                 {/* Print Header */}
-                                <div className="hidden print:flex flex-col mb-4 border-b border-slate-900 pb-2">
+                                <div className="hidden print:flex flex-col mb-1 border-b border-slate-900 pb-0.5">
                                     <div className="flex justify-between items-end">
                                         <h2 className="text-sm font-bold text-slate-900 uppercase">
                                             INCOMING LETTERS - {selectedStepLabel}
@@ -560,7 +560,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                     </div>
                                 </div>
 
-                                <div className="flex-1 p-8 lg:p-12 flex flex-col">
+                                <div className="flex-1 p-8 lg:p-12 flex flex-col print:p-0">
                                     {/* Dashboard Info Section */}
                                     <div className="mb-8 print:hidden flex items-end justify-between gap-6 flex-wrap bg-slate-50/50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/10">
                                         <div className="flex flex-col gap-2 min-w-[150px]">
