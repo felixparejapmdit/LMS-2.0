@@ -97,13 +97,31 @@ class SectionService {
 
     /**
      * Increment the sequence for a department and handle section switching if it reaches 1000.
+     * Updated: Now checks for gaps in existing letters to allow reuse of deleted numbers.
      */
     static async incrementAndGetNextSequence(deptId, transaction = null) {
+        const { Department, Letter } = require('../models/associations');
+        const dept = await Department.findByPk(deptId, { transaction });
+        if (!dept) throw new Error("Department not found");
+
+        const isATG = dept.group_id === 3;
+        const prefix = isATG ? "ATG" : (dept.dept_code || "LMS");
+        const currentYear = new Date().getFullYear();
+        const shortYear = currentYear.toString().slice(-2);
+        
         let usage = await this.getActiveSection(deptId, transaction);
         
-        let nextSeq = usage.current_sequence + 1;
+        // Determine the next available sequence number by checking for gaps
+        let { sequence: nextSeq, section_code: activeCode } = await this.findNextAvailableSequence(
+            deptId, 
+            prefix, 
+            usage.section_code, 
+            isATG ? 3 : 5, 
+            transaction
+        );
 
-        if (nextSeq >= 1000) {
+        // If ATG and sequence exceeds 999, we need to roll over to a new section
+        if (isATG && nextSeq >= 1000) {
             // Mark current as FULL
             await usage.update({
                 is_active: false,
@@ -122,8 +140,8 @@ class SectionService {
             usage = await DeptSectionUsage.create({
                 dept_id: deptId,
                 section_code: newCode,
-                current_sequence: 1,
-                year: new Date().getFullYear(),
+                current_sequence: 1, // Start at 1 for new section
+                year: currentYear,
                 is_active: true
             }, { transaction });
 
@@ -133,14 +151,79 @@ class SectionService {
             };
         }
 
-        await usage.update({
-            current_sequence: nextSeq
-        }, { transaction });
+        // Update the current_sequence high-water mark in the usage record
+        if (nextSeq > usage.current_sequence) {
+            await usage.update({
+                current_sequence: nextSeq
+            }, { transaction });
+        }
 
         return {
-            section_code: usage.section_code,
+            section_code: activeCode,
             sequence: nextSeq
         };
+    }
+
+    /**
+     * Find the first available sequence number (including gaps) for a department/section.
+     */
+    static async findNextAvailableSequence(deptId, prefix, sectionCode, digits, transaction = null) {
+        const { Letter } = require('../models/associations');
+        const currentYear = new Date().getFullYear();
+        const shortYear = currentYear.toString().slice(-2);
+        
+        // For non-ATG (5 digits), we don't use sectionCode in the ID pattern
+        const isATG = digits === 3;
+        const searchSection = isATG ? sectionCode : "";
+        const pattern = `${prefix}${shortYear}-${searchSection}%`;
+
+        const letters = await Letter.findAll({
+            where: {
+                lms_id: { [Op.like]: pattern },
+                // Only look at letters created in the current year to avoid cross-year reuse if formats collide
+                date_received: {
+                    [Op.gte]: new Date(currentYear, 0, 1)
+                }
+            },
+            attributes: ['lms_id'],
+            transaction,
+            lock: transaction ? transaction.LOCK.UPDATE : false
+        });
+
+        const usedSeqs = letters.map(l => {
+            const parts = l.lms_id.split('-');
+            if (parts.length < 2) return null;
+            const seqPart = parts[1];
+            
+            try {
+                if (isATG) {
+                    // SeqPart is like "03001". We need the part after the section code (last 3 digits)
+                    // Ensure the section code matches before parsing
+                    if (seqPart.startsWith(sectionCode)) {
+                        return parseInt(seqPart.slice(sectionCode.length));
+                    }
+                    return null;
+                } else {
+                    // SeqPart is like "00001"
+                    return parseInt(seqPart);
+                }
+            } catch (e) {
+                return null;
+            }
+        }).filter(n => n !== null && !isNaN(n));
+
+        const max = isATG ? 999 : 99999;
+        
+        // Simple linear search for the first gap
+        // For small max values (999 or 99999), this is fast enough.
+        const usedSet = new Set(usedSeqs);
+        for (let i = 1; i <= max; i++) {
+            if (!usedSet.has(i)) {
+                return { sequence: i, section_code: sectionCode };
+            }
+        }
+
+        return { sequence: max + 1, section_code: sectionCode }; // Full
     }
 
     /**

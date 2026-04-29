@@ -123,14 +123,16 @@ export default function GuestSendLetter() {
             try {
                 // Determine prefix and deptId for preview
                 const prefix = isLoggedIn ? "ATG" : "LMS";
-                const targetDeptId = isLoggedIn ? selectedDeptId : null;
+                const targetDeptId = isLoggedIn ? selectedDeptId : (selectedDeptId || null);
 
+                // For logged in users, department is required to generate a specific code
                 if (isLoggedIn && !selectedDeptId) {
                     setReferenceNo("Select Department");
                     return;
                 }
 
                 setReferenceNo("Generating...");
+                // Note: backend now returns YYYYMMDDNNN if dept_id is null
                 const preview = await letterService.getPreviewIds(prefix, targetDeptId);
                 if (preview?.lms_id) setReferenceNo(preview.lms_id);
             } catch (err) {

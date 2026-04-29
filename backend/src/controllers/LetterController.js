@@ -277,7 +277,7 @@ class LetterController {
 
   static async getPreviewIds(req, res) {
     try {
-      const { prefix = "LMS" } = req.query;
+      const { prefix: queryPrefix = "LMS" } = req.query;
       const dept_id = req.query.dept_id;
       const now = new Date();
       const yearStr = now.getFullYear().toString();
@@ -287,44 +287,48 @@ class LetterController {
         (now.getMonth() + 1).toString().padStart(2, "0") +
         now.getDate().toString().padStart(2, "0");
 
-      if (!dept_id) {
-        const lastYearEntry = await Letter.findOne({
-          where: { lms_id: { [Op.like]: `${prefix}${shortYear}-%` } },
-          order: [["lms_id", "DESC"]],
-        });
-        let annualSequence = 1;
-        if (lastYearEntry) {
-          const parts = lastYearEntry.lms_id.split("-");
-          if (parts.length > 1) {
-            const lastSeq = parseInt(parts[1]);
-            if (!isNaN(lastSeq)) annualSequence = lastSeq + 1;
-          }
-        }
-        const lms_id = `${prefix}${shortYear}-${annualSequence.toString().padStart(5, "0")}`;
+      if (!dept_id || dept_id === "null" || dept_id === "") {
+        // No Department Selected (Guest Page rule)
+        // Format: YYYYMMDDNNN
         const lastDayEntry = await Letter.findOne({
           where: { entry_id: { [Op.like]: `${ymd}%` } },
           order: [["entry_id", "DESC"]],
         });
         let dailySequence = 1;
         if (lastDayEntry) {
-          const lastSeqStr = lastDayEntry.entry_id.slice(-3);
-          const lastSeq = parseInt(lastSeqStr);
-          if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
+          // Check if last entry_id is timestamp-based or old entry_id
+          const lastEntryId = lastDayEntry.entry_id;
+          if (lastEntryId.length >= 11 && lastEntryId.startsWith(ymd)) {
+            const lastSeqStr = lastEntryId.slice(-3);
+            const lastSeq = parseInt(lastSeqStr);
+            if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
+          }
         }
-        const entry_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
-        return res.json({ lms_id, entry_id });
+        const lms_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
+        return res.json({ lms_id, entry_id: lms_id });
       }
 
       const dept = await Department.findByPk(dept_id);
       if (!dept) return res.status(404).json({ error: "Department not found" });
 
-      const deptCode = dept.dept_code || prefix;
+      // Determine Prefix
+      let prefix = dept.dept_code || queryPrefix;
+      if (dept.group_id === 3) {
+        prefix = "ATG";
+      }
+
       const usage = await SectionService.getActiveSection(dept_id);
       
-      let previewSeq = usage.current_sequence + 1;
-      let previewCode = usage.section_code;
+      // Determine the next available sequence number by checking for gaps
+      let { sequence: previewSeq, section_code: previewCode } = await SectionService.findNextAvailableSequence(
+          dept_id, 
+          prefix, 
+          usage.section_code, 
+          dept.group_id === 3 ? 3 : 5
+      );
 
-      if (previewSeq >= 1000) {
+      // Handle section rollover for preview if ATG and currently full
+      if (dept.group_id === 3 && previewSeq >= 1000) {
         const { RefSectionRegistry } = require('../models/associations');
         const nextAvailable = await RefSectionRegistry.findOne({
           where: { status: 'AVAILABLE' },
@@ -334,7 +338,15 @@ class LetterController {
         previewSeq = 1;
       }
 
-      const lms_id = `${deptCode}${shortYear}-${previewCode}${previewSeq.toString().padStart(3, "0")}`;
+      // Format based on Group ID
+      let lms_id;
+      if (dept.group_id === 3) {
+        // ATG Format: ATG26-06001 (SectionCode + 3-digit Seq)
+        lms_id = `${prefix}${shortYear}-${previewCode}${previewSeq.toString().padStart(3, "0")}`;
+      } else {
+        // Non-ATG Format: DeptCodeYY-00001 (5-digit Counter)
+        lms_id = `${prefix}${shortYear}-${previewSeq.toString().padStart(5, "0")}`;
+      }
       
       const lastDayEntry = await Letter.findOne({
         where: { entry_id: { [Op.like]: `${ymd}%` } },
@@ -342,7 +354,8 @@ class LetterController {
       });
       let dailySequence = 1;
       if (lastDayEntry) {
-        const lastSeqStr = lastDayEntry.entry_id.slice(-3);
+        const lastEntryId = lastDayEntry.entry_id;
+        const lastSeqStr = lastEntryId.slice(-3);
         const lastSeq = parseInt(lastSeqStr);
         if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
       }
@@ -546,25 +559,54 @@ class LetterController {
       let lms_id;
       if (targetDeptIdForId) {
         const dept = await Department.findByPk(targetDeptIdForId, { transaction });
-        if (!dept) throw new Error("Department not found for ID generation");
-        const { section_code, sequence } = await SectionService.incrementAndGetNextSequence(targetDeptIdForId, transaction);
-        lms_id = `${dept.dept_code || "LMS"}${shortYear}-${section_code}${sequence.toString().padStart(3, "0")}`;
+        let prefix = dept.dept_code || "LMS";
+        if (dept.group_id === 3) {
+            prefix = "ATG";
+            const { section_code, sequence } = await SectionService.incrementAndGetNextSequence(targetDeptIdForId, transaction);
+            // ATG Format: ATG26-06001
+            lms_id = `${prefix}${shortYear}-${section_code}${sequence.toString().padStart(3, "0")}`;
+        } else {
+            // Non-ATG Format: DeptCodeYY-00001 (5-digit Counter)
+            const lastDeptEntry = await Letter.findOne({
+                where: { 
+                    dept_id: targetDeptIdForId,
+                    lms_id: { [Op.like]: `${prefix}${shortYear}-%` }
+                },
+                order: [["lms_id", "DESC"]],
+                transaction
+            });
+            
+            let deptSequence = 1;
+            if (lastDeptEntry) {
+                const parts = lastDeptEntry.lms_id.split("-");
+                if (parts.length > 1) {
+                    const lastSeq = parseInt(parts[1]);
+                    if (!isNaN(lastSeq)) deptSequence = lastSeq + 1;
+                }
+            }
+            lms_id = `${prefix}${shortYear}-${deptSequence.toString().padStart(5, "0")}`;
+            
+            // We still increment section sequence in background if desired, but for non-ATG we don't use it in ID.
+            // Actually, better to keep it synced if they ever switch.
+            await SectionService.incrementAndGetNextSequence(targetDeptIdForId, transaction).catch(() => {});
+        }
       } else {
-        // Fallback for global sequence (rare in new system)
-        const lastYearEntry = await Letter.findOne({
-          where: { lms_id: { [Op.like]: `LMS${shortYear}-%` } },
-          order: [["lms_id", "DESC"]],
+        // No Department (Guest Page rule)
+        // Format: YYYYMMDDNNN
+        const lastDayEntryForId = await Letter.findOne({
+          where: { entry_id: { [Op.like]: `${ymd}%` } },
+          order: [["entry_id", "DESC"]],
           transaction,
         });
-        let annualSequence = 1;
-        if (lastYearEntry) {
-          const parts = lastYearEntry.lms_id.split("-");
-          if (parts.length > 1) {
-            const lastSeq = parseInt(parts[1]);
-            if (!isNaN(lastSeq)) annualSequence = lastSeq + 1;
+        let guestSeq = 1;
+        if (lastDayEntryForId) {
+          const lastId = lastDayEntryForId.entry_id;
+          if (lastId.length >= 11 && lastId.startsWith(ymd)) {
+            const lastSeq = parseInt(lastId.slice(-3));
+            if (!isNaN(lastSeq)) guestSeq = lastSeq + 1;
           }
         }
-        lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, "0")}`;
+        lms_id = `${ymd}${guestSeq.toString().padStart(3, "0")}`;
       }
 
       const lastDayEntry = await Letter.findOne({

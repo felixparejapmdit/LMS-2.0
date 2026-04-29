@@ -94,47 +94,127 @@ export default function LetterEndorsement() {
         }
     };
 
-    const handlePrint = (endorsement) => {
-        const letter = endorsement.letter;
-        const printWindow = window.open("", "_blank", "width=900,height=700");
+    const handlePrint = (targetItems = null) => {
+        const itemsToPrint = targetItems ? (Array.isArray(targetItems) ? targetItems : [targetItems]) : filtered;
+        if (!itemsToPrint || itemsToPrint.length === 0) return;
+
+        const printWindow = window.open("", "_blank", "width=1000,height=800");
+        const date = new Date().toLocaleDateString('en-US');
+        const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const userName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
+        const deptName = user?.dept_id?.dept_name || user?.department?.dept_name || "ATG OFFICE";
+
+        // Group/Sort by sender name for organized reporting
+        const sorted = [...itemsToPrint].sort((a, b) => (a.letter?.sender || '').localeCompare(b.letter?.sender || ''));
+
         printWindow.document.write(`
             <html>
             <head>
-                <title>Letter Endorsement - ${letter?.lms_id || ""}</title>
+                <title>Outgoing Letter Resumen</title>
                 <style>
-                    body { font-family: 'Arial', sans-serif; padding: 40px; color: #111; }
-                    .header { border-bottom: 3px solid #f6a17b; padding-bottom: 20px; margin-bottom: 30px; }
-                    .label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #999; font-weight: bold; margin-bottom: 4px; }
-                    .value { font-size: 14px; font-weight: bold; color: #111; margin-bottom: 18px; }
-                    .box { border: 1px solid #eee; border-radius: 16px; padding: 24px; margin-bottom: 24px; background: #fafafa; }
-                    h1 { font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #111; }
-                    .endorsed-tag { background: #f6a17b; color: white; font-size: 10px; padding: 4px 12px; border-radius: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; display: inline-block; margin-bottom: 16px; }
-                    @media print { body { padding: 20px; } }
+                    @page { margin: 1cm; size: auto; }
+                    body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; padding: 20px; color: #000; font-size: 11px; line-height: 1.3; }
+                    .header-meta { display: flex; justify-content: space-between; font-size: 9px; color: #333; margin-bottom: 5px; }
+                    
+                    .brand-header { text-align: center; margin-bottom: 25px; }
+                    .office-name { color: #0056b3; font-size: 16px; font-weight: 900; text-transform: uppercase; margin-bottom: 2px; }
+                    .building-name { font-size: 11px; font-weight: bold; margin-bottom: 4px; }
+                    .doc-title { font-size: 13px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #0056b3; padding-bottom: 5px; width: 100%; display: block; }
+                    
+                    .report-info { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 15px; padding: 0 5px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+                    
+                    table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+                    th { background: #004b8d; color: white; text-transform: uppercase; font-size: 10px; font-weight: 900; padding: 8px 10px; border: 1px solid #000; text-align: left; }
+                    td { border: 1px solid #000; padding: 6px 10px; vertical-align: top; }
+                    .col-no { width: 35px; text-align: center; }
+                    .col-ref { width: 130px; font-weight: bold; }
+                    .col-sender { width: 160px; }
+                    
+                    .report-footer { border: 1px solid #000; border-top: none; padding: 8px 10px; font-weight: 900; text-transform: uppercase; font-size: 10px; }
+                    .remarks-section { border: 1px solid #000; border-top: none; min-height: 50px; padding: 8px 10px; }
+                    .remarks-label { font-weight: 900; text-transform: uppercase; font-size: 10px; margin-bottom: 10px; display: block; }
+                    
+                    .signatures { position: fixed; bottom: 80px; left: 40px; right: 40px; display: flex; justify-content: space-between; align-items: flex-end; }
+                    .sig-block { width: 250px; }
+                    .sig-line { border-bottom: 1.5px solid #000; margin-bottom: 4px; padding-top: 15px; }
+                    .sig-label { font-size: 11px; font-weight: bold; color: #000; }
+                    
+                    .page-numbers { position: fixed; bottom: 30px; right: 40px; font-size: 9px; color: #000; font-weight: bold; }
+                    .url-tag { position: fixed; bottom: 30px; left: 40px; font-size: 9px; color: #000; font-weight: bold; }
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <h1>Letter Endorsement</h1>
-                    <div class="endorsed-tag">Endorsed To: ${endorsement.endorsed_to}</div>
+                <div class="header-meta">
+                    <span>${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>List Outgoing Resumen</span>
                 </div>
-                <div class="box">
-                    <div class="label">LMS ID</div>
-                    <div class="value">${letter?.lms_id || "—"}</div>
-                    <div class="label">Sender / Origin</div>
-                    <div class="value">${letter?.sender || "—"}</div>
-                    <div class="label">Letter Summary</div>
-                    <div class="value" style="white-space:pre-wrap;font-weight:normal;">${letter?.summary || "—"}</div>
-                    <div class="label">Letter Kind</div>
-                    <div class="value">${letter?.letterKind?.kind_name || "Standard"}</div>
+                
+                <div class="brand-header">
+                    <div class="office-name">${deptName}</div>
+                    <div class="building-name">Pilar Manalo-Danao Building</div>
+                    <div class="doc-title">RESUMEN OF OUTGOING LETTERS</div>
                 </div>
-                <div class="box">
-                    <div class="label">Endorsed To</div>
-                    <div class="value">${endorsement.endorsed_to}</div>
-                    <div class="label">Endorsed On</div>
-                    <div class="value">${new Date(endorsement.endorsed_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short', hour12: true })}</div>
-                    ${endorsement.notes ? `<div class="label">Notes</div><div class="value" style="white-space:pre-wrap;font-weight:normal;">${endorsement.notes}</div>` : ""}
+
+                <div class="report-info">
+                    <div>Date: ${date}</div>
+                    <div style="text-align: center; text-transform: uppercase;">${itemsToPrint[0]?.letter?.processStep?.step_name || ""}</div>
+                    <div style="text-align: right;">Time: ${time}</div>
                 </div>
-                <script>window.onload = () => { window.print(); window.close(); }</script>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="col-no">No.</th>
+                            <th class="col-ref">Reference No.</th>
+                            <th class="col-sender">Sender</th>
+                            <th>Letter Summary</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sorted.map((e, i) => `
+                            <tr>
+                                <td class="col-no">${i + 1}</td>
+                                <td class="col-ref">${e.letter?.lms_id || e.letter_id}</td>
+                                <td class="col-sender">${e.letter?.sender || '—'}</td>
+                                <td>${e.letter?.summary || '—'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="report-footer">
+                    Total number of letters: ${sorted.length}
+                </div>
+                <div class="remarks-section">
+                    <span class="remarks-label">Remarks:</span>
+                </div>
+
+                <div class="signatures">
+                    <div class="sig-block">
+                        <span class="sig-label">Checked by:</span>
+                        <div class="sig-line" style="width: 180px;"></div>
+                    </div>
+                    <div class="sig-block">
+                        <div style="margin-bottom: 20px; text-align: right;">
+                            <span class="sig-label">Received by:</span>
+                            <div class="sig-line" style="width: 180px; margin-left: auto;"></div>
+                        </div>
+                        <div style="text-align: right;">
+                            <span class="sig-label">Date/Time:</span>
+                            <div class="sig-line" style="width: 180px; margin-left: auto;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="url-tag">172.18.162.84/list-resumen.php</div>
+                <div class="page-numbers">1/2</div>
+
+                <script>
+                    window.onload = () => {
+                        window.print();
+                        setTimeout(() => window.close(), 500);
+                    }
+                </script>
             </body>
             </html>
         `);
@@ -189,6 +269,15 @@ export default function LetterEndorsement() {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
+                        {canPrint && (
+                            <button 
+                                onClick={() => handlePrint()} 
+                                className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400"
+                                title="Print All Endorsements"
+                            >
+                                <Printer className="w-5 h-5" />
+                            </button>
+                        )}
                         {canRefresh && <button onClick={() => fetchEndorsements()} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
                             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                         </button>}
@@ -227,14 +316,25 @@ export default function LetterEndorsement() {
                             {Object.entries(grouped).map(([personName, items]) => (
                                 <div key={personName}>
                                     {/* Group header */}
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center flex-shrink-0">
-                                            <User className="w-4 h-4 text-orange-500" />
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                                <User className="w-4 h-4 text-orange-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wide">{personName}</p>
+                                                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{items.length} letter{items.length !== 1 ? 's' : ''} endorsed</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wide">{personName}</p>
-                                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{items.length} letter{items.length !== 1 ? 's' : ''} endorsed</p>
-                                        </div>
+                                        {canPrint && (
+                                            <button
+                                                onClick={() => handlePrint(items)}
+                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/10 text-blue-600 hover:bg-blue-500 hover:text-white border border-blue-100 dark:border-blue-900/20 transition-all shadow-sm group/btn"
+                                            >
+                                                <Printer className="w-3.5 h-3.5" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Print Group</span>
+                                            </button>
+                                        )}
                                     </div>
 
                                     {/* Table */}
@@ -293,15 +393,6 @@ export default function LetterEndorsement() {
                                                                         <span className="hidden sm:inline">
                                                                             {notifiedIds.has(e.id) ? "Resend Notification" : "Notify via Telegram"}
                                                                         </span>
-                                                                    </button>
-                                                                )}
-                                                                {canPrint && (
-                                                                    <button
-                                                                        onClick={() => handlePrint(e)}
-                                                                        className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/10 text-blue-600 hover:bg-blue-500 hover:text-white border border-blue-100 dark:border-blue-900/20 transition-all shadow-sm"
-                                                                        title="Print"
-                                                                    >
-                                                                        <Printer className="w-3.5 h-3.5" />
                                                                     </button>
                                                                 )}
                                                                 {canView && (

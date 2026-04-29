@@ -796,9 +796,14 @@ export default function NewLetter() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                   <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-1">
-                      <Building2 className="w-3 h-3 text-blue-400" />
-                      Departments
+                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-3 h-3 text-blue-400" />
+                        Departments
+                      </div>
+                      <span className="text-[9px] text-red-500 font-black tracking-widest uppercase">
+                        Required
+                      </span>
                     </label>
                     <div className="relative">
                       <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 pointer-events-none" />
