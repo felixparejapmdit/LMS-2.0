@@ -220,6 +220,42 @@ class SectionService {
 
         return newUsage;
     }
+
+    /**
+     * Unassign a section code from any department.
+     */
+    static async unassignSection(sectionCode, transaction = null) {
+        const currentYear = new Date().getFullYear();
+
+        // 1. Find section
+        const section = await RefSectionRegistry.findOne({
+            where: { section_code: sectionCode },
+            transaction
+        });
+
+        if (!section) throw new Error(`Section code ${sectionCode} not found.`);
+
+        const deptId = section.assigned_to_dept_id;
+
+        // 2. Deactivate usage record
+        if (deptId) {
+            await DeptSectionUsage.update(
+                { is_active: false, filled_at: new Date() },
+                { 
+                    where: { dept_id: deptId, section_code: sectionCode, is_active: true, year: currentYear },
+                    transaction 
+                }
+            );
+        }
+
+        // 3. Mark section as AVAILABLE
+        await section.update({
+            status: 'AVAILABLE',
+            assigned_to_dept_id: null
+        }, { transaction });
+
+        return true;
+    }
 }
 
 module.exports = SectionService;

@@ -39,6 +39,7 @@ export default function SectionRegistry() {
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [selectedSection, setSelectedSection] = useState(null);
     const [assignLoading, setAssignLoading] = useState(false);
+    const [modalSearchTerm, setModalSearchTerm] = useState("");
 
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
@@ -86,9 +87,25 @@ export default function SectionRegistry() {
     const paginatedSections = filteredSections.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const handleOpenAssign = (section) => {
-        if (section.status !== 'AVAILABLE') return;
-        setSelectedSection(section);
-        setIsAssignModalOpen(true);
+        // Allow opening for AVAILABLE (to assign) or any assigned section (to unassign)
+        if (section.status === 'AVAILABLE' || section.assigned_to_dept_id) {
+            setSelectedSection(section);
+            setIsAssignModalOpen(true);
+        }
+    };
+
+    const handleUnassign = async (sectionCode) => {
+        if (!window.confirm(`Unassign section ${sectionCode}?`)) return;
+        setAssignLoading(true);
+        try {
+            await sectionService.unassignSection(sectionCode);
+            setIsAssignModalOpen(false);
+            fetchData();
+        } catch (err) {
+            alert("Unassignment failed: " + err.message);
+        } finally {
+            setAssignLoading(false);
+        }
     };
 
     const handleAssign = async (deptId) => {
@@ -118,7 +135,10 @@ export default function SectionRegistry() {
                                 <LayoutGrid className="w-6 h-6" />
                             </div>
                             <div>
-                                <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Setup</h1>
+                                <div className="flex items-center gap-2">
+                                    <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Setup</h1>
+                                    <span className="px-1.5 py-0.5 bg-orange-500/10 text-orange-600 text-[8px] font-black rounded-lg border border-orange-500/20 uppercase tracking-widest">Resets Annually</span>
+                                </div>
                                 <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Sections</h2>
                             </div>
                         </div>
@@ -187,8 +207,8 @@ export default function SectionRegistry() {
                                             onClick={() => handleOpenAssign(section)}
                                             className={`p-6 rounded-[2rem] border bg-white dark:bg-[#141414] transition-all flex flex-col items-center gap-3 relative group ${
                                                 section.status === 'AVAILABLE' ? 'border-emerald-100 dark:border-emerald-900/20 hover:border-emerald-500 hover:scale-105 active:scale-95' :
-                                                section.status === 'ACTIVE' ? 'border-orange-100 dark:border-orange-900/20 shadow-lg shadow-orange-500/5' :
-                                                'border-red-100 dark:border-red-900/20 opacity-60'
+                                                section.status === 'ACTIVE' ? 'border-orange-100 dark:border-orange-900/20 shadow-lg shadow-orange-500/5 hover:border-orange-500' :
+                                                'border-red-100 dark:border-red-900/20 opacity-60 hover:opacity-100 transition-opacity'
                                             }`}
                                         >
                                             <span className="text-2xl font-black tracking-tighter text-slate-800 dark:text-white">{section.section_code}</span>
@@ -297,36 +317,77 @@ export default function SectionRegistry() {
                                     <h3 className="text-xl font-black uppercase tracking-tight">Assign Section {selectedSection?.section_code}</h3>
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Select Department</p>
                                 </div>
-                                <button onClick={() => setIsAssignModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all">
+                                <button onClick={() => { setIsAssignModalOpen(false); setModalSearchTerm(""); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all">
                                     <X className="w-5 h-5 text-gray-400" />
                                 </button>
                             </div>
 
+                            <div className="relative mb-6 group">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-orange-500 transition-colors" />
+                                <input 
+                                    type="text"
+                                    placeholder="Find department..."
+                                    value={modalSearchTerm}
+                                    onChange={(e) => setModalSearchTerm(e.target.value)}
+                                    className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
+                                />
+                            </div>
+
                             <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-                                {departments.length === 0 ? (
-                                    <div className="py-12 text-center text-gray-400 font-bold italic">No departments available</div>
-                                ) : (
-                                    departments.map(dept => (
-                                        <button
-                                            key={dept.id}
+                                {selectedSection?.assigned_to_dept_id ? (
+                                    <div className="py-8 flex flex-col items-center gap-4 text-center">
+                                        <div className="w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
+                                            <Building2 className="w-8 h-8" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-black uppercase text-slate-700 dark:text-slate-300">Currently Assigned to:</p>
+                                            <p className="text-sm font-black text-orange-500 uppercase">{selectedSection.department?.dept_name}</p>
+                                            <p className="text-[10px] font-bold text-gray-400">{selectedSection.department?.dept_code}</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => handleUnassign(selectedSection.section_code)}
                                             disabled={assignLoading}
-                                            onClick={() => handleAssign(dept.id)}
-                                            className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:border-orange-500/30 transition-all group"
+                                            className="mt-4 px-8 py-3 bg-red-500 hover:bg-red-600 text-white text-[10px] font-black uppercase rounded-2xl transition-all shadow-lg shadow-red-500/20 active:scale-95"
                                         >
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center text-gray-400 group-hover:text-orange-500 transition-all shadow-sm">
-                                                    <Building2 className="w-5 h-5" />
-                                                </div>
-                                                <div className="text-left">
-                                                    <p className="text-xs font-black uppercase tracking-tight">{dept.dept_name}</p>
-                                                    <p className="text-[10px] font-bold text-gray-400">{dept.dept_code}</p>
-                                                </div>
-                                            </div>
-                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                            </div>
+                                            Unassign Code
                                         </button>
-                                    ))
+                                    </div>
+                                ) : (
+                                    <>
+                                        {departments.filter(d => 
+                                            (d.dept_name || "").toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
+                                            (d.dept_code || "").toLowerCase().includes(modalSearchTerm.toLowerCase())
+                                        ).length === 0 ? (
+                                            <div className="py-12 text-center text-gray-400 font-bold italic">No departments found</div>
+                                        ) : (
+                                            departments
+                                            .filter(d => 
+                                                (d.dept_name || "").toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
+                                                (d.dept_code || "").toLowerCase().includes(modalSearchTerm.toLowerCase())
+                                            )
+                                            .map(dept => (
+                                                <button
+                                                    key={dept.id}
+                                                    disabled={assignLoading}
+                                                    onClick={() => handleAssign(dept.id)}
+                                                    className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:border-orange-500/30 transition-all group"
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center text-gray-400 group-hover:text-orange-500 transition-all shadow-sm">
+                                                            <Building2 className="w-5 h-5" />
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <p className="text-xs font-black uppercase tracking-tight">{dept.dept_name}</p>
+                                                            <p className="text-[10px] font-bold text-gray-400">{dept.dept_code}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                                    </div>
+                                                </button>
+                                            ))
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </div>

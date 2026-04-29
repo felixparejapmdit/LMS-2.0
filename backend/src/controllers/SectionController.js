@@ -66,6 +66,23 @@ class SectionController {
     }
 
     /**
+     * Unassign a section code.
+     */
+    static async unassignSection(req, res) {
+        try {
+            const { sectionCode } = req.body;
+            if (!sectionCode) {
+                return res.status(400).json({ error: 'sectionCode is required' });
+            }
+
+            await SectionService.unassignSection(sectionCode);
+            res.json({ message: 'Section unassigned successfully' });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    /**
      * Get overview for the department dashboard (progress, etc).
      */
     static async getDashboardOverview(req, res) {

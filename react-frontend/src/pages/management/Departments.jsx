@@ -19,7 +19,8 @@ import {
     AlertCircle,
     ChevronLeft,
     ChevronRight,
-    ChevronDown
+    ChevronDown,
+    Search
 } from "lucide-react";
 import departmentService from "../../services/departmentService";
 import sectionService from "../../services/sectionService";
@@ -50,6 +51,7 @@ export default function Departments() {
     const [expandedDepts, setExpandedDepts] = useState({}); // Tracking expanded state per ID
 
     const [currentPage, setCurrentPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState("");
     const itemsPerPage = 12;
 
     const [formData, setFormData] = useState({
@@ -194,6 +196,18 @@ export default function Departments() {
         }
     };
 
+    const handleUnassignSection = async () => {
+        if (!selectedDept?.active_section) return;
+        if (!window.confirm(`Unassign section ${selectedDept.active_section} from this department?`)) return;
+        try {
+            await sectionService.unassignSection(selectedDept.active_section);
+            setIsModalOpen(false);
+            fetchData();
+        } catch (err) {
+            alert("Unassignment failed: " + err.message);
+        }
+    };
+
     const toggleExpand = (id) => {
         setExpandedDepts(prev => ({ ...prev, [id]: !prev[id] }));
     };
@@ -203,8 +217,13 @@ export default function Departments() {
     const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#111] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
     const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-slate-900 dark:text-white';
 
-    const totalPages = Math.ceil(departments.length / itemsPerPage);
-    const paginatedDepartments = departments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const filteredDepartments = departments.filter(d => 
+        (d.dept_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (d.dept_code || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const totalPages = Math.ceil(filteredDepartments.length / itemsPerPage);
+    const paginatedDepartments = filteredDepartments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const renderCard = (item) => {
         const isExpanded = expandedDepts[item.id];
@@ -312,6 +331,20 @@ export default function Departments() {
                         </div>
                     </div>
                     {canViewToggle && (
+                        <div className="flex items-center gap-4 flex-1 max-w-lg px-8 hidden md:flex">
+                            <div className="relative flex-1 group">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
+                                <input 
+                                    type="text"
+                                    placeholder="Search departments..."
+                                    value={searchTerm}
+                                    onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                    className="w-full pl-12 pr-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                />
+                            </div>
+                        </div>
+                    )}
+                    {canViewToggle && (
                         <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222]">
                             {canRefresh && <button onClick={() => fetchData(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"><RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} /></button>}
                             {canAdd && <button onClick={openCreateModal} className="hidden md:flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-emerald-500/20 uppercase tracking-widest"><Plus className="w-3 h-3" /> Add Dept</button>}
@@ -415,13 +448,24 @@ export default function Departments() {
                                                             <p className={`text-sm font-black uppercase tracking-tight ${textColor}`}>{selectedDept?.active_section || "N/A"}</p>
                                                         </div>
                                                     </div>
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => setShowSectionSelector(!showSectionSelector)}
-                                                        className={`flex items-center gap-2 px-3 py-2 text-[8px] font-black uppercase rounded-lg border transition-all shadow-sm ${showSectionSelector ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-white/10 text-gray-400 hover:text-emerald-500 border-gray-100 dark:border-white/5'}`}
-                                                    >
-                                                        <Edit2 className="w-3 h-3" /> Set Section Code
-                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                        {selectedDept?.active_section && (
+                                                            <button 
+                                                                type="button"
+                                                                onClick={handleUnassignSection}
+                                                                className="px-3 py-2 text-[8px] font-black uppercase rounded-lg border border-red-100 dark:border-red-900/20 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all"
+                                                            >
+                                                                Unassign
+                                                            </button>
+                                                        )}
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => setShowSectionSelector(!showSectionSelector)}
+                                                            className={`flex items-center gap-2 px-3 py-2 text-[8px] font-black uppercase rounded-lg border transition-all shadow-sm ${showSectionSelector ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-white/10 text-gray-400 hover:text-emerald-500 border-gray-100 dark:border-white/5'}`}
+                                                        >
+                                                            <Edit2 className="w-3 h-3" /> Set Section Code
+                                                        </button>
+                                                    </div>
                                                 </div>
 
                                                 {showSectionSelector && (
