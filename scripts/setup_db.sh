@@ -29,27 +29,27 @@ fi
 
 echo ""
 
-# 2. Add Dept Group Field
-echo "[2/3] Updating departments table (group_id)..."
-docker exec $CONTAINER_NAME node scripts/add_dept_group.js
-
-if [ $? -eq 0 ]; then
-    echo "Done."
-else
-    echo "Error updating departments table."
-    exit 1
-fi
-
-echo ""
-
-# 3. Create Section Registry
-echo "[3/3] Creating Section Registry tables..."
+# 2. Create Section Registry
+echo "[2/3] Creating Section Registry tables..."
 docker exec $CONTAINER_NAME node scripts/create_section_registry.js
 
 if [ $? -eq 0 ]; then
     echo "Done."
 else
     echo "Error creating section registry."
+    exit 1
+fi
+
+echo ""
+
+# 3. Register System Pages
+echo "[3/3] Registering System Pages (Section Registry)..."
+docker exec $CONTAINER_NAME node scripts/register_pages.js
+
+if [ $? -eq 0 ]; then
+    echo "Done."
+else
+    echo "Error registering system pages."
     exit 1
 fi
 
