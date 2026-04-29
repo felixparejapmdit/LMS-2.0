@@ -365,27 +365,53 @@ export default function SectionRegistry() {
                                                 (d.dept_name || "").toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
                                                 (d.dept_code || "").toLowerCase().includes(modalSearchTerm.toLowerCase())
                                             )
-                                            .map(dept => (
-                                                <button
-                                                    key={dept.id}
-                                                    disabled={assignLoading}
-                                                    onClick={() => handleAssign(dept.id)}
-                                                    className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:border-orange-500/30 transition-all group"
-                                                >
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center text-gray-400 group-hover:text-orange-500 transition-all shadow-sm">
-                                                            <Building2 className="w-5 h-5" />
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <p className="text-xs font-black uppercase tracking-tight">{dept.dept_name}</p>
-                                                            <p className="text-[10px] font-bold text-gray-400">{dept.dept_code}</p>
-                                                        </div>
+                                            .map(dept => {
+                                                const isATGOffice = dept.dept_code === "ATG" || dept.dept_name === "ATG's Office";
+                                                const currentAssignment = sections.find(s => s.assigned_to_dept_id === dept.id);
+                                                const isAssigned = !!currentAssignment;
+                                                const isDisabled = isAssigned && !isATGOffice;
+
+                                                return (
+                                                    <div key={dept.id} className="relative">
+                                                        <button
+                                                            disabled={assignLoading || isDisabled}
+                                                            onClick={() => handleAssign(dept.id)}
+                                                            className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all group ${
+                                                                isDisabled 
+                                                                ? 'bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] opacity-60 cursor-not-allowed'
+                                                                : 'bg-slate-50/50 dark:bg-white/5 border-gray-50 dark:border-white/5 hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:border-orange-500/30'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center gap-4">
+                                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm ${isDisabled ? 'bg-gray-100 text-gray-300' : 'bg-white dark:bg-white/5 text-gray-400 group-hover:text-orange-500'}`}>
+                                                                    <Building2 className="w-5 h-5" />
+                                                                </div>
+                                                                <div className="text-left">
+                                                                    <p className={`text-xs font-black uppercase tracking-tight ${isDisabled ? 'text-gray-400' : ''}`}>{dept.dept_name}</p>
+                                                                    <p className="text-[10px] font-bold text-gray-400">{dept.dept_code}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {isAssigned && (
+                                                                    <span className={`px-2 py-0.5 rounded-lg border text-[7px] font-black uppercase tracking-widest ${isATGOffice ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' : 'bg-orange-500/10 text-orange-500 border-orange-500/20'}`}>
+                                                                        {isATGOffice ? `Shared (${currentAssignment.section_code}+)` : `Section ${currentAssignment.section_code}`}
+                                                                    </span>
+                                                                )}
+                                                                {!isDisabled && (
+                                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </button>
+                                                        {isDisabled && (
+                                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-white/80 dark:bg-black/80 rounded-2xl pointer-events-none">
+                                                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-red-500 px-4 text-center">Already Assigned</span>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                                    </div>
-                                                </button>
-                                            ))
+                                                );
+                                            })
                                         )}
                                     </>
                                 )}

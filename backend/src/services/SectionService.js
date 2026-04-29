@@ -12,18 +12,37 @@ class SectionService {
         // 1. Check if we need a global reset for the new year
         await this._checkYearlyReset(currentYear, transaction);
 
+        const dept = await Department.findByPk(deptId, { transaction });
+        const isATGOffice = dept?.dept_code === "ATG" || dept?.dept_name === "ATG's Office";
+
+        // Find the current active usage. 
+        // For ATG's Office, we always want the lowest section code that is currently active (sequential rule).
+        // For others, we want the most recent active one (usually the only one).
         let usage = await DeptSectionUsage.findOne({
             where: { 
                 dept_id: deptId, 
                 is_active: true,
                 year: currentYear
             },
+            order: [[ 'section_code', isATGOffice ? 'ASC' : 'DESC' ]],
             transaction
         });
 
         if (!usage) {
             // Assign first available section for this department in the current year
-            const newCode = await this.assignNextAvailableSection(deptId, transaction);
+            // For ATG, check if they have any sections pre-assigned in the registry first
+            let newCode;
+            if (isATGOffice) {
+                const preAssigned = await RefSectionRegistry.findOne({
+                    where: { assigned_to_dept_id: deptId, status: 'ACTIVE' },
+                    order: [['section_code', 'ASC']],
+                    transaction
+                });
+                newCode = preAssigned ? preAssigned.section_code : await this.assignNextAvailableSection(deptId, transaction);
+            } else {
+                newCode = await this.assignNextAvailableSection(deptId, transaction);
+            }
+
             usage = await DeptSectionUsage.create({
                 dept_id: deptId,
                 section_code: newCode,
@@ -135,8 +154,23 @@ class SectionService {
                 transaction
             });
 
+            // Check if department has ANOTHER section already assigned to it in registry (sequential usage)
+            const isATGOffice = dept.dept_code === "ATG" || dept.dept_name === "ATG's Office";
+            let nextAssigned = null;
+            if (isATGOffice) {
+                nextAssigned = await RefSectionRegistry.findOne({
+                    where: { 
+                        assigned_to_dept_id: deptId, 
+                        status: 'ACTIVE', 
+                        section_code: { [Op.gt]: usage.section_code } 
+                    },
+                    order: [['section_code', 'ASC']],
+                    transaction
+                });
+            }
+
             // Assign new section
-            const newCode = await this.assignNextAvailableSection(deptId, transaction);
+            const newCode = nextAssigned ? nextAssigned.section_code : await this.assignNextAvailableSection(deptId, transaction);
             usage = await DeptSectionUsage.create({
                 dept_id: deptId,
                 section_code: newCode,
@@ -269,8 +303,27 @@ class SectionService {
      */
     static async assignSpecificSection(deptId, sectionCode, transaction = null) {
         const currentYear = new Date().getFullYear();
+        const dept = await Department.findByPk(deptId, { transaction });
+        if (!dept) throw new Error("Department not found");
 
-        // 1. Deactivate current active section if any
+        const isATGOffice = dept.dept_code === "ATG" || dept.dept_name === "ATG's Office";
+
+        // 1. Validation: Only ATG's Office can have multiple sections
+        if (!isATGOffice) {
+            const existingAssigned = await RefSectionRegistry.findOne({
+                where: { 
+                    assigned_to_dept_id: deptId,
+                    section_code: { [Op.ne]: sectionCode }
+                },
+                transaction
+            });
+            if (existingAssigned) {
+                throw new Error(`Department '${dept.dept_name}' is already assigned to section ${existingAssigned.section_code}. Only ATG's Office can have multiple sections.`);
+            }
+        }
+
+        // 2. Deactivate current active usage if any (to switch to the new one)
+        // Note: For ATG, we don't deactivate others in registry, just the 'usage' record to switch focus.
         await DeptSectionUsage.update(
             { is_active: false, filled_at: new Date() },
             { 
@@ -279,7 +332,7 @@ class SectionService {
             }
         );
 
-        // 2. Mark the target section as ACTIVE in registry and assign to this dept
+        // 3. Mark the target section as ACTIVE in registry and assign to this dept
         const section = await RefSectionRegistry.findOne({
             where: { section_code: sectionCode },
             transaction
@@ -292,16 +345,25 @@ class SectionService {
             assigned_to_dept_id: deptId
         }, { transaction });
 
-        // 3. Create new usage record
-        const newUsage = await DeptSectionUsage.create({
-            dept_id: deptId,
-            section_code: sectionCode,
-            current_sequence: 0,
-            year: currentYear,
-            is_active: true
-        }, { transaction });
+        // 4. Reactivate existing usage record or create new one
+        let usage = await DeptSectionUsage.findOne({
+            where: { dept_id: deptId, section_code: sectionCode, year: currentYear },
+            transaction
+        });
 
-        return newUsage;
+        if (usage) {
+            await usage.update({ is_active: true, filled_at: null }, { transaction });
+        } else {
+            usage = await DeptSectionUsage.create({
+                dept_id: deptId,
+                section_code: sectionCode,
+                current_sequence: 0,
+                year: currentYear,
+                is_active: true
+            }, { transaction });
+        }
+
+        return usage;
     }
 
     /**

@@ -93,11 +93,27 @@ class SectionController {
                     as: 'sectionUsage',
                     where: { is_active: true },
                     required: false
-                }]
+                }],
+                order: [
+                    [{ model: DeptSectionUsage, as: 'sectionUsage' }, 'section_code', 'ASC']
+                ]
             });
 
             const overview = departments.map(d => {
-                const active = d.sectionUsage && d.sectionUsage[0];
+                const isATGOffice = d.dept_code === "ATG" || d.dept_name === "ATG's Office";
+                
+                // Sort the active usages in-memory to ensure correct priority
+                // For ATG's Office, we prioritize the lowest section code (01 -> 02 -> 03)
+                // For others, we prioritize the latest assigned (DESC)
+                const sortedUsages = (d.sectionUsage || []).sort((a, b) => {
+                    if (isATGOffice) {
+                        return a.section_code.localeCompare(b.section_code);
+                    } else {
+                        return b.section_code.localeCompare(a.section_code);
+                    }
+                });
+
+                const active = sortedUsages[0];
                 return {
                     id: d.id,
                     dept_name: d.dept_name,

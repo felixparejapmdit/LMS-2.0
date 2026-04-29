@@ -473,20 +473,26 @@ export default function Departments() {
                                                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.1em]">Select Section:</p>
                                                         <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
                                                             {allSections.map(s => {
+                                                                const isATGOffice = selectedDept?.dept_code === "ATG" || selectedDept?.dept_name === "ATG's Office";
                                                                 const isCurrent = s.section_code === selectedDept?.active_section;
+                                                                const isAssignedToMe = s.assigned_to_dept_id === selectedDept?.id;
                                                                 const isAvailable = s.status === 'AVAILABLE';
-                                                                const isDisabled = !isCurrent && !isAvailable;
+                                                                
+                                                                // Disable if not available and not already assigned to this department
+                                                                const finalDisabled = !isAvailable && !isAssignedToMe;
 
                                                                 return (
                                                                     <button
                                                                         key={s.id}
                                                                         type="button"
-                                                                        disabled={isDisabled}
+                                                                        disabled={finalDisabled}
                                                                         onClick={() => handleManualSectionAssign(s.section_code)}
                                                                         className={`p-2 rounded-lg border transition-all flex flex-col items-center justify-center gap-0.5 ${
                                                                             isCurrent 
-                                                                            ? 'bg-emerald-500 text-white border-emerald-500' 
-                                                                            : isDisabled
+                                                                            ? 'bg-emerald-500 text-white border-emerald-500 shadow-md' 
+                                                                            : isAssignedToMe
+                                                                            ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-600'
+                                                                            : finalDisabled
                                                                             ? 'bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-white/5 opacity-50 cursor-not-allowed'
                                                                             : 'bg-white dark:bg-white/5 border-gray-100 dark:border-[#333] hover:border-emerald-500 text-slate-700 dark:text-slate-300'
                                                                         }`}

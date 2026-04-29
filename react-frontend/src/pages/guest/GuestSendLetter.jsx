@@ -165,7 +165,7 @@ export default function GuestSendLetter() {
         }
         try {
             const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/search?query=${query}`);
-            
+
             // Deduplicate and clean names in suggestions to handle existing DB inconsistencies
             const seen = new Set();
             const cleaned = response.data
@@ -262,7 +262,7 @@ export default function GuestSendLetter() {
 
             let lmsIdToUse = referenceNo;
             const normalizedRef = (referenceNo || '').trim();
-            const isValidRef = isLoggedIn 
+            const isValidRef = isLoggedIn
                 ? /^ATG\d{2}-[A-Z0-9]+-\d{5}$/.test(normalizedRef)
                 : /^LMS\d{2}-\d{5}$/.test(normalizedRef);
 
@@ -512,36 +512,36 @@ export default function GuestSendLetter() {
                                     <h2 className={`text-lg font-bold uppercase tracking-tight ${textColor}`}>Letter</h2>
                                 </div>
 
-                                 <div className="grid grid-cols-1 gap-6">
-                                     {/* Department - Optional for everyone */}
-                                     {canDepartmentSelector && (
-                                         <div className="space-y-3">
-                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                                                 <div className="flex items-center gap-2">
-                                                     <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
-                                                 </div>
-                                                 <span className="text-[9px] text-gray-400 font-bold tracking-widest">OPTIONAL</span>
-                                             </label>
-                                             <select
-                                                 value={selectedDeptId}
-                                                 onChange={(e) => setSelectedDeptId(e.target.value)}
-                                                 className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
-                                             >
-                                                 <option value="">Select department...</option>
-                                                 {departments.map((d) => (
-                                                     <option key={d.id} value={d.id}>
-                                                         {d.dept_name || d.name || d.department_name || `Department ${d.id}`}
-                                                     </option>
-                                                 ))}
-                                             </select>
-                                         </div>
-                                     )}
+                                <div className="grid grid-cols-1 gap-6">
+                                    {/* Department - Optional for everyone */}
+                                    {canDepartmentSelector && (
+                                        <div className="space-y-3">
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
+                                                </div>
+                                                <span className="text-[9px] text-gray-400 font-bold tracking-widest">OPTIONAL</span>
+                                            </label>
+                                            <select
+                                                value={selectedDeptId}
+                                                onChange={(e) => setSelectedDeptId(e.target.value)}
+                                                className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
+                                            >
+                                                <option value="">Select department...</option>
+                                                {departments.map((d) => (
+                                                    <option key={d.id} value={d.id}>
+                                                        {d.dept_name || d.name || d.department_name || `Department ${d.id}`}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
 
-                                     {/* Sender */}
-                                     {canSenderField && <div className="space-y-3">
-                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                                             <div className="flex items-center gap-2">
-                                                 <User className={`w-3 h-3 ${subTextColor}`} /> Sender
+                                    {/* Sender */}
+                                    {canSenderField && <div className="space-y-3">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <User className={`w-3 h-3 ${subTextColor}`} /> Sender
                                             </div>
                                             <div className="flex items-center gap-4">
                                                 <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
@@ -553,40 +553,39 @@ export default function GuestSendLetter() {
                                                 const isValid = validateFormat(sender);
                                                 return (
                                                     <div key={index} className="relative group">
-                                                         <input
-                                                             type="text"
-                                                             placeholder="Dela Cruz, Juan M."
-                                                             value={sender}
-                                                             onChange={(e) => updateSender(index, e.target.value)}
-                                                             onKeyDown={(e) => handleSuggestionKeyDown(e, index)}
-                                                             onFocus={() => {
-                                                                 setActiveSenderIndex(index);
-                                                                 if (sender.length >= 2) fetchSuggestions(sender.split(',').pop().trim());
-                                                             }}
-                                                             className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
-                                                         />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Dela Cruz, Juan M."
+                                                            value={sender}
+                                                            onChange={(e) => updateSender(index, e.target.value)}
+                                                            onKeyDown={(e) => handleSuggestionKeyDown(e, index)}
+                                                            onFocus={() => {
+                                                                setActiveSenderIndex(index);
+                                                                if (sender.length >= 2) fetchSuggestions(sender.split(',').pop().trim());
+                                                            }}
+                                                            className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
+                                                        />
 
                                                         {showSuggestions && activeSenderIndex === index && (
                                                             <div
                                                                 ref={suggestionRef}
                                                                 className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
                                                             >
-                                                                 {suggestions.map((person, idx) => (
-                                                                     <div
-                                                                         key={person.id}
-                                                                         onClick={() => selectSuggestion(person.name)}
-                                                                         onMouseEnter={() => setHighlightedSuggestionIndex(idx)}
-                                                                         data-suggestion-index={idx}
-                                                                         className={`px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${
-                                                                             idx === highlightedSuggestionIndex
-                                                                                 ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
-                                                                                 : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
-                                                                         }`}
-                                                                     >
-                                                                         <User className="w-3 h-3 text-orange-400" />
-                                                                         <span>{person.name}</span>
-                                                                     </div>
-                                                                 ))}
+                                                                {suggestions.map((person, idx) => (
+                                                                    <div
+                                                                        key={person.id}
+                                                                        onClick={() => selectSuggestion(person.name)}
+                                                                        onMouseEnter={() => setHighlightedSuggestionIndex(idx)}
+                                                                        data-suggestion-index={idx}
+                                                                        className={`px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${idx === highlightedSuggestionIndex
+                                                                                ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
+                                                                                : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
+                                                                            }`}
+                                                                    >
+                                                                        <User className="w-3 h-3 text-orange-400" />
+                                                                        <span>{person.name}</span>
+                                                                    </div>
+                                                                ))}
                                                             </div>
                                                         )}
 
@@ -645,44 +644,43 @@ export default function GuestSendLetter() {
                                                 </div>
                                             </label>
                                             <div className="relative">
-                                                 <input
-                                                     type="text"
-                                                     value={formData.encoder}
-                                                     onChange={(e) => {
-                                                         const val = e.target.value;
-                                                         setFormData({ ...formData, encoder: val });
-                                                         setActiveSenderIndex('encoder');
-                                                         fetchSuggestions(val.split(',').pop().trim());
-                                                     }}
-                                                     onKeyDown={(e) => handleSuggestionKeyDown(e, 'encoder')}
-                                                     onFocus={() => {
-                                                         setActiveSenderIndex('encoder');
-                                                         if (formData.encoder.length >= 2) fetchSuggestions(formData.encoder.split(',').pop().trim());
-                                                     }}
-                                                     className={`w-full px-5 py-3 border-2 rounded-xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-sm font-bold uppercase tracking-wider outline-none ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] text-slate-600 dark:text-slate-200'}`}
-                                                 />
+                                                <input
+                                                    type="text"
+                                                    value={formData.encoder}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setFormData({ ...formData, encoder: val });
+                                                        setActiveSenderIndex('encoder');
+                                                        fetchSuggestions(val.split(',').pop().trim());
+                                                    }}
+                                                    onKeyDown={(e) => handleSuggestionKeyDown(e, 'encoder')}
+                                                    onFocus={() => {
+                                                        setActiveSenderIndex('encoder');
+                                                        if (formData.encoder.length >= 2) fetchSuggestions(formData.encoder.split(',').pop().trim());
+                                                    }}
+                                                    className={`w-full px-5 py-3 border-2 rounded-xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-sm font-bold uppercase tracking-wider outline-none ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] text-slate-600 dark:text-slate-200'}`}
+                                                />
 
                                                 {showSuggestions && activeSenderIndex === 'encoder' && (
                                                     <div
                                                         ref={suggestionRef}
                                                         className={`absolute z-[100] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
                                                     >
-                                                         {suggestions.map((person, idx) => (
-                                                             <div
-                                                                 key={person.id}
-                                                                 onClick={() => selectSuggestion(person.name)}
-                                                                 onMouseEnter={() => setHighlightedSuggestionIndex(idx)}
-                                                                 data-suggestion-index={idx}
-                                                                 className={`px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${
-                                                                     idx === highlightedSuggestionIndex
-                                                                         ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
-                                                                         : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
-                                                                 }`}
-                                                             >
-                                                                 <User className="w-3 h-3 text-orange-400" />
-                                                                 <span>{person.name}</span>
-                                                             </div>
-                                                         ))}
+                                                        {suggestions.map((person, idx) => (
+                                                            <div
+                                                                key={person.id}
+                                                                onClick={() => selectSuggestion(person.name)}
+                                                                onMouseEnter={() => setHighlightedSuggestionIndex(idx)}
+                                                                data-suggestion-index={idx}
+                                                                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${idx === highlightedSuggestionIndex
+                                                                        ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
+                                                                        : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
+                                                                    }`}
+                                                            >
+                                                                <User className="w-3 h-3 text-orange-400" />
+                                                                <span>{person.name}</span>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 )}
                                                 {!validateFormat(formData.encoder) && (
