@@ -428,19 +428,34 @@ export default function Departments() {
                                                     <div className="mt-2 space-y-3 animate-in fade-in zoom-in-95 duration-200">
                                                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.1em]">Select Section:</p>
                                                         <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
-                                                            {allSections.filter(s => s.status === 'AVAILABLE' || s.id === selectedDept?.id).map(s => (
-                                                                <button
-                                                                    key={s.id}
-                                                                    type="button"
-                                                                    onClick={() => handleManualSectionAssign(s.section_code)}
-                                                                    className={`p-2 text-[10px] font-black rounded-lg border transition-all ${s.section_code === selectedDept?.active_section ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white dark:bg-white/5 border-gray-100 dark:border-[#333] hover:border-emerald-500 hover:text-emerald-500'}`}
-                                                                >
-                                                                    {s.section_code}
-                                                                </button>
-                                                            ))}
-                                                            {allSections.filter(s => s.status === 'AVAILABLE').length === 0 && (
-                                                                <p className="col-span-4 text-[9px] text-gray-400 font-bold italic py-2 text-center">No available sections.</p>
-                                                            )}
+                                                            {allSections.map(s => {
+                                                                const isCurrent = s.section_code === selectedDept?.active_section;
+                                                                const isAvailable = s.status === 'AVAILABLE';
+                                                                const isDisabled = !isCurrent && !isAvailable;
+
+                                                                return (
+                                                                    <button
+                                                                        key={s.id}
+                                                                        type="button"
+                                                                        disabled={isDisabled}
+                                                                        onClick={() => handleManualSectionAssign(s.section_code)}
+                                                                        className={`p-2 rounded-lg border transition-all flex flex-col items-center justify-center gap-0.5 ${
+                                                                            isCurrent 
+                                                                            ? 'bg-emerald-500 text-white border-emerald-500' 
+                                                                            : isDisabled
+                                                                            ? 'bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-white/5 opacity-50 cursor-not-allowed'
+                                                                            : 'bg-white dark:bg-white/5 border-gray-100 dark:border-[#333] hover:border-emerald-500 text-slate-700 dark:text-slate-300'
+                                                                        }`}
+                                                                    >
+                                                                        <span className="text-[10px] font-black">{s.section_code}</span>
+                                                                        {s.department && (
+                                                                            <span className={`text-[7px] font-black uppercase tracking-widest truncate max-w-full ${isCurrent ? 'text-white/80' : 'text-gray-400'}`}>
+                                                                                {s.department.dept_code}
+                                                                            </span>
+                                                                        )}
+                                                                    </button>
+                                                                );
+                                                            })}
                                                         </div>
                                                         <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-white/5">
                                                             <button 
