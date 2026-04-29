@@ -2,12 +2,12 @@ const path = require('path');
 const fs = require('fs');
 
 // Dynamic path resolution for Docker vs Host
-const dbPath = fs.existsSync(path.join(__dirname, '../src/config/db.js')) 
-    ? '../src/config/db' 
-    : '../backend/src/config/db';
+const isDocker = fs.existsSync(path.join(__dirname, '../src/config/db.js'));
+const dbPath = isDocker ? '../src/config/db' : '../backend/src/config/db';
+const associationsPath = isDocker ? '../src/models/associations' : '../backend/src/models/associations';
 
 const sequelize = require(dbPath);
-const { SystemPage } = require('../backend/src/models/associations'); // Associations loads everything properly
+const { SystemPage } = require(associationsPath);
 
 async function run() {
     try {
