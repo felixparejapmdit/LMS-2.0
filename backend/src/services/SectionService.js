@@ -180,6 +180,46 @@ class SectionService {
 
         return newUsage;
     }
+
+    /**
+     * Manual assignment of a specific section code.
+     */
+    static async assignSpecificSection(deptId, sectionCode, transaction = null) {
+        const currentYear = new Date().getFullYear();
+
+        // 1. Deactivate current active section if any
+        await DeptSectionUsage.update(
+            { is_active: false, filled_at: new Date() },
+            { 
+                where: { dept_id: deptId, is_active: true, year: currentYear },
+                transaction 
+            }
+        );
+
+        // 2. Mark the target section as ACTIVE in registry and assign to this dept
+        const section = await RefSectionRegistry.findOne({
+            where: { section_code: sectionCode },
+            transaction
+        });
+
+        if (!section) throw new Error(`Section code ${sectionCode} not found in registry.`);
+
+        await section.update({
+            status: 'ACTIVE',
+            assigned_to_dept_id: deptId
+        }, { transaction });
+
+        // 3. Create new usage record
+        const newUsage = await DeptSectionUsage.create({
+            dept_id: deptId,
+            section_code: sectionCode,
+            current_sequence: 0,
+            year: currentYear,
+            is_active: true
+        }, { transaction });
+
+        return newUsage;
+    }
 }
 
 module.exports = SectionService;

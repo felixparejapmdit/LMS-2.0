@@ -6,5 +6,6 @@ router.get('/registry', SectionController.getRegistry);
 router.get('/overview', SectionController.getDashboardOverview);
 router.get('/dept/:deptId/history', SectionController.getDeptUsage);
 router.post('/force-new', SectionController.forceNewSection);
+router.post('/assign-section', SectionController.assignSection);
 
 module.exports = router;

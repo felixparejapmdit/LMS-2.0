@@ -15,6 +15,10 @@ const Department = sequelize.define('Department', {
     dept_code: {
         type: DataTypes.STRING,
         unique: true
+    },
+    group_id: {
+        type: DataTypes.INTEGER,
+        defaultValue: 1
     }
 }, {
     tableName: 'ref_departments',

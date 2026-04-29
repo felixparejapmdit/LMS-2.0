@@ -54,12 +54,27 @@ export default function Departments() {
 
     const [formData, setFormData] = useState({
         dept_name: "",
-        dept_code: ""
+        dept_code: "",
+        group_id: 1
     });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [sectionHistory, setSectionHistory] = useState([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [allSections, setAllSections] = useState([]);
+    const [showSectionSelector, setShowSectionSelector] = useState(false);
+
+    const groupNames = {
+        1: "EVM",
+        2: "AEVM",
+        3: "ATG"
+    };
+
+    const groupColors = {
+        1: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+        2: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+        3: "bg-orange-500/10 text-orange-600 border-orange-500/20"
+    };
 
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
@@ -122,9 +137,10 @@ export default function Departments() {
     const openCreateModal = () => {
         if (!canAdd) return;
         setModalMode("create");
-        setFormData({ dept_name: "", dept_code: "" });
+        setFormData({ dept_name: "", dept_code: "", group_id: 1 });
         setSelectedDept(null);
         setIsModalOpen(true);
+        setShowSectionSelector(false);
     };
 
     const openEditModal = async (item) => {
@@ -132,32 +148,49 @@ export default function Departments() {
         setModalMode("edit");
         setFormData({
             dept_name: item.dept_name || "",
-            dept_code: item.dept_code || ""
+            dept_code: item.dept_code || "",
+            group_id: item.group_id || 1
         });
         setSelectedDept(item);
         setIsModalOpen(true);
         setIsMenuOpen(null);
+        setShowSectionSelector(false);
 
-        // Fetch history
+        // Fetch history and all sections
         setLoadingHistory(true);
         try {
-            const history = await sectionService.getDeptHistory(item.id);
+            const [history, sections] = await Promise.all([
+                sectionService.getDeptHistory(item.id),
+                sectionService.getRegistry()
+            ]);
             setSectionHistory(history);
+            setAllSections(sections);
         } catch (err) {
-            console.error("History fetch failed", err);
+            console.error("Fetch failed", err);
         } finally {
             setLoadingHistory(false);
         }
     };
 
     const handleForceNewSection = async () => {
-        if (!window.confirm("Force assign a new section for this department? This will close the current sequence.")) return;
+        if (!window.confirm("Assign a new section? Current sequence will be closed.")) return;
         try {
             await sectionService.forceNewSection(selectedDept.id);
             setIsModalOpen(false);
             fetchData();
         } catch (err) {
             alert("Failed to force new section: " + err.message);
+        }
+    };
+
+    const handleManualSectionAssign = async (code) => {
+        if (!window.confirm(`Assign section #${code} to this department?`)) return;
+        try {
+            await sectionService.assignSpecificSection(selectedDept.id, code);
+            setIsModalOpen(false);
+            fetchData();
+        } catch (err) {
+            alert("Assignment failed: " + err.message);
         }
     };
 
@@ -178,7 +211,7 @@ export default function Departments() {
         return (
             <div
                 key={item.id}
-                className={`${cardBg} ${viewMode === 'grid' ? 'p-8 rounded-[2.5rem]' : 'p-4 rounded-3xl'} border shadow-sm hover:shadow-xl hover:border-emerald-200 dark:hover:border-emerald-900/40 transition-all group overflow-hidden`}
+                className={`${cardBg} ${viewMode === 'grid' ? 'p-8 rounded-[2.5rem]' : 'p-4 rounded-3xl'} border shadow-sm hover:shadow-xl hover:border-emerald-200 dark:hover:border-emerald-900/40 transition-all group overflow-visible relative`}
             >
                 <div
                     onClick={() => toggleExpand(item.id)}
@@ -195,11 +228,16 @@ export default function Departments() {
                                     <ChevronDown className="w-3 h-3" />
                                 </div>
                             </div>
-                            <p className="text-xs text-gray-500 font-medium line-clamp-1">{item.dept_code}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <p className="text-xs text-gray-500 font-medium line-clamp-1">{item.dept_code}</p>
+                                    <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${groupColors[item.group_id] || groupColors[1]}`}>
+                                        {groupNames[item.group_id] || "EVM"}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4">
                         <div className="hidden md:flex flex-col items-end gap-1">
                             <div className="flex items-center gap-2">
                                 <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Current Section</span>
@@ -237,9 +275,9 @@ export default function Departments() {
                             </button>
                             {isMenuOpen === item.id && (
                                 <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl z-20 py-1" onClick={e => e.stopPropagation()}>
-                                    <button onClick={() => navigate(`/departments/${item.id}/letters`)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 active:scale-95 transition-all"><Building2 className="w-3 h-3" /> Dedicated Workspace</button>
-                                    {canEdit && <button onClick={() => openEditModal(item)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit Entry</button>}
-                                    {canDelete && <button onClick={() => handleDelete(item.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Remove Unit</button>}
+                                    <button onClick={() => navigate(`/departments/${item.id}/letters`)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 active:scale-95 transition-all"><Building2 className="w-3 h-3" /> View Letters</button>
+                                    {canEdit && <button onClick={() => openEditModal(item)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"><Edit2 className="w-3 h-3" /> Edit</button>}
+                                    {canDelete && <button onClick={() => handleDelete(item.id)} className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"><Trash2 className="w-3 h-3" /> Delete</button>}
                                 </div>
                             )}
                         </div>
@@ -268,8 +306,8 @@ export default function Departments() {
                         <div className="flex items-center gap-2">
                             <Building2 className={`w-4 h-4 ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-emerald-500'}`} />
                             <div>
-                                <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Management</h1>
-                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Departments/Sections</h2>
+                                <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Setup</h1>
+                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Departments</h2>
                             </div>
                         </div>
                     </div>
@@ -338,7 +376,7 @@ export default function Departments() {
                         <div className="p-8">
                             <div className="flex flex-col space-y-6 formWrapper formArea formContent formForm formValues">
                                 <div className="flex items-center justify-between">
-                                    <h3 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>{modalMode === 'create' ? 'Create Dept' : 'Edit Dept'}</h3>
+                                    <h3 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>{modalMode === 'create' ? 'Add Dept' : 'Edit Dept'}</h3>
                                     <button onClick={() => setIsModalOpen(false)}><X className="w-5 h-5 text-gray-400" /></button>
                                 </div>
                                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -351,26 +389,70 @@ export default function Departments() {
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Dept Code</label>
                                         <input type="text" required value={formData.dept_code} onChange={e => setFormData({ ...formData, dept_code: e.target.value })} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold" />
                                     </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Group</label>
+                                        <select 
+                                            value={formData.group_id} 
+                                            onChange={e => setFormData({ ...formData, group_id: parseInt(e.target.value) })} 
+                                            className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                        >
+                                            <option value={1}>EVM</option>
+                                            <option value={2}>AEVM</option>
+                                            <option value={3}>ATG</option>
+                                        </select>
+                                    </div>
 
                                     {modalMode === 'edit' && (
                                         <div className="space-y-6 pt-6 border-t border-dashed border-gray-100 dark:border-white/5">
-                                            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-gray-100 dark:border-white/10">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center text-emerald-500 shadow-sm">
-                                                        <Zap className="w-5 h-5" />
+                                            <div className="flex flex-col gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-gray-100 dark:border-white/10">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center text-emerald-500 shadow-sm">
+                                                            <Zap className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-tight">Active Section</p>
+                                                            <p className={`text-sm font-black uppercase tracking-tight ${textColor}`}>{selectedDept?.active_section || "N/A"}</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-tight">Active Section</p>
-                                                        <p className={`text-sm font-black uppercase tracking-tight ${textColor}`}>{selectedDept?.active_section || "N/A"}</p>
-                                                    </div>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => setShowSectionSelector(!showSectionSelector)}
+                                                        className={`flex items-center gap-2 px-3 py-2 text-[8px] font-black uppercase rounded-lg border transition-all shadow-sm ${showSectionSelector ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-white/10 text-gray-400 hover:text-emerald-500 border-gray-100 dark:border-white/5'}`}
+                                                    >
+                                                        <Edit2 className="w-3 h-3" /> Set Section Code
+                                                    </button>
                                                 </div>
-                                                <button 
-                                                    type="button"
-                                                    onClick={handleForceNewSection}
-                                                    className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 text-[8px] font-black uppercase rounded-lg border border-gray-100 dark:border-white/5 transition-all shadow-sm"
-                                                >
-                                                    <RefreshCw className="w-3 h-3" /> Force New
-                                                </button>
+
+                                                {showSectionSelector && (
+                                                    <div className="mt-2 space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.1em]">Select Section:</p>
+                                                        <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                                                            {allSections.filter(s => s.status === 'AVAILABLE' || s.id === selectedDept?.id).map(s => (
+                                                                <button
+                                                                    key={s.id}
+                                                                    type="button"
+                                                                    onClick={() => handleManualSectionAssign(s.section_code)}
+                                                                    className={`p-2 text-[10px] font-black rounded-lg border transition-all ${s.section_code === selectedDept?.active_section ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white dark:bg-white/5 border-gray-100 dark:border-[#333] hover:border-emerald-500 hover:text-emerald-500'}`}
+                                                                >
+                                                                    {s.section_code}
+                                                                </button>
+                                                            ))}
+                                                            {allSections.filter(s => s.status === 'AVAILABLE').length === 0 && (
+                                                                <p className="col-span-4 text-[9px] text-gray-400 font-bold italic py-2 text-center">No available sections.</p>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-white/5">
+                                                            <button 
+                                                                type="button"
+                                                                onClick={handleForceNewSection}
+                                                                className="flex-1 py-2 bg-slate-100 dark:bg-white/5 hover:bg-red-50 dark:hover:bg-red-900/20 text-[8px] font-black uppercase rounded-lg text-gray-400 hover:text-red-500 transition-all border border-transparent hover:border-red-100"
+                                                            >
+                                                                Auto-Assign New
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             <div className="space-y-3">

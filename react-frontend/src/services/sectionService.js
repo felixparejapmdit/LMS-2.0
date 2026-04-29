@@ -18,6 +18,10 @@ const sectionService = {
     forceNewSection: async (deptId) => {
         const response = await axios.post(`${API_URL}/sections/force-new`, { deptId });
         return response.data;
+    },
+    assignSpecificSection: async (deptId, sectionCode) => {
+        const response = await axios.post(`${API_URL}/sections/assign-section`, { deptId, sectionCode });
+        return response.data;
     }
 };
 

@@ -49,6 +49,23 @@ class SectionController {
     }
 
     /**
+     * Assign a specific section code to a department.
+     */
+    static async assignSection(req, res) {
+        try {
+            const { deptId, sectionCode } = req.body;
+            if (!deptId || !sectionCode) {
+                return res.status(400).json({ error: 'deptId and sectionCode are required' });
+            }
+
+            const newUsage = await SectionService.assignSpecificSection(deptId, sectionCode);
+            res.json(newUsage);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    /**
      * Get overview for the department dashboard (progress, etc).
      */
     static async getDashboardOverview(req, res) {

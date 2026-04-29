@@ -17,7 +17,7 @@ if ! docker ps --format '{{.Names}}' | grep -q "$CONTAINER_NAME"; then
 fi
 
 # 1. Add Hidden Fields and Authorized Users
-echo "[1/2] Updating letters table (is_hidden, authorized_users)..."
+echo "[1/3] Updating letters table (is_hidden, authorized_users)..."
 docker exec $CONTAINER_NAME node scripts/add_hidden_fields.js
 
 if [ $? -eq 0 ]; then
@@ -29,8 +29,21 @@ fi
 
 echo ""
 
-# 2. Create Section Registry
-echo "[2/2] Creating Section Registry tables..."
+# 2. Add Dept Group Field
+echo "[2/3] Updating departments table (group_id)..."
+docker exec $CONTAINER_NAME node scripts/add_dept_group.js
+
+if [ $? -eq 0 ]; then
+    echo "Done."
+else
+    echo "Error updating departments table."
+    exit 1
+fi
+
+echo ""
+
+# 3. Create Section Registry
+echo "[3/3] Creating Section Registry tables..."
 docker exec $CONTAINER_NAME node scripts/create_section_registry.js
 
 if [ $? -eq 0 ]; then
