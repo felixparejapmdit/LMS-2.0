@@ -18,7 +18,9 @@ import {
     Inbox,
     Menu,
     Send,
-    MessageSquare
+    MessageSquare,
+    FilePlus,
+    Mail
 } from "lucide-react";
 
 export default function LetterEndorsement() {
@@ -278,6 +280,13 @@ export default function LetterEndorsement() {
                                 <Printer className="w-5 h-5" />
                             </button>
                         )}
+                        <button 
+                            onClick={() => navigate('/new-letter')} 
+                            className="p-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl transition-all text-white shadow-lg shadow-emerald-500/20"
+                            title="New Letter"
+                        >
+                            <FilePlus className="w-5 h-5" />
+                        </button>
                         {canRefresh && <button onClick={() => fetchEndorsements()} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
                             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                         </button>}
@@ -345,6 +354,7 @@ export default function LetterEndorsement() {
                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3">LMS ID</th>
                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3">Sender</th>
                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3 hidden md:table-cell">Letter Summary</th>
+                                                    <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3 hidden md:table-cell">Status</th>
                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3 hidden md:table-cell">Endorsed On</th>
                                                     <th className="text-right text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3">Actions</th>
                                                 </tr>
@@ -366,6 +376,11 @@ export default function LetterEndorsement() {
                                                             <p className="text-xs text-gray-500 font-medium line-clamp-2">
                                                                 {e.letter?.summary || "—"}
                                                             </p>
+                                                        </td>
+                                                        <td className="px-6 py-4 hidden md:table-cell">
+                                                            <span className="px-2 py-1 bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300 rounded-md text-[10px] font-bold uppercase tracking-widest">
+                                                                {e.letter?.status?.status_name || "—"}
+                                                            </span>
                                                         </td>
                                                         <td className="px-6 py-4 hidden md:table-cell">
                                                             <p className="text-[10px] text-gray-400 font-bold">
@@ -426,6 +441,23 @@ export default function LetterEndorsement() {
                     )}
                 </div>
             </main>
+
+            {/* Telegram Notification Sending Overlay */}
+            {notifyingId && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="flex flex-col items-center justify-center p-8 bg-white/10 rounded-3xl backdrop-blur-md shadow-2xl border border-white/20">
+                        <div className="relative mb-6">
+                            <Mail className="w-20 h-20 text-white animate-bounce" strokeWidth={1.5} />
+                            <Send className="w-8 h-8 text-blue-400 absolute -top-2 -right-4 animate-pulse" strokeWidth={2.5} />
+                        </div>
+                        <h2 className="text-xl font-black text-white uppercase tracking-widest mb-2">Sending Notification</h2>
+                        <p className="text-white/70 text-sm font-medium flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Delivering via Telegram...
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

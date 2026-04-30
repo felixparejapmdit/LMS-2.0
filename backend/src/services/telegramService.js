@@ -84,18 +84,37 @@ class TelegramService {
     }
   }
 
+  static buildNotesSection(letter) {
+    if (!letter) return "";
+    let section = "";
+    if (letter.atgnote && String(letter.atgnote).trim()) {
+      section += `\n\n<b>ATG Note:</b>\n${TelegramService.escapeHtml(letter.atgnote)}`;
+    }
+    if (letter.evemnote && String(letter.evemnote).trim()) {
+      section += `\n\n<b>EVM Note:</b>\n${TelegramService.escapeHtml(letter.evemnote)}`;
+    }
+    if (letter.aevmnote && String(letter.aevmnote).trim()) {
+      section += `\n\n<b>AEVM Note:</b>\n${TelegramService.escapeHtml(letter.aevmnote)}`;
+    }
+    return section;
+  }
+
   static buildMovementText(letter, deptName, stepName) {
     const safeLms = TelegramService.escapeHtml(letter.lms_id);
     const safeSender = TelegramService.escapeHtml(letter.sender);
     const safeStep = TelegramService.escapeHtml(stepName);
     const safeDept = TelegramService.escapeHtml(deptName);
-    return (
-      `${ICONS.bell} <b>LMS 2.0 Notification</b>\n` +
+    
+    let text = `${ICONS.bell} <b>LMS 2.0 Notification</b>\n` +
       `${ICONS.page} Letter: <code>${safeLms}</code>\n` +
       `${ICONS.person} Sender: ${safeSender}\n` +
       `${ICONS.rocket} New Status: ${safeStep}\n` +
-      `${ICONS.pin} Department: ${safeDept}`
-    );
+      `${ICONS.pin} Department: ${safeDept}`;
+
+    // Append notes if they exist
+    text += TelegramService.buildNotesSection(letter);
+
+    return text;
   }
 
   static buildMovementReplyMarkup(letterId, options = {}) {

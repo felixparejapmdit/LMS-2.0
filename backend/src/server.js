@@ -117,6 +117,7 @@ async function startServer() {
         await ensureColumn('letter_logs', 'department_id', "INTEGER");
         await ensureColumn('letter_logs', 'status_id', "INTEGER");
         await ensureColumn('dept_section_usage', 'year', "INTEGER");
+        await ensureColumn('letters', 'is_resolved', "BOOLEAN DEFAULT 0");
 
         // Normalize any invalid tray_id=0 back to NULL (FK-safe unassigned tray)
         try {

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 // Auth
 import Login from "./pages/auth/Login";
@@ -100,7 +100,7 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (hasPermission && !isSuperAdmin && !hasPermission(pageKey, 'can_view')) {
+  if (user && !isSuperAdmin && hasPermission && !hasPermission(pageKey, 'can_view')) {
     console.warn(`Access Denied for ${pageKey}. User Role: ${user?.role || user?.roleData?.name}. isSuperAdmin: ${isSuperAdmin}`);
     const fallbackCandidates = ["/", "/dashboard", "/letter-tracker", "/inbox", "/guest/send-letter"];
     const fallback = fallbackCandidates.find((path) => hasPermission(getPageKeyFromPath(path), 'can_view'));
@@ -114,34 +114,48 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function AppRoutes() {
-  const navigate = useRef(null);
+  const navigate = useNavigate();
   
+  const sequenceRef = useRef("");
+
   useEffect(() => {
-    let sequence = '';
     const handleKeyDown = (e) => {
-        // Ctrl+Y followed by X → VEM Resumen
-        // Ctrl+A followed by M → AEVM Resumen
-        if (e.ctrlKey && e.key.toLowerCase() === 'y') {
-            sequence = 'ctrl_y';
-        } else if (e.ctrlKey && e.key.toLowerCase() === 'a') {
-            sequence = 'ctrl_a';
-            e.preventDefault(); // prevent select-all
-        } else if (sequence === 'ctrl_y' && e.key.toLowerCase() === 'x') {
-            window.location.href = '/vem-resumen';
-            sequence = '';
-        } else if (sequence === 'ctrl_a' && e.key.toLowerCase() === 'm') {
-            window.location.href = '/aevm-resumen';
-            sequence = '';
-        } else {
-            sequence = '';
-        }
+      const key = e.key.toLowerCase();
+      
+      // Triggers (Ctrl+Y or Ctrl+A)
+      if (e.ctrlKey && key === 'y') {
+        sequenceRef.current = 'ctrl_y';
+        e.preventDefault();
+        console.log("[SHORTCUT] Sequence primed: ctrl_y");
+      } else if (e.ctrlKey && key === 'a') {
+        sequenceRef.current = 'ctrl_a';
+        e.preventDefault();
+        console.log("[SHORTCUT] Sequence primed: ctrl_a");
+      } 
+      // Completions (X after Ctrl+Y, or M after Ctrl+A)
+      else if (sequenceRef.current === 'ctrl_y' && key === 'x') {
+        e.preventDefault();
+        console.log("[SHORTCUT] Navigating to VEM Resumen");
+        navigate('/vem-resumen');
+        sequenceRef.current = '';
+      } else if (sequenceRef.current === 'ctrl_a' && key === 'm') {
+        e.preventDefault();
+        console.log("[SHORTCUT] Navigating to AEVM Resumen");
+        navigate('/aevm-resumen');
+        sequenceRef.current = '';
+      } 
+      // Reset if any other key is pressed (except Control itself)
+      else if (key !== 'control') {
+        sequenceRef.current = '';
+      }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [navigate]);
 
   return (
-    <Router>
+    <>
       <TutorialGuideOverlay />
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -187,7 +201,7 @@ function AppRoutes() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </Router>
+    </>
   );
 }
 
@@ -196,9 +210,11 @@ import TutorialGuideOverlay from "./components/TutorialGuide";
 export default function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <Router>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </Router>
     </ErrorBoundary>
   );
 }

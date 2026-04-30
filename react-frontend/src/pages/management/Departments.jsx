@@ -230,11 +230,11 @@ export default function Departments() {
         return (
             <div
                 key={item.id}
-                className={`${cardBg} ${viewMode === 'grid' ? 'p-8 rounded-[2.5rem]' : 'p-4 rounded-3xl'} border shadow-sm hover:shadow-xl hover:border-emerald-200 dark:hover:border-emerald-900/40 transition-all group overflow-visible relative`}
+                onClick={() => toggleExpand(item.id)}
+                className={`cursor-pointer ${cardBg} ${viewMode === 'grid' ? 'p-8 rounded-[2.5rem]' : 'p-4 rounded-3xl'} border shadow-sm hover:shadow-xl hover:border-emerald-200 dark:hover:border-emerald-900/40 transition-all group overflow-visible relative`}
             >
                 <div
-                    onClick={() => toggleExpand(item.id)}
-                    className="flex items-center justify-between cursor-pointer group/header"
+                    className="flex items-center justify-between group/header"
                 >
                     <div className="flex items-center gap-6 overflow-hidden flex-1">
                         <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/10 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform shrink-0">

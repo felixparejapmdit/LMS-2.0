@@ -83,6 +83,10 @@ const Letter = sequelize.define('Letter', {
     },
     authorized_users: {
         type: DataTypes.TEXT
+    },
+    is_resolved: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 }, {
     tableName: 'letters',

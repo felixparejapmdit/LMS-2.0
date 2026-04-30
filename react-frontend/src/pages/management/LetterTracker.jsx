@@ -158,6 +158,9 @@ export default function LetterTracker() {
 
         return (
             letter.entry_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            letter.lms_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            letter.vemcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            letter.aevm_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             letter.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             letter.summary?.toLowerCase().includes(searchTerm.toLowerCase())
         );

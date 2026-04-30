@@ -1,9 +1,9 @@
-const { Letter, LetterKind, LetterAssignment, User, Person } = require('../models/associations');
-const Endorsement = require('../models/Endorsement');
+const { Letter, LetterKind, LetterAssignment, User, Person, Status, Endorsement } = require('../models/associations');
 const { Op } = require('sequelize');
 const sequelize = require('../config/db');
 const TelegramService = require('../services/telegramService');
-const ALL_LETTER_ROLES = new Set(['ADMINISTRATOR']);
+const SUPER_ADMIN_ROLES = new Set(['ADMINISTRATOR', 'ADMIN', 'SUPER ADMIN']);
+const DEPT_ADMIN_ROLES = new Set(['ACCESS MANAGER', 'VIP', 'MANAGER']);
 
 // CREATE the table if it doesn't exist
 (async () => {
@@ -19,35 +19,52 @@ const buildQueryOptions = (query = {}) => {
     const where = {};
     const letterWhere = {};
 
-    const normalizedRole = role ? role.toString().toUpperCase() : '';
+    const normalizedRole = role ? role.toString().toUpperCase().trim() : '';
     const mineOnly = `${mine}`.toLowerCase() === 'true';
     const normalizedFullName = (full_name || '').trim();
+    const nameMatch = normalizedFullName ? `%${normalizedFullName}%` : null;
 
     if (mineOnly) {
-        where.endorsed_to = { [Op.like]: normalizedFullName || '__NO_MATCH__' };
+        where.endorsed_to = { [Op.like]: nameMatch || '__NO_MATCH__' };
     }
 
     // USER sees endorsements specifically addressed to them only.
     if (normalizedRole === 'USER') {
-        where.endorsed_to = { [Op.like]: normalizedFullName || '__NO_MATCH__' };
-    } else if (!ALL_LETTER_ROLES.has(normalizedRole)) {
-        // For non-admin roles (except USER), keep visibility scoped to own/dept.
-        if (user_id) {
-            letterWhere[Op.or] = [
-                { encoder_id: user_id },
-                { '$assignments.department_id$': department_id }
-            ];
+        where.endorsed_to = { [Op.like]: nameMatch || '__NO_MATCH__' };
+    } else if (!SUPER_ADMIN_ROLES.has(normalizedRole)) {
+        // For non-super-admin roles, keep visibility scoped.
+        // If it's a Dept Admin, they see letters in their department.
+        if (DEPT_ADMIN_ROLES.has(normalizedRole)) {
+            if (department_id) {
+                letterWhere[Op.or] = [
+                    { dept_id: department_id },
+                    { '$assignments.department_id$': department_id }
+                ];
+            }
+        } else {
+            // Regular users see only their own encoded letters or things assigned to them
+            if (user_id) {
+                letterWhere[Op.or] = [
+                    { encoder_id: user_id },
+                    { '$assignments.department_id$': department_id }
+                ];
+            }
         }
     }
+
+    // Always filter letters to show only 'Endorsed' or 'Forwarded' statuses
+    // This is handled by the Status model include with a where clause.
 
     const include = [
         {
             model: Letter,
             as: 'letter',
+            required: true,
             where: Object.keys(letterWhere).length > 0 ? letterWhere : null,
-            attributes: ['id', 'lms_id', 'sender', 'summary', 'encoder_id'],
+            attributes: ['id', 'lms_id', 'sender', 'summary', 'encoder_id', 'global_status', 'date_received'],
             include: [
                 { model: LetterKind, as: 'letterKind', attributes: ['kind_name'] },
+                { model: Status, as: 'status', attributes: ['status_name'] },
                 { model: LetterAssignment, as: 'assignments', attributes: ['department_id'], required: false }
             ]
         }
@@ -70,50 +87,59 @@ class EndorsementController {
 
             // Enrich with Telegram availability
             const enriched = await Promise.all(endorsements.map(async (e) => {
-                const data = e.toJSON();
-                const personName = data.endorsed_to;
-                
-                let hasTelegram = false;
-                let isBot = personName?.toLowerCase().includes('lms bot');
-                let telegramChatId = null;
+                try {
+                    const data = e.toJSON();
+                    const personName = data.endorsed_to || "";
+                    
+                    let hasTelegram = false;
+                    let isBot = personName.toLowerCase().includes('lms bot');
+                    let telegramChatId = null;
 
-                if (isBot) {
-                    hasTelegram = true;
-                } else {
-                    // Check User table
-                    const userMatch = await User.findOne({
-                        where: {
-                            [Op.or]: [
-                                { username: personName },
-                                sequelize.literal(`"last_name" || ', ' || "first_name" = '${personName.replace(/'/g, "''")}'`),
-                                sequelize.literal(`"first_name" || ' ' || "last_name" = '${personName.replace(/'/g, "''")}'`)
-                            ]
-                        }
-                    });
-
-                    if (userMatch && userMatch.telegram_chat_id) {
+                    if (isBot) {
                         hasTelegram = true;
-                        telegramChatId = userMatch.telegram_chat_id;
-                    } else {
-                        // Check Person table
-                        const personMatch = await Person.findOne({
-                            where: { name: personName }
+                    } else if (personName) {
+                        // Check User table
+                        const escapedName = personName.replace(/'/g, "''");
+                        const userMatch = await User.findOne({
+                            where: {
+                                [Op.or]: [
+                                    { username: personName },
+                                    sequelize.literal(`"last_name" || ', ' || "first_name" = '${escapedName}'`),
+                                    sequelize.literal(`"first_name" || ' ' || "last_name" = '${escapedName}'`)
+                                ]
+                            }
                         });
-                        if (personMatch && personMatch.telegram_chat_id) {
+
+                        if (userMatch && userMatch.telegram_chat_id) {
                             hasTelegram = true;
-                            telegramChatId = personMatch.telegram_chat_id;
+                            telegramChatId = userMatch.telegram_chat_id;
+                        } else {
+                            // Check Person table
+                            const personMatch = await Person.findOne({
+                                where: { name: personName }
+                            });
+                            if (personMatch && personMatch.telegram_chat_id) {
+                                hasTelegram = true;
+                                telegramChatId = personMatch.telegram_chat_id;
+                            }
                         }
                     }
-                }
 
-                return {
-                    ...data,
-                    telegram_info: {
-                        has_telegram: hasTelegram,
-                        is_bot: isBot,
-                        chat_id: telegramChatId
-                    }
-                };
+                    return {
+                        ...data,
+                        telegram_info: {
+                            has_telegram: hasTelegram,
+                            is_bot: isBot,
+                            chat_id: telegramChatId
+                        }
+                    };
+                } catch (mapErr) {
+                    console.error('Error enriching endorsement:', e.id, mapErr);
+                    return {
+                        ...e.toJSON(),
+                        telegram_info: { has_telegram: false, is_bot: false, chat_id: null }
+                    };
+                }
             }));
 
             res.json(enriched);
@@ -199,12 +225,18 @@ class EndorsementController {
 
             // If it's a bot or we have a chat ID, send notification
             if (personName.toLowerCase().includes('lms bot') || chatId) {
-                const text = 
+                let text = 
                     `<b>📢 Endorsement Notification</b>\n\n` +
                     `📄 <b>Letter:</b> <code>${endorsement.letter?.lms_id || 'N/A'}</code>\n` +
                     `👤 <b>To:</b> ${personName}\n` +
-                    `💬 <b>Notes:</b> ${endorsement.notes || 'No notes'}\n\n` +
-                    `Please check your LMS Inbox.`;
+                    `💬 <b>Notes:</b> ${endorsement.notes || 'No notes'}`;
+
+                // Append letter-specific notes if they exist
+                if (endorsement.letter) {
+                    text += TelegramService.buildNotesSection(endorsement.letter);
+                }
+
+                text += `\n\nPlease check your LMS Inbox.`;
 
                 // If it's the bot, we might send to a default group or just log it
                 // For now, if chatID represents the destination, send it.

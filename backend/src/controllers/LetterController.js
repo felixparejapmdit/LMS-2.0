@@ -152,7 +152,7 @@ class LetterController {
           [Op.or]: [
             { is_hidden: false },
             { is_hidden: null },
-            { encoder_id: user_id },
+            ...(user_id ? [{ encoder_id: user_id }] : []),
             ...(nameMatch ? [{ authorized_users: { [Op.like]: nameMatch } }] : []),
             ...(alternateNameMatch ? [{ authorized_users: { [Op.like]: alternateNameMatch } }] : [])
           ]
@@ -861,6 +861,18 @@ class LetterController {
         }
       }
 
+      if (req.body.notify_karl && TelegramService) {
+        setImmediate(async () => {
+          try {
+             const karlChatId = process.env.KARL_CHAT_ID || "CHAT_ID_HERE"; 
+             const text = `Notification for Karl:\nA new letter has been created.\nSender: ${letter.sender}\nSummary: ${letter.summary}\nLMS ID: ${letter.lms_id}`;
+             await TelegramService.sendMessage(karlChatId, text);
+          } catch (e) {
+             console.error("Karl Notify Error", e);
+          }
+        });
+      }
+
       await transaction.commit();
       res.status(201).json(letter);
     } catch (error) {
@@ -958,6 +970,13 @@ class LetterController {
 
       // Create log if status changed
       if (newStatusId !== oldStatusId) {
+        // Find current assignment to inherit step/dept for the timeline context
+        const currentAssignment = await LetterAssignment.findOne({
+          where: { letter_id: letter.id },
+          order: [['created_at', 'DESC']],
+          transaction
+        });
+
         const newStatus = await Status.findByPk(newStatusId, { transaction });
         await LetterLog.create(
           {
@@ -965,6 +984,8 @@ class LetterController {
             user_id: req.body.user_id || null, // Best effort for user id
             action_type: newStatus?.status_name || "Status Updated",
             status_id: newStatusId,
+            step_id: currentAssignment?.step_id || null,
+            department_id: currentAssignment?.department_id || null,
             log_details: `Status changed to ${newStatus?.status_name || "Unknown"}`,
           },
           { transaction },

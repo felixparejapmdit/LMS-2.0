@@ -35,6 +35,7 @@ import {
   Printer,
   Settings,
   Pencil,
+  ChevronDown
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import departmentService from "../../services/departmentService";
@@ -276,10 +277,13 @@ export default function MasterTable() {
   }, []);
 
   const handleEdit = (letter) => {
-    const latestAssignment = letter.assignments?.sort((a, b) => b.id - a.id)[0];
+    const latestAssignment = (letter.assignments || []).sort((a, b) => b.id - a.id)[0];
+    const latestEndorsement = (letter.endorsements || []).sort((a, b) => b.id - a.id)[0];
+
     setSelectedLetter({
       ...letter,
       currentStepId: letter.currentStepId || latestAssignment?.step_id,
+      endorse_to: latestEndorsement?.endorsed_to || "",
     });
     setValidationError("");
     setDrawerMode("edit");
@@ -454,8 +458,8 @@ export default function MasterTable() {
     setIsCombining(false);
   };
 
-  const createEndorsement = async (letterId) => {
-    const endorsedTo = (selectedLetter.endorse_to || "").trim();
+  const createEndorsement = async (letterId, name = null) => {
+    const endorsedTo = (name || selectedLetter.endorse_to || "").trim();
     if (!endorsedTo) {
       setValidationError("Please select a person to endorse to.");
       return false;
@@ -468,6 +472,7 @@ export default function MasterTable() {
         endorsed_to: endorsedTo,
         endorsed_by: user?.id || null,
         notes: "",
+        dept_id: selectedLetter?.dept_id?.id ?? selectedLetter?.dept_id ?? null,
       },
     );
     return true;
@@ -481,6 +486,16 @@ export default function MasterTable() {
       return null;
     }
 
+    const statusObj = selectedLetter.global_status && statuses ? statuses.find(s => s.id === selectedLetter.global_status) : null;
+    const statusName = (statusObj?.status_name || "").toLowerCase();
+    if (statusName.includes("forward") || statusName.includes("endorse")) {
+      const endorsedTo = (selectedLetter.endorse_to || "").trim();
+      if (!endorsedTo) {
+        setValidationError(`Please select a person to endorse to when setting status to ${statusObj?.status_name || 'Endorsed/Forwarded'}.`);
+        return null;
+      }
+    }
+
     let updatedLetter = { ...selectedLetter };
     const activeCombining = forceCombine !== null ? forceCombine : isCombining;
 
@@ -491,7 +506,7 @@ export default function MasterTable() {
 
       if (activeCombining) {
         // Instead of merging physically, we upload it as a separate attachment and link it
-        formData.append("no_record", "false"); 
+        formData.append("no_record", "false");
         formData.append("attachment_name", newFile.name);
         formData.append("dept_id", user?.dept_id?.id || user?.dept_id || null);
 
@@ -526,7 +541,7 @@ export default function MasterTable() {
             }
           }
         }
-        
+
         formData.append("no_record", "true");
         const uploadRes = await axios.post(
           `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/upload`,
@@ -538,10 +553,10 @@ export default function MasterTable() {
       }
     }
 
-    console.log("Saving updated letter:", { 
-      id: updatedLetter.id, 
-      scanned_copy: updatedLetter.scanned_copy, 
-      attachment_id: updatedLetter.attachment_id 
+    console.log("Saving updated letter:", {
+      id: updatedLetter.id,
+      scanned_copy: updatedLetter.scanned_copy,
+      attachment_id: updatedLetter.attachment_id
     });
 
     // 1. Update core letter details with user context for logging
@@ -601,9 +616,9 @@ export default function MasterTable() {
 
   const handleUpdateDetails = async (forceOverwrite = false, forceCombine = null) => {
     // Validation: If files exist and we are NOT combining, ask for confirmation
-    const hasExistingFiles = (selectedLetter?.scanned_copy && selectedLetter.scanned_copy.trim() !== "") || 
-                             (selectedLetter?.attachment_id && String(selectedLetter.attachment_id).trim() !== "");
-                             
+    const hasExistingFiles = (selectedLetter?.scanned_copy && selectedLetter.scanned_copy.trim() !== "") ||
+      (selectedLetter?.attachment_id && String(selectedLetter.attachment_id).trim() !== "");
+
     const activeCombining = forceCombine !== null ? forceCombine : isCombining;
 
     if (newFile && !activeCombining && hasExistingFiles && !forceOverwrite) {
@@ -616,6 +631,14 @@ export default function MasterTable() {
       setLoading(true);
       const updated = await updateDetailsInternal(forceCombine);
       if (!updated) return;
+
+      // Automatically create endorsement record if status is Forwarded or Endorsed
+      const statusObj = updated.global_status && statuses ? statuses.find(s => s.id === updated.global_status) : null;
+      const statusName = (statusObj?.status_name || "").toLowerCase();
+      if (statusName.includes("forward") || statusName.includes("endorse")) {
+        await createEndorsement(updated.id, selectedLetter.endorse_to);
+      }
+
       resetDrawerState();
       fetchData();
       setShowOverwriteConfirm(false);
@@ -634,7 +657,7 @@ export default function MasterTable() {
 
   const handleDeleteFile = async (type, specificId = null) => {
     if (!window.confirm("Are you sure you want to delete this file? This action cannot be undone.")) return;
-    
+
     try {
       setLoading(true);
       if (type === 'primary') {
@@ -644,11 +667,11 @@ export default function MasterTable() {
         if (specificId) {
           // 1. Delete physical file & record via AttachmentController
           await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/${specificId}`);
-          
+
           // 2. Remove from the letter's comma-separated list
           const currentIds = String(selectedLetter.attachment_id || "").split(',').filter(id => id.trim() !== String(specificId));
           const newAttachmentId = currentIds.length > 0 ? currentIds.join(',') : null;
-          
+
           await letterService.update(selectedLetter.id, { attachment_id: newAttachmentId });
           setSelectedLetter(prev => ({ ...prev, attachment_id: newAttachmentId }));
         } else {
@@ -677,7 +700,7 @@ export default function MasterTable() {
     if (!selectedLetter?.id) return;
     try {
       setLoading(true);
-      const ok = await createEndorsement(selectedLetter.id);
+      const ok = await createEndorsement(selectedLetter.id, selectedLetter.endorse_to);
       if (!ok) return;
       resetDrawerState();
       fetchData();
@@ -696,8 +719,8 @@ export default function MasterTable() {
 
   const handleSaveAndEndorse = async (forceOverwrite = false, forceCombine = null) => {
     // Validation: If files exist and we are NOT combining, ask for confirmation
-    const hasExistingFiles = (selectedLetter?.scanned_copy && selectedLetter.scanned_copy.trim() !== "") || 
-                             (selectedLetter?.attachment_id && String(selectedLetter.attachment_id).trim() !== "");
+    const hasExistingFiles = (selectedLetter?.scanned_copy && selectedLetter.scanned_copy.trim() !== "") ||
+      (selectedLetter?.attachment_id && String(selectedLetter.attachment_id).trim() !== "");
 
     const activeCombining = forceCombine !== null ? forceCombine : isCombining;
 
@@ -711,7 +734,7 @@ export default function MasterTable() {
       setLoading(true);
       const updated = await updateDetailsInternal(forceCombine);
       if (!updated) return;
-      const ok = await createEndorsement(updated.id);
+      const ok = await createEndorsement(updated.id, selectedLetter.endorse_to);
       if (!ok) return;
       resetDrawerState();
       fetchData();
@@ -850,7 +873,10 @@ export default function MasterTable() {
     if (!canSearch) return true;
 
     return (
+      l.entry_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       l.lms_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      l.vemcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      l.aevm_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       l.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       l.summary?.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -994,16 +1020,6 @@ export default function MasterTable() {
           <div className="max-w-full mx-auto space-y-6">
             {/* Summary & Search */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h2
-                  className={`text-2xl font-black uppercase tracking-tight ${textColor}`}
-                >
-                  Records
-                </h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                  Manage all files.
-                </p>
-              </div>
               {canSearch && (
                 <div className="relative group min-w-[300px]">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1202,10 +1218,10 @@ export default function MasterTable() {
                           <td className="p-5 whitespace-nowrap text-xs font-bold">
                             <span
                               className={`px-3 py-1 rounded-full text-[10px] uppercase font-black tracking-widest ${letter.status?.status_name === "Incoming"
-                                  ? "bg-blue-50 text-blue-600"
-                                  : letter.status?.status_name === "Forwarded"
-                                    ? "bg-purple-50 text-purple-600"
-                                    : "bg-gray-50 text-gray-600"
+                                ? "bg-blue-50 text-blue-600"
+                                : letter.status?.status_name === "Forwarded"
+                                  ? "bg-purple-50 text-purple-600"
+                                  : "bg-gray-50 text-gray-600"
                                 }`}
                             >
                               {letter.status?.status_name || "N/A"}
@@ -1353,11 +1369,10 @@ export default function MasterTable() {
                 <button
                   onClick={() => handleViewPDF(selectedLetter)}
                   disabled={!selectedLetter?.scanned_copy && !selectedLetter?.attachment_id}
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
-                    (selectedLetter?.scanned_copy || selectedLetter?.attachment_id)
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${(selectedLetter?.scanned_copy || selectedLetter?.attachment_id)
                       ? "bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white shadow-lg shadow-red-500/20 cursor-pointer"
                       : "bg-gray-50 dark:bg-white/5 text-gray-300 opacity-50 cursor-not-allowed"
-                  }`}
+                    }`}
                   title="View Combined PDF"
                 >
                   <FileText className="w-6 h-6" />
@@ -1574,6 +1589,31 @@ export default function MasterTable() {
                       </select>
                     </div>
                   )}
+                  
+                  {/* Resolved Checkbox */}
+                  <div className="pt-2">
+                    <label className="flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group bg-emerald-50 border-transparent dark:bg-emerald-900/5 hover:border-emerald-500/50">
+                      <input
+                        type="checkbox"
+                        checked={selectedLetter.is_resolved || false}
+                        onChange={(e) =>
+                          setSelectedLetter({
+                            ...selectedLetter,
+                            is_resolved: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-emerald-500 focus:ring-emerald-500 border-gray-300 rounded"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black uppercase tracking-tight text-emerald-700 dark:text-emerald-400">
+                          Resolved / Done
+                        </span>
+                        <span className="text-[8px] font-bold text-emerald-600/60 uppercase tracking-widest">
+                          Mark letter as completed
+                        </span>
+                      </div>
+                    </label>
+                  </div>
 
                   {/* Kind Dropdown */}
                   <div className="space-y-1">
@@ -1655,7 +1695,7 @@ export default function MasterTable() {
                           }}
                           onKeyDown={handleEndorseKeyDown}
                           onFocus={() => {
-                             if (selectedLetter.endorse_to?.length >= 2) fetchEndorseSuggestions(selectedLetter.endorse_to);
+                            if (selectedLetter.endorse_to?.length >= 2) fetchEndorseSuggestions(selectedLetter.endorse_to);
                           }}
                           className="w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-400/30 bg-white border-orange-100 text-gray-900 shadow-sm"
                         />
@@ -1682,6 +1722,23 @@ export default function MasterTable() {
                             </div>
                           )}
                       </div>
+
+                      {/* Endorsement History */}
+                      {(selectedLetter.endorsements || []).length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-orange-100/50 dark:border-orange-900/20">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-2">Previous Endorsers:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {(selectedLetter.endorsements || [])
+                              .slice()
+                              .sort((a, b) => b.id - a.id)
+                              .map((e, idx) => (
+                                <div key={e.id} className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold ${idx === 0 ? "bg-orange-500 text-white border-orange-500 shadow-sm" : "bg-white dark:bg-white/5 border-orange-100 dark:border-orange-900/20 text-orange-600 dark:text-orange-400"}`}>
+                                  {e.endorsed_to}
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1946,7 +2003,7 @@ export default function MasterTable() {
                           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">
                             Uploaded Files
                           </label>
-                          
+
                           {/* Primary File (Scanned Copy) */}
                           {selectedLetter.scanned_copy && (
                             <div className={`p-4 rounded-2xl border ${"bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20"} flex items-center justify-between`}>
@@ -2019,8 +2076,8 @@ export default function MasterTable() {
                                 <div className="flex items-center gap-2 shrink-0">
                                   {canPdf && (
                                     <button
-                                      onClick={(e) => { 
-                                        e.preventDefault(); 
+                                      onClick={(e) => {
+                                        e.preventDefault();
                                         const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
                                         window.open(`${apiBase}/attachments/view/${aid}`, '_blank');
                                       }}
@@ -2214,54 +2271,30 @@ export default function MasterTable() {
                         actionType.includes("HOLD") ||
                         actionType.includes("ENDORSE");
 
-                      if (isPriority) {
-                        displayHeading =
-                          log.status?.status_name ||
-                          log.action_type ||
-                          actionType;
-                        displaySubheading =
-                          log.metadata?.location || logDetails || "";
-                      }
-                      // Workflow Logic Matrix Implementation
-                      else if (stepComp === "VEM LETTER") {
-                        displayHeading = "Office of the Executive Minister";
-                      } else if (stepComp === "AEVM LETTER") {
-                        displayHeading =
-                          "Office of the Deputy Executive Minister";
-                      } else if (
-                        stepComp === "FOR SIGNATURE" ||
-                        stepComp === "FOR REVIEW"
-                      ) {
-                        // INCLUSIVE check for REVIEW status to handle "Review", "In Review", "Reviewing", etc.
-                        if (
-                          statusComp === "REVIEW" ||
-                          statusComp.includes("REVIEW")
-                        ) {
-                          displayHeading = "ATG";
-                          displaySubheading = "Being Reviewed";
-                        } else {
-                          displayHeading = "Processing";
-                          displaySubheading = "For Incoming";
-                        }
-                      } else if (statusComp === "PENDING") {
+                      // Strictly followed User Mapping Logic
+                      if (actionType.includes("ENDORSE") || statusComp.includes("ENDORSE")) {
+                        const userName = log.user ? `${log.user.first_name || ""} ${log.user.last_name || ""}`.trim() : "";
+                        displayHeading = userName || "Endorsed";
+                        displaySubheading = ""; // Strictly empty as requested
+                      } else if (statusComp === "INCOMING" || statusComp === "PENDING") {
                         displayHeading = "Processing";
                         displaySubheading = "For Incoming";
+                      } else if (statusComp.includes("REVIEW") || stepComp.includes("REVIEW")) {
+                        displayHeading = "ATG Office";
+                        displaySubheading = trackingLetter?.atgnote || "";
+                      } else if (stepComp === "VEM LETTER" || (deptComp === "EVM" && statusComp.includes("FORWARD"))) {
+                        displayHeading = "Office of the Executive Minister";
+                        displaySubheading = trackingLetter?.evemnote || "";
+                      } else if (stepComp === "AEVM LETTER" || stepComp === "AEVEM LETTER" || (deptComp === "AEVM" && statusComp.includes("FORWARD"))) {
+                        displayHeading = "Office of the Deputy Executive Minister";
+                        displaySubheading = trackingLetter?.aevmnote || "";
+                      } else if (isPriority) {
+                        displayHeading = log.status?.status_name || log.action_type || actionType;
+                        displaySubheading = log.metadata?.location || "";
                       } else {
-                        if (deptComp === "ATG") {
-                          displayHeading = "ATG";
-                          displaySubheading = logDetails || "Being Reviewed";
-                        } else if (deptComp === "EVM") {
-                          displayHeading = "Office of the Executive Minister";
-                          displaySubheading = logDetails || actionType;
-                        } else {
-                          displayHeading =
-                            log.department?.dept_code ||
-                            log.step?.step_name ||
-                            log.action_type ||
-                            "Activity";
-                          displaySubheading =
-                            logDetails || log.action_type || "";
-                        }
+                        // Remove if not matching any specified step or correct it
+                        displayHeading = log.department?.dept_code || log.step?.step_name || "Activity";
+                        displaySubheading = ""; 
                       }
 
                       // Detect Duplicate State
@@ -2277,10 +2310,11 @@ export default function MasterTable() {
                       }
                     });
 
-                    // 3. Reverse (descending) for display: newest at top
-                    return uniqueSequence.reverse().map((log, i, arr) => {
+                    // 3. Newest at bottom: do NOT reverse
+                    return uniqueSequence.map((log, i, arr) => {
                       const logDate = new Date(log.timestamp || log.log_date);
                       const isLastItem = i === arr.length - 1;
+                      const isResolved = trackingLetter?.is_resolved;
 
                       return (
                         <div
@@ -2304,11 +2338,16 @@ export default function MasterTable() {
                           </div>
 
                           <div className="flex flex-col items-center">
-                            <div className="w-5 h-5 rounded-full border-2 border-orange-400 bg-white dark:bg-[#141414] z-10 flex items-center justify-center shrink-0">
-                              <div className="w-2 h-2 rounded-full bg-orange-400" />
+                            <div className={`w-5 h-5 rounded-full border-2 ${isResolved && isLastItem ? "border-red-500 bg-red-500 shadow-lg shadow-red-500/30" : "border-orange-400 bg-white dark:bg-[#141414]"} z-10 flex items-center justify-center shrink-0`}>
+                              {!isLastItem || !isResolved ? (
+                                <div className="w-2 h-2 rounded-full bg-orange-400" />
+                              ) : null}
                             </div>
                             {!isLastItem && (
-                              <div className="w-px flex-1 mt-1 border-l-2 border-dashed border-gray-200 dark:border-[#333] min-h-[2rem]" />
+                              <div className="flex flex-col items-center flex-1">
+                                <div className="w-px flex-1 border-l-2 border-dashed border-gray-200 dark:border-[#333] min-h-[1.5rem]" />
+                                <ChevronDown className="w-3 h-3 text-gray-300 -mt-1 mb-1" />
+                              </div>
                             )}
                           </div>
 
@@ -2498,7 +2537,7 @@ export default function MasterTable() {
               <p className="text-sm text-gray-500 dark:text-gray-400 text-center leading-relaxed mb-8">
                 This record already has attached documents. Would you like to replace all existing files with the new one, or merge it into the current collection?
               </p>
-              
+
               <div className="space-y-3">
                 <button
                   onClick={() => {

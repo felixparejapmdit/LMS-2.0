@@ -270,6 +270,17 @@ class TelegramController {
                                 text += `\n${ICONS.note} Summary: ${summary}`;
                             }
 
+                            // Append specific notes if they exist
+                            if (letter.atgnote && String(letter.atgnote).trim()) {
+                                text += `\n\n<b>ATG Note:</b>\n${TelegramController.escapeHtml(letter.atgnote)}`;
+                            }
+                            if (letter.evemnote && String(letter.evemnote).trim()) {
+                                text += `\n\n<b>EVM Note:</b>\n${TelegramController.escapeHtml(letter.evemnote)}`;
+                            }
+                            if (letter.aevmnote && String(letter.aevmnote).trim()) {
+                                text += `\n\n<b>AEVM Note:</b>\n${TelegramController.escapeHtml(letter.aevmnote)}`;
+                            }
+
                             const replyMarkup = {
                                 inline_keyboard: [
                                     [
@@ -396,6 +407,17 @@ class TelegramController {
 
                     trackingText += `--------------------\n`;
                     trackingText += `${ICONS.flag} <b>Status:</b> ${TelegramController.escapeHtml(letter.status?.status_name || 'PROCESSING')}`;
+
+                    // Append specific notes to tracking view if they exist
+                    if (letter.atgnote && String(letter.atgnote).trim()) {
+                        trackingText += `\n\n<b>ATG Note:</b>\n${TelegramController.escapeHtml(letter.atgnote)}`;
+                    }
+                    if (letter.evemnote && String(letter.evemnote).trim()) {
+                        trackingText += `\n\n<b>EVM Note:</b>\n${TelegramController.escapeHtml(letter.evemnote)}`;
+                    }
+                    if (letter.aevmnote && String(letter.aevmnote).trim()) {
+                        trackingText += `\n\n<b>AEVM Note:</b>\n${TelegramController.escapeHtml(letter.aevmnote)}`;
+                    }
 
                     if (chatId) {
                         await TelegramService.sendMessage(chatId, trackingText);

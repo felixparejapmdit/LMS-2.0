@@ -57,6 +57,7 @@ export default function NewLetter() {
     useState(false);
   const [predictedLmsId, setPredictedLmsId] = useState("Generating...");
   const [selectedDept, setSelectedDept] = useState("");
+  const [notifyKarl, setNotifyKarl] = useState(false);
   const [formData, setFormData] = useState({
     date_received: new Date().toISOString().slice(0, 16), // Use datetime-local format
     sender: "",
@@ -141,6 +142,15 @@ export default function NewLetter() {
         const kindsData = await letterKindService.getAll({
           dept_id: fetchDeptId,
         });
+        setKinds(kindsData);
+        
+        // Set default kind to 'Letter' if found
+        if (!formData.kind && kindsData.length > 0) {
+            const defaultKind = kindsData.find(k => k.kind_name.toLowerCase() === 'letter');
+            if (defaultKind) {
+                setFormData(prev => ({ ...prev, kind: defaultKind.id }));
+            }
+        }
         const deptsData = await departmentService.getAll();
         const statusesData = await statusService.getAll({
           dept_id: fetchDeptId,
@@ -198,10 +208,12 @@ export default function NewLetter() {
         const letterKind = kindsData.find(
           (k) => k.kind_name.toLowerCase() === "letter",
         );
-        if (letterKind) {
-          setFormData((prev) => ({ ...prev, kind: letterKind.id }));
-        } else {
-          setFormData((prev) => ({ ...prev, kind: "" }));
+        if (!refCode) {
+            if (letterKind) {
+              setFormData((prev) => ({ ...prev, kind: letterKind.id }));
+            } else {
+              setFormData((prev) => ({ ...prev, kind: "" }));
+            }
         }
 
         // No default group selection - user must select manually
@@ -690,6 +702,7 @@ export default function NewLetter() {
         encoder_id: user.id,
         dept_id: parseInt(selectedDept),
         assigned_dept: parseInt(selectedDept),
+        notify_karl: notifyKarl,
       };
 
       let created;
@@ -1546,28 +1559,42 @@ export default function NewLetter() {
               )}
             </div>
 
-            <div className="flex justify-end gap-4 pt-6 pb-12">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className={`px-8 py-3 text-sm font-bold transition-colors ${"text-gray-500 hover:text-gray-900"}`}
-              >
-                Cancel
-              </button>
-              {canSave && (
+            <div className="flex flex-col items-end gap-4 pt-6 pb-12">
+              <label className="flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group bg-gray-50 border-transparent dark:bg-white/5 hover:border-gray-200 dark:hover:border-white/10">
+                <input
+                  type="checkbox"
+                  checked={notifyKarl}
+                  onChange={(e) => setNotifyKarl(e.target.checked)}
+                  className="w-4 h-4 text-orange-500 focus:ring-orange-500 border-gray-300 dark:bg-black/40 rounded"
+                />
+                <span className="text-[10px] font-black uppercase tracking-tight text-gray-700 dark:text-gray-300">
+                  Notify
+                </span>
+              </label>
+
+              <div className="flex justify-end gap-4">
                 <button
-                  type="submit"
-                  disabled={loading}
-                  className={`flex items-center gap-2 px-10 py-3 text-white text-sm font-bold rounded-2xl transition-all shadow-xl disabled:opacity-50 ${"bg-[#F6A17B] hover:bg-[#e8946e] shadow-orange-100 dark:shadow-none"}`}
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className={`px-8 py-3 text-sm font-bold transition-colors ${"text-gray-500 hover:text-gray-900"}`}
                 >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4" />
-                  )}
-                  Save
+                  Cancel
                 </button>
-              )}
+                {canSave && (
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={`flex items-center gap-2 px-10 py-3 text-white text-sm font-bold rounded-2xl transition-all shadow-xl disabled:opacity-50 ${"bg-[#F6A17B] hover:bg-[#e8946e] shadow-orange-100 dark:shadow-none"}`}
+                  >
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    Save
+                  </button>
+                )}
+              </div>
             </div>
           </form>
         </div>

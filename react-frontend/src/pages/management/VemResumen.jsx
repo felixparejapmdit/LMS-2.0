@@ -2,13 +2,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Plus, Trash2, Edit2, Printer, ArrowLeft, ArrowRight,
+    Plus, Trash2, Edit2, Printer, ArrowLeft, ArrowRight, ArrowUp, ArrowDown,
     Search, Loader2, X, CheckCircle2, AlertCircle, QrCode, Camera
 } from 'lucide-react';
 import { useAuth, useSession, useUI } from '../../context/AuthContext';
 import letterService from '../../services/letterService';
+import statusService from '../../services/statusService';
 import Sidebar from '../../components/Sidebar';
 import jsQR from 'jsqr';
+import axios from 'axios';
 
 export default function VemResumen() {
     const navigate = useNavigate();
@@ -19,12 +21,15 @@ export default function VemResumen() {
     const [lmsIdInput, setLmsIdInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [timeframe, setTimeframe] = useState('today');
+    const [isFetching, setIsFetching] = useState(false);
 
     // Signatories State
     const [courierName, setCourierName] = useState('');
     const [lobbyName, setLobbyName] = useState('c/o Patrol');
     const [preparerName, setPreparerName] = useState(() => user ? `${user.first_name} ${user.last_name}` : '');
     const [notation, setNotation] = useState('');
+    const [envelopeNo, setEnvelopeNo] = useState("");
     const [currentTime, setCurrentTime] = useState(new Date());
 
     // QR Scanner States
@@ -39,6 +44,59 @@ export default function VemResumen() {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
+
+    const fetchTodayLetters = async () => {
+        setIsFetching(true);
+        try {
+            const now = new Date();
+            let start = null;
+            let end = null;
+
+            if (timeframe === 'today') {
+                const todayStart = new Date(now);
+                todayStart.setHours(0, 0, 0, 0);
+                start = todayStart.toISOString();
+
+                const todayEnd = new Date(now);
+                todayEnd.setHours(23, 59, 59, 999);
+                end = todayEnd.toISOString();
+            } else if (timeframe === 'weekly') {
+                const weeklyStart = new Date(now);
+                weeklyStart.setDate(weeklyStart.getDate() - 7);
+                weeklyStart.setHours(0, 0, 0, 0);
+                start = weeklyStart.toISOString();
+            } else if (timeframe === 'monthly') {
+                const monthlyStart = new Date(now);
+                monthlyStart.setMonth(monthlyStart.getMonth() - 1);
+                monthlyStart.setHours(0, 0, 0, 0);
+                start = monthlyStart.toISOString();
+            } else if (timeframe === 'yearly') {
+                const yearlyStart = new Date(now);
+                yearlyStart.setFullYear(yearlyStart.getFullYear() - 1);
+                yearlyStart.setHours(0, 0, 0, 0);
+                start = yearlyStart.toISOString();
+            }
+
+            const params = {
+                dept_id: user?.dept_id?.id || user?.dept_id || 1,
+                limit: 500
+            };
+            if (start) params.start_date = start;
+            if (end) params.end_date = end;
+
+            const response = await letterService.getAll(params);
+            const data = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+            setLetters(data);
+        } catch (err) {
+            console.error("Failed to fetch letters for resumen:", err);
+        } finally {
+            setIsFetching(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchTodayLetters();
+    }, [timeframe]);
 
     const format12h = (date) => date.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
 
@@ -139,10 +197,84 @@ export default function VemResumen() {
         requestRef.current = requestAnimationFrame(tick);
     };
 
+    const handleMoveUp = (index) => {
+        if (index === 0) return;
+        setLetters(prev => {
+            const next = [...prev];
+            [next[index - 1], next[index]] = [next[index], next[index - 1]];
+            return next;
+        });
+    };
+
+    const handleMoveDown = (index) => {
+        if (index === letters.length - 1) return;
+        setLetters(prev => {
+            const next = [...prev];
+            [next[index + 1], next[index]] = [next[index], next[index + 1]];
+            return next;
+        });
+    };
+
+    const handleAtgView = async (letter) => {
+        try {
+            // Find 'Being Reviewed' status ID
+            const statuses = await statusService.getAll();
+            const reviewStatus = statuses.find(s => s.status_name.toLowerCase().includes('review'));
+
+            if (reviewStatus) {
+                await letterService.update(letter.id, { global_status: reviewStatus.id });
+                // Update local state
+                setLetters(prev => prev.map(l => l.id === letter.id ? { ...l, status: reviewStatus } : l));
+            }
+        } catch (err) {
+            console.error("Failed to update status to Review:", err);
+        }
+    };
+
     const handleDelete = (id) => setLetters(letters.filter(l => l.id !== id));
     const handleBack = () => navigate(-1);
-    const handleForward = () => navigate('/vip-view');
-    const handlePrint = () => window.print();
+    const handleForward = async () => {
+        try {
+            const [statuses, stepsRes] = await Promise.all([
+                statusService.getAll(),
+                axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/process-steps`)
+            ]);
+            
+            const forwardStatus = statuses.find(s => s.status_name.toLowerCase().includes('forward'));
+            const vemStep = stepsRes.data.find(s => s.step_name.toUpperCase().includes('VEM LETTER'));
+
+            if (letters.length > 0) {
+                await Promise.all(letters.map(async (letter) => {
+                    const updates = {};
+                    if (forwardStatus) updates.global_status = forwardStatus.id;
+                    
+                    // Update letter status
+                    await letterService.update(letter.id, { ...updates, user_id: user?.id });
+
+                    // Also update assignment to VEM step if found
+                    if (vemStep) {
+                        const currentAssign = letter.assignments?.sort((a,b) => b.id - a.id)[0];
+                        if (currentAssign) {
+                            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${currentAssign.id}`, {
+                                step_id: vemStep.id,
+                                status_id: forwardStatus?.id || letter.global_status,
+                                user_id: user?.id
+                            });
+                        }
+                    }
+                }));
+            }
+        } catch (err) {
+            console.error("Failed to update status to Forwarded:", err);
+        }
+        navigate('/vip-view');
+    };
+    const handlePrint = () => {
+        const originalTitle = document.title;
+        document.title = "VEM RESUMEN";
+        window.print();
+        document.title = originalTitle;
+    };
 
     return (
         <div className="flex h-screen bg-[#F7F7F7] dark:bg-[#0D0D0D] overflow-hidden font-sans print:bg-white print:h-auto print:overflow-visible">
@@ -160,6 +292,25 @@ export default function VemResumen() {
                             <h2 className="text-sm font-black text-gray-900 uppercase mt-2 tracking-tight">Resumen ng Nilalaman ng mga Ipinadalang Sulat</h2>
                         </div>
 
+                        {/* Filter Selector - Print Hidden */}
+                        <div className="mb-4 flex items-center gap-4 print:hidden bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Timeframe:</label>
+                                <div className="flex items-center gap-2">
+                                    {['today', 'weekly', 'monthly', 'yearly'].map((t) => (
+                                        <button
+                                            key={t}
+                                            onClick={() => setTimeframe(t)}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${timeframe === t ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'}`}
+                                        >
+                                            {t}
+                                        </button>
+                                    ))}
+                                    {isFetching && <Loader2 className="w-3 h-3 animate-spin text-blue-500 ml-2" />}
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Date/Time/Envelope Row */}
                         <table className="w-full border-collapse border border-gray-900 text-xs mb-0">
                             <tbody>
@@ -173,7 +324,8 @@ export default function VemResumen() {
                                         <span className="font-bold text-gray-900">{format12h(currentTime)}</span>
                                     </td>
                                     <td className="border border-gray-900 p-1.5 w-1/3">
-                                        <span className="italic text-gray-600 text-[10px]">Black Envelope No.</span>
+                                        <span className="italic text-gray-600 text-[10px]">Envelope No.</span><br />
+                                        <input type="text" value={envelopeNo} onChange={(e) => setEnvelopeNo(e.target.value)} className="bg-transparent text-gray-900 font-bold outline-none w-full print:border-none" placeholder="Enter number" />
                                     </td>
                                 </tr>
                             </tbody>
@@ -183,8 +335,9 @@ export default function VemResumen() {
                         <table className="w-full border-collapse border border-gray-900 text-xs">
                             <thead>
                                 <tr className="border border-gray-900">
-                                    <th className="border border-gray-900 p-1.5 text-center text-[10px] font-bold uppercase w-2/3">Pangalan ng sumulat /Lokal/Distrito</th>
-                                    <th className="border border-gray-900 p-1.5 text-center text-[10px] font-bold uppercase w-1/3">NILALAMAN</th>
+                                    <th className="border border-gray-900 p-1.5 text-center text-[10px] font-bold uppercase w-[40%]">Pangalan ng sumulat /Lokal/Distrito</th>
+                                    <th className="border border-gray-900 p-1.5 text-center text-[10px] font-bold uppercase w-[40%]">NILALAMAN</th>
+                                    <th className="border border-gray-900 p-1.5 text-center text-[10px] font-bold uppercase w-[20%] print:hidden">Aksyon</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -198,17 +351,37 @@ export default function VemResumen() {
                                     letters.map((letter, index) => (
                                         <tr key={letter.id} className="group">
                                             <td className="border border-gray-900 p-1.5 relative">
-                                                <span className="text-xs font-bold text-gray-900 uppercase">{letter.sender}</span>
-                                                <span className="text-[9px] text-blue-600 ml-2">{letter.lms_id}</span>
-                                                <button
-                                                    onClick={() => handleDelete(letter.id)}
-                                                    className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-50 p-0.5 rounded transition-all print:hidden"
-                                                >
-                                                    <Trash2 className="w-3 h-3" />
-                                                </button>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-gray-900 uppercase">{letter.sender}</span>
+                                                    <span className="text-[9px] text-blue-600">{letter.lms_id}</span>
+                                                </div>
                                             </td>
                                             <td className="border border-gray-900 p-1.5">
                                                 <div className="text-xs text-gray-700 leading-snug" dangerouslySetInnerHTML={{ __html: letter.summary }} />
+                                            </td>
+                                            <td className="border border-gray-900 p-1.5 print:hidden">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <button onClick={() => handleMoveUp(index)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-blue-600 transition-colors" title="Move Up">
+                                                        <ArrowUp className="w-3 h-3" />
+                                                    </button>
+                                                    <button onClick={() => handleMoveDown(index)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-blue-600 transition-colors" title="Move Down">
+                                                        <ArrowDown className="w-3 h-3" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleAtgView(letter)}
+                                                        className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-tight transition-all ${letter.status?.status_name?.toLowerCase().includes('review') ? 'bg-amber-500 text-white' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`}
+                                                        title="Change to Review"
+                                                    >
+                                                        {letter.status?.status_name?.toLowerCase().includes('review') ? 'Reviewing' : 'ATG View'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(letter.id)}
+                                                        className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-500 transition-colors"
+                                                        title="Remove from List"
+                                                    >
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -235,20 +408,32 @@ export default function VemResumen() {
                                         type="text"
                                         value={preparerName}
                                         onChange={(e) => setPreparerName(e.target.value)}
-                                        className="bg-transparent text-center font-bold outline-none w-full print:border-none"
+                                        className="bg-transparent text-center font-bold outline-none w-full print:border-none normal-case"
                                         placeholder="Enter name"
                                     />
                                 </div>
                             </div>
                             <div>
-                                <span className="font-bold text-gray-900">Pangalan ng nagdala sa Lobby:</span>
+                                <span className="font-bold text-gray-900">Pangalan ng nagdala sa Lobby (Nagpadala):</span>
                                 <div className="mt-2 text-center border-b border-gray-400 pb-1 max-w-sm mx-auto">
                                     <input
                                         type="text"
                                         value={lobbyName}
                                         onChange={(e) => setLobbyName(e.target.value)}
-                                        className="bg-transparent text-center font-bold outline-none w-full print:border-none"
+                                        className="bg-transparent text-center font-bold outline-none w-full print:border-none normal-case"
                                         placeholder="Enter name"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <span className="font-bold text-gray-900">Envelop #:</span>
+                                <div className="mt-2 text-center border-b border-gray-400 pb-1 max-w-sm mx-auto">
+                                    <input
+                                        type="text"
+                                        value={envelopeNo}
+                                        onChange={(e) => setEnvelopeNo(e.target.value)}
+                                        className="bg-transparent text-center font-bold outline-none w-full print:border-none"
+                                        placeholder="Enter envelop number"
                                     />
                                 </div>
                             </div>

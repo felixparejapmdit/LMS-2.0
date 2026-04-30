@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Sidebar from "../../components/Sidebar";
 import { useAuth, useSession, useUI } from "../../context/AuthContext";
 import letterService from "../../services/letterService";
+import statusService from "../../services/statusService";
 import axios from "axios";
 import {
     FileText,
@@ -11,6 +12,7 @@ import {
     Loader2,
     Plus,
     Printer,
+    ArrowLeft,
     ArrowRight,
     QrCode,
     Camera,
@@ -22,7 +24,9 @@ import {
     Search,
     ChevronLeft,
     ChevronRight,
-    Maximize2
+    Maximize2,
+    ArrowUp,
+    ArrowDown
 } from "lucide-react";
 import jsQR from "jsqr";
 
@@ -46,6 +50,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         if (saved) return saved;
         return `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
     });
+    const [sentBy, setSentBy] = useState("");
     const [timeframe, setTimeframe] = useState("today");
     const [dateRange, setDateRange] = useState({ start: "", end: "" });
     const [isFetching, setIsFetching] = useState(false);
@@ -230,16 +235,42 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         void maybeAutoSubmitAtg(val);
     };
 
+    const handleDeleteLetter = (id) => {
+        setModalLetters(prev => prev.filter(l => l.id !== id));
+    };
+
+    const handleMoveUp = (index) => {
+        if (index === 0) return;
+        setModalLetters(prev => {
+            const next = [...prev];
+            [next[index - 1], next[index]] = [next[index], next[index - 1]];
+            return next;
+        });
+    };
+
+    const handleMoveDown = (index) => {
+        if (index === modalLetters.length - 1) return;
+        setModalLetters(prev => {
+            const next = [...prev];
+            [next[index + 1], next[index]] = [next[index], next[index + 1]];
+            return next;
+        });
+    };
+
     const handleAtgViewBulk = async () => {
         if (modalLetters.length === 0) return;
         setLoading(true);
         try {
+            const statuses = await statusService.getAll();
+            const reviewStatus = statuses.find(s => s.status_name.toLowerCase().includes('review'));
+            const targetStatusId = reviewStatus ? reviewStatus.id : 2;
+
             await Promise.all(modalLetters.map(l =>
-                letterService.update(l.id, { global_status: 2, tray_id: null })
+                letterService.update(l.id, { global_status: targetStatusId, tray_id: null })
             ));
             // Success! Clear list or navigate
             setModalLetters([]);
-            alert("Letters transitioned to ATG Note successfully.");
+            alert("Letters transitioned to Review successfully.");
         } catch (err) {
             console.error("ATG View transition failed:", err);
             alert("Transition failed. Please try again.");
@@ -617,14 +648,25 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                         </div>
 
                                         <div className="flex flex-col gap-2 min-w-[150px]">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prepared by:</label>
-                                            <input
-                                                type="text"
-                                                value={preparedBy}
-                                                onChange={(e) => setPreparedBy(e.target.value)}
-                                                placeholder="Enter name..."
-                                                className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all uppercase text-slate-600 dark:text-slate-300"
-                                            />
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prepared by:</label>
+                                                <input
+                                                    type="text"
+                                                    value={preparedBy}
+                                                    onChange={(e) => setPreparedBy(e.target.value)}
+                                                    placeholder="Enter name..."
+                                                    className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300 normal-case"
+                                                />
+                                        </div>
+
+                                        <div className="flex flex-col gap-2 min-w-[150px]">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sent by:</label>
+                                                <input
+                                                    type="text"
+                                                    value={sentBy}
+                                                    onChange={(e) => setSentBy(e.target.value)}
+                                                    placeholder="Enter name..."
+                                                    className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300 normal-case"
+                                                />
                                         </div>
 
                                         <div className="text-right flex flex-col items-end gap-1 ml-auto">
@@ -642,23 +684,22 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                             </span>
                                         </div>
                                     </div>
-
                                     <table className="w-full text-left border-collapse print:border print:border-slate-300">
                                         <thead>
                                             <tr className="border-b-2 border-slate-100 dark:border-white/10 print:border-slate-300" style={{ backgroundColor: printHeaderStyle.bg }}>
                                                 <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-12 print:text-slate-900 whitespace-nowrap">No.</th>
-                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-40 print:text-slate-900 whitespace-nowrap">Date & Time</th>
-                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-24 print:text-slate-900">ATG No.</th>
-                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-20 print:text-slate-900">Attach<br />ment</th>
-                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Sender</th>
-                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:text-slate-900">Letter Summary</th>
-                                                <th className="py-6 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] print:hidden text-right">Remove</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-24 print:text-slate-900">Date/Time</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-28 print:text-slate-900">ATG No.</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-16 print:text-slate-900">PDF</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-[30%] print:text-slate-900">Sender/District</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-[40%] print:text-slate-900">Summary</th>
+                                                <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-24 print:hidden">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {filteredLetters.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan="6" className="py-32 text-center">
+                                                    <td colSpan="7" className="py-32 text-center">
                                                         <div className="flex flex-col items-center gap-4 text-slate-200 dark:text-gray-800">
                                                             <Inbox className="w-20 h-20" />
                                                             <span className="text-base font-black uppercase tracking-widest">No letters listed</span>
@@ -691,9 +732,6 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                                     </button>
                                                                 );
                                                             })()}
-                                                            <span className="hidden print:inline text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                                                                {(l.scanned_copy || l.attachment_id || l.attachment?.file_path) ? 'Available' : ''}
-                                                            </span>
                                                         </td>
                                                         <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300">
                                                             <div className="flex flex-col">
@@ -705,12 +743,11 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                             <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-w-lg print:text-slate-900 italic" dangerouslySetInnerHTML={{ __html: l.summary || 'No summary available' }}></div>
                                                         </td>
                                                         <td className="py-6 px-4 print:hidden text-right">
-                                                            <button
-                                                                onClick={() => setModalLetters(prev => prev.filter(x => x.id !== l.id))}
-                                                                className="p-2.5 hover:bg-red-50 hover:text-red-500 rounded-xl text-slate-300 transition-all border border-transparent hover:border-red-100"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                <button onClick={() => handleMoveUp(idx)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-colors" title="Move Up"><ArrowUp className="w-3 h-3" /></button>
+                                                                <button onClick={() => handleMoveDown(idx)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-colors" title="Move Down"><ArrowDown className="w-3 h-3" /></button>
+                                                                <button onClick={() => handleDeleteLetter(l.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors" title="Delete"><Trash2 className="w-3 h-3" /></button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))
@@ -754,13 +791,16 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                             className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-blue-500/20 flex items-center gap-3 group"
                                         >
                                             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
-                                            ATG Review
+                                            ATG VIEW
                                         </button>
                                     </div>
 
                                     {/* Print Footer */}
                                     <div id="print-footer" className="hidden print:flex items-center justify-between w-full mt-8">
-                                        <span className="text-xs font-bold text-slate-900">Prepared by: {preparedBy}</span>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-xs font-bold text-slate-900 normal-case">Prepared by: {preparedBy}</span>
+                                            {sentBy && <span className="text-xs font-bold text-slate-900 normal-case">Sent by: {sentBy}</span>}
+                                        </div>
                                         <span className="text-xs font-bold text-slate-900">Page 1</span>
                                     </div>
                                 </div>

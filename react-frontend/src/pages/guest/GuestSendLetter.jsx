@@ -125,7 +125,21 @@ export default function GuestSendLetter() {
                 // If not logged in (guest), or no department is selected, fetch all kinds
                 const params = (isLoggedIn && selectedDeptId) ? { dept_id: selectedDeptId } : {};
                 const data = await letterKindService.getAll(params);
-                setKinds(Array.isArray(data) ? data : []);
+                const kindsArray = Array.isArray(data) ? data : [];
+                setKinds(kindsArray);
+
+                // Set default kind to 'Letter' if found
+                if (!formData.kind && kindsArray.length > 0) {
+                    const defaultKind = kindsArray.find(k => k.kind_name.toLowerCase() === 'letter');
+                    if (defaultKind) {
+                        setFormData(prev => ({ ...prev, kind: defaultKind.id }));
+                    }
+                }
+                
+                const letterKind = kindsArray.find(k => k.kind_name && k.kind_name.toLowerCase() === 'letter');
+                if (letterKind) {
+                    setFormData(prev => ({ ...prev, kind: letterKind.id }));
+                }
             } catch (err) {
                 console.error("Failed to fetch kinds:", err);
                 setKinds([]);
