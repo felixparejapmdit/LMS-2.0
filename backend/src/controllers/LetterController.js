@@ -625,9 +625,65 @@ class LetterController {
       }
       let entry_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
 
-      // Check for collisions (should be rare with SectionService)
-      const existingLms = await Letter.findOne({ where: { lms_id }, transaction });
-      if (existingLms) {
+      // Check for collisions
+      const providedLmsId = req.body.lms_id;
+      const existingLms = await Letter.findOne({ where: { lms_id: providedLmsId || lms_id }, transaction });
+      
+      if (existingLms && providedLmsId) {
+          // If the user provided an LMS_ID (from preview) and it already exists, 
+          // we need to suggest the NEXT one.
+          if (transaction) await transaction.rollback();
+          
+          // Re-calculate the actual next one (without the stale provided one)
+          // The lms_id variable already contains the "freshly calculated" one from lines 561-612
+          // BUT, we should make sure we didn't just calculate the SAME one.
+          // Since we are inside the same logic, lms_id is what the backend THINKS is next.
+          // If it matches providedLmsId, it means the sequence hasn't moved yet or we have a race.
+          
+          let nextAvailableCode = lms_id;
+          if (nextAvailableCode === providedLmsId) {
+              // Try to increment again or find gap
+              // For ATG
+              if (targetDeptIdForId) {
+                  const dept = await Department.findByPk(targetDeptIdForId);
+                  if (dept.group_id === 3) {
+                      const prefix = "ATG";
+                      const usage = await SectionService.getActiveSection(targetDeptIdForId);
+                      const { sequence, section_code } = await SectionService.findNextAvailableSequence(targetDeptIdForId, prefix, usage.section_code, 3);
+                      nextAvailableCode = `${prefix}${shortYear}-${section_code}${sequence.toString().padStart(3, "0")}`;
+                  } else {
+                      const prefix = dept.dept_code || "LMS";
+                      const { sequence } = await SectionService.findNextAvailableSequence(targetDeptIdForId, prefix, "", 5);
+                      nextAvailableCode = `${prefix}${shortYear}-${sequence.toString().padStart(5, "0")}`;
+                  }
+              } else {
+                  // Guest
+                  const lastDayEntryForId = await Letter.findOne({
+                    where: { entry_id: { [Op.like]: `${ymd}%` } },
+                    order: [["entry_id", "DESC"]],
+                  });
+                  let guestSeq = 1;
+                  if (lastDayEntryForId) {
+                    const lastId = lastDayEntryForId.entry_id;
+                    if (lastId.length >= 11 && lastId.startsWith(ymd)) {
+                      const lastSeq = parseInt(lastId.slice(-3));
+                      if (!isNaN(lastSeq)) guestSeq = lastSeq + 1;
+                    }
+                  }
+                  nextAvailableCode = `${ymd}${guestSeq.toString().padStart(3, "0")}`;
+              }
+          }
+
+          return res.status(409).json({ 
+              error: "Conflict", 
+              message: `Reference Code ${providedLmsId} has already been taken.`,
+              currentCode: providedLmsId,
+              nextCode: nextAvailableCode
+          });
+      }
+
+      if (existingLms && !providedLmsId) {
+          // Internal collision (rare)
           throw new Error(`Collision detected: LMS_ID ${lms_id} already exists. Please try again.`);
       }
 

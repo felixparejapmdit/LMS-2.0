@@ -35,6 +35,7 @@ import attachmentService from "../../services/attachmentService";
 import letterService from "../../services/letterService";
 import axios from "axios";
 import processStepService from "../../services/processStepService";
+import ConflictModal from "../../components/ConflictModal";
 import SuccessModal from "../../components/SuccessModal";
 import useAccess from "../../hooks/useAccess";
 
@@ -99,6 +100,9 @@ export default function NewLetter() {
   const [authorizedSuggestions, setAuthorizedSuggestions] = useState([]);
   const [showAuthorizedSuggestions, setShowAuthorizedSuggestions] = useState(false);
   const [highlightedAuthIndex, setHighlightedAuthIndex] = useState(-1);
+
+  const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
+  const [conflictData, setConflictData] = useState({ currentCode: "", nextCode: "" });
 
   const [error, setError] = useState("");
   const canField = access?.canField || (() => true);
@@ -728,6 +732,16 @@ export default function NewLetter() {
       const backendError = err.response?.data?.error;
       const backendDetails = err.response?.data?.details;
       const backendStack = err.response?.data?.stack;
+
+      // Handle Race Condition (Reference Code Duplication)
+      if (err.response?.status === 409 && err.response?.data?.nextCode) {
+        const { currentCode, nextCode } = err.response.data;
+        setPredictedLmsId(nextCode);
+        setConflictData({ currentCode, nextCode });
+        setIsConflictModalOpen(true);
+        setLoading(false);
+        return;
+      }
 
       let fullMsg = backendError || "Failed to create letter.";
       if (backendDetails) {
@@ -1600,6 +1614,15 @@ export default function NewLetter() {
         </div>
       </main>
 
+      <ConflictModal
+        isOpen={isConflictModalOpen}
+        onClose={() => setIsConflictModalOpen(false)}
+        currentCode={conflictData.currentCode}
+        nextCode={conflictData.nextCode}
+        onConfirm={() => {
+            handleSubmit({ preventDefault: () => {} });
+        }}
+      />
       <SuccessModal
         isOpen={isSuccessModalOpen}
         onClose={() => {

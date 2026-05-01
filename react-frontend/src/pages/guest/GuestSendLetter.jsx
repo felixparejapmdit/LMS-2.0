@@ -26,6 +26,7 @@ import letterKindService from "../../services/letterKindService";
 import letterService from "../../services/letterService";
 import axios from "axios";
 import SuccessModal from "../../components/SuccessModal";
+import ConflictModal from "../../components/ConflictModal";
 import useAccess from "../../hooks/useAccess";
 
 export default function GuestSendLetter() {
@@ -60,6 +61,8 @@ export default function GuestSendLetter() {
     const [activeSenderIndex, setActiveSenderIndex] = useState(null); // numeric for senders, 'encoder' for encoder
     const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
+    const [conflictData, setConflictData] = useState({ currentCode: "", nextCode: "" });
     const [isExitModalOpen, setIsExitModalOpen] = useState(false);
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
@@ -330,6 +333,17 @@ export default function GuestSendLetter() {
             setIsSuccessModalOpen(true);
         } catch (err) {
             console.error("Submission failed:", err);
+            
+            // Handle Race Condition (Reference Code Duplication)
+            if (err.response?.status === 409 && err.response?.data?.nextCode) {
+                const { currentCode, nextCode } = err.response.data;
+                setReferenceNo(nextCode);
+                setConflictData({ currentCode, nextCode });
+                setIsConflictModalOpen(true);
+                setLoading(false);
+                return;
+            }
+
             const backendError = err.response?.data?.error || err.message;
             alert(`Failed to send letter. Reason: ${backendError}`);
         } finally {
@@ -1039,6 +1053,15 @@ export default function GuestSendLetter() {
                 </footer>
             </div>
 
+            <ConflictModal
+                isOpen={isConflictModalOpen}
+                onClose={() => setIsConflictModalOpen(false)}
+                currentCode={conflictData.currentCode}
+                nextCode={conflictData.nextCode}
+                onConfirm={() => {
+                    handleSend();
+                }}
+            />
             <SuccessModal
                 isOpen={isSuccessModalOpen}
                 isGuest={isGuest}
