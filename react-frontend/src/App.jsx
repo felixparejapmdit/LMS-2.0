@@ -47,6 +47,7 @@ import Profile from "./pages/user/Profile";
 
 // Guest
 import GuestSendLetter from "./pages/guest/GuestSendLetter";
+import Maintenance from "./pages/Maintenance";
 
 import { AuthProvider, useAuth, useSession } from "./context/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -60,6 +61,14 @@ axios.interceptors.response.use(
     const url = error.config ? error.config.url : 'UNKNOWN';
     console.error(`%c[API ERROR] ${status} | ${url}`, 'color: white; background: red; padding: 2px 5px; border-radius: 3px; font-weight: bold;');
     console.error('Details:', error.response?.data || error.message);
+
+    // Auto-redirect to maintenance on gateway errors (backend down/updating)
+    if (status === 502 || status === 503 || status === 504) {
+      if (window.location.pathname !== '/maintenance') {
+        window.location.href = '/maintenance';
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -199,6 +208,7 @@ function AppRoutes() {
         <Route path="/resumen" element={<ProtectedRoute><ResumenPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/maintenance" element={<Maintenance />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
