@@ -134,7 +134,7 @@ export default function Users() {
         try {
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
             const params = isSuperAdmin ? {} : { dept_id: userDeptId };
-            
+
             // For SuperAdmins, fetch ALL roles by not passing dept_id
             // For others, fetch roles for their department
             let finalRolesUrl = `${API_BASE}/role-permissions/roles`;
@@ -263,7 +263,7 @@ export default function Users() {
             userItem.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
         const matchesRole = !selectedRole || (userItem.roleData?.name || userItem.role) === selectedRole;
-        const matchesDept = !selectedDepartment || 
+        const matchesDept = !selectedDepartment ||
             (selectedDepartment === 'null' ? (userItem.dept_id === null || userItem.dept_id === undefined) : userItem.dept_id == selectedDepartment);
 
         return matchesSearch && matchesRole && matchesDept;
@@ -387,10 +387,6 @@ export default function Users() {
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-10 custom-scrollbar">
                     <div className="max-w-[100vw] mx-auto">
-                        <div className="mb-8">
-                            <h2 className={`text-4xl font-black tracking-tight ${textColor}`}>System Users</h2>
-                        </div>
-
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">
                             <div className="flex-1 flex flex-col md:flex-row gap-4">
                                 {canSearch && (
@@ -417,7 +413,7 @@ export default function Users() {
                                 )}
                                 {isSuperAdmin && canDepartmentFilter && (
                                     <div className="min-w-[200px]">
-                                        <SearchableSelect 
+                                        <SearchableSelect
                                             options={[
                                                 { id: 'all', dept_name: 'All Departments' },
                                                 { id: 'null', dept_name: 'Admin Defaults' },
@@ -592,7 +588,7 @@ export default function Users() {
                                     {isSuperAdmin && (
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Department</label>
-                                            <SearchableSelect 
+                                            <SearchableSelect
                                                 options={departments}
                                                 value={formData.dept_id}
                                                 onChange={val => setFormData({ ...formData, dept_id: val })}
@@ -607,12 +603,12 @@ export default function Users() {
                                 </div>
                                 <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-gray-100 dark:border-[#333] transition-all hover:border-blue-500/30 group">
                                     <div className="relative flex items-center">
-                                        <input 
-                                            type="checkbox" 
+                                        <input
+                                            type="checkbox"
                                             id="interdepartment"
-                                            checked={formData.interdepartment} 
+                                            checked={formData.interdepartment}
                                             onChange={e => setFormData({ ...formData, interdepartment: e.target.checked })}
-                                            className="w-5 h-5 rounded-lg border-2 border-gray-300 text-blue-600 focus:ring-blue-500/20 transition-all cursor-pointer accent-blue-600" 
+                                            className="w-5 h-5 rounded-lg border-2 border-gray-300 text-blue-600 focus:ring-blue-500/20 transition-all cursor-pointer accent-blue-600"
                                         />
                                     </div>
                                     <label htmlFor="interdepartment" className="flex-1 cursor-pointer">

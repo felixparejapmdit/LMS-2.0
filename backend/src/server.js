@@ -1,5 +1,6 @@
 
 const path = require('path');
+// Triggering restart to load new DashboardNote routes...
 // Load local backend .env
 require('dotenv').config();
 
@@ -13,7 +14,7 @@ const {
     Person, User, Endorsement, RolePermission, SystemPage, 
     LetterKind, Status, ProcessStep, Letter, Tray, 
     LetterAssignment, LetterLog, Attachment, Comment, 
-    LinkLetter, Role, RefSectionRegistry, DeptSectionUsage, AuditLog 
+    LinkLetter, Role, RefSectionRegistry, DeptSectionUsage, AuditLog, DashboardNote
 } = require('./models/associations');
 
 const PORT = process.env.PORT || 5000;
@@ -80,7 +81,7 @@ async function startServer() {
             Person, User, Endorsement, RolePermission, SystemPage,
             LetterKind, Status, ProcessStep, Letter, Tray,
             LetterAssignment, LetterLog, Attachment, Comment,
-            LinkLetter, Role, RefSectionRegistry, DeptSectionUsage, AuditLog
+            LinkLetter, Role, RefSectionRegistry, DeptSectionUsage, AuditLog, DashboardNote
         ];
 
         for (const model of models) {
@@ -136,6 +137,8 @@ async function startServer() {
                 "CREATE INDEX IF NOT EXISTS idx_letters_tray ON letters (tray_id)",
                 "CREATE INDEX IF NOT EXISTS idx_letters_status ON letters (global_status)",
                 "CREATE INDEX IF NOT EXISTS idx_letters_encoder ON letters (encoder_id)",
+                "CREATE INDEX IF NOT EXISTS idx_letters_lms_id ON letters (lms_id)",
+                "CREATE INDEX IF NOT EXISTS idx_letters_sender ON letters (sender)",
                 "CREATE INDEX IF NOT EXISTS idx_users_dept ON directus_users (dept_id)",
                 "CREATE INDEX IF NOT EXISTS idx_assignments_letter ON letter_assignments (letter_id)",
                 "CREATE INDEX IF NOT EXISTS idx_assignments_dept ON letter_assignments (department_id)",

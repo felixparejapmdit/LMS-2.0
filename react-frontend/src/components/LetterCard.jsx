@@ -29,13 +29,14 @@ export default React.memo(function LetterCard({
   layout = "notion",
   isOutbox = false,
   endorsements = [],
-  actions = null
+  actions = null,
+  dateReceived = null
 }) {
   const isPastDue = dueDate && new Date(dueDate) < new Date();
   const formattedDate = dueDate ? new Date(dueDate).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric'
-  }) : 'No deadline';
+  }) : (dateReceived ? `Rec: ${new Date(dateReceived).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'No deadline');
 
 
   if (layout === 'grid') {
@@ -131,8 +132,12 @@ export default React.memo(function LetterCard({
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <MapPin className="w-3 h-3 text-[#A3A3A3] dark:text-gray-500" />
-                  <span className="text-[10px] font-medium text-[#737373] dark:text-gray-400">
+                  {tray?.tray_no ? (
+                    <MapPin className="w-3 h-3 text-blue-400" />
+                  ) : (
+                    <Tag className="w-3 h-3 text-emerald-400" />
+                  )}
+                  <span className="text-[10px] font-bold text-[#737373] dark:text-gray-400 uppercase tracking-tight">
                     {tray?.tray_no || status || 'Pending'}
                   </span>
                 </div>

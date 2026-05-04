@@ -253,8 +253,6 @@ export default function Persons() {
                     <div className="max-w-[100vw] mx-auto">
                         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
                             <div className="flex-1">
-                                <h2 className={`text-3xl font-bold ${textColor}`}>Persons</h2>
-                                <p className="text-gray-500 mt-2">Manage contacts.</p>
 
                                 <div className="mt-6 relative max-w-md group">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-orange-500 transition-colors" />

@@ -19,6 +19,7 @@ const UserDeptAccess = require('./UserDeptAccess');
 const RefSectionRegistry = require('./RefSectionRegistry');
 const DeptSectionUsage = require('./DeptSectionUsage');
 const AuditLog = require('./AuditLog');
+const DashboardNote = require('./DashboardNote');
 const sequelize = require('../config/db');
 
 // --- Letter Relationships ---
@@ -89,7 +90,9 @@ Department.hasMany(UserDeptAccess, { foreignKey: 'department_id', as: 'userAcces
 Department.hasMany(DeptSectionUsage, { foreignKey: 'dept_id', as: 'sectionUsage' });
 DeptSectionUsage.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 RefSectionRegistry.belongsTo(Department, { foreignKey: 'assigned_to_dept_id', as: 'department' });
+RefSectionRegistry.hasOne(DeptSectionUsage, { foreignKey: 'section_code', sourceKey: 'section_code', as: 'usage' });
 Department.hasOne(RefSectionRegistry, { foreignKey: 'assigned_to_dept_id', as: 'activeRegistrySection' });
+Department.hasMany(RefSectionRegistry, { foreignKey: 'assigned_to_dept_id', as: 'assignedSections' });
 
 module.exports = {
     Letter,
@@ -113,5 +116,6 @@ module.exports = {
     RefSectionRegistry,
     DeptSectionUsage,
     AuditLog,
+    DashboardNote,
     sequelize
 };

@@ -35,6 +35,7 @@ class LetterController {
         global_status,
         start_date,
         end_date,
+        search,
       } = req.query;
       const where = {};
 
@@ -53,13 +54,13 @@ class LetterController {
       const SUPER_ADMIN_ROLES = ["ADMINISTRATOR", "ADMIN", "SUPER ADMIN"];
       const DEPT_ADMIN_ROLES = ["ACCESS MANAGER", "VIP", "MANAGER"];
 
-      const isSuperAdmin = SUPER_ADMIN_ROLES.includes(normalizedRole);
-      const isDeptAdmin = DEPT_ADMIN_ROLES.includes(normalizedRole);
-      const isAdmin = !!(isSuperAdmin || isDeptAdmin);
-
       // Fetch the user's actual department from the database for secure filtering
       const userRecord = user_id ? await User.findByPk(user_id) : null;
       const myDeptId = userRecord?.dept_id;
+
+      const isSuperAdmin = SUPER_ADMIN_ROLES.includes(normalizedRole) || (userRecord?.email === 'felixpareja07@gmail.com');
+      const isDeptAdmin = DEPT_ADMIN_ROLES.includes(normalizedRole);
+      const isAdmin = !!(isSuperAdmin || isDeptAdmin);
 
       const visibilityClauses = [];
 
@@ -181,6 +182,19 @@ class LetterController {
       if (extraFilters.length > 0) {
         if (!where[Op.and]) where[Op.and] = [];
         where[Op.and].push(...extraFilters);
+      }
+
+      if (search) {
+        const searchClause = {
+          [Op.or]: [
+            { lms_id: { [Op.like]: `%${search}%` } },
+            { sender: { [Op.like]: `%${search}%` } },
+            { entry_id: { [Op.like]: `%${search}%` } },
+            { summary: { [Op.like]: `%${search}%` } }
+          ]
+        };
+        if (!where[Op.and]) where[Op.and] = [];
+        where[Op.and].push(searchClause);
       }
 
       console.log("[DEBUG] LetterController.getAll final WHERE:", JSON.stringify(where, null, 2));
@@ -1072,7 +1086,7 @@ class LetterController {
     let transaction;
     try {
       transaction = await sequelize.transaction();
-      const { count = 1, encoder_id, dept_id } = req.body;
+      const { count, encoder_id, dept_id } = req.body;
       const numCount = parseInt(count);
 
       if (isNaN(numCount) || numCount <= 0) {
@@ -1089,6 +1103,12 @@ class LetterController {
 
       const createdLetters = [];
 
+      // Pre-fetch department if possible
+      let dept = null;
+      if (targetDeptId) {
+        dept = await Department.findByPk(targetDeptId, { transaction });
+      }
+
       for (let i = 0; i < numCount; i++) {
         const now = new Date();
         const yearStr = now.getFullYear().toString();
@@ -1098,58 +1118,48 @@ class LetterController {
           (now.getMonth() + 1).toString().padStart(2, "0") +
           now.getDate().toString().padStart(2, "0");
 
-        const lastYearEntry = await Letter.findOne({
-          where: { lms_id: { [Op.like]: `LMS${shortYear}-%` } },
-          order: [["lms_id", "DESC"]],
-          transaction,
-        });
+        let lms_id;
+        if (targetDeptId && dept) {
+          let prefix = dept.dept_code || "LMS";
+          if (dept.group_id === 3) {
+            prefix = "ATG";
+            const { section_code, sequence } = await SectionService.incrementAndGetNextSequence(targetDeptId, transaction);
+            lms_id = `${prefix}${shortYear}-${section_code}${sequence.toString().padStart(3, "0")}`;
+          } else {
+            const { sequence } = await SectionService.incrementAndGetNextSequence(targetDeptId, transaction);
+            lms_id = `${prefix}${shortYear}-${sequence.toString().padStart(5, "0")}`;
+          }
+        } else {
+          // Fallback/Legacy logic
+          const lastDayEntryForId = await Letter.findOne({
+            where: { entry_id: { [Op.like]: `${ymd}%` } },
+            order: [["entry_id", "DESC"]],
+            transaction,
+          });
+          let guestSeq = 1;
+          if (lastDayEntryForId) {
+            const lastId = lastDayEntryForId.entry_id;
+            if (lastId.length >= 11 && lastId.startsWith(ymd)) {
+              const lastSeq = parseInt(lastId.slice(-3));
+              if (!isNaN(lastSeq)) guestSeq = lastSeq + 1;
+            }
+          }
+          lms_id = `${ymd}${guestSeq.toString().padStart(3, "0")}`;
+        }
 
+        // Daily sequence (entry_id)
         const lastDayEntry = await Letter.findOne({
           where: { entry_id: { [Op.like]: `${ymd}%` } },
           order: [["entry_id", "DESC"]],
           transaction,
         });
-
-        let annualSequence = 1;
-        if (lastYearEntry) {
-          const parts = lastYearEntry.lms_id.split("-");
-          if (parts.length > 1) {
-            const lastSeq = parseInt(parts[1]);
-            if (!isNaN(lastSeq)) annualSequence = lastSeq + 1;
-          }
-        }
-
         let dailySequence = 1;
         if (lastDayEntry) {
           const lastSeqStr = lastDayEntry.entry_id.slice(-3);
           const lastSeq = parseInt(lastSeqStr);
           if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
         }
-
-        let lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, "0")}`;
         let entry_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
-
-        let attempts = 0;
-        while (attempts < 50) {
-          const existingLms = await Letter.findOne({
-            where: { lms_id },
-            transaction,
-          });
-          const existingEntry = await Letter.findOne({
-            where: { entry_id },
-            transaction,
-          });
-          if (!existingLms && !existingEntry) break;
-          if (existingLms) {
-            annualSequence++;
-            lms_id = `LMS${shortYear}-${annualSequence.toString().padStart(5, "0")}`;
-          }
-          if (existingEntry) {
-            dailySequence++;
-            entry_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
-          }
-          attempts++;
-        }
 
         const letter = await Letter.create(
           {

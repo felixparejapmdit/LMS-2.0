@@ -102,10 +102,7 @@ export default function Settings() {
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 custom-scrollbar">
                     <div className="w-full">
-                        <div className="mb-8">
-                            <h2 className={`text-3xl font-bold ${textColor}`}>Settings</h2>
-                            <p className="text-gray-500 mt-2">Customize layout and font.</p>
-                        </div>
+
 
                         <div className="space-y-8" key={user?.id}>
                             {/* Layout Customization */}

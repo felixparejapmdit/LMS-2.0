@@ -8,7 +8,15 @@ class SectionController {
     static async getRegistry(req, res) {
         try {
             const sections = await RefSectionRegistry.findAll({
-                include: [{ model: Department, as: 'department', attributes: ['id', 'dept_name', 'dept_code'] }],
+                include: [
+                    { model: Department, as: 'department', attributes: ['id', 'dept_name', 'dept_code'] },
+                    { 
+                        model: DeptSectionUsage, 
+                        as: 'usage', 
+                        where: { is_active: true }, 
+                        required: false 
+                    }
+                ],
                 order: [['section_code', 'ASC']]
             });
             res.json(sections);

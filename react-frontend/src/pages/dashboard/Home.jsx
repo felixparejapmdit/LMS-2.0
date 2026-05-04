@@ -35,6 +35,7 @@ import {
     HelpCircle
 } from "lucide-react";
 import TutorialGuide from "../../components/TutorialGuide";
+import StickyNotes from "../../components/StickyNotes";
 import useAccess from "../../hooks/useAccess";
 import API_BASE from "../../config/apiConfig";
 
@@ -164,67 +165,134 @@ export default function Home() {
 
     const colors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'];
 
-    const SummaryChart = ({ title, data, icon: Icon, gradientFrom = 'from-indigo-600', gradientTo = 'to-violet-500', colorClass = "text-indigo-500", onItemClick }) => {
+    const SummaryChart = ({ title, data, icon: Icon, gradientFrom = 'from-indigo-600', gradientTo = 'to-violet-500', onItemClick }) => {
+        const [hoveredIndex, setHoveredIndex] = useState(null);
         const total = data?.reduce((acc, d) => acc + d.value, 0) || 0;
         const allZero = data?.length > 0 && total === 0;
         let cumulativeAngle = 0;
 
+        // Icon mapping for legend items
+        const getLabelIcon = (name) => {
+            const n = name.toLowerCase();
+            if (n.includes('incoming')) return Inbox;
+            if (n.includes('review')) return History;
+            if (n.includes('signature')) return ShieldCheck;
+            if (n.includes('pending')) return Clock;
+            if (n.includes('done')) return CheckCircle2;
+            if (n.includes('endorsed')) return Zap;
+            if (n.includes('vip')) return Star;
+            return Layers;
+        };
+
         return (
-            <div className={`rounded-[2rem] border border-transparent shadow-lg relative overflow-hidden transition-all hover:scale-[1.01] hover:shadow-xl`}>
-                {/* Gradient Header — mirrors the stat cards */}
-                <div className={`bg-gradient-to-br ${gradientFrom} ${gradientTo} p-5 flex items-center justify-between`}>
+            <div className={`rounded-[2.5rem] border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/20 backdrop-blur-[15px] shadow-2xl relative overflow-hidden transition-all hover:scale-[1.01] hover:shadow-indigo-500/10 group`}>
+                {/* Header */}
+                <div className="p-6 pb-2 flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/20 backdrop-blur-md shrink-0">
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center bg-gradient-to-br ${gradientFrom} ${gradientTo} shadow-lg shadow-indigo-500/20`}>
                             <Icon className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/80">{title}</span>
+                        <div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 dark:text-gray-500">{title}</span>
+                            <div className="h-0.5 w-8 bg-gradient-to-r from-blue-500 to-transparent mt-1 rounded-full"></div>
+                        </div>
                     </div>
-                    <span className="text-2xl font-black text-white">{total}</span>
                 </div>
 
                 {/* Body */}
-                <div className={`p-5 ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : 'bg-white dark:bg-[#141414]'}`}>
+                <div className="p-6 pt-2">
                     {(!data || data.length === 0) ? (
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-8">No data</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-12">No metrics available</p>
                     ) : (
-                        <div className="flex gap-4 items-start">
-                            {/* Donut */}
-                            <div className="relative shrink-0 w-24 h-24">
-                                <svg viewBox="0 0 100 100" className="w-24 h-24 -rotate-90 drop-shadow-sm">
-                                    <circle cx="50" cy="50" r="40" fill="transparent" className="stroke-slate-100 dark:stroke-[#333]" strokeWidth="15" />
+                        <div className="flex flex-col md:flex-row gap-8 items-center">
+                            {/* Donut Column */}
+                            <div className="relative shrink-0 w-32 h-32 flex items-center justify-center">
+                                <svg viewBox="0 0 100 100" className="w-32 h-32 -rotate-90">
+                                    {/* Definitions for Gradients */}
+                                    <defs>
+                                        {data.map((_, i) => (
+                                            <linearGradient key={`grad-${i}`} id={`grad-${title.replace(/\s+/g, '')}-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stopColor={colors[i % colors.length]} />
+                                                <stop offset="100%" stopColor={colors[(i + 1) % colors.length]} stopOpacity="0.8" />
+                                            </linearGradient>
+                                        ))}
+                                    </defs>
+
+                                    <circle cx="50" cy="50" r="40" fill="transparent" className="stroke-slate-100/50 dark:stroke-white/5" strokeWidth="12" />
                                     {!allZero && data.map((d, i) => {
                                         const percentage = total > 0 ? (d.value / total) : 0;
                                         const strokeDasharray = `${percentage * 251.2} 251.2`;
                                         const strokeDashoffset = `-${cumulativeAngle * 251.2}`;
                                         cumulativeAngle += percentage;
+                                        const isHovered = hoveredIndex === i;
+
                                         return (
-                                            <circle key={d.name} cx="50" cy="50" r="40" fill="transparent" stroke={colors[i % colors.length]} strokeWidth="15"
-                                                strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} className="transition-all duration-1000 ease-out" />
+                                            <circle
+                                                key={d.name}
+                                                cx="50" cy="50" r="40"
+                                                fill="transparent"
+                                                stroke={`url(#grad-${title.replace(/\s+/g, '')}-${i})`}
+                                                strokeWidth={isHovered ? 16 : 12}
+                                                strokeDasharray={strokeDasharray}
+                                                strokeDashoffset={strokeDashoffset}
+                                                strokeLinecap="round"
+                                                className="transition-all duration-500 ease-out cursor-help"
+                                                onMouseEnter={() => setHoveredIndex(i)}
+                                                onMouseLeave={() => setHoveredIndex(null)}
+                                                opacity={d.value === 0 ? 0 : 1}
+                                            />
                                         );
                                     })}
                                 </svg>
-                                {/* Center label when all zero */}
-                                {allZero && (
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <span className="text-lg font-black text-gray-300 dark:text-gray-600">0</span>
-                                    </div>
-                                )}
+                                {/* Center label */}
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <span className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{total}</span>
+                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest -mt-1">Total</span>
+                                </div>
                             </div>
 
-                            {/* Legend */}
-                            <div className="flex-1 space-y-2 min-w-0">
-                                {data.map((d, i) => (
-                                    <div key={d.name}
-                                        onClick={() => onItemClick && d.value > 0 && onItemClick(d.name)}
-                                        className={`flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-widest rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${onItemClick && d.value > 0 ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10' : ''}`}
-                                    >
-                                        <div className="flex items-center gap-1.5 min-w-0">
-                                            <span className="w-2 h-2 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: allZero ? '#d1d5db' : colors[i % colors.length] }}></span>
-                                            <span className={`truncate ${allZero ? 'text-gray-400 dark:text-gray-600' : 'text-gray-500 dark:text-gray-400'}`}>{d.name}</span>
+                            {/* Legend Column */}
+                            <div className="flex-1 space-y-3 min-w-0 w-full">
+                                {data.map((d, i) => {
+                                    const percentage = total > 0 ? (d.value / total * 100) : 0;
+                                    const LabelIcon = getLabelIcon(d.name);
+                                    const isHovered = hoveredIndex === i;
+                                    const isActive = d.value > 0;
+
+                                    return (isActive || d.value === 0) && (
+                                        <div key={d.name}
+                                            onMouseEnter={() => setHoveredIndex(i)}
+                                            onMouseLeave={() => setHoveredIndex(null)}
+                                            onClick={() => onItemClick && isActive && onItemClick(d.name)}
+                                            className={`group/item flex flex-col gap-1 transition-all duration-300 ${!isActive ? 'opacity-30 grayscale' : 'opacity-100'} ${isHovered ? 'translate-x-1' : ''} ${isActive ? 'cursor-pointer' : ''}`}
+                                        >
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-sm transition-transform ${isHovered ? 'scale-110 rotate-3' : ''}`} style={{ backgroundColor: `${colors[i % colors.length]}15`, border: `1px solid ${colors[i % colors.length]}30` }}>
+                                                        <LabelIcon className="w-3 h-3" style={{ color: colors[i % colors.length] }} />
+                                                    </div>
+                                                    <span className={`text-xs font-black uppercase tracking-widest truncate ${isHovered ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                        {d.name}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-sm font-black text-gray-900 dark:text-white">{d.value}</span>
+                                                </div>
+                                            </div>
+                                            {/* Progress Bar */}
+                                            <div className="h-1.5 w-full bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
+                                                <div 
+                                                    className="h-full transition-all duration-1000 ease-out" 
+                                                    style={{ 
+                                                        width: `${percentage}%`, 
+                                                        backgroundColor: colors[i % colors.length],
+                                                        boxShadow: isHovered ? `0 0 10px ${colors[i % colors.length]}50` : 'none'
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
-                                        <span className={`px-2 py-0.5 rounded-lg shrink-0 ${allZero ? 'text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-white/5' : 'text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-white/5'}`}>{d.value}</span>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -275,28 +343,80 @@ export default function Home() {
 
 
     const OverdueWidget = () => (
-        <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-red-100 dark:border-red-900/30' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'}`}>
-            <h3 className="text-xs font-black uppercase tracking-widest mb-1 flex items-center gap-2 text-red-600 dark:text-red-400">
-                <AlertTriangle className="w-4 h-4" /> Urgent & Overdue
-            </h3>
-            <p className="text-[9px] font-bold text-red-900/40 dark:text-red-400/40 uppercase tracking-widest mb-4 leading-relaxed">
-                Pending letters older than 5 days
-            </p>
+        <div className={`p-10 rounded-[3rem] bg-white dark:bg-[#141414] border border-gray-100 dark:border-white/5 shadow-2xl relative overflow-hidden group`}>
+            {/* Background Accent */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+
+            <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center">
+                        <AlertTriangle className="w-6 h-6 text-red-500 animate-pulse" />
+                    </div>
+                    <div>
+                        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-red-600 dark:text-red-400">Urgent & Overdue</h3>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                            Pending for more than 5 days
+                        </p>
+                    </div>
+                </div>
+                {stats.overdueTasks?.length > 0 && (
+                    <div className="flex flex-col items-end">
+                        <span className="text-2xl font-black text-red-600 dark:text-red-400 leading-none">{stats.overdueTasks.length}</span>
+                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Items</span>
+                    </div>
+                )}
+            </div>
+
             {stats.overdueTasks?.length === 0 ? (
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center py-4">All clear</p>
+                <div className="py-20 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-white/5 rounded-[2.5rem] border-2 border-dashed border-slate-100 dark:border-white/10">
+                    <CheckCircle2 className="w-12 h-12 text-emerald-400/20 mb-4" />
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No overdue items found</p>
+                </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {stats.overdueTasks?.map(t => (
-                        <Link to={`/letter/${t.id}`} key={t.id} className="flex items-center justify-between p-3 bg-white dark:bg-[#111] rounded-xl border border-red-100 dark:border-red-900/30 hover:border-red-300 transition-colors shadow-sm">
-                            <div className="flex flex-col truncate w-[65%]">
-                                <span className="text-xs font-black text-slate-800 dark:text-slate-200 truncate">{t.sender}</span>
-                                <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest truncate">{t.lms_id}</span>
-                            </div>
-                            <span className="text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded-lg shadow-sm whitespace-nowrap">
-                                {Math.floor((new Date() - new Date(t.date_received || t.created_at)) / (1000 * 60 * 60 * 24))} Days
-                            </span>
-                        </Link>
-                    ))}
+                <div className="overflow-x-auto -mx-2 px-2">
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="border-b border-slate-100 dark:border-white/5">
+                                <th className="pb-4 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Reference</th>
+                                <th className="pb-4 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Sender / Source</th>
+                                <th className="pb-4 text-center text-[9px] font-black text-gray-400 uppercase tracking-widest">Urgency</th>
+                                <th className="pb-4 text-right text-[9px] font-black text-gray-400 uppercase tracking-widest">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 dark:divide-white/5">
+                            {stats.overdueTasks?.map(t => {
+                                const days = Math.floor((new Date() - new Date(t.date_received || t.created_at)) / (1000 * 60 * 60 * 24));
+                                return (
+                                    <tr
+                                        key={t.id}
+                                        onClick={() => navigate(`/letter/${t.id}`)}
+                                        className="group/row hover:bg-slate-50/80 dark:hover:bg-white/5 transition-all cursor-pointer"
+                                    >
+                                        <td className="py-6">
+                                            <span className="text-[11px] font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-white/10 px-3 py-1.5 rounded-lg group-hover/row:bg-red-500 group-hover/row:text-white transition-all">
+                                                {t.lms_id}
+                                            </span>
+                                        </td>
+                                        <td className="py-6">
+                                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate max-w-[220px]">{t.sender}</p>
+                                        </td>
+                                        <td className="py-6 text-center">
+                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[8px] font-black rounded-lg uppercase tracking-widest">
+                                                <Zap className="w-3 h-3" />
+                                                High Priority
+                                            </span>
+                                        </td>
+                                        <td className="py-6 text-right">
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-xl font-black text-red-600 dark:text-red-400 leading-none group-hover/row:scale-110 transition-transform">{days}</span>
+                                                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-1">Days Overdue</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
             )}
         </div>
@@ -319,9 +439,9 @@ export default function Home() {
                 {/* 1. Group and Status Cards (SideWidgets) on top */}
                 <SideWidgets />
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
                     {/* Main Content - Recent Work */}
-                    <div className="lg:col-span-2 space-y-6">
+                    <div className="lg:col-span-2 space-y-8">
                         <div className="flex items-center justify-between">
                             <h2 className={`text-lg font-black uppercase tracking-tight ${'text-slate-900 dark:text-white'}`}>
                                 Recent Activity
@@ -392,39 +512,54 @@ export default function Home() {
                             </div>
                         </div>
 
+                        {/* Sticky Notes / Notice Board */}
+                        <StickyNotes />
+
                         {/* Quick Actions */}
-                        <div className={`p-6 rounded-[2rem] border ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
-                            <h3 className={`text-xs font-black uppercase tracking-widest mb-4 ${'text-gray-400'}`}>Actions</h3>
-                            <div className="grid grid-cols-2 gap-3">
+                        <div className={`p-8 rounded-[2.5rem] border bg-white dark:bg-[#141414] border-gray-100 dark:border-white/5 shadow-sm`}>
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-8">Quick Actions</h3>
+                            <div className="grid grid-cols-2 gap-4">
                                 {canQuickNewLetter && (
-                                    <button onClick={() => navigate('/new-letter')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${'bg-blue-50/50 dark:bg-blue-900/10 hover:bg-blue-100 dark:hover:bg-blue-900/20'}`}>
-                                        <FileText className={`w-5 h-5 ${'text-blue-500'}`} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">New Letter</span>
+                                    <button onClick={() => navigate('/new-letter')} className="group flex flex-col items-center justify-center p-6 bg-blue-50/30 dark:bg-blue-900/10 rounded-2xl border border-blue-50/50 dark:border-blue-900/20 hover:bg-blue-500 hover:border-blue-500 transition-all duration-300">
+                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                            <FileText className="w-5 h-5 text-blue-500" />
+                                        </div>
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300 group-hover:text-white transition-colors">New Letter</span>
                                     </button>
                                 )}
                                 {canQuickTrays && (
-                                    <button onClick={() => navigate('/setup/trays')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${'bg-indigo-50/50 dark:bg-indigo-900/10 hover:bg-indigo-100 dark:hover:bg-indigo-900/20'}`}>
-                                        <Inbox className={`w-5 h-5 ${'text-indigo-500'}`} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300">Trays</span>
+                                    <button onClick={() => navigate('/setup/trays')} className="group flex flex-col items-center justify-center p-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-2xl border border-indigo-50/50 dark:border-indigo-900/20 hover:bg-indigo-500 hover:border-indigo-500 transition-all duration-300">
+                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                            <Inbox className="w-5 h-5 text-indigo-500" />
+                                        </div>
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300 group-hover:text-white transition-colors">Digital Tray</span>
                                     </button>
                                 )}
                                 {canQuickSetup && (
                                     <>
-                                        <button onClick={() => navigate('/setup/statuses')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${'bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'}`}>
-                                            <ShieldCheck className={`w-5 h-5 ${'text-emerald-500'}`} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Statuses</span>
+                                        <button onClick={() => navigate('/setup/statuses')} className="group flex flex-col items-center justify-center p-6 bg-emerald-50/30 dark:bg-emerald-900/10 rounded-2xl border border-emerald-50/50 dark:border-emerald-900/20 hover:bg-emerald-500 hover:border-emerald-500 transition-all duration-300">
+                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                                            </div>
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 group-hover:text-white transition-colors">Statuses</span>
                                         </button>
-                                        <button onClick={() => navigate('/setup/process-steps')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${'bg-orange-50/50 dark:bg-orange-900/10 hover:bg-orange-100 dark:hover:bg-orange-900/20'}`}>
-                                            <ArrowRightLeft className={`w-5 h-5 ${'text-orange-500'}`} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-orange-700 dark:text-orange-300">Group</span>
+                                        <button onClick={() => navigate('/setup/process-steps')} className="group flex flex-col items-center justify-center p-6 bg-orange-50/30 dark:bg-orange-900/10 rounded-2xl border border-orange-50/50 dark:border-orange-900/20 hover:bg-orange-500 hover:border-orange-500 transition-all duration-300">
+                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                <ArrowRightLeft className="w-5 h-5 text-orange-500" />
+                                            </div>
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-orange-700 dark:text-orange-300 group-hover:text-white transition-colors">Workflow</span>
                                         </button>
-                                        <button onClick={() => navigate('/setup/letter-kinds')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${'bg-purple-50/50 dark:bg-purple-900/10 hover:bg-purple-100 dark:hover:bg-purple-900/20'}`}>
-                                            <Layers className={`w-5 h-5 ${'text-purple-500'}`} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-purple-700 dark:text-purple-300">Kinds</span>
+                                        <button onClick={() => navigate('/setup/letter-kinds')} className="group flex flex-col items-center justify-center p-6 bg-purple-50/30 dark:bg-purple-900/10 rounded-2xl border border-purple-50/50 dark:border-purple-900/20 hover:bg-purple-500 hover:border-purple-500 transition-all duration-300">
+                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                <Layers className="w-5 h-5 text-purple-500" />
+                                            </div>
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-purple-700 dark:text-purple-300 group-hover:text-white transition-colors">Categories</span>
                                         </button>
-                                        <button onClick={() => navigate('/setup/departments')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${'bg-teal-50/50 dark:bg-teal-900/10 hover:bg-teal-100 dark:hover:bg-teal-900/20'}`}>
-                                            <Building2 className={`w-5 h-5 ${'text-teal-500'}`} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-teal-700 dark:text-teal-300">Depts</span>
+                                        <button onClick={() => navigate('/setup/departments')} className="group flex flex-col items-center justify-center p-6 bg-teal-50/30 dark:bg-teal-900/10 rounded-2xl border border-teal-50/50 dark:border-teal-900/20 hover:bg-teal-500 hover:border-teal-500 transition-all duration-300">
+                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                <Building2 className="w-5 h-5 text-teal-500" />
+                                            </div>
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-teal-700 dark:text-teal-300 group-hover:text-white transition-colors">Dept Setup</span>
                                         </button>
                                     </>
                                 )}
@@ -552,37 +687,53 @@ export default function Home() {
 
                                 <div className="space-y-8">
                                     <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                        <h3 className="text-[10px] font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] mb-6">Quick Actions</h3>
-                                        <div className="space-y-4">
+                                        <StickyNotes />
+                                    </div>
+
+                                    <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
+                                        <h3 className="text-[10px] font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.3em] mb-8 text-center">Quick Actions</h3>
+                                        <div className="grid grid-cols-2 gap-4">
                                             {canQuickNewLetter && (
-                                                <button onClick={() => navigate('/new-letter')} className="w-full flex items-center justify-between p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all group">
-                                                    <span className="text-[10px] font-black text-blue-700 dark:text-blue-300 uppercase tracking-widest">New Letter</span>
-                                                    <Plus className="w-4 h-4 text-blue-500" />
+                                                <button onClick={() => navigate('/new-letter')} className="group flex flex-col items-center justify-center p-6 bg-blue-50/30 dark:bg-blue-900/10 rounded-2xl border border-blue-50/50 dark:border-blue-900/20 hover:bg-blue-500 hover:border-blue-500 transition-all duration-300">
+                                                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                        <FileText className="w-5 h-5 text-blue-500" />
+                                                    </div>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300 group-hover:text-white transition-colors">New Letter</span>
                                                 </button>
                                             )}
                                             {canQuickTrays && (
-                                                <button onClick={() => navigate('/setup/trays')} className="w-full flex items-center justify-between p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/20 transition-all group">
-                                                    <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest">Trays</span>
-                                                    <Inbox className="w-4 h-4 text-indigo-500" />
+                                                <button onClick={() => navigate('/setup/trays')} className="group flex flex-col items-center justify-center p-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-2xl border border-indigo-50/50 dark:border-indigo-900/20 hover:bg-indigo-500 hover:border-indigo-500 transition-all duration-300">
+                                                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                        <Inbox className="w-5 h-5 text-indigo-500" />
+                                                    </div>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300 group-hover:text-white transition-colors">Trays</span>
                                                 </button>
                                             )}
                                             {canQuickSetup && (
                                                 <>
-                                                    <button onClick={() => navigate('/setup/statuses')} className="w-full flex items-center justify-between p-4 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all group">
-                                                        <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-widest">Statuses</span>
-                                                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                                                    <button onClick={() => navigate('/setup/statuses')} className="group flex flex-col items-center justify-center p-6 bg-emerald-50/30 dark:bg-emerald-900/10 rounded-2xl border border-emerald-50/50 dark:border-emerald-900/20 hover:bg-emerald-500 hover:border-emerald-500 transition-all duration-300">
+                                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                            <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                                                        </div>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 group-hover:text-white transition-colors">Statuses</span>
                                                     </button>
-                                                    <button onClick={() => navigate('/setup/process-steps')} className="w-full flex items-center justify-between p-4 bg-orange-50/50 dark:bg-orange-900/10 rounded-xl hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-all group">
-                                                        <span className="text-[10px] font-black text-orange-700 dark:text-orange-300 uppercase tracking-widest">Group</span>
-                                                        <ArrowRightLeft className="w-4 h-4 text-orange-500" />
+                                                    <button onClick={() => navigate('/setup/process-steps')} className="group flex flex-col items-center justify-center p-6 bg-orange-50/30 dark:bg-orange-900/10 rounded-2xl border border-orange-50/50 dark:border-orange-900/20 hover:bg-orange-500 hover:border-orange-500 transition-all duration-300">
+                                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                            <ArrowRightLeft className="w-5 h-5 text-orange-500" />
+                                                        </div>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-orange-700 dark:text-orange-300 group-hover:text-white transition-colors">Workflow</span>
                                                     </button>
-                                                    <button onClick={() => navigate('/setup/letter-kinds')} className="w-full flex items-center justify-between p-4 bg-purple-50/50 dark:bg-purple-900/10 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-all group">
-                                                        <span className="text-[10px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-widest">Kinds</span>
-                                                        <Layers className="w-4 h-4 text-purple-500" />
+                                                    <button onClick={() => navigate('/setup/letter-kinds')} className="group flex flex-col items-center justify-center p-6 bg-purple-50/30 dark:bg-purple-900/10 rounded-2xl border border-purple-50/50 dark:border-purple-900/20 hover:bg-purple-500 hover:border-purple-500 transition-all duration-300">
+                                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                            <Layers className="w-5 h-5 text-purple-500" />
+                                                        </div>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-purple-700 dark:text-purple-300 group-hover:text-white transition-colors">Categories</span>
                                                     </button>
-                                                    <button onClick={() => navigate('/setup/departments')} className="w-full flex items-center justify-between p-4 bg-teal-50/50 dark:bg-teal-900/10 rounded-xl hover:bg-teal-100 dark:hover:bg-teal-900/20 transition-all group">
-                                                        <span className="text-[10px] font-black text-teal-700 dark:text-teal-300 uppercase tracking-widest">Depts</span>
-                                                        <Building2 className="w-4 h-4 text-teal-500" />
+                                                    <button onClick={() => navigate('/setup/departments')} className="group flex flex-col items-center justify-center p-6 bg-teal-50/30 dark:bg-teal-900/10 rounded-2xl border border-teal-50/50 dark:border-teal-900/20 hover:bg-teal-500 hover:border-teal-500 transition-all duration-300">
+                                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                            <Building2 className="w-5 h-5 text-teal-500" />
+                                                        </div>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-teal-700 dark:text-teal-300 group-hover:text-white transition-colors">Dept Setup</span>
                                                     </button>
                                                 </>
                                             )}

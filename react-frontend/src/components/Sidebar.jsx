@@ -101,39 +101,40 @@ export default function Sidebar() {
 
 
   const navItems = [
-    { icon: Home, label: "Home", path: "/" },
-    { icon: Plus, label: "New Letter", path: "/new-letter" },
-    { icon: Inbox, label: "Inbox", path: "/inbox" },
-    { icon: FileText, label: "Resumen", path: "/resumen" },
-    { icon: Send, label: "Outbox", path: "/outbox" },
-    { icon: TableIcon, label: "Master Table", path: "/master-table" },
-    { icon: Eye, label: "Dept Viewer", path: "/dept-viewer", hidden: !user?.interdepartment && !hasPermission('dept-viewer') },
-    { icon: MessageSquare, label: "Letters with Comment", path: "/letters-with-comments" },
-    { icon: Search, label: "Letter Tracker", path: "/letter-tracker" },
-    { icon: TableIcon, label: "Legacy Data", path: "/legacy-data" },
-    { icon: FileUp, label: "Upload PDF Files", path: "/upload-pdf" },
-    { icon: Send, label: "Send A Letter", path: "/guest/send-letter" },
+    { icon: Home, label: "Home", path: "/", color: "text-blue-500" },
+    { icon: Plus, label: "New Letter", path: "/new-letter", color: "text-emerald-500" },
+    { icon: Inbox, label: "Inbox", path: "/inbox", color: "text-indigo-500" },
+    { icon: FileText, label: "Resumen", path: "/resumen", color: "text-amber-500" },
+    { icon: Send, label: "Outbox", path: "/outbox", color: "text-sky-500" },
+    { icon: TableIcon, label: "Master Table", path: "/master-table", color: "text-violet-500" },
+    { icon: Eye, label: "Dept Viewer", path: "/dept-viewer", hidden: !user?.interdepartment && !hasPermission('dept-viewer'), color: "text-rose-500" },
+    { icon: MessageSquare, label: "Letters with Comment", path: "/letters-with-comments", color: "text-orange-500" },
+    { icon: Search, label: "Letter Tracker", path: "/letter-tracker", color: "text-teal-500" },
+    { icon: TableIcon, label: "Legacy Data", path: "/legacy-data", color: "text-slate-500" },
+    { icon: FileUp, label: "Upload PDF Files", path: "/upload-pdf", color: "text-blue-400" },
+    { icon: Send, label: "Send A Letter", path: "/guest/send-letter", color: "text-sky-400" },
     {
       icon: Settings,
       label: "Settings",
       path: "#",
+      color: "text-gray-500",
       children: [
-        { icon: Settings, label: "Access Matrix", path: "/setup/role-matrix" },
-        { icon: ShieldCheck, label: "Unit Access Matrix", path: "/setup/dept-matrix", hidden: (user?.roleData?.name || user?.role || '').toString().toUpperCase() !== 'ACCESS MANAGER' },
-        { icon: LayoutDashboard, label: "App Settings", path: "/settings" },
-        { icon: Paperclip, label: "Attachments", path: "/setup/attachments" },
-        { icon: UserIcon, label: "Contacts", path: "/setup/persons" },
-        { icon: CloudDownload, label: "Data Import", path: "/setup/data-import" },
-        { icon: Building2, label: "Departments", path: "/setup/departments" },
-        { icon: Tags, label: "Kinds", path: "/setup/letter-kinds" },
-        { icon: ShieldCheck, label: "Roles", path: "/setup/roles" },
-        { icon: Activity, label: "Statuses", path: "/setup/statuses" },
-        { icon: GitMerge, label: "Steps", path: "/setup/process-steps" },
-        { icon: Box, label: "Trays", path: "/setup/trays" },
-        { icon: Users, label: "Users", path: "/setup/users" },
-        { icon: LayoutGrid, label: "Section Registry", path: "/setup/sections" },
-        { icon: Settings2, label: "Inter-Dept Management", path: "/setup/inter-dept", hidden: !hasPermission('inter-dept') },
-        { icon: Shield, label: "Audit Logs", path: "/setup/audit-logs" },
+        { icon: Settings, label: "Access Matrix", path: "/setup/role-matrix", color: "text-red-500" },
+        { icon: ShieldCheck, label: "Unit Access Matrix", path: "/setup/dept-matrix", hidden: (user?.roleData?.name || user?.role || '').toString().toUpperCase() !== 'ACCESS MANAGER', color: "text-red-600" },
+        { icon: LayoutDashboard, label: "App Settings", path: "/settings", color: "text-slate-500" },
+        { icon: Paperclip, label: "Attachments", path: "/setup/attachments", color: "text-blue-500" },
+        { icon: UserIcon, label: "Contacts", path: "/setup/persons", color: "text-teal-500" },
+        { icon: CloudDownload, label: "Data Import", path: "/setup/data-import", color: "text-indigo-500" },
+        { icon: Building2, label: "Departments", path: "/setup/departments", color: "text-amber-500" },
+        { icon: Tags, label: "Kinds", path: "/setup/letter-kinds", color: "text-orange-500" },
+        { icon: ShieldCheck, label: "Roles", path: "/setup/roles", color: "text-violet-500" },
+        { icon: Activity, label: "Statuses", path: "/setup/statuses", color: "text-rose-500" },
+        { icon: GitMerge, label: "Steps", path: "/setup/process-steps", color: "text-cyan-500" },
+        { icon: Box, label: "Trays", path: "/setup/trays", color: "text-emerald-600" },
+        { icon: Users, label: "Users", path: "/setup/users", color: "text-purple-500" },
+        { icon: LayoutGrid, label: "Section Registry", path: "/setup/sections", color: "text-pink-500" },
+        { icon: Settings2, label: "Inter-Dept Management", path: "/setup/inter-dept", hidden: !hasPermission('inter-dept'), color: "text-yellow-600" },
+        { icon: Shield, label: "Audit Logs", path: "/setup/audit-logs", color: "text-gray-600" },
       ]
     },
 
@@ -282,15 +283,19 @@ export default function Sidebar() {
                     ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
                   `}}
                 >
-                  <item.icon className="w-6 h-6 transition-transform group-hover/item:scale-110 shrink-0" />
-                  {(isSidebarExpanded || isMobileMenuOpen) && (
-                    <div className="flex flex-col">
-                      <span className="text-xs font-black tracking-widest">{item.label}</span>
-                      {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase">Complete Setup First</span>}
-                    </div>
-                  )}
-                  {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
-                    <ChevronRight className={`w-4 h-4 ml-auto transition-transform duration-300 ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
+                  {({ isActive }) => (
+                    <>
+                      <item.icon className={`w-6 h-6 transition-transform group-hover/item:scale-110 shrink-0 ${isActive && !item.children && item.path !== "#" ? "text-white" : (item.color || '')}`} />
+                      {(isSidebarExpanded || isMobileMenuOpen) && (
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black tracking-widest">{item.label}</span>
+                          {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase">Complete Setup First</span>}
+                        </div>
+                      )}
+                      {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
+                        <ChevronRight className={`w-4 h-4 ml-auto transition-transform duration-300 ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
+                      )}
+                    </>
                   )}
                 </NavLink>
 
@@ -314,8 +319,12 @@ export default function Sidebar() {
                           `
                         }}
                       >
-                        <child.icon className="w-5 h-5 shrink-0" />
-                        <span className="text-[10px] font-black tracking-widest">{child.label}</span>
+                        {({ isActive }) => (
+                          <>
+                            <child.icon className={`w-5 h-5 shrink-0 ${isActive ? "text-white" : (child.color || '')}`} />
+                            <span className="text-[10px] font-black tracking-widest">{child.label}</span>
+                          </>
+                        )}
                       </NavLink>
                     ))}
                   </div>
@@ -441,15 +450,19 @@ export default function Sidebar() {
                   ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                 `}}
                 >
-                  <item.icon className="w-4 h-4 shrink-0" />
-                  {(isSidebarExpanded || isMobileMenuOpen) && (
-                    <div className="flex flex-col truncate">
-                        <span className="text-sm">{item.label}</span>
-                        {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
-                    </div>
-                  )}
-                  {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
-                    <ChevronRight className={`w-3 h-3 ml-auto transition-transform duration-300 ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
+                  {({ isActive }) => (
+                    <>
+                      <item.icon className={`w-4 h-4 shrink-0 ${isActive && !item.children && item.path !== "#" ? "text-gray-900 dark:text-white" : (item.color || '')}`} />
+                      {(isSidebarExpanded || isMobileMenuOpen) && (
+                        <div className="flex flex-col truncate">
+                            <span className="text-sm">{item.label}</span>
+                            {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
+                        </div>
+                      )}
+                      {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
+                        <ChevronRight className={`w-3 h-3 ml-auto transition-transform duration-300 ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
+                      )}
+                    </>
                   )}
                 </NavLink>
 
@@ -592,15 +605,19 @@ export default function Sidebar() {
                     ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                   `}}
                 >
-                  <item.icon className={`w-4 h-4 shrink-0 transition-colors`} />
-                  {(isSidebarExpanded || isMobileMenuOpen) && (
-                    <div className="flex flex-col truncate">
-                        <span className="text-sm">{item.label}</span>
-                        {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
-                    </div>
-                  )}
-                  {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
-                    <ChevronRight className={`w-3 h-3 ml-auto transition-transform ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
+                  {({ isActive }) => (
+                    <>
+                      <item.icon className={`w-4 h-4 shrink-0 transition-colors ${isActive && !item.children && item.path !== "#" ? "text-white" : (item.color || '')}`} />
+                      {(isSidebarExpanded || isMobileMenuOpen) && (
+                        <div className="flex flex-col truncate">
+                            <span className="text-sm">{item.label}</span>
+                            {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
+                        </div>
+                      )}
+                      {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
+                        <ChevronRight className={`w-3 h-3 ml-auto transition-transform ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
+                      )}
+                    </>
                   )}
                 </NavLink>
 
@@ -620,8 +637,12 @@ export default function Sidebar() {
                           }`;
                         }}
                       >
-                        <child.icon className="w-3.5 h-3.5 shrink-0" />
-                        <span>{child.label}</span>
+                        {({ isActive }) => (
+                          <>
+                            <child.icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-[#1A1A1B]" : (child.color || '')}`} />
+                            <span>{child.label}</span>
+                          </>
+                        )}
                       </NavLink>
                     ))}
                   </div>
@@ -718,15 +739,19 @@ export default function Sidebar() {
                 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
               `}}
               >
-                <item.icon className="w-5 h-5 transition-transform shrink-0" />
-                {(isSidebarExpanded || isMobileMenuOpen) && (
-                    <div className="flex flex-col">
-                        <span className="text-xs font-bold tracking-wide">{item.label}</span>
-                        {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
-                    </div>
-                )}
-                {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
-                  <ChevronRight className={`w-4 h-4 ml-auto transition-transform duration-300 ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
+                {({ isActive }) => (
+                  <>
+                    <item.icon className={`w-5 h-5 transition-transform shrink-0 ${isActive && !item.children && item.path !== "#" ? "text-orange-600" : (item.color || '')}`} />
+                    {(isSidebarExpanded || isMobileMenuOpen) && (
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold tracking-wide">{item.label}</span>
+                            {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
+                        </div>
+                    )}
+                    {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
+                      <ChevronRight className={`w-4 h-4 ml-auto transition-transform duration-300 ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
+                    )}
+                  </>
                 )}
               </NavLink>
 
@@ -745,8 +770,12 @@ export default function Sidebar() {
                           : "text-slate-400 hover:text-slate-600 hover:bg-slate-200"}
                       `}
                     >
-                      <child.icon className="w-4 h-4 shrink-0" />
-                      <span className="text-[10px] font-bold tracking-wide">{child.label}</span>
+                      {({ isActive }) => (
+                        <>
+                          <child.icon className={`w-4 h-4 shrink-0 ${isActive ? "text-orange-600" : (child.color || '')}`} />
+                          <span className="text-[10px] font-bold tracking-wide">{child.label}</span>
+                        </>
+                      )}
                     </NavLink>
                   ))}
                 </div>

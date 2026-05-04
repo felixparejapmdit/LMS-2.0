@@ -695,6 +695,25 @@ export default function MasterTable() {
     }
   };
 
+  const handleDeleteEndorsement = async (id) => {
+    if (!window.confirm("Are you sure you want to remove this endorsement?")) return;
+    try {
+      setLoading(true);
+      await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/endorsements/${id}`);
+      // Update local state
+      setSelectedLetter(prev => ({
+        ...prev,
+        endorsements: (prev.endorsements || []).filter(e => e.id !== id)
+      }));
+      fetchData();
+    } catch (error) {
+      console.error("Failed to delete endorsement", error);
+      alert("Failed to remove endorsement.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const handleEndorseOnly = async () => {
     if (!selectedLetter?.id) return;
@@ -1236,15 +1255,18 @@ export default function MasterTable() {
                               <span>
                                 {new Date(
                                   letter.date_received || letter.createdAt,
-                                ).toLocaleDateString()}
+                                ).toLocaleDateString("en-PH", {
+                                  timeZone: "Asia/Manila",
+                                })}
                               </span>
                               <span className="text-orange-500">
                                 {new Date(
                                   letter.date_received || letter.createdAt,
-                                ).toLocaleTimeString([], {
+                                ).toLocaleTimeString("en-PH", {
                                   hour: "2-digit",
                                   minute: "2-digit",
                                   hour12: true,
+                                  timeZone: "Asia/Manila",
                                 })}
                               </span>
                             </div>
@@ -1473,8 +1495,9 @@ export default function MasterTable() {
                         >
                           {new Date(
                             selectedLetter.date_received,
-                          ).toLocaleDateString(undefined, {
+                          ).toLocaleDateString("en-PH", {
                             dateStyle: "long",
+                            timeZone: "Asia/Manila",
                           })}
                         </p>
                       </div>
@@ -1485,10 +1508,11 @@ export default function MasterTable() {
                       >
                         {new Date(
                           selectedLetter.date_received,
-                        ).toLocaleTimeString(undefined, {
+                        ).toLocaleTimeString("en-PH", {
                           hour: "2-digit",
                           minute: "2-digit",
                           hour12: true,
+                          timeZone: "Asia/Manila",
                         })}
                       </p>
                     </div>
@@ -1732,8 +1756,19 @@ export default function MasterTable() {
                               .slice()
                               .sort((a, b) => b.id - a.id)
                               .map((e, idx) => (
-                                <div key={e.id} className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold ${idx === 0 ? "bg-orange-500 text-white border-orange-500 shadow-sm" : "bg-white dark:bg-white/5 border-orange-100 dark:border-orange-900/20 text-orange-600 dark:text-orange-400"}`}>
-                                  {e.endorsed_to}
+                                <div
+                                  key={e.id}
+                                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-bold ${idx === 0 ? "bg-orange-500 text-white border-orange-500 shadow-sm" : "bg-white dark:bg-white/5 border-orange-100 dark:border-orange-900/20 text-orange-600 dark:text-orange-400"}`}
+                                >
+                                  <span>{e.endorsed_to}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteEndorsement(e.id)}
+                                    className={`p-0.5 rounded-md transition-colors ${idx === 0 ? "hover:bg-white/20 text-white" : "hover:bg-orange-50 text-orange-400"}`}
+                                    title="Delete Endorsement"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
                                 </div>
                               ))}
                           </div>
@@ -2323,16 +2358,18 @@ export default function MasterTable() {
                         >
                           <div className="text-right pt-0.5">
                             <p className="text-xs font-black text-slate-800 dark:text-slate-200">
-                              {logDate.toLocaleDateString("en-US", {
+                              {logDate.toLocaleDateString("en-PH", {
                                 day: "numeric",
                                 month: "short",
+                                timeZone: "Asia/Manila",
                               })}
                             </p>
                             <p className="text-[10px] font-medium text-gray-400">
-                              {logDate.toLocaleTimeString([], {
+                              {logDate.toLocaleTimeString("en-PH", {
                                 hour: "2-digit",
                                 minute: "2-digit",
                                 hour12: false,
+                                timeZone: "Asia/Manila",
                               })}
                             </p>
                           </div>

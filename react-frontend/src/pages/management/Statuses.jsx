@@ -33,7 +33,7 @@ export default function Statuses() {
     const canSave = canField("statuses", "save_button");
     const canRefresh = canField("statuses", "refresh_button");
     const canViewToggle = canField("statuses", "view_toggle");
-    
+
     const [statuses, setStatuses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -173,7 +173,7 @@ export default function Statuses() {
                             <Activity className={`w-4 h-4 ${layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-sky-500'}`} />
                             <div>
                                 <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Settings</h1>
-                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Global Statuses</h2>
+                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Letter Statuses</h2>
                             </div>
                         </div>
                     </div>
@@ -186,9 +186,7 @@ export default function Statuses() {
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 custom-scrollbar">
                     <div className="max-w-[100vw] mx-auto">
                         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
-                            <div className="flex flex-col md:flex-row md:items-center gap-6">
-                                <h2 className={`text-3xl font-bold ${textColor}`}>System Statuses</h2>
-                            </div>
+
                             {canViewToggle && (
                                 <div className="flex items-center gap-2 bg-white dark:bg-[#141414] p-1 rounded-2xl border border-gray-100 dark:border-[#222]">
                                     <button onClick={() => setViewMode("grid")} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-sky-500 text-white shadow-md' : 'text-gray-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}><LayoutGrid className="w-4 h-4" /></button>

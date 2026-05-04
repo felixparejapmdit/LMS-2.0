@@ -607,8 +607,10 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                           atgId={assignment.letter?.lms_id}
                           sender={assignment.letter?.sender}
                           summary={assignment.letter?.summary}
-                          status={assignment.status}
+                          status={assignment.letter?.status?.status_name || assignment.status}
                           step={assignment.step?.step_name}
+                          dueDate={assignment.due_date}
+                          dateReceived={assignment.letter?.date_received}
                           tray={assignment.letter?.tray}
                           layout="minimalist"
                           isOutbox={view === 'outbox'}

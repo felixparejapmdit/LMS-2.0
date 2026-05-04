@@ -98,7 +98,7 @@ export default function VemResumen() {
         fetchTodayLetters();
     }, [timeframe]);
 
-    const format12h = (date) => date.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+    const format12h = (date) => date.toLocaleString('en-PH', { hour: 'numeric', minute: 'numeric', hour12: true, timeZone: 'Asia/Manila' });
 
     const normalizeAtgId = (value) => (value || '').toString().trim().toUpperCase().replace(/\s+/g, '');
     const extractAtgId = (value) => {
@@ -292,32 +292,14 @@ export default function VemResumen() {
                             <h2 className="text-sm font-black text-gray-900 uppercase mt-2 tracking-tight">Resumen ng Nilalaman ng mga Ipinadalang Sulat</h2>
                         </div>
 
-                        {/* Filter Selector - Print Hidden */}
-                        <div className="mb-4 flex items-center gap-4 print:hidden bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Timeframe:</label>
-                                <div className="flex items-center gap-2">
-                                    {['today', 'weekly', 'monthly', 'yearly'].map((t) => (
-                                        <button
-                                            key={t}
-                                            onClick={() => setTimeframe(t)}
-                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${timeframe === t ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'}`}
-                                        >
-                                            {t}
-                                        </button>
-                                    ))}
-                                    {isFetching && <Loader2 className="w-3 h-3 animate-spin text-blue-500 ml-2" />}
-                                </div>
-                            </div>
-                        </div>
+
 
                         {/* Date/Time/Envelope Row */}
                         <table className="w-full border-collapse border border-gray-900 text-xs mb-0">
                             <tbody>
                                 <tr>
                                     <td className="border border-gray-900 p-1.5 w-1/3">
-                                        <span className="italic text-gray-600 text-[10px]">Petsa ipinadala:</span><br />
-                                        <span className="font-bold text-gray-900">{currentTime.toLocaleDateString('en-CA')}</span>
+                                        <span className="font-bold text-gray-900">{currentTime.toLocaleDateString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Manila' })}</span>
                                     </td>
                                     <td className="border border-gray-900 p-1.5 w-1/3">
                                         <span className="italic text-gray-600 text-[10px]">Oras ipinadala:</span><br />
@@ -325,7 +307,7 @@ export default function VemResumen() {
                                     </td>
                                     <td className="border border-gray-900 p-1.5 w-1/3">
                                         <span className="italic text-gray-600 text-[10px]">Envelope No.</span><br />
-                                        <input type="text" value={envelopeNo} onChange={(e) => setEnvelopeNo(e.target.value)} className="bg-transparent text-gray-900 font-bold outline-none w-full print:border-none" placeholder="Enter number" />
+                                        <input type="text" value={envelopeNo} onChange={(e) => setEnvelopeNo(e.target.value)} className="bg-transparent text-gray-900 font-bold outline-none w-full print:border-none text-center" placeholder="Enter number" />
                                     </td>
                                 </tr>
                             </tbody>
@@ -425,18 +407,7 @@ export default function VemResumen() {
                                     />
                                 </div>
                             </div>
-                            <div>
-                                <span className="font-bold text-gray-900">Envelop #:</span>
-                                <div className="mt-2 text-center border-b border-gray-400 pb-1 max-w-sm mx-auto">
-                                    <input
-                                        type="text"
-                                        value={envelopeNo}
-                                        onChange={(e) => setEnvelopeNo(e.target.value)}
-                                        className="bg-transparent text-center font-bold outline-none w-full print:border-none"
-                                        placeholder="Enter envelop number"
-                                    />
-                                </div>
-                            </div>
+
                             <div>
                                 <span className="font-bold text-gray-900">Notasyon ng Tumanggap:</span>
                                 <div className="mt-8 text-center max-w-sm mx-auto">

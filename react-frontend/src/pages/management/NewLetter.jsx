@@ -60,7 +60,12 @@ export default function NewLetter() {
   const [selectedDept, setSelectedDept] = useState("");
   const [notifyKarl, setNotifyKarl] = useState(false);
   const [formData, setFormData] = useState({
-    date_received: new Date().toISOString().slice(0, 16), // Use datetime-local format
+    date_received: (() => {
+      const now = new Date();
+      // Manila is UTC+8
+      const phtTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+      return phtTime.toISOString().slice(0, 16);
+    })(), // Use PHT datetime-local format
     sender: "",
     summary: "",
     kind: "",
@@ -147,13 +152,13 @@ export default function NewLetter() {
           dept_id: fetchDeptId,
         });
         setKinds(kindsData);
-        
+
         // Set default kind to 'Letter' if found
         if (!formData.kind && kindsData.length > 0) {
-            const defaultKind = kindsData.find(k => k.kind_name.toLowerCase() === 'letter');
-            if (defaultKind) {
-                setFormData(prev => ({ ...prev, kind: defaultKind.id }));
-            }
+          const defaultKind = kindsData.find(k => k.kind_name.toLowerCase() === 'letter');
+          if (defaultKind) {
+            setFormData(prev => ({ ...prev, kind: defaultKind.id }));
+          }
         }
         const deptsData = await departmentService.getAll();
         const statusesData = await statusService.getAll({
@@ -213,11 +218,11 @@ export default function NewLetter() {
           (k) => k.kind_name.toLowerCase() === "letter",
         );
         if (!refCode) {
-            if (letterKind) {
-              setFormData((prev) => ({ ...prev, kind: letterKind.id }));
-            } else {
-              setFormData((prev) => ({ ...prev, kind: "" }));
-            }
+          if (letterKind) {
+            setFormData((prev) => ({ ...prev, kind: letterKind.id }));
+          } else {
+            setFormData((prev) => ({ ...prev, kind: "" }));
+          }
         }
 
         // No default group selection - user must select manually
@@ -244,6 +249,17 @@ export default function NewLetter() {
     };
     fetchRefs();
   }, [user]);
+
+  // Ensure date field is filled with current PHT on load/mount
+  useEffect(() => {
+    const now = new Date();
+    const phtTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const phtString = phtTime.toISOString().slice(0, 16);
+    setFormData(prev => ({
+      ...prev,
+      date_received: phtString
+    }));
+  }, []);
 
   useEffect(() => {
     const fetchNextId = async () => {
@@ -832,9 +848,7 @@ export default function NewLetter() {
           className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-10 custom-scrollbar"
         >
           <form onSubmit={handleSubmit} className="w-full space-y-8">
-            <div className="mb-8">
-              <h2 className={`text-3xl font-bold ${textColor}`}>New Letter</h2>
-            </div>
+
 
             {error && (
               <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-xl flex items-start gap-3 text-red-700 dark:text-red-400 text-sm whitespace-pre-wrap overflow-hidden">
@@ -875,8 +889,8 @@ export default function NewLetter() {
                           <span className="truncate">
                             {selectedDept
                               ? departments.find(
-                                  (d) => String(d.id) === String(selectedDept),
-                                )?.dept_name || "Department Selected"
+                                (d) => String(d.id) === String(selectedDept),
+                              )?.dept_name || "Department Selected"
                               : "Select Department"}
                           </span>
                         </div>
@@ -936,18 +950,28 @@ export default function NewLetter() {
                                   key={d.id}
                                   type="button"
                                   onClick={() => {
-                                    const nextId = String(d.id);
-                                    setSelectedDept(nextId);
-                                    setFormData((prev) => ({
-                                      ...prev,
-                                      assigned_dept: nextId,
-                                    }));
+                                    setSelectedDept(String(d.id));
                                     setDeptSearch("");
                                     setShowDeptResults(false);
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      assigned_dept: String(d.id),
+                                    }));
                                   }}
-                                  className={`w-full text-left px-4 py-2.5 text-[10px] font-black rounded-lg transition-colors flex items-center justify-between uppercase ${String(selectedDept) === String(d.id) ? "bg-orange-50 dark:bg-orange-900/20 text-orange-600" : "text-slate-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5"}`}
+                                  className={`w-full text-left px-4 py-2.5 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-between uppercase ${String(selectedDept) === String(d.id) ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600" : "text-slate-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5"}`}
                                 >
-                                  <span className="truncate">{d.dept_name}</span>
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="truncate">{d.dept_name || d.name}</span>
+                                    {d.assignedSections && d.assignedSections.length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {d.assignedSections.map(s => (
+                                          <span key={s.section_code} className={`text-[8px] font-black px-1 py-0.5 rounded border ${s.status === 'ACTIVE' ? 'text-orange-500 bg-orange-50 border-orange-100' : 'text-slate-400 bg-slate-50 border-slate-100'}`}>
+                                            {s.section_code}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
                                   {String(selectedDept) === String(d.id) && (
                                     <Check className="w-3 h-3" />
                                   )}
@@ -1147,8 +1171,8 @@ export default function NewLetter() {
                               onMouseEnter={() => setHighlightedSuggestionIndex(idx)}
                               data-suggestion-index={idx}
                               className={`px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${idx === highlightedSuggestionIndex
-                                  ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
-                                  : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
+                                ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
+                                : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
                                 }`}
                             >
                               <User className="w-3 h-3 text-orange-400" />
@@ -1620,7 +1644,7 @@ export default function NewLetter() {
         currentCode={conflictData.currentCode}
         nextCode={conflictData.nextCode}
         onConfirm={() => {
-            handleSubmit({ preventDefault: () => {} });
+          handleSubmit({ preventDefault: () => { } });
         }}
       />
       <SuccessModal

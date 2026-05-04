@@ -1,10 +1,14 @@
-const { Department, User } = require('../models/associations');
+const { Department, User, RefSectionRegistry } = require('../models/associations');
 
 class DepartmentController {
     static async getAll(req, res) {
         try {
             const depts = await Department.findAll({
-                include: [{ model: User, as: 'members' }]
+                include: [
+                    { model: User, as: 'members' },
+                    { model: RefSectionRegistry, as: 'activeRegistrySection' },
+                    { model: RefSectionRegistry, as: 'assignedSections' }
+                ]
             });
             res.json(depts);
         } catch (error) {

@@ -79,7 +79,7 @@ export default function Trays() {
                 user_id: user?.id,
                 dept_id: isSuperAdmin ? (deptFilter !== 'all' ? deptFilter : null) : userDeptId
             };
-            
+
             const data = await trayService.getAllTrays(params);
             setTrays(Array.isArray(data) ? data : []);
 
@@ -107,7 +107,7 @@ export default function Trays() {
         try {
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
             const finalDeptId = isSuperAdmin ? (formData.dept_id || null) : userDeptId;
-            
+
             if (modalMode === 'create') {
                 await trayService.createTray({ ...formData, dept_id: finalDeptId });
             } else {
@@ -201,10 +201,9 @@ export default function Trays() {
                     <div className="max-w-[100vw] mx-auto">
                         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
                             <div className="flex flex-col md:flex-row md:items-center gap-6">
-                                <h2 className={`text-3xl font-bold ${textColor}`}>Trays</h2>
                                 {isSuperAdmin && (
                                     <div className="flex-1 min-w-[200px]">
-                                        <SearchableSelect 
+                                        <SearchableSelect
                                             options={[
                                                 { id: 'all', dept_name: 'All Departments' },
                                                 { id: 'null', dept_name: 'Admin Defaults' },
@@ -345,7 +344,7 @@ export default function Trays() {
                                 )}
                             </div>
                         )}
-                        
+
                         {/* Selected Tray Letters List */}
                         {selectedTray && (
                             <div className={`mt-12 p-8 rounded-[2.5rem] border ${cardBg} animate-in slide-in-from-bottom-5 duration-300 font-sans`}>
@@ -438,7 +437,7 @@ export default function Trays() {
                                 {isSuperAdmin && (
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">Assigned Department</label>
-                                        <SearchableSelect 
+                                        <SearchableSelect
                                             options={departments}
                                             value={formData.dept_id}
                                             onChange={val => setFormData({ ...formData, dept_id: val })}

@@ -29,7 +29,7 @@ export default function SectionRegistry() {
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [viewMode, setViewMode] = useState("grid");
+    const [viewMode, setViewMode] = useState("list");
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
@@ -139,7 +139,15 @@ export default function SectionRegistry() {
                                     <h1 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Setup</h1>
                                     <span className="px-1.5 py-0.5 bg-orange-500/10 text-orange-600 text-[8px] font-black rounded-lg border border-orange-500/20 uppercase tracking-widest">Resets Annually</span>
                                 </div>
-                                <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Sections</h2>
+                                <div className="flex items-center gap-3">
+                                    <h2 className={`text-sm font-black uppercase tracking-tight ${textColor}`}>Sections</h2>
+                                    <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-lg border border-slate-200/50 dark:border-white/5">
+                                        <span className="text-[10px] font-black text-orange-600 dark:text-orange-400">
+                                            {sections.filter(s => s.status !== 'AVAILABLE').length}
+                                        </span>
+                                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">/ {sections.length} in use</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -211,7 +219,14 @@ export default function SectionRegistry() {
                                                 'border-red-100 dark:border-red-900/20 opacity-60 hover:opacity-100 transition-opacity'
                                             }`}
                                         >
-                                            <span className="text-2xl font-black tracking-tighter text-slate-800 dark:text-white">{section.section_code}</span>
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-2xl font-black tracking-tighter text-slate-800 dark:text-white">{section.section_code}</span>
+                                                {section.usage && (
+                                                    <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 mt-1">
+                                                        {section.usage.current_sequence}/999
+                                                    </span>
+                                                )}
+                                            </div>
                                             <span className={`px-2 py-0.5 rounded-lg border text-[8px] font-black uppercase tracking-widest ${getStatusColor(section.status)}`}>
                                                 {section.status}
                                             </span>
@@ -237,8 +252,9 @@ export default function SectionRegistry() {
                                 <div className="space-y-2">
                                     <div className="grid grid-cols-12 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-gray-400">
                                         <div className="col-span-1 text-center">Code</div>
+                                        <div className="col-span-1 text-center">Usage</div>
                                         <div className="col-span-2 text-center">Status</div>
-                                        <div className="col-span-5">Assigned Department</div>
+                                        <div className="col-span-4">Assigned Department</div>
                                         <div className="col-span-4 text-right">Last Activity</div>
                                     </div>
                                     {paginatedSections.map(section => (
@@ -250,19 +266,24 @@ export default function SectionRegistry() {
                                             <div className="col-span-1 flex justify-center">
                                                 <span className="text-lg font-black tracking-tighter text-slate-800 dark:text-white">{section.section_code}</span>
                                             </div>
+                                            <div className="col-span-1 flex justify-center">
+                                                <span className="text-[10px] font-black text-orange-600 dark:text-orange-400">
+                                                    {section.usage ? `${section.usage.current_sequence}/999` : '0/999'}
+                                                </span>
+                                            </div>
                                             <div className="col-span-2 flex justify-center">
                                                 <span className={`px-3 py-1 rounded-xl border text-[8px] font-black uppercase tracking-widest ${getStatusColor(section.status)}`}>
                                                     {section.status}
                                                 </span>
                                             </div>
-                                            <div className="col-span-5 flex items-center gap-3">
+                                            <div className="col-span-4 flex items-center gap-3">
                                                 {section.department ? (
                                                     <>
                                                         <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-white/5 flex items-center justify-center text-gray-400 group-hover:text-orange-500 transition-colors">
                                                             <Building2 className="w-4 h-4" />
                                                         </div>
                                                         <div className="flex flex-col">
-                                                            <span className="text-xs font-black uppercase tracking-tight text-slate-700 dark:text-slate-300">{section.department.dept_name}</span>
+                                                            <span className="text-xs font-black uppercase tracking-tight text-slate-700 dark:text-slate-300 line-clamp-1">{section.department.dept_name}</span>
                                                             <span className="text-[10px] font-bold text-gray-400">{section.department.dept_code}</span>
                                                         </div>
                                                     </>

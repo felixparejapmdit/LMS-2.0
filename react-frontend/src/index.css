@@ -83,6 +83,39 @@
   .animate-spin-slow {
     animation: spin 3s linear infinite;
   }
+
+  .animate-in {
+    animation-duration: 0.3s;
+    animation-fill-mode: forwards;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .fade-in {
+    animation-name: fadeIn;
+  }
+
+  .zoom-in-95 {
+    animation-name: zoomIn95;
+  }
+
+  .slide-in-from-top-10 {
+    animation-name: slideInFromTop10;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes zoomIn95 {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInFromTop10 {
+  from { transform: translateY(-2.5rem); }
+  to { transform: translateY(0); }
 }
 
 @keyframes spin {

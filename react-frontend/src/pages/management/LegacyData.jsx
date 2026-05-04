@@ -99,7 +99,7 @@ export default function LegacyData() {
         const legacyId = (letter.atg_id || letter.lms_id || letter.entry_id || letter.id || '').toString().toLowerCase();
         const sender = (letter.sender || '').toLowerCase();
         const summary = (letter.letsum || letter.summary || letter.subject || '').toLowerCase();
-        
+
         const matchesSearch = !searchTerm || legacyId.includes(s) || sender.includes(s) || summary.includes(s);
 
         // Date filtration
@@ -161,7 +161,7 @@ export default function LegacyData() {
             alert("This document does not have an attached PDF file.");
             return;
         }
-        
+
         const fullPath = path.startsWith('http') ? path : `http://172.18.162.84/${path}`;
         setSelectedPdfUrl(fullPath);
         setIsPdfDrawerOpen(true);
@@ -227,8 +227,8 @@ export default function LegacyData() {
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-400 md:hidden transition-colors"><Menu className="w-6 h-6" /></button>
                         <div className="flex flex-col">
-                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Previous System Records</span>
-                             <h1 className={`text-xl font-bold tracking-tighter uppercase font-outfit ${textColor}`}>Archived Documents</h1>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Previous System Records</span>
+                            <h1 className={`text-xl font-bold tracking-tighter uppercase font-outfit ${textColor}`}>Archived Documents</h1>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -242,62 +242,57 @@ export default function LegacyData() {
                     <div className="max-w-full mx-auto space-y-6">
                         {/* Summary & Search */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div>
-                             <div>
-                                 <h2 className={`text-2xl font-bold uppercase tracking-tight ${textColor}`}>Archived Records</h2>
-                                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Letters and documents from the old system</p>
-                             </div>
-                            </div>
-                             {canSearch && (
-                                 <div className="flex flex-wrap items-center gap-3">
-                                     <select
-                                         value={filterMonth}
-                                         onChange={(e) => { setFilterMonth(e.target.value); setCurrentPage(1); }}
-                                         className={`pl-4 pr-10 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all outline-none appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em] ${cardBg}`}
-                                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
-                                     >
-                                         <option value="">All Months</option>
-                                         {months.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
-                                     </select>
 
-                                     <select
-                                         value={filterYear}
-                                         onChange={(e) => { setFilterYear(e.target.value); setCurrentPage(1); }}
-                                         className={`pl-4 pr-10 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all outline-none appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em] ${cardBg}`}
-                                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
-                                     >
-                                         <option value="">All Years</option>
-                                         {uniqueYears.map(y => <option key={y} value={y.toString()}>{y}</option>)}
-                                     </select>
+                            {canSearch && (
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <select
+                                        value={filterMonth}
+                                        onChange={(e) => { setFilterMonth(e.target.value); setCurrentPage(1); }}
+                                        className={`pl-4 pr-10 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all outline-none appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em] ${cardBg}`}
+                                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
+                                    >
+                                        <option value="">All Months</option>
+                                        {months.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
+                                    </select>
 
-                                     <select
-                                         value={filterStatus}
-                                         onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-                                         className={`pl-4 pr-10 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all outline-none appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em] ${cardBg}`}
-                                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
-                                     >
-                                         <option value="">All Statuses</option>
-                                         {uniqueStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-                                     </select>
+                                    <select
+                                        value={filterYear}
+                                        onChange={(e) => { setFilterYear(e.target.value); setCurrentPage(1); }}
+                                        className={`pl-4 pr-10 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all outline-none appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em] ${cardBg}`}
+                                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
+                                    >
+                                        <option value="">All Years</option>
+                                        {uniqueYears.map(y => <option key={y} value={y.toString()}>{y}</option>)}
+                                    </select>
 
-                                     <div className="relative group min-w-[250px]">
-                                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                         <input
-                                             type="text"
-                                             placeholder="Search reference, sender..."
-                                             value={searchTerm}
-                                             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                                             className={`w-full pl-12 pr-4 py-3 rounded-xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${cardBg}`}
-                                         />
-                                     </div>
-                                     
-                                     {(searchTerm || filterMonth || filterYear || filterStatus) && (
-                                         <button onClick={resetFilters} className="p-3 text-xs font-bold text-orange-500 hover:bg-orange-50 rounded-xl transition-all uppercase tracking-widest">
-                                             Reset
-                                         </button>
-                                     )}
-                                 </div>
-                             )}
+                                    <select
+                                        value={filterStatus}
+                                        onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+                                        className={`pl-4 pr-10 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all outline-none appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em] ${cardBg}`}
+                                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
+                                    >
+                                        <option value="">All Statuses</option>
+                                        {uniqueStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+
+                                    <div className="relative group min-w-[250px]">
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search reference, sender..."
+                                            value={searchTerm}
+                                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                            className={`w-full pl-12 pr-4 py-3 rounded-xl border text-sm transition-all focus:ring-2 focus:ring-orange-500/20 outline-none ${cardBg}`}
+                                        />
+                                    </div>
+
+                                    {(searchTerm || filterMonth || filterYear || filterStatus) && (
+                                        <button onClick={resetFilters} className="p-3 text-xs font-bold text-orange-500 hover:bg-orange-50 rounded-xl transition-all uppercase tracking-widest">
+                                            Reset
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Table Container */}
@@ -385,54 +380,54 @@ export default function LegacyData() {
                                         ))}
                                     </tbody>
                                 </table>
-                             </div>
-                         </div>
-                         
-                         {/* Pagination */}
-                         {!loading && totalPages > 1 && (
-                             <div className="flex flex-col items-center gap-4 py-8 pb-12">
-                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                     Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredLetters.length)} of {filteredLetters.length} entries
-                                 </p>
-                                 <div className="flex items-center gap-2">
-                                     <button
-                                         disabled={currentPage === 1}
-                                         onClick={() => setCurrentPage(prev => prev - 1)}
-                                         className={`p-2 rounded-lg border transition-all ${currentPage === 1 ? 'opacity-50 cursor-not-allowed bg-gray-50 text-gray-300' : 'hover:bg-orange-500 hover:text-white text-slate-600 border-gray-200 bg-white'}`}
-                                     >
-                                         <ChevronRight className="w-4 h-4 rotate-180" />
-                                     </button>
+                            </div>
+                        </div>
 
-                                     <div className="flex items-center gap-1">
-                                         {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                                             let pageNum;
-                                             if (totalPages <= 5) pageNum = i + 1;
-                                             else if (currentPage <= 3) pageNum = i + 1;
-                                             else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
-                                             else pageNum = currentPage - 2 + i;
+                        {/* Pagination */}
+                        {!loading && totalPages > 1 && (
+                            <div className="flex flex-col items-center gap-4 py-8 pb-12">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredLetters.length)} of {filteredLetters.length} entries
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(prev => prev - 1)}
+                                        className={`p-2 rounded-lg border transition-all ${currentPage === 1 ? 'opacity-50 cursor-not-allowed bg-gray-50 text-gray-300' : 'hover:bg-orange-500 hover:text-white text-slate-600 border-gray-200 bg-white'}`}
+                                    >
+                                        <ChevronRight className="w-4 h-4 rotate-180" />
+                                    </button>
 
-                                             return (
-                                                 <button
-                                                     key={pageNum}
-                                                     onClick={() => setCurrentPage(pageNum)}
-                                                     className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === pageNum ? 'bg-orange-500 text-white shadow-lg' : 'hover:bg-gray-100 text-slate-600 border border-gray-100 bg-white'}`}
-                                                 >
-                                                     {pageNum}
-                                                 </button>
-                                             );
-                                         })}
-                                     </div>
+                                    <div className="flex items-center gap-1">
+                                        {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                                            let pageNum;
+                                            if (totalPages <= 5) pageNum = i + 1;
+                                            else if (currentPage <= 3) pageNum = i + 1;
+                                            else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                                            else pageNum = currentPage - 2 + i;
 
-                                     <button
-                                         disabled={currentPage === totalPages}
-                                         onClick={() => setCurrentPage(prev => prev + 1)}
-                                         className={`p-2 rounded-lg border transition-all ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed bg-gray-50 text-gray-300' : 'hover:bg-orange-500 hover:text-white text-slate-600 border-gray-200 bg-white'}`}
-                                     >
-                                         <ChevronRight className="w-4 h-4" />
-                                     </button>
-                                 </div>
-                             </div>
-                         )}
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => setCurrentPage(pageNum)}
+                                                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === pageNum ? 'bg-orange-500 text-white shadow-lg' : 'hover:bg-gray-100 text-slate-600 border border-gray-100 bg-white'}`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <button
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => setCurrentPage(prev => prev + 1)}
+                                        className={`p-2 rounded-lg border transition-all ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed bg-gray-50 text-gray-300' : 'hover:bg-orange-500 hover:text-white text-slate-600 border-gray-200 bg-white'}`}
+                                    >
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </main>
@@ -483,10 +478,10 @@ export default function LegacyData() {
                                     <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/10 flex items-center justify-center text-indigo-500">
                                         <GitMerge className="w-6 h-6" />
                                     </div>
-                                     <div>
-                                         <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Document History</h2>
-                                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedLetter.atg_id || selectedLetter.lms_id || selectedLetter.entry_id || selectedLetter.id}</p>
-                                     </div>
+                                    <div>
+                                        <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Document History</h2>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedLetter.atg_id || selectedLetter.lms_id || selectedLetter.entry_id || selectedLetter.id}</p>
+                                    </div>
                                 </div>
                                 <button onClick={() => setIsTrackDrawerOpen(false)} className="p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl text-gray-400"><ChevronRight className="w-6 h-6" /></button>
                             </div>
@@ -495,10 +490,10 @@ export default function LegacyData() {
                                 <div className="relative pl-8 space-y-12 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-white/5">
                                     {/* Entry Point */}
                                     <div className="relative">
-                                         <div className="absolute -left-9 w-6 h-6 rounded-full bg-orange-500 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
-                                         <div>
-                                             <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Entry Registered</p>
-                                             <h4 className={`text-sm font-bold mt-1 ${textColor}`}>Saved by {selectedLetter.encoder || selectedLetter.encoder_name || 'Legacy User'}</h4>
+                                        <div className="absolute -left-9 w-6 h-6 rounded-full bg-orange-500 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
+                                        <div>
+                                            <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Entry Registered</p>
+                                            <h4 className={`text-sm font-bold mt-1 ${textColor}`}>Saved by {selectedLetter.encoder || selectedLetter.encoder_name || 'Legacy User'}</h4>
                                             <p className="text-xs text-gray-500 mt-2 line-clamp-3">{selectedLetter.letsum || selectedLetter.summary || selectedLetter.subject}</p>
                                             <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{selectedLetter.date_rec || selectedLetter.date_received ? new Date(selectedLetter.date_rec || selectedLetter.date_received).toLocaleString() : 'N/A'}</p>
                                         </div>
@@ -521,8 +516,8 @@ export default function LegacyData() {
                                     {/* Final Status */}
                                     <div className="relative pt-4">
                                         <div className="absolute -left-9 w-6 h-6 rounded-full bg-slate-200 dark:bg-white/10 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
-                                         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
-                                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Final Outcome</p>
+                                        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Final Outcome</p>
                                             <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-500 text-white`}>
                                                 {selectedLetter.status || selectedLetter.status_name || 'ARCHIVED'}
                                             </span>

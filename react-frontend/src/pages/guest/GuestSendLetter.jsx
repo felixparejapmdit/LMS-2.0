@@ -81,10 +81,11 @@ export default function GuestSendLetter() {
     const canSubmit = canField("guest-send-letter", "submit_button");
     const canClear = canField("guest-send-letter", "clear_button");
     const canPrintQR = canField("guest-send-letter", "print_qr_button");
-    const today = new Date().toLocaleDateString('en-US', {
+    const today = new Date().toLocaleDateString('en-PH', {
         month: 'long',
         day: 'numeric',
-        year: 'numeric'
+        year: 'numeric',
+        timeZone: 'Asia/Manila'
     });
 
     useEffect(() => {
@@ -646,7 +647,18 @@ export default function GuestSendLetter() {
                                                                         }}
                                                                         className={`w-full text-left px-4 py-2.5 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-between uppercase ${String(selectedDeptId) === String(d.id) ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600' : 'text-slate-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5'}`}
                                                                     >
-                                                                        <span className="truncate">{d.dept_name || d.name}</span>
+                                                                        <div className="flex flex-col gap-0.5">
+                                                                            <span className="truncate">{d.dept_name || d.name}</span>
+                                                                            {d.assignedSections && d.assignedSections.length > 0 && (
+                                                                                <div className="flex flex-wrap gap-1">
+                                                                                    {d.assignedSections.map(s => (
+                                                                                        <span key={s.section_code} className={`text-[8px] font-black px-1 py-0.5 rounded border ${s.status === 'ACTIVE' ? 'text-orange-500 bg-orange-50 border-orange-100' : 'text-slate-400 bg-slate-50 border-slate-100'}`}>
+                                                                                            {s.section_code}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
                                                                         {String(selectedDeptId) === String(d.id) && <Check className="w-3 h-3" />}
                                                                     </button>
                                                                 ))}

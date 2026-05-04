@@ -13,35 +13,72 @@ class SectionService {
         await this._checkYearlyReset(currentYear, transaction);
 
         const dept = await Department.findByPk(deptId, { transaction });
-        const isATGOffice = dept?.dept_code === "ATG" || dept?.dept_name === "ATG's Office";
+        if (!dept) throw new Error("Department not found");
+        
+        const isATG = dept.group_id === 3;
 
-        // Find the current active usage. 
-        // For ATG's Office, we always want the lowest section code that is currently active (sequential rule).
-        // For others, we want the most recent active one (usually the only one).
+        // If ATG, we MUST strictly follow the assigned sequence order (e.g., 01, 02, 03...)
+        if (isATG) {
+            const assignedSections = await RefSectionRegistry.findAll({
+                where: { assigned_to_dept_id: deptId },
+                order: [['section_code', 'ASC']],
+                transaction
+            });
+
+            for (const section of assignedSections) {
+                // Check if this specific section has any available slot (1-999)
+                const { sequence } = await this.findNextAvailableSequence(
+                    deptId, 
+                    "ATG", 
+                    section.section_code, 
+                    3, 
+                    transaction
+                );
+
+                if (sequence <= 999) {
+                    // This section still has slots. Use it.
+                    let usage = await DeptSectionUsage.findOne({
+                        where: { dept_id: deptId, section_code: section.section_code, year: currentYear },
+                        transaction
+                    });
+
+                    if (!usage) {
+                        usage = await DeptSectionUsage.create({
+                            dept_id: deptId,
+                            section_code: section.section_code,
+                            current_sequence: 0,
+                            year: currentYear,
+                            is_active: true
+                        }, { transaction });
+                    } else if (!usage.is_active) {
+                        await usage.update({ is_active: true, filled_at: null }, { transaction });
+                    }
+                    return usage;
+                } else {
+                    // This section is full (no gaps and sequence >= 1000)
+                    // Ensure usage is marked as inactive if it was previously active
+                    await DeptSectionUsage.update(
+                        { is_active: false, filled_at: new Date() },
+                        { where: { dept_id: deptId, section_code: section.section_code, is_active: true }, transaction }
+                    ).catch(() => {});
+                }
+            }
+        }
+
+        // Fallback or Non-ATG logic: Find the current active usage. 
         let usage = await DeptSectionUsage.findOne({
             where: { 
                 dept_id: deptId, 
                 is_active: true,
                 year: currentYear
             },
-            order: [[ 'section_code', isATGOffice ? 'ASC' : 'DESC' ]],
+            order: [[ 'section_code', isATG ? 'ASC' : 'DESC' ]],
             transaction
         });
 
         if (!usage) {
             // Assign first available section for this department in the current year
-            // For ATG, check if they have any sections pre-assigned in the registry first
-            let newCode;
-            if (isATGOffice) {
-                const preAssigned = await RefSectionRegistry.findOne({
-                    where: { assigned_to_dept_id: deptId, status: 'ACTIVE' },
-                    order: [['section_code', 'ASC']],
-                    transaction
-                });
-                newCode = preAssigned ? preAssigned.section_code : await this.assignNextAvailableSection(deptId, transaction);
-            } else {
-                newCode = await this.assignNextAvailableSection(deptId, transaction);
-            }
+            const newCode = await this.assignNextAvailableSection(deptId, transaction);
 
             usage = await DeptSectionUsage.create({
                 dept_id: deptId,

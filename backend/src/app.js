@@ -21,6 +21,7 @@ const authRoutes = require("./routes/authRoutes");
 const interDeptRoutes = require("./routes/interDeptRoutes");
 const sectionRoutes = require("./routes/sectionRoutes");
 const auditLogRoutes = require("./routes/auditLogRoutes");
+const dashboardNoteRoutes = require("./routes/dashboardNoteRoutes");
 
 const path = require("path");
 
@@ -106,6 +107,10 @@ const apiRouter = express.Router();
 // Register Health check inside apiRouter as well
 apiRouter.get("/health", healthHandler);
 apiRouter.get("/api-check", healthHandler); // Support health check via /api/api-check too
+
+// High-priority dashboard notes
+apiRouter.get("/test-notes", (req, res) => res.json({ message: "Test route works" }));
+apiRouter.use("/dashboard-notes", dashboardNoteRoutes);
 
 // Register all other routers onto the apiRouter
 apiRouter.use("/auth", authRoutes);

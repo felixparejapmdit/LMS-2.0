@@ -104,7 +104,7 @@ class TelegramService {
     const safeSender = TelegramService.escapeHtml(letter.sender);
     const safeStep = TelegramService.escapeHtml(stepName);
     const safeDept = TelegramService.escapeHtml(deptName);
-    
+
     let text = `${ICONS.bell} <b>LMS 2.0 Notification</b>\n` +
       `${ICONS.page} Letter: <code>${safeLms}</code>\n` +
       `${ICONS.person} Sender: ${safeSender}\n` +

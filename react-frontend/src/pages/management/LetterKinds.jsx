@@ -34,7 +34,7 @@ export default function LetterKinds() {
     const canSave = canField("letter-kinds", "save_button");
     const canRefresh = canField("letter-kinds", "refresh_button");
     const canViewToggle = canField("letter-kinds", "view_toggle");
-    
+
     const [kinds, setKinds] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -66,7 +66,7 @@ export default function LetterKinds() {
                 user_id: user?.id,
                 dept_id: isSuperAdmin ? (deptFilter !== 'all' ? deptFilter : null) : userDeptId
             };
-            
+
             const data = await letterKindService.getAll(params);
             setKinds(Array.isArray(data) ? data : []);
 
@@ -98,7 +98,7 @@ export default function LetterKinds() {
         try {
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
             const finalDeptId = isSuperAdmin ? (formData.dept_id || null) : userDeptId;
-            
+
             if (modalMode === 'create') {
                 await letterKindService.create({ ...formData, dept_id: finalDeptId });
             } else {
@@ -225,10 +225,10 @@ export default function LetterKinds() {
                     <div className="max-w-[100vw] mx-auto">
                         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
                             <div className="flex flex-col md:flex-row md:items-center gap-6">
-                                <h2 className={`text-3xl font-bold ${textColor}`}>Reference Kinds</h2>
+
                                 {isSuperAdmin && (
                                     <div className="flex-1 min-w-[200px]">
-                                        <SearchableSelect 
+                                        <SearchableSelect
                                             options={[
                                                 { id: 'all', dept_name: 'All Departments' },
                                                 { id: 'null', dept_name: 'Admin Defaults' },
@@ -283,7 +283,7 @@ export default function LetterKinds() {
                                 {isSuperAdmin && (
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Assigned Department</label>
-                                        <SearchableSelect 
+                                        <SearchableSelect
                                             options={departments}
                                             value={formData.dept_id}
                                             onChange={val => setFormData({ ...formData, dept_id: val })}

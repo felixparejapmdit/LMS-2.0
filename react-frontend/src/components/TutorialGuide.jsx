@@ -68,7 +68,8 @@ export default function TutorialGuide() {
         if (isTutorialOpen) setCurrentStep(0);
     }, [isTutorialOpen]);
 
-    // --- DIAGNOSTIC & AUTO-TRIGGER ---
+    // --- DIAGNOSTIC & AUTO-TRIGGER (DISABLED AS REQUESTED) ---
+    /*
     useEffect(() => {
         const countRaw = localStorage.getItem(TUTORIAL_COUNT_KEY);
         const count = parseInt(countRaw || "0");
@@ -83,27 +84,15 @@ export default function TutorialGuide() {
         if (!permissionsLoaded) failureReasons.push("Permissions loading");
         if (isTutorialOpen) failureReasons.push("Already open");
 
-        console.groupCollapsed(`%c[TUTORIAL] Path: ${location.pathname}`, "color: #ff6b6b; font-weight: bold;");
-        console.log(`%cCount: ${count}/3 | Pending: ${isPending} | Open: ${isTutorialOpen}`, "color: #4dabf7;");
-        if (failureReasons.length > 0) {
-            console.log("%cStatus: BLOCKED", "color: #fab005; font-weight: bold;");
-            failureReasons.forEach(r => console.log(` ⛔ ${r}`));
-        } else {
-            console.log("%cStatus: TRIGGERING ✓", "color: #40c057; font-weight: bold;");
-        }
-        console.groupEnd();
-
-        window.LMS_TUTORIAL_STATE = { count, isPending, isTutorialOpen, permissionsLoaded, failureReasons };
-
         if (failureReasons.length === 0 && !isTutorialOpen) {
             const timer = setTimeout(() => {
                 startTutorial();
                 sessionStorage.setItem("lms_tutorial_pending", "false");
-                console.log("%c[TUTORIAL] ✅ Guide launched successfully!", "color: #40c057; font-weight:bold;");
             }, 2500);
             return () => clearTimeout(timer);
         }
     }, [location.pathname, isTutorialOpen, startTutorial, user, permissionsLoaded]);
+    */
 
     // --- Handlers ---
     const handleNext = () => {
