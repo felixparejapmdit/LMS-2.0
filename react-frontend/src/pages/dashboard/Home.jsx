@@ -40,6 +40,100 @@ import API_BASE from "../../config/apiConfig";
 import { getAssetUrl } from "../../hooks/useDirectus";
 import TutorialGuide from "../../components/TutorialGuide";
 
+const AuditLogsWidget = () => {
+    const { layoutStyle } = useUI();
+    const navigate = useNavigate();
+    const [logs, setLogs] = useState([]);
+    const [widgetLoading, setWidgetLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchLogs = async () => {
+            try {
+                const res = await axios.get(`${API_BASE}/audit-logs`, {
+                    params: { page: 1, limit: 10 }
+                });
+                setLogs(res.data.data || []);
+            } catch (err) {
+                console.error("Failed to fetch audit logs:", err);
+            } finally {
+                setWidgetLoading(false);
+            }
+        };
+        fetchLogs();
+    }, []);
+
+    return (
+        <div className="space-y-8">
+            <div className={`flex items-center justify-between border-b pb-4 ${layoutStyle === 'minimalist' ? 'border-[#E5E5E5] dark:border-[#222]' : 'border-gray-200 dark:border-[#222] mb-2'}`}>
+                <h2 className={layoutStyle === 'minimalist' 
+                    ? "text-xs font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.3em]"
+                    : "text-lg font-black uppercase tracking-tight text-slate-900 dark:text-white"
+                }>
+                    Audit Logs
+                </h2>
+                <button onClick={() => navigate('/setup/audit-logs')} className={layoutStyle === 'minimalist'
+                    ? "text-[10px] font-black text-[#737373] hover:text-[#1A1A1B] uppercase tracking-widest transition-colors flex items-center gap-1"
+                    : "text-xs font-bold uppercase tracking-widest flex items-center gap-1 transition-colors text-blue-600 hover:text-blue-700"
+                }>
+                    See All <ChevronRight className={layoutStyle === 'minimalist' ? "w-3 h-3" : "w-4 h-4"} />
+                </button>
+            </div>
+
+            <div className={`p-6 rounded-[2rem] border overflow-hidden relative ${
+                layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#111] border-[#E5E5E5] dark:border-[#222] shadow-sm' : 
+                layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' :
+                layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
+                'bg-white dark:bg-[#141414] border-gray-100 dark:border-white/5 shadow-sm'
+            } h-[450px] overflow-y-auto no-scrollbar`}>
+
+            <div className="space-y-4">
+                {widgetLoading ? (
+                    <div className="flex justify-center py-8">
+                        <Loader2 className="w-6 h-6 text-violet-500 animate-spin" />
+                    </div>
+                ) : logs.length === 0 ? (
+                    <p className="text-xs text-center font-bold text-gray-400 uppercase tracking-widest py-8">No audit logs found</p>
+                ) : (
+                    <div className="space-y-3">
+                        {logs.map(log => (
+                            <div key={log.id} className="flex items-center justify-between p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group cursor-pointer border border-transparent hover:border-gray-100 dark:hover:border-white/10">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-500 dark:text-gray-400 shrink-0 overflow-hidden">
+                                        {log.user?.avatar ? (
+                                            <img src={getAssetUrl(log.user?.avatar, "?width=80&height=80&fit=cover")} className="w-full h-full object-cover" alt="" />
+                                        ) : (
+                                            <User className="w-4 h-4" />
+                                        )}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                            {log.user_name || 'System'}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-[9px] font-mono font-bold text-gray-500 bg-gray-100 dark:bg-white/5 px-1.5 py-0.5 rounded truncate">
+                                                {log.ip_address}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-end shrink-0 pl-2">
+                                    <span className="text-[10px] font-bold text-gray-400">
+                                        {new Date(log.created_at).toLocaleDateString()}
+                                    </span>
+                                    <span className="text-[9px] font-black text-violet-500 dark:text-violet-400 uppercase tracking-widest">
+                                        {new Date(log.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+        </div>
+    );
+};
+
 export default function Home() {
     const { user, isSuperAdmin } = useSession();
     const { layoutStyle, setIsMobileMenuOpen } = useUI();
@@ -429,7 +523,7 @@ export default function Home() {
 
 
     const OverdueWidget = () => (
-        <div className={`p-10 rounded-[3rem] bg-white dark:bg-[#141414] border border-gray-100 dark:border-white/5 shadow-2xl relative overflow-hidden group`}>
+        <div className={`p-10 rounded-[3rem] bg-white dark:bg-[#141414] border border-gray-100 dark:border-white/5 shadow-2xl relative overflow-hidden group h-full overflow-y-auto no-scrollbar`}>
             {/* Background Accent */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
 
@@ -510,93 +604,6 @@ export default function Home() {
 
 
 
-    const AuditLogsWidget = () => {
-        const [logs, setLogs] = useState([]);
-        const [widgetLoading, setWidgetLoading] = useState(true);
-
-        useEffect(() => {
-            const fetchLogs = async () => {
-                try {
-                    const res = await axios.get(`${API_BASE}/audit-logs`, {
-                        params: { page: 1, limit: 10 }
-                    });
-                    setLogs(res.data.data || []);
-                } catch (err) {
-                    console.error("Failed to fetch audit logs:", err);
-                } finally {
-                    setWidgetLoading(false);
-                }
-            };
-            fetchLogs();
-        }, []);
-
-        return (
-            <div className={`p-6 md:p-8 rounded-[2.5rem] border overflow-hidden relative ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' :
-                layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
-                    'bg-white dark:bg-[#141414] border-gray-100 dark:border-white/5 shadow-sm'
-                }`}>
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-900/10 flex items-center justify-center text-violet-500">
-                            <Shield className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Audit Logs</h3>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Recent Users Log</p>
-                        </div>
-                    </div>
-                    <button onClick={() => navigate('/setup/audit-logs')} className="text-[10px] font-black text-blue-500 hover:text-blue-600 uppercase tracking-widest transition-colors flex items-center gap-1">
-                        See All <ChevronRight className="w-3 h-3" />
-                    </button>
-                </div>
-
-                <div className="space-y-4">
-                    {widgetLoading ? (
-                        <div className="flex justify-center py-8">
-                            <Loader2 className="w-6 h-6 text-violet-500 animate-spin" />
-                        </div>
-                    ) : logs.length === 0 ? (
-                        <p className="text-xs text-center font-bold text-gray-400 uppercase tracking-widest py-8">No audit logs found</p>
-                    ) : (
-                        <div className="space-y-3">
-                            {logs.map(log => (
-                                <div key={log.id} className="flex items-center justify-between p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group cursor-pointer border border-transparent hover:border-gray-100 dark:hover:border-white/10">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-500 dark:text-gray-400 shrink-0 overflow-hidden">
-                                            {log.user?.avatar ? (
-                                                <img src={getAssetUrl(log.user?.avatar, "?width=80&height=80&fit=cover")} className="w-full h-full object-cover" alt="" />
-                                            ) : (
-                                                <User className="w-4 h-4" />
-                                            )}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                                                {log.user_name || 'System'}
-                                            </p>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <span className="text-[9px] font-mono font-bold text-gray-500 bg-gray-100 dark:bg-white/5 px-1.5 py-0.5 rounded truncate">
-                                                    {log.ip_address}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col items-end shrink-0 pl-2">
-                                        <span className="text-[10px] font-bold text-gray-400">
-                                            {new Date(log.created_at).toLocaleDateString()}
-                                        </span>
-                                        <span className="text-[9px] font-black text-violet-500 dark:text-violet-400 uppercase tracking-widest">
-                                            {new Date(log.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    };
-
     const renderDashboardContent = () => {
         if (loading) {
             return (
@@ -612,170 +619,177 @@ export default function Home() {
                 {/* 1. Group and Status Cards (SideWidgets) on top */}
                 <SideWidgets />
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-                    {/* Main Content - Recent Work */}
-                    <div className="lg:col-span-2 space-y-8">
-                        <div className="flex items-center justify-between">
-                            <h2 className={`text-lg font-black uppercase tracking-tight ${'text-slate-900 dark:text-white'}`}>
-                                Recent Activity
-                            </h2>
-                            <button onClick={() => navigate('/inbox')} className={`text-xs font-bold uppercase tracking-widest flex items-center gap-1 transition-colors ${'text-blue-600 hover:text-blue-700'}`}>
-                                See All <ChevronRight className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        {stats.recentActivityLogs?.length === 0 ? (
-                            <div className={`py-16 flex flex-col items-center justify-center rounded-[2.5rem] border ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
-                                <History className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" />
-                                <p className="font-bold text-gray-400 uppercase tracking-widest text-xs">No recent activity</p>
+                <div className="space-y-8">
+                    {/* Row 1: Activity and Audit Logs */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Main Content - Recent Work */}
+                        <div className="lg:col-span-2 space-y-8">
+                            <div className="flex items-center justify-between border-b border-gray-200 dark:border-[#222] pb-4 mb-2">
+                                <h2 className={`text-lg font-black uppercase tracking-tight ${'text-slate-900 dark:text-white'}`}>
+                                    Recent Activity
+                                </h2>
+                                <button onClick={() => navigate('/inbox')} className={`text-xs font-bold uppercase tracking-widest flex items-center gap-1 transition-colors ${'text-blue-600 hover:text-blue-700'}`}>
+                                    See All <ChevronRight className="w-4 h-4" />
+                                </button>
                             </div>
-                        ) : (
-                            <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
-                                <div className="relative pl-3.5 border-l-2 border-slate-100 dark:border-[#333] space-y-6 pt-1">
-                                    {stats.recentActivityLogs?.map(log => {
-                                        const minAgo = Math.floor((new Date() - new Date(log.timestamp)) / 60000);
-                                        const timeStr = minAgo < 60 ? `${minAgo} min${minAgo !== 1 ? 's' : ''}` : minAgo < 1440 ? `${Math.floor(minAgo / 60)} hr${Math.floor(minAgo / 60) !== 1 ? 's' : ''}` : `${Math.floor(minAgo / 1440)} d`;
-                                        return (
-                                            <div key={log.id} className="relative">
-                                                <div className={`absolute -left-[20px] top-1.5 w-2.5 h-2.5 rounded-full ${layoutStyle === 'notion' ? 'ring-white dark:ring-[#191919]' : 'ring-white dark:ring-[#141414]'} bg-blue-500 ring-4`}></div>
-                                                <p className="text-sm text-gray-600 dark:text-gray-400 leading-snug">
-                                                    <span className="font-bold text-gray-900 dark:text-white mr-1">{log.user?.first_name || 'System'}</span>
-                                                    {log.action_type}{' '}
-                                                    {log.Letter?.lms_id && (
-                                                        <Link to={`/letter/${log.Letter.id}`} className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1.5 py-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors">
-                                                            {log.Letter.lms_id}
-                                                        </Link>
-                                                    )}
-                                                </p>
-                                                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mt-1.5">
-                                                    {timeStr} ago
-                                                </p>
-                                            </div>
-                                        )
-                                    })}
+
+                            {stats.recentActivityLogs?.length === 0 ? (
+                                <div className={`flex flex-col items-center justify-center rounded-[2.5rem] border ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'} h-[450px]`}>
+                                    <History className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" />
+                                    <p className="font-bold text-gray-400 uppercase tracking-widest text-xs">No recent activity</p>
                                 </div>
-                            </div>
-                        )}
-
-                        <OverdueWidget />
-
-                        {/* ATG Dashboard Letters REMOVED as per user request */}
-                    </div>
-
-                    {/* Side Panel - Operations */}
-                    <div className="space-y-6">
-                        <div className={`p-6 md:p-8 rounded-[2.5rem] border overflow-hidden relative ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' :
-                            layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
-                                'bg-indigo-600 border-none text-white shadow-xl shadow-indigo-200/50 dark:shadow-indigo-900/20'
-                            }`}>
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${'bg-indigo-500/10'}`}>
-                                        <Activity className={`w-6 h-6 ${'text-indigo-500'}`} />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-black uppercase tracking-tight">
-                                            Online
-                                        </p>
-                                        <p className={`text-2xl font-black mt-1 ${'text-indigo-500'}`}>
-                                            {stats.onlineUsers}
-                                        </p>
+                            ) : (
+                                <div className={`p-6 rounded-[2rem] border ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'} h-[450px] overflow-y-auto no-scrollbar`}>
+                                    <div className="relative pl-3.5 border-l-2 border-slate-100 dark:border-[#333] space-y-6 pt-1">
+                                        {stats.recentActivityLogs?.map(log => {
+                                            const minAgo = Math.floor((new Date() - new Date(log.timestamp)) / 60000);
+                                            const timeStr = minAgo < 60 ? `${minAgo} min${minAgo !== 1 ? 's' : ''}` : minAgo < 1440 ? `${Math.floor(minAgo / 60)} hr${Math.floor(minAgo / 60) !== 1 ? 's' : ''}` : `${Math.floor(minAgo / 1440)} d`;
+                                            return (
+                                                <div key={log.id} className="relative">
+                                                    <div className={`absolute -left-[20px] top-1.5 w-2.5 h-2.5 rounded-full ${layoutStyle === 'notion' ? 'ring-white dark:ring-[#191919]' : 'ring-white dark:ring-[#141414]'} bg-blue-500 ring-4`}></div>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-snug">
+                                                        <span className="font-bold text-gray-900 dark:text-white mr-1">{log.user ? `${log.user.first_name} ${log.user.last_name || ''}` : 'System'}</span>
+                                                        {log.action_type}{' '}
+                                                        {log.Letter?.lms_id && (
+                                                            <Link to={`/letter/${log.Letter.id}`} className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1.5 py-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors">
+                                                                {log.Letter.lms_id}
+                                                            </Link>
+                                                        )}
+                                                    </p>
+                                                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mt-1.5">
+                                                        {timeStr} ago
+                                                    </p>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* Audit Logs Widget */}
-                        <AuditLogsWidget />
+                        <div className="lg:col-span-1">
+                            <AuditLogsWidget />
+                        </div>
+                    </div>
 
-                        {/* Quick Actions */}
-                        <div className={`p-8 rounded-[2.5rem] border bg-white dark:bg-[#141414] border-gray-100 dark:border-white/5 shadow-sm`}>
-                            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-8">Quick Actions</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                {canQuickNewLetter && (
-                                    <button onClick={() => navigate('/new-letter')} className="group flex flex-col items-center justify-center p-6 bg-blue-50/30 dark:bg-blue-900/10 rounded-2xl border border-blue-50/50 dark:border-blue-900/20 hover:bg-blue-500 hover:border-blue-500 transition-all duration-300">
-                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                            <FileText className="w-5 h-5 text-blue-500" />
+                    {/* Row 2: Urgent Tasks and Side Widgets (Quick Actions & Metrics) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+                        <div className="lg:col-span-2">
+                            <OverdueWidget />
+                        </div>
+                        <div className="lg:col-span-1 flex flex-col gap-8">
+                            {/* Quick Actions */}
+                            <div className={`p-8 rounded-[2.5rem] border bg-white dark:bg-[#141414] border-gray-100 dark:border-white/5 shadow-sm flex-1`}>
+                                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-8">Quick Actions</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    {canQuickNewLetter && (
+                                        <button onClick={() => navigate('/new-letter')} className="group flex flex-col items-center justify-center p-6 bg-blue-50/30 dark:bg-blue-900/10 rounded-2xl border border-blue-50/50 dark:border-blue-900/20 hover:bg-blue-500 hover:border-blue-500 transition-all duration-300">
+                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                <FileText className="w-5 h-5 text-blue-500" />
+                                            </div>
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300 group-hover:text-white transition-colors">New Letter</span>
+                                        </button>
+                                    )}
+                                    {canQuickTrays && (
+                                        <button onClick={() => navigate('/setup/trays')} className="group flex flex-col items-center justify-center p-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-2xl border border-indigo-50/50 dark:border-indigo-900/20 hover:bg-indigo-500 hover:border-indigo-500 transition-all duration-300">
+                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                <Inbox className="w-5 h-5 text-indigo-500" />
+                                            </div>
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300 group-hover:text-white transition-colors">Digital Tray</span>
+                                        </button>
+                                    )}
+                                    {canQuickSetup && (
+                                        <>
+                                            <button onClick={() => navigate('/setup/statuses')} className="group flex flex-col items-center justify-center p-6 bg-emerald-50/30 dark:bg-emerald-900/10 rounded-2xl border border-emerald-50/50 dark:border-emerald-900/20 hover:bg-emerald-500 hover:border-emerald-500 transition-all duration-300">
+                                                <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                    <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                                                </div>
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 group-hover:text-white transition-colors">Statuses</span>
+                                            </button>
+                                            <button onClick={() => navigate('/setup/process-steps')} className="group flex flex-col items-center justify-center p-6 bg-orange-50/30 dark:bg-orange-900/10 rounded-2xl border border-orange-50/50 dark:border-orange-900/20 hover:bg-orange-500 hover:border-orange-500 transition-all duration-300">
+                                                <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                    <ArrowRightLeft className="w-5 h-5 text-orange-500" />
+                                                </div>
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-orange-700 dark:text-orange-300 group-hover:text-white transition-colors">Workflow</span>
+                                            </button>
+                                            <button onClick={() => navigate('/setup/letter-kinds')} className="group flex flex-col items-center justify-center p-6 bg-purple-50/30 dark:bg-purple-900/10 rounded-2xl border border-purple-50/50 dark:border-purple-900/20 hover:bg-purple-500 hover:border-purple-500 transition-all duration-300">
+                                                <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                    <Layers className="w-5 h-5 text-purple-500" />
+                                                </div>
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-purple-700 dark:text-purple-300 group-hover:text-white transition-colors">Categories</span>
+                                            </button>
+                                            <button onClick={() => navigate('/setup/departments')} className="group flex flex-col items-center justify-center p-6 bg-teal-50/30 dark:bg-teal-900/10 rounded-2xl border border-teal-50/50 dark:border-teal-900/20 hover:bg-teal-500 hover:border-teal-500 transition-all duration-300">
+                                                <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                    <Building2 className="w-5 h-5 text-teal-500" />
+                                                </div>
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-teal-700 dark:text-teal-300 group-hover:text-white transition-colors">Dept Setup</span>
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Consolidated Metrics Card */}
+                            <div className={`p-6 rounded-[2rem] border ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'} shrink-0`}>
+                                <h3 className={`text-xs font-black uppercase tracking-widest mb-4 ${'text-gray-400'}`}>Metrics</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50/50 dark:bg-blue-900/10">
+                                        <Activity className="w-4 h-4 text-blue-500" />
+                                        <div>
+                                            <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{stats.activeTasks}</p>
+                                            <p className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mt-0.5">Active</p>
                                         </div>
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300 group-hover:text-white transition-colors">New Letter</span>
-                                    </button>
-                                )}
-                                {canQuickTrays && (
-                                    <button onClick={() => navigate('/setup/trays')} className="group flex flex-col items-center justify-center p-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-2xl border border-indigo-50/50 dark:border-indigo-900/20 hover:bg-indigo-500 hover:border-indigo-500 transition-all duration-300">
-                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                            <Inbox className="w-5 h-5 text-indigo-500" />
+                                    </div>
+                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10">
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                        <div>
+                                            <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{stats.archivedTasks}</p>
+                                            <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-0.5">Processed</p>
                                         </div>
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300 group-hover:text-white transition-colors">Digital Tray</span>
-                                    </button>
-                                )}
-                                {canQuickSetup && (
-                                    <>
-                                        <button onClick={() => navigate('/setup/statuses')} className="group flex flex-col items-center justify-center p-6 bg-emerald-50/30 dark:bg-emerald-900/10 rounded-2xl border border-emerald-50/50 dark:border-emerald-900/20 hover:bg-emerald-500 hover:border-emerald-500 transition-all duration-300">
-                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                                <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                                            </div>
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 group-hover:text-white transition-colors">Statuses</span>
-                                        </button>
-                                        <button onClick={() => navigate('/setup/process-steps')} className="group flex flex-col items-center justify-center p-6 bg-orange-50/30 dark:bg-orange-900/10 rounded-2xl border border-orange-50/50 dark:border-orange-900/20 hover:bg-orange-500 hover:border-orange-500 transition-all duration-300">
-                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                                <ArrowRightLeft className="w-5 h-5 text-orange-500" />
-                                            </div>
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-orange-700 dark:text-orange-300 group-hover:text-white transition-colors">Workflow</span>
-                                        </button>
-                                        <button onClick={() => navigate('/setup/letter-kinds')} className="group flex flex-col items-center justify-center p-6 bg-purple-50/30 dark:bg-purple-900/10 rounded-2xl border border-purple-50/50 dark:border-purple-900/20 hover:bg-purple-500 hover:border-purple-500 transition-all duration-300">
-                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                                <Layers className="w-5 h-5 text-purple-500" />
-                                            </div>
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-purple-700 dark:text-purple-300 group-hover:text-white transition-colors">Categories</span>
-                                        </button>
-                                        <button onClick={() => navigate('/setup/departments')} className="group flex flex-col items-center justify-center p-6 bg-teal-50/30 dark:bg-teal-900/10 rounded-2xl border border-teal-50/50 dark:border-teal-900/20 hover:bg-teal-500 hover:border-teal-500 transition-all duration-300">
-                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                                <Building2 className="w-5 h-5 text-teal-500" />
-                                            </div>
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-teal-700 dark:text-teal-300 group-hover:text-white transition-colors">Dept Setup</span>
-                                        </button>
-                                    </>
-                                )}
+                                    </div>
+                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/10">
+                                        <Users className="w-4 h-4 text-indigo-500" />
+                                        <div>
+                                            <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{stats.totalUsers}</p>
+                                            <p className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-0.5">Users</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-orange-50/50 dark:bg-orange-900/10">
+                                        <Building2 className="w-4 h-4 text-orange-500" />
+                                        <div>
+                                            <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{stats.totalDepartments || stats.totalDepartment || 0}</p>
+                                            <p className="text-[9px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest mt-0.5">Departments</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Consolidated Metrics Card */}
-                        <div className={`p-6 rounded-[2rem] border ${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'}`}>
-                            <h3 className={`text-xs font-black uppercase tracking-widest mb-4 ${'text-gray-400'}`}>Metrics</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50/50 dark:bg-blue-900/10">
-                                    <Activity className="w-4 h-4 text-blue-500" />
-                                    <div>
-                                        <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{stats.activeTasks}</p>
-                                        <p className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mt-0.5">Active</p>
-                                    </div>
+                    {/* Online Users Card at the bottom */}
+                    <div className={`p-6 md:p-8 rounded-[2.5rem] border overflow-hidden relative ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' :
+                        layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
+                            'bg-indigo-600 border-none text-white shadow-xl shadow-indigo-200/50 dark:shadow-indigo-900/20'
+                        }`}>
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${'bg-indigo-500/10'}`}>
+                                    <Activity className={`w-6 h-6 ${'text-indigo-500'}`} />
                                 </div>
-                                <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10">
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                    <div>
-                                        <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{stats.archivedTasks}</p>
-                                        <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-0.5">Processed</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/10">
-                                    <Users className="w-4 h-4 text-indigo-500" />
-                                    <div>
-                                        <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{stats.totalUsers}</p>
-                                        <p className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-0.5">Users</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3 p-3 rounded-xl bg-orange-50/50 dark:bg-orange-900/10">
-                                    <Building2 className="w-4 h-4 text-orange-500" />
-                                    <div>
-                                        <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{stats.totalDepartments || stats.totalDepartment || 0}</p>
-                                        <p className="text-[9px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest mt-0.5">Departments</p>
-                                    </div>
+                                <div>
+                                    <p className="text-sm font-black uppercase tracking-tight">
+                                        Online
+                                    </p>
+                                    <p className={`text-2xl font-black mt-1 ${'text-indigo-500'}`}>
+                                        {stats.onlineUsers}
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div >
+            </div>
         );
     };
 
@@ -813,136 +827,142 @@ export default function Home() {
                             {/* Group and Status Cards (SideWidgets) on top */}
                             <SideWidgets />
 
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
-                                <div className="lg:col-span-2 space-y-8">
-                                    <div className="flex items-center justify-between border-b border-[#E5E5E5] dark:border-[#222] pb-4">
-                                        <h2 className="text-xs font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.3em]">Recent Activity</h2>
-                                        <button onClick={() => navigate('/inbox')} className="text-[10px] font-black text-[#737373] hover:text-[#1A1A1B] uppercase tracking-widest transition-colors flex items-center gap-1">
-                                            See All <ChevronRight className="w-3 h-3" />
-                                        </button>
+                            <div className="space-y-8">
+                                {/* Row 1: Activity and Audit Logs */}
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    <div className="lg:col-span-2 space-y-8">
+                                        <div className="flex items-center justify-between border-b border-[#E5E5E5] dark:border-[#222] pb-4">
+                                            <h2 className="text-xs font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.3em]">Recent Activity</h2>
+                                            <button onClick={() => navigate('/inbox')} className="text-[10px] font-black text-[#737373] hover:text-[#1A1A1B] uppercase tracking-widest transition-colors flex items-center gap-1">
+                                                See All <ChevronRight className="w-3 h-3" />
+                                            </button>
+                                        </div>
+
+                                        {stats.recentActivityLogs?.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center bg-white dark:bg-[#111] rounded-3xl border border-[#E5E5E5] dark:border-[#222] border-dashed h-[450px]">
+                                                <p className="text-[10px] font-black text-[#737373] uppercase tracking-widest">Nothing recent</p>
+                                            </div>
+                                        ) : (
+                                            <div className="bg-white dark:bg-[#111] p-6 md:p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm h-[450px] overflow-y-auto no-scrollbar">
+                                                <div className="relative pl-3.5 border-l-2 border-[#E5E5E5] dark:border-[#222] space-y-6 pt-1">
+                                                    {stats.recentActivityLogs?.map(log => {
+                                                        const minAgo = Math.floor((new Date() - new Date(log.timestamp)) / 60000);
+                                                        const timeStr = minAgo < 60 ? `${minAgo} min${minAgo !== 1 ? 's' : ''}` : minAgo < 1440 ? `${Math.floor(minAgo / 60)} hr${Math.floor(minAgo / 60) !== 1 ? 's' : ''}` : `${Math.floor(minAgo / 1440)} d`;
+                                                        return (
+                                                            <div key={log.id} className="relative">
+                                                                <div className="absolute -left-[20px] top-1.5 w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-white dark:ring-[#111]"></div>
+                                                                <p className="text-sm text-[#737373] dark:text-gray-400 leading-snug">
+                                                                    <span className="font-bold text-[#1A1A1B] dark:text-white mr-1">{log.user ? `${log.user.first_name} ${log.user.last_name || ''}` : 'System'}</span>
+                                                                    {log.action_type}{' '}
+                                                                    {log.Letter?.lms_id && (
+                                                                        <Link to={`/letter/${log.Letter.id}`} className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1.5 py-0.5 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors">
+                                                                            {log.Letter.lms_id}
+                                                                        </Link>
+                                                                    )}
+                                                                </p>
+                                                                <p className="text-[10px] font-bold uppercase tracking-widest text-[#737373] mt-2">
+                                                                    {timeStr} ago
+                                                                </p>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {stats.recentActivityLogs?.length === 0 ? (
-                                        <div className="py-20 flex flex-col items-center justify-center bg-white dark:bg-[#111] rounded-3xl border border-[#E5E5E5] dark:border-[#222] border-dashed">
-                                            <p className="text-[10px] font-black text-[#737373] uppercase tracking-widest">Nothing recent</p>
-                                        </div>
-                                    ) : (
-                                        <div className="bg-white dark:bg-[#111] p-6 md:p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                            <div className="relative pl-3.5 border-l-2 border-[#E5E5E5] dark:border-[#222] space-y-6 pt-1">
-                                                {stats.recentActivityLogs?.map(log => {
-                                                    const minAgo = Math.floor((new Date() - new Date(log.timestamp)) / 60000);
-                                                    const timeStr = minAgo < 60 ? `${minAgo} min${minAgo !== 1 ? 's' : ''}` : minAgo < 1440 ? `${Math.floor(minAgo / 60)} hr${Math.floor(minAgo / 60) !== 1 ? 's' : ''}` : `${Math.floor(minAgo / 1440)} d`;
-                                                    return (
-                                                        <div key={log.id} className="relative">
-                                                            <div className="absolute -left-[20px] top-1.5 w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-white dark:ring-[#111]"></div>
-                                                            <p className="text-sm text-[#737373] dark:text-gray-400 leading-snug">
-                                                                <span className="font-bold text-[#1A1A1B] dark:text-white mr-1">{log.user?.first_name || 'System'}</span>
-                                                                {log.action_type}{' '}
-                                                                {log.Letter?.lms_id && (
-                                                                    <Link to={`/letter/${log.Letter.id}`} className="font-bold text-blue-500 ml-1 bg-blue-50 dark:bg-blue-900/10 px-1.5 py-0.5 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors">
-                                                                        {log.Letter.lms_id}
-                                                                    </Link>
-                                                                )}
-                                                            </p>
-                                                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#737373] mt-2">
-                                                                {timeStr} ago
-                                                            </p>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div className="mt-8">
-                                        <OverdueWidget />
+                                    <div className="lg:col-span-1">
+                                        <AuditLogsWidget />
                                     </div>
                                 </div>
 
-                                <div className="space-y-8">
-                                    <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                        <AuditLogsWidget />
+                                {/* Row 2: Urgent and Side Widgets */}
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+                                    <div className="lg:col-span-2">
+                                        <OverdueWidget />
                                     </div>
 
-                                    <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                        <h3 className="text-[10px] font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.3em] mb-8 text-center">Quick Actions</h3>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            {canQuickNewLetter && (
-                                                <button onClick={() => navigate('/new-letter')} className="group flex flex-col items-center justify-center p-6 bg-blue-50/30 dark:bg-blue-900/10 rounded-2xl border border-blue-50/50 dark:border-blue-900/20 hover:bg-blue-500 hover:border-blue-500 transition-all duration-300">
-                                                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                                        <FileText className="w-5 h-5 text-blue-500" />
-                                                    </div>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300 group-hover:text-white transition-colors">New Letter</span>
-                                                </button>
-                                            )}
-                                            {canQuickTrays && (
-                                                <button onClick={() => navigate('/setup/trays')} className="group flex flex-col items-center justify-center p-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-2xl border border-indigo-50/50 dark:border-indigo-900/20 hover:bg-indigo-500 hover:border-indigo-500 transition-all duration-300">
-                                                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                                        <Inbox className="w-5 h-5 text-indigo-500" />
-                                                    </div>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300 group-hover:text-white transition-colors">Trays</span>
-                                                </button>
-                                            )}
-                                            {canQuickSetup && (
-                                                <>
-                                                    <button onClick={() => navigate('/setup/statuses')} className="group flex flex-col items-center justify-center p-6 bg-emerald-50/30 dark:bg-emerald-900/10 rounded-2xl border border-emerald-50/50 dark:border-emerald-900/20 hover:bg-emerald-500 hover:border-emerald-500 transition-all duration-300">
+                                    <div className="lg:col-span-1 flex flex-col gap-8">
+                                        <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm flex-1">
+                                            <h3 className="text-[10px] font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.3em] mb-8 text-center">Quick Actions</h3>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {canQuickNewLetter && (
+                                                    <button onClick={() => navigate('/new-letter')} className="group flex flex-col items-center justify-center p-6 bg-blue-50/30 dark:bg-blue-900/10 rounded-2xl border border-blue-50/50 dark:border-blue-900/20 hover:bg-blue-500 hover:border-blue-500 transition-all duration-300">
                                                         <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                                            <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                                                            <FileText className="w-5 h-5 text-blue-500" />
                                                         </div>
-                                                        <span className="text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 group-hover:text-white transition-colors">Statuses</span>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300 group-hover:text-white transition-colors">New Letter</span>
                                                     </button>
-                                                    <button onClick={() => navigate('/setup/process-steps')} className="group flex flex-col items-center justify-center p-6 bg-orange-50/30 dark:bg-orange-900/10 rounded-2xl border border-orange-50/50 dark:border-orange-900/20 hover:bg-orange-500 hover:border-orange-500 transition-all duration-300">
+                                                )}
+                                                {canQuickTrays && (
+                                                    <button onClick={() => navigate('/setup/trays')} className="group flex flex-col items-center justify-center p-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-2xl border border-indigo-50/50 dark:border-indigo-900/20 hover:bg-indigo-500 hover:border-indigo-500 transition-all duration-300">
                                                         <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                                            <ArrowRightLeft className="w-5 h-5 text-orange-500" />
+                                                            <Inbox className="w-5 h-5 text-indigo-500" />
                                                         </div>
-                                                        <span className="text-[9px] font-black uppercase tracking-widest text-orange-700 dark:text-orange-300 group-hover:text-white transition-colors">Workflow</span>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300 group-hover:text-white transition-colors">Trays</span>
                                                     </button>
-                                                    <button onClick={() => navigate('/setup/letter-kinds')} className="group flex flex-col items-center justify-center p-6 bg-purple-50/30 dark:bg-purple-900/10 rounded-2xl border border-purple-50/50 dark:border-purple-900/20 hover:bg-purple-500 hover:border-purple-500 transition-all duration-300">
-                                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                                            <Layers className="w-5 h-5 text-purple-500" />
-                                                        </div>
-                                                        <span className="text-[9px] font-black uppercase tracking-widest text-purple-700 dark:text-purple-300 group-hover:text-white transition-colors">Categories</span>
-                                                    </button>
-                                                    <button onClick={() => navigate('/setup/departments')} className="group flex flex-col items-center justify-center p-6 bg-teal-50/30 dark:bg-teal-900/10 rounded-2xl border border-teal-50/50 dark:border-teal-900/20 hover:bg-teal-500 hover:border-teal-500 transition-all duration-300">
-                                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                                            <Building2 className="w-5 h-5 text-teal-500" />
-                                                        </div>
-                                                        <span className="text-[9px] font-black uppercase tracking-widest text-teal-700 dark:text-teal-300 group-hover:text-white transition-colors">Dept Setup</span>
-                                                    </button>
-                                                </>
-                                            )}
+                                                )}
+                                                {canQuickSetup && (
+                                                    <>
+                                                        <button onClick={() => navigate('/setup/statuses')} className="group flex flex-col items-center justify-center p-6 bg-emerald-50/30 dark:bg-emerald-900/10 rounded-2xl border border-emerald-50/50 dark:border-emerald-900/20 hover:bg-emerald-500 hover:border-emerald-500 transition-all duration-300">
+                                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                                <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                                                            </div>
+                                                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 group-hover:text-white transition-colors">Statuses</span>
+                                                        </button>
+                                                        <button onClick={() => navigate('/setup/process-steps')} className="group flex flex-col items-center justify-center p-6 bg-orange-50/30 dark:bg-orange-900/10 rounded-2xl border border-orange-50/50 dark:border-orange-900/20 hover:bg-orange-500 hover:border-orange-500 transition-all duration-300">
+                                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                                <ArrowRightLeft className="w-5 h-5 text-orange-500" />
+                                                            </div>
+                                                            <span className="text-[9px] font-black uppercase tracking-widest text-orange-700 dark:text-orange-300 group-hover:text-white transition-colors">Workflow</span>
+                                                        </button>
+                                                        <button onClick={() => navigate('/setup/letter-kinds')} className="group flex flex-col items-center justify-center p-6 bg-purple-50/30 dark:bg-purple-900/10 rounded-2xl border border-purple-50/50 dark:border-purple-900/20 hover:bg-purple-500 hover:border-purple-500 transition-all duration-300">
+                                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                                <Layers className="w-5 h-5 text-purple-500" />
+                                                            </div>
+                                                            <span className="text-[9px] font-black uppercase tracking-widest text-purple-700 dark:text-purple-300 group-hover:text-white transition-colors">Categories</span>
+                                                        </button>
+                                                        <button onClick={() => navigate('/setup/departments')} className="group flex flex-col items-center justify-center p-6 bg-teal-50/30 dark:bg-teal-900/10 rounded-2xl border border-teal-50/50 dark:border-teal-900/20 hover:bg-teal-500 hover:border-teal-500 transition-all duration-300">
+                                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                                <Building2 className="w-5 h-5 text-teal-500" />
+                                                            </div>
+                                                            <span className="text-[9px] font-black uppercase tracking-widest text-teal-700 dark:text-teal-300 group-hover:text-white transition-colors">Dept Setup</span>
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Consolidated Metrics Card */}
-                                    <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                        <h3 className="text-[10px] font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] mb-6">Metrics</h3>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50/50 dark:bg-blue-900/10">
-                                                <Activity className="w-4 h-4 text-blue-500" />
-                                                <div>
-                                                    <p className="text-lg font-black text-[#1A1A1B] dark:text-white leading-none">{stats.activeTasks}</p>
-                                                    <p className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mt-0.5">Active</p>
+                                        <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm shrink-0">
+                                            <h3 className="text-[10px] font-black text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] mb-6">Metrics</h3>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50/50 dark:bg-blue-900/10">
+                                                    <Activity className="w-4 h-4 text-blue-500" />
+                                                    <div>
+                                                        <p className="text-lg font-black text-[#1A1A1B] dark:text-white leading-none">{stats.activeTasks}</p>
+                                                        <p className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mt-0.5">Active</p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10">
-                                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                                <div>
-                                                    <p className="text-lg font-black text-[#1A1A1B] dark:text-white leading-none">{stats.archivedTasks}</p>
-                                                    <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-0.5">Processed</p>
+                                                <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10">
+                                                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                                    <div>
+                                                        <p className="text-lg font-black text-[#1A1A1B] dark:text-white leading-none">{stats.archivedTasks}</p>
+                                                        <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-0.5">Processed</p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/10">
-                                                <Users className="w-4 h-4 text-indigo-500" />
-                                                <div>
-                                                    <p className="text-lg font-black text-[#1A1A1B] dark:text-white leading-none">{stats.totalUsers}</p>
-                                                    <p className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-0.5">Users</p>
+                                                <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/10">
+                                                    <Users className="w-4 h-4 text-indigo-500" />
+                                                    <div>
+                                                        <p className="text-lg font-black text-[#1A1A1B] dark:text-white leading-none">{stats.totalUsers}</p>
+                                                        <p className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-0.5">Users</p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex items-center gap-3 p-3 rounded-xl bg-orange-50/50 dark:bg-orange-900/10">
-                                                <Building2 className="w-4 h-4 text-orange-500" />
-                                                <div>
-                                                    <p className="text-lg font-black text-[#1A1A1B] dark:text-white leading-none">{stats.totalDepartments || stats.totalDepartment || 0}</p>
-                                                    <p className="text-[9px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest mt-0.5">Departments</p>
+                                                <div className="flex items-center gap-3 p-3 rounded-xl bg-orange-50/50 dark:bg-orange-900/10">
+                                                    <Building2 className="w-4 h-4 text-orange-500" />
+                                                    <div>
+                                                        <p className="text-lg font-black text-[#1A1A1B] dark:text-white leading-none">{stats.totalDepartments || stats.totalDepartment || 0}</p>
+                                                        <p className="text-[9px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest mt-0.5">Departments</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
