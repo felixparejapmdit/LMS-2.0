@@ -38,8 +38,8 @@ class LetterAssignmentController {
 
       const userRecord = user_id
         ? await User.findByPk(user_id, {
-            include: [{ model: Role, as: "roleData" }],
-          })
+          include: [{ model: Role, as: "roleData" }],
+        })
         : null;
 
       const myDeptId = userRecord?.dept_id;
@@ -276,14 +276,34 @@ class LetterAssignmentController {
       };
 
       if (req.query.outbox === "true") {
+        const outboxStatusNames = ["Released", "Done", "Filed", "Forwarded", "Endorsed", "Dispatched"];
         if (!where[Op.and]) where[Op.and] = [];
         where[Op.and].push({
           [Op.or]: [
-            { "$letter.id$": { [Op.not]: null } },
-            { "$letter.id$": { [Op.not]: null } },
-          ],
+            { "$letter.status.status_name$": { [Op.in]: outboxStatusNames } },
+            { "$letter.global_status$": { [Op.in]: [5, 6, 9, 10, 11] } }
+          ]
         });
+        const inboxFilters = ['signature', 'review', 'pending', 'atg_note', 'empty_entry', 'hold', 'vem', 'avem'];
+        if (named_filter && !inboxFilters.includes(named_filter)) {
+          if (named_filter.toLowerCase() === 'done') {
+            where["$letter.status.status_name$"] = "Done";
+          } else {
+            // Dynamically capitalize the first letter for accurate LIKE matching (e.g., 'forwarded' -> '%Forwarded%')
+            const capitalizedFilter = named_filter.charAt(0).toUpperCase() + named_filter.slice(1).toLowerCase();
+            where["$letter.status.status_name$"] = { [Op.like]: `%${capitalizedFilter}%` };
+          }
+        }
       }
+
+
+
+
+
+
+
+
+
 
       if (vip === "true") {
         const atgStatusFilter = {
@@ -306,11 +326,11 @@ class LetterAssignmentController {
         if (!where[Op.not]) where[Op.not] = {};
         const atgStatusFilter = atgStatusId
           ? {
-              [Op.or]: [
-                { "$letter.global_status$": atgStatusId },
-                { "$letter.status.status_name$": "ATG Note" },
-              ],
-            }
+            [Op.or]: [
+              { "$letter.global_status$": atgStatusId },
+              { "$letter.status.status_name$": "ATG Note" },
+            ],
+          }
           : { "$letter.status.status_name$": "ATG Note" };
         where[Op.not] = {
           [Op.and]: [
@@ -528,7 +548,7 @@ class LetterAssignmentController {
       if (transaction) {
         try {
           await transaction.rollback();
-        } catch {}
+        } catch { }
       }
       res.status(400).json({ error: error.message });
     }

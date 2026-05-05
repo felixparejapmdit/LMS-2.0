@@ -63,6 +63,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const [recordsPerPage] = useState(30);
 
   const activeStepTab = searchParams.get('tab') || 'signature';
+
   const setActiveStepTab = (tab) => {
     setSelectedIds([]); // Clear selections when changing tabs
     setSearchParams(prev => {
@@ -104,12 +105,19 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     signature: 'from-blue-500 to-cyan-400',
     review: 'from-emerald-500 to-teal-400',
     atg_note: 'from-indigo-500 to-violet-400',
+    released: 'from-blue-600 to-indigo-500',
+    done: 'from-emerald-600 to-green-500',
+    filed: 'from-amber-600 to-orange-500',
+    forwarded: 'from-sky-500 to-blue-400',
+    endorsed: 'from-violet-600 to-purple-500',
+    dispatched: 'from-teal-600 to-cyan-500',
     vem: 'from-amber-500 to-orange-400',
     avem: 'from-rose-500 to-pink-400',
     pending: 'from-slate-600 to-slate-500',
     hold: 'from-red-500 to-orange-400',
     empty_entry: 'from-gray-600 to-gray-500'
   };
+
   const activeTabLabel = tabLabels[activeStepTab] || 'Letters';
 
   const fetchAssignments = async (showRefresh = false, retryCount = 0) => {
@@ -129,7 +137,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         url += '&exclude_vip=true';
         if (activeStepTab) url += `&named_filter=${activeStepTab}`;
       } else if (view === 'outbox') {
-        url += '&outbox=true&exclude_vip=true';
+        url += `&outbox=true&exclude_vip=true&named_filter=${activeStepTab}`;
       }
 
       url += `&page=${currentPage}&limit=${recordsPerPage}`;
@@ -212,17 +220,14 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
 
   useEffect(() => {
     if (user?.id) {
-      if (view !== 'inbox' && activeStepTab !== 'signature') {
-        setActiveStepTab('signature');
-      }
       fetchAssignments();
       fetchTrays();
       fetchSteps();
       fetchAtgNoteStatusId();
-      if (view === 'inbox') fetchInboxStats();
+      fetchInboxStats();
 
-      const statsInterval = setInterval(() => { if (view === 'inbox') fetchInboxStats(); }, 15000);
-      const assignInterval = setInterval(() => { fetchAssignments(); }, 30000);
+      const statsInterval = setInterval(() => fetchInboxStats(), 15000);
+      const assignInterval = setInterval(() => fetchAssignments(), 30000);
       return () => { clearInterval(statsInterval); clearInterval(assignInterval); }
     }
   }, [user?.id, view, activeStepTab, currentPage]);
@@ -325,7 +330,34 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     } catch (err) { console.error(err); fetchAssignments(); }
   };
 
+  const handleRecallToInbox = async (e, assignment) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!window.confirm("Move this letter back to Pending?")) return;
+    try {
+      setRefreshing(true);
+      const incomingStatusId = 8; // Pending
+      await letterService.update(assignment.letter.id, { global_status: incomingStatusId });
+      await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${assignment.id}`, { step_id: null });
+      fetchAssignments();
+      fetchInboxStats();
+    } catch (err) { console.error("Recall failed:", err); }
+    finally { setRefreshing(false); }
+  };
+
   const renderQuickActions = (assignment) => {
+    if (view === 'outbox') {
+      return (
+        <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-300">
+          <button
+            onClick={(e) => handleRecallToInbox(e, assignment)}
+            title="Recall to Inbox (Pending)"
+            className="p-1.5 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white border border-orange-100 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      );
+    }
     if (activeStepTab !== 'pending') return null;
     return (
       <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-300">
@@ -498,17 +530,23 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
               </h1>
             </div>
 
-            {/* Tabs moved to the left, next to the title */}
-            {view === 'inbox' && canTabFilter && (
+            {/* ── Tab filter ──────────────────────────────────────────── */}
+            {canTabFilter && (
               <div className="flex items-center gap-1 border border-[#E5E5E5] dark:border-[#333] p-1.5 rounded-xl bg-gray-50/50 dark:bg-white/5 no-scrollbar overflow-x-auto min-w-0">
                 {Object.entries(tabLabels).map(([id, label]) => (
                   <button
                     key={id}
                     onClick={() => setActiveStepTab(id)}
-                    className={`px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === id ? `bg-gradient-to-r ${tabGradients[id] || 'bg-[#1A1A1B] dark:bg-white'} text-white shadow-md` : 'text-[#737373] dark:text-[#A3A3A3] hover:text-[#1A1A1B] dark:hover:text-white'}`}
+                    className={`px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${
+                      activeStepTab === id
+                        ? `bg-gradient-to-r ${tabGradients[id] || 'from-[#1A1A1B] to-[#333]'} text-white shadow-md`
+                        : 'text-[#737373] dark:text-[#A3A3A3] hover:text-[#1A1A1B] dark:hover:text-white'
+                    }`}
                   >
                     {label}
-                    <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${activeStepTab === id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'}`}>
+                    <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${
+                      activeStepTab === id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'
+                    }`}>
                       {inboxStats[id] || 0}
                     </span>
                   </button>
@@ -569,7 +607,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                 <span className="text-[10px] font-black text-[#737373] uppercase tracking-widest">Refreshing assignments...</span>
               </div>
             ) : activeStepTab === 'empty_entry' ? (
-              <EmptyEntryView 
+              <EmptyEntryView
                 assignments={filteredBySteps}
                 onRefresh={fetchAssignments}
                 user={user}
@@ -583,49 +621,49 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
               <div className="space-y-6">
                 {renderBulkActions()}
                 <div className="space-y-4">
-                {filteredBySteps.map((assignment) => {
+                  {filteredBySteps.map((assignment) => {
                     // Memoize tray/quick action rendering key based on actual dependencies
                     const trayActions = renderTrayActions(assignment);
                     const quickActions = renderQuickActions(assignment);
                     const isSelected = selectedIds.includes(assignment.id);
                     return (
-                    <div key={assignment.id} className="flex items-start gap-4 group">
-                      {view === 'inbox' && (
-                        <div className="flex-shrink-0 pt-6">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => toggleSelection(e, assignment.id)}
-                            className="w-5 h-5 rounded-md border-2 border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer bg-white"
+                      <div key={assignment.id} className="flex items-start gap-4 group">
+                        {view === 'inbox' && (
+                          <div className="flex-shrink-0 pt-6">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => toggleSelection(e, assignment.id)}
+                              className="w-5 h-5 rounded-md border-2 border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer bg-white"
+                            />
+                          </div>
+                        )}
+                        <div className="w-full">
+                          <LetterCard
+                            id={assignment.id}
+                            letterId={assignment.letter?.id}
+                            atgId={assignment.letter?.lms_id}
+                            sender={assignment.letter?.sender}
+                            summary={assignment.letter?.summary}
+                            status={assignment.letter?.status?.status_name || assignment.status}
+                            step={assignment.step?.step_name}
+                            dueDate={assignment.due_date}
+                            dateReceived={assignment.letter?.date_received}
+                            tray={assignment.letter?.tray}
+                            layout="minimalist"
+                            isOutbox={view === 'outbox'}
+                            endorsements={assignment.letter?.endorsements}
+                            actions={
+                              (trayActions || quickActions) ? (
+                                <div className="flex items-center gap-2">
+                                  {trayActions}
+                                  {quickActions}
+                                </div>
+                              ) : null
+                            }
                           />
                         </div>
-                      )}
-                      <div className="w-full">
-                        <LetterCard
-                          id={assignment.id}
-                          letterId={assignment.letter?.id}
-                          atgId={assignment.letter?.lms_id}
-                          sender={assignment.letter?.sender}
-                          summary={assignment.letter?.summary}
-                          status={assignment.letter?.status?.status_name || assignment.status}
-                          step={assignment.step?.step_name}
-                          dueDate={assignment.due_date}
-                          dateReceived={assignment.letter?.date_received}
-                          tray={assignment.letter?.tray}
-                          layout="minimalist"
-                          isOutbox={view === 'outbox'}
-                          endorsements={assignment.letter?.endorsements}
-                          actions={
-                            (trayActions || quickActions) ? (
-                              <div className="flex items-center gap-2">
-                                {trayActions}
-                                {quickActions}
-                              </div>
-                            ) : null
-                          }
-                        />
                       </div>
-                    </div>
                     );
                   })}
                 </div>

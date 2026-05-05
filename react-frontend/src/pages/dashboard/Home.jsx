@@ -30,14 +30,15 @@ import {
     Layers,
     ArrowRightLeft,
     ShieldCheck,
+    Shield,
     Contact,
     Building2,
     HelpCircle
 } from "lucide-react";
-import TutorialGuide from "../../components/TutorialGuide";
-import StickyNotes from "../../components/StickyNotes";
 import useAccess from "../../hooks/useAccess";
 import API_BASE from "../../config/apiConfig";
+import { getAssetUrl } from "../../hooks/useDirectus";
+import TutorialGuide from "../../components/TutorialGuide";
 
 export default function Home() {
     const { user, isSuperAdmin } = useSession();
@@ -64,6 +65,19 @@ export default function Home() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [period, setPeriod] = useState('today');
+
+    const currentDate = new Date();
+    const getWeekNumber = (d) => {
+        const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+        return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    };
+
+    const [filterYear, setFilterYear] = useState(currentDate.getFullYear());
+    const [filterMonth, setFilterMonth] = useState(currentDate.getMonth() + 1);
+    const [filterWeek, setFilterWeek] = useState(getWeekNumber(currentDate));
+
     const [systemStatus, setSystemStatus] = useState({ isOnline: false, uptime: 0 });
     const canField = access?.canField || (() => true);
     const canRefresh = canField("home", "refresh_button");
@@ -84,7 +98,10 @@ export default function Home() {
                     department_id: deptId,
                     role: roleName,
                     full_name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
-                    period
+                    period,
+                    year: filterYear,
+                    month: filterMonth,
+                    week: filterWeek
                 }
             });
             setStats(response.data);
@@ -122,7 +139,7 @@ export default function Home() {
             const interval = setInterval(() => fetchStats(), 60000);
             return () => clearInterval(interval);
         }
-    }, [user?.id, period]);
+    }, [user?.id, period, filterYear, filterMonth, filterWeek]);
 
     const formatUptime = (seconds) => {
         const d = Math.floor(seconds / (3600 * 24));
@@ -281,10 +298,10 @@ export default function Home() {
                                             </div>
                                             {/* Progress Bar */}
                                             <div className="h-1.5 w-full bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
-                                                <div 
-                                                    className="h-full transition-all duration-1000 ease-out" 
-                                                    style={{ 
-                                                        width: `${percentage}%`, 
+                                                <div
+                                                    className="h-full transition-all duration-1000 ease-out"
+                                                    style={{
+                                                        width: `${percentage}%`,
                                                         backgroundColor: colors[i % colors.length],
                                                         boxShadow: isHovered ? `0 0 10px ${colors[i % colors.length]}50` : 'none'
                                                     }}
@@ -305,18 +322,87 @@ export default function Home() {
     const SideWidgets = () => {
         return (
             <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                    <select
-                        value={period}
-                        onChange={(e) => setPeriod(e.target.value)}
-                        className="bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#222] text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/50"
-                    >
-                        <option value="today">Today</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="yearly">Yearly</option>
-                        <option value="all">All Time</option>
-                    </select>
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-1.5 p-1.5 bg-gray-100/80 dark:bg-[#141414]/80 backdrop-blur-md rounded-2xl border border-gray-200/50 dark:border-white/5 w-max overflow-x-auto no-scrollbar shadow-inner">
+                        {[
+                            { id: 'today', label: 'Today' },
+                            { id: 'weekly', label: 'Weekly' },
+                            { id: 'monthly', label: 'Monthly' },
+                            { id: 'yearly', label: 'Yearly' },
+                            { id: 'all', label: 'All Time' }
+                        ].map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setPeriod(tab.id)}
+                                className={`px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black tracking-[0.2em] uppercase transition-all duration-300 relative overflow-hidden group ${period === tab.id
+                                        ? 'text-white shadow-[0_4px_12px_rgba(79,70,229,0.3)]'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-white/60 dark:hover:bg-white/5'
+                                    }`}
+                            >
+                                {period === tab.id && (
+                                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-xl" />
+                                )}
+                                <span className="relative z-10 flex items-center gap-1.5">
+                                    {period === tab.id && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                                    {tab.label}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {period === 'weekly' && (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-4">
+                            <input
+                                type="number"
+                                min="1"
+                                max="53"
+                                value={filterWeek}
+                                onChange={(e) => setFilterWeek(e.target.value)}
+                                className="w-20 px-4 py-2.5 rounded-xl text-xs font-bold border border-gray-200 dark:border-[#222] bg-white dark:bg-[#141414] focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
+                                placeholder="Week"
+                            />
+                            <input
+                                type="number"
+                                value={filterYear}
+                                onChange={(e) => setFilterYear(e.target.value)}
+                                className="w-24 px-4 py-2.5 rounded-xl text-xs font-bold border border-gray-200 dark:border-[#222] bg-white dark:bg-[#141414] focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
+                                placeholder="Year"
+                            />
+                        </div>
+                    )}
+
+                    {period === 'monthly' && (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-4">
+                            <select
+                                value={filterMonth}
+                                onChange={(e) => setFilterMonth(e.target.value)}
+                                className="px-4 py-2.5 rounded-xl text-xs font-bold border border-gray-200 dark:border-[#222] bg-white dark:bg-[#141414] focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all cursor-pointer"
+                            >
+                                {Array.from({ length: 12 }).map((_, i) => (
+                                    <option key={i + 1} value={i + 1}>{new Date(2000, i, 1).toLocaleString('default', { month: 'long' })}</option>
+                                ))}
+                            </select>
+                            <input
+                                type="number"
+                                value={filterYear}
+                                onChange={(e) => setFilterYear(e.target.value)}
+                                className="w-24 px-4 py-2.5 rounded-xl text-xs font-bold border border-gray-200 dark:border-[#222] bg-white dark:bg-[#141414] focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
+                                placeholder="Year"
+                            />
+                        </div>
+                    )}
+
+                    {period === 'yearly' && (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-4">
+                            <input
+                                type="number"
+                                value={filterYear}
+                                onChange={(e) => setFilterYear(e.target.value)}
+                                className="w-24 px-4 py-2.5 rounded-xl text-xs font-bold border border-gray-200 dark:border-[#222] bg-white dark:bg-[#141414] focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
+                                placeholder="Year"
+                            />
+                        </div>
+                    )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                     <SummaryChart
@@ -424,6 +510,93 @@ export default function Home() {
 
 
 
+    const AuditLogsWidget = () => {
+        const [logs, setLogs] = useState([]);
+        const [widgetLoading, setWidgetLoading] = useState(true);
+
+        useEffect(() => {
+            const fetchLogs = async () => {
+                try {
+                    const res = await axios.get(`${API_BASE}/audit-logs`, {
+                        params: { page: 1, limit: 10 }
+                    });
+                    setLogs(res.data.data || []);
+                } catch (err) {
+                    console.error("Failed to fetch audit logs:", err);
+                } finally {
+                    setWidgetLoading(false);
+                }
+            };
+            fetchLogs();
+        }, []);
+
+        return (
+            <div className={`p-6 md:p-8 rounded-[2.5rem] border overflow-hidden relative ${layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' :
+                layoutStyle === 'grid' ? 'bg-white dark:bg-[#141414] border-slate-100 dark:border-[#222]' :
+                    'bg-white dark:bg-[#141414] border-gray-100 dark:border-white/5 shadow-sm'
+                }`}>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-900/10 flex items-center justify-center text-violet-500">
+                            <Shield className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Audit Logs</h3>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Recent Users Log</p>
+                        </div>
+                    </div>
+                    <button onClick={() => navigate('/setup/audit-logs')} className="text-[10px] font-black text-blue-500 hover:text-blue-600 uppercase tracking-widest transition-colors flex items-center gap-1">
+                        See All <ChevronRight className="w-3 h-3" />
+                    </button>
+                </div>
+
+                <div className="space-y-4">
+                    {widgetLoading ? (
+                        <div className="flex justify-center py-8">
+                            <Loader2 className="w-6 h-6 text-violet-500 animate-spin" />
+                        </div>
+                    ) : logs.length === 0 ? (
+                        <p className="text-xs text-center font-bold text-gray-400 uppercase tracking-widest py-8">No audit logs found</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {logs.map(log => (
+                                <div key={log.id} className="flex items-center justify-between p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group cursor-pointer border border-transparent hover:border-gray-100 dark:hover:border-white/10">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-500 dark:text-gray-400 shrink-0 overflow-hidden">
+                                            {log.user?.avatar ? (
+                                                <img src={getAssetUrl(log.user?.avatar, "?width=80&height=80&fit=cover")} className="w-full h-full object-cover" alt="" />
+                                            ) : (
+                                                <User className="w-4 h-4" />
+                                            )}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                                {log.user_name || 'System'}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[9px] font-mono font-bold text-gray-500 bg-gray-100 dark:bg-white/5 px-1.5 py-0.5 rounded truncate">
+                                                    {log.ip_address}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-end shrink-0 pl-2">
+                                        <span className="text-[10px] font-bold text-gray-400">
+                                            {new Date(log.created_at).toLocaleDateString()}
+                                        </span>
+                                        <span className="text-[9px] font-black text-violet-500 dark:text-violet-400 uppercase tracking-widest">
+                                            {new Date(log.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     const renderDashboardContent = () => {
         if (loading) {
             return (
@@ -512,8 +685,8 @@ export default function Home() {
                             </div>
                         </div>
 
-                        {/* Sticky Notes / Notice Board */}
-                        <StickyNotes />
+                        {/* Audit Logs Widget */}
+                        <AuditLogsWidget />
 
                         {/* Quick Actions */}
                         <div className={`p-8 rounded-[2.5rem] border bg-white dark:bg-[#141414] border-gray-100 dark:border-white/5 shadow-sm`}>
@@ -687,7 +860,7 @@ export default function Home() {
 
                                 <div className="space-y-8">
                                     <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">
-                                        <StickyNotes />
+                                        <AuditLogsWidget />
                                     </div>
 
                                     <div className="bg-white dark:bg-[#111] p-8 rounded-3xl border border-[#E5E5E5] dark:border-[#222] shadow-sm">

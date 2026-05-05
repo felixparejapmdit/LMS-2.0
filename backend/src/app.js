@@ -22,6 +22,7 @@ const interDeptRoutes = require("./routes/interDeptRoutes");
 const sectionRoutes = require("./routes/sectionRoutes");
 const auditLogRoutes = require("./routes/auditLogRoutes");
 const dashboardNoteRoutes = require("./routes/dashboardNoteRoutes");
+const outboxRoutes = require("./routes/outboxRoutes");
 
 const path = require("path");
 
@@ -125,6 +126,7 @@ apiRouter.use("/attachments", attachmentRoutes);
 apiRouter.use("/letters", letterRoutes);
 apiRouter.use("/letter-assignments", letterAssignmentRoutes);
 apiRouter.use("/stats", statsRoutes);
+apiRouter.use("/outbox", outboxRoutes);
 apiRouter.use("/comments", commentRoutes);
 apiRouter.use("/persons", personRoutes);
 apiRouter.use("/endorsements", endorsementRoutes);

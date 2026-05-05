@@ -7,7 +7,7 @@ class StatsController {
     static async getDashboardStats(req, res) {
         const startTime = Date.now();
         try {
-            const { department_id, user_id, role, full_name: queryFullName, period } = req.query;
+            const { department_id, user_id, role, full_name: queryFullName, period, year, month, week } = req.query;
             const userRecord = user_id ? await User.findByPk(user_id, {
                 include: [{ model: Role, as: 'roleData' }]
             }) : null;
@@ -39,7 +39,7 @@ class StatsController {
             // 2. Base Letter Filter (Now includes name-based visibility)
             const baseLetterWhere = {};
             const visibilityClauses = [];
-            
+
             // 2. Department-based Visibility
             if (isSuperAdmin) {
                 // Admins see everything globally
@@ -50,12 +50,12 @@ class StatsController {
                 if (!isSpecificDept || department_id == myDeptId) {
                     const deptIdStr = String(myDeptId);
                     visibilityClauses.push({ dept_id: deptIdStr });
-                    
+
                     // Pre-fetch dept user IDs to avoid slow per-row subqueries where possible
-                    const deptUserIds = await User.findAll({ 
-                        where: { dept_id: myDeptId }, 
-                        attributes: ['id'], 
-                        raw: true 
+                    const deptUserIds = await User.findAll({
+                        where: { dept_id: myDeptId },
+                        attributes: ['id'],
+                        raw: true
                     }).then(users => users.map(u => u.id));
 
                     if (deptUserIds.length > 0) {
@@ -75,7 +75,7 @@ class StatsController {
                             OR Letter.endorsed LIKE ('%' || du.last_name || '%')
                         )
                     )`));
-                    
+
                     visibilityClauses.push(sequelize.literal(`EXISTS (SELECT 1 FROM letter_assignments la WHERE la.letter_id = Letter.id AND la.department_id = ${sequelize.escape(deptIdStr)})`));
                 }
             }
@@ -85,14 +85,14 @@ class StatsController {
                 visibilityClauses.push({ encoder_id: user_id });
                 visibilityClauses.push({ sender: user_id });
                 visibilityClauses.push({ endorsed: user_id });
-                
+
                 if (full_name) {
                     const nameParts = full_name.split(' ').filter(p => p.length > 0);
                     const nameMatches = [`%${full_name}%`];
                     if (nameParts.length >= 2) {
                         nameMatches.push(`%${nameParts[nameParts.length - 1]}, ${nameParts[0]}%`);
                     }
-                    
+
                     nameMatches.forEach(match => {
                         visibilityClauses.push({ sender: { [Op.like]: match } });
                         visibilityClauses.push({ endorsed: { [Op.like]: match } });
@@ -115,11 +115,11 @@ class StatsController {
             }, {});
 
             const activeStatusIds = [
-                statusMap['INCOMING'], 
-                statusMap['ATG NOTE'], 
-                statusMap['REVIEW'], 
-                statusMap['FORWARDED'], 
-                statusMap['HOLD'], 
+                statusMap['INCOMING'],
+                statusMap['ATG NOTE'],
+                statusMap['REVIEW'],
+                statusMap['FORWARDED'],
+                statusMap['HOLD'],
                 statusMap['PENDING'],
                 statusMap['RECEIVED'], // Alignment with seed data
                 statusMap['PROCESSING'], // Alignment with seed data
@@ -127,8 +127,8 @@ class StatsController {
             ].filter(id => id != null);
 
             const processedStatusIds = [
-                statusMap['FILED'], 
-                statusMap['ENDORSED'], 
+                statusMap['FILED'],
+                statusMap['ENDORSED'],
                 statusMap['ARCHIVED'], // Alignment with seed data
                 9, 10 // Fallback hardcoded IDs
             ].filter(id => id != null);
@@ -145,12 +145,12 @@ class StatsController {
                     distinct: true,
                     col: 'id'
                 }),
-                Letter.count({ 
+                Letter.count({
                     where: { ...baseLetterWhere, direction: 'Incoming' },
                     distinct: true,
                     col: 'id'
                 }),
-                Letter.count({ 
+                Letter.count({
                     where: { ...baseLetterWhere, direction: 'Outgoing' },
                     distinct: true,
                     col: 'id'
@@ -161,9 +161,9 @@ class StatsController {
             const recentTasks = await Letter.findAll({
                 where: { ...baseLetterWhere, global_status: statusMap['INCOMING'] || 1 },
                 include: [
-                    { model: Status, as: 'status', required: false }, 
-                    'letterKind', 
-                    'attachment', 
+                    { model: Status, as: 'status', required: false },
+                    'letterKind',
+                    'attachment',
                     'tray'
                 ],
                 limit: 5,
@@ -182,16 +182,16 @@ class StatsController {
                 Letter.findAll({
                     where: atgWhere,
                     include: [
-                        { model: Status, as: 'status' }, 
-                        'letterKind', 
-                        'attachment', 
+                        { model: Status, as: 'status' },
+                        'letterKind',
+                        'attachment',
                         'tray'
                     ],
                     limit: 10,
                     order: [['created_at', 'DESC']],
                     distinct: true
                 }),
-                Letter.count({ 
+                Letter.count({
                     where: atgWhere,
                     distinct: true,
                     col: 'id'
@@ -211,7 +211,7 @@ class StatsController {
                     ]
                 },
                 include: [
-                    { model: Status, as: 'status' }, 
+                    { model: Status, as: 'status' },
                     'tray'
                 ],
                 order: [['date_received', 'ASC']],
@@ -239,31 +239,63 @@ class StatsController {
             });
 
             // 8. Task Distribution Map (by Step)
-            let periodDate = null;
+            let dateWhereClause = null;
             const now = new Date();
-            if (period === 'weekly') {
-                periodDate = new Date(now.setDate(now.getDate() - 7));
+
+            if (period === 'today') {
+                const start = new Date(now.setHours(0, 0, 0, 0));
+                dateWhereClause = { [Op.gte]: start };
+            } else if (period === 'weekly') {
+                if (week && year) {
+                    const simple = new Date(year, 0, 1 + (week - 1) * 7);
+                    const dow = simple.getDay();
+                    const ISOweekStart = simple;
+                    if (dow <= 4)
+                        ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+                    else
+                        ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+                    const start = new Date(ISOweekStart);
+                    start.setHours(0, 0, 0, 0);
+                    const end = new Date(start);
+                    end.setDate(end.getDate() + 6);
+                    end.setHours(23, 59, 59, 999);
+                    dateWhereClause = { [Op.between]: [start, end] };
+                } else {
+                    const start = new Date(now.setDate(now.getDate() - 7));
+                    dateWhereClause = { [Op.gte]: start };
+                }
             } else if (period === 'monthly') {
-                periodDate = new Date(now.setMonth(now.getMonth() - 1));
+                if (month && year) {
+                    const start = new Date(year, month - 1, 1);
+                    const end = new Date(year, month, 0, 23, 59, 59, 999);
+                    dateWhereClause = { [Op.between]: [start, end] };
+                } else {
+                    const start = new Date(now.setMonth(now.getMonth() - 1));
+                    dateWhereClause = { [Op.gte]: start };
+                }
             } else if (period === 'yearly') {
-                periodDate = new Date(now.setFullYear(now.getFullYear() - 1));
-            } else if (period === 'today') {
-                periodDate = new Date(now.setHours(0, 0, 0, 0));
+                if (year) {
+                    const start = new Date(year, 0, 1);
+                    const end = new Date(year, 11, 31, 23, 59, 59, 999);
+                    dateWhereClause = { [Op.between]: [start, end] };
+                } else {
+                    const start = new Date(now.setFullYear(now.getFullYear() - 1));
+                    dateWhereClause = { [Op.gte]: start };
+                }
             }
-            // 'all' or undefined => periodDate stays null (no date filter)
 
             // Always fetch all process steps so we can show 0-count rows when period filters empty out data
             const allSteps = await ProcessStep.findAll({ attributes: ['step_name'], raw: true });
 
             const distributionWhere = {};
             if (isSpecificDept) distributionWhere.department_id = department_id;
-            
+
             const distAssignmentsInclude = [{ model: ProcessStep, as: 'step', attributes: ['step_name'] }];
-            if (periodDate) {
+            if (dateWhereClause) {
                 distAssignmentsInclude.push({
                     model: Letter,
                     as: 'letter',
-                    where: { created_at: { [Op.gte]: periodDate } },
+                    where: { created_at: dateWhereClause },
                     attributes: ['id', 'created_at']
                 });
             }
@@ -288,8 +320,8 @@ class StatsController {
 
             // 9. Status Distribution Map (by Global Status)
             const statusBaseWhere = { ...baseLetterWhere };
-            if (periodDate) {
-                statusBaseWhere.created_at = { [Op.gte]: periodDate };
+            if (dateWhereClause) {
+                statusBaseWhere.created_at = dateWhereClause;
             }
             const allLettersForStats = await Letter.findAll({
                 where: statusBaseWhere,
@@ -336,7 +368,7 @@ class StatsController {
         try {
             const { department_id, user_id, role, full_name: queryFullName, period } = req.query;
             const where = {};
-            
+
             const userRecord = user_id ? await User.findByPk(user_id, {
                 include: [{ model: Role, as: 'roleData' }]
             }) : null;
@@ -366,7 +398,7 @@ class StatsController {
                 visibilityClauses.push({ '$letter.encoder_id$': user_id });
                 visibilityClauses.push({ '$letter.sender$': user_id });
                 visibilityClauses.push({ '$letter.endorsed$': user_id });
-                
+
                 if (full_name) {
                     const nameParts = full_name.split(' ').filter(p => p.length > 0);
                     const nameMatches = [`%${full_name}%`];
@@ -389,13 +421,13 @@ class StatsController {
                 // Specific department filter requested OR default to user's department
                 const targetDeptId = isSpecificDept ? department_id : myDeptId;
                 const targetDeptIdStr = String(targetDeptId);
-                
+
                 visibilityClauses.push({ department_id: targetDeptIdStr });
 
                 // Pre-fetch dept user IDs to leverage indexes instead of slow subqueries
-                const deptUserIds = await User.findAll({ 
-                    where: { dept_id: targetDeptId }, 
-                    attributes: ['id'], raw: true 
+                const deptUserIds = await User.findAll({
+                    where: { dept_id: targetDeptId },
+                    attributes: ['id'], raw: true
                 }).then(users => users.map(u => u.id));
 
                 if (deptUserIds.length > 0) {
@@ -434,7 +466,7 @@ class StatsController {
                 unassignedVisibilityClauses.push({ encoder_id: user_id });
                 unassignedVisibilityClauses.push({ sender: user_id });
                 unassignedVisibilityClauses.push({ endorsed: user_id });
-                
+
                 if (full_name) {
                     const nameParts = full_name.split(' ').filter(p => p.length > 0);
                     const nameMatches = [`%${full_name}%`];
@@ -457,7 +489,7 @@ class StatsController {
                     unassignedVisibilityClauses.push({
                         [Op.or]: [
                             { dept_id: String(targetDeptId) },
-                            { dept_id: { [Op.or]: [null, 0] } } 
+                            { dept_id: { [Op.or]: [null, 0] } }
                         ]
                     });
                     unassignedVisibilityClauses.push(sequelize.literal(`EXISTS (
@@ -543,8 +575,8 @@ class StatsController {
                 })(),
                 // VEM
                 LetterAssignment.count({
-                    where: { 
-                        ...where, 
+                    where: {
+                        ...where,
                         '$step.step_name$': { [Op.like]: '%VEM%' },
                         [Op.and]: [
                             { '$step.step_name$': { [Op.notLike]: '%AEVM%' } },
@@ -559,8 +591,8 @@ class StatsController {
                 }),
                 // AVEM
                 LetterAssignment.count({
-                    where: { 
-                        ...where, 
+                    where: {
+                        ...where,
                         [Op.or]: [
                             { '$step.step_name$': { [Op.like]: '%AEVM%' } },
                             { '$step.step_name$': { [Op.like]: '%AEVEM%' } }
@@ -575,8 +607,8 @@ class StatsController {
                 // Empty (Empty sender/summary)
                 (async () => {
                     const assigned = await LetterAssignment.count({
-                        where: { 
-                            ...where, 
+                        where: {
+                            ...where,
                             '$letter.global_status$': { [Op.notIn]: [6, 9] },
                             [Op.or]: [
                                 { '$letter.sender$': { [Op.or]: [null, '', ' '] } },
@@ -588,8 +620,8 @@ class StatsController {
                         col: 'letter_id'
                     });
                     const unassigned = await Letter.count({
-                        where: { 
-                            ...unassignedWhere, 
+                        where: {
+                            ...unassignedWhere,
                             global_status: { [Op.notIn]: [6, 9] },
                             [Op.or]: [
                                 { sender: { [Op.or]: [null, '', ' '] } },

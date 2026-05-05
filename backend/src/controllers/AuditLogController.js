@@ -23,8 +23,15 @@ class AuditLogController {
                 where.action = action;
             }
 
+            const User = require('../models/User');
+
             const { count, rows } = await AuditLog.findAndCountAll({
                 where,
+                include: [{
+                    model: User,
+                    as: 'user',
+                    attributes: ['id', 'first_name', 'last_name', 'avatar']
+                }],
                 order: [['created_at', 'DESC']],
                 limit: parseInt(limit),
                 offset

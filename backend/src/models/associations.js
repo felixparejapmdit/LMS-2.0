@@ -94,6 +94,9 @@ RefSectionRegistry.hasOne(DeptSectionUsage, { foreignKey: 'section_code', source
 Department.hasOne(RefSectionRegistry, { foreignKey: 'assigned_to_dept_id', as: 'activeRegistrySection' });
 Department.hasMany(RefSectionRegistry, { foreignKey: 'assigned_to_dept_id', as: 'assignedSections' });
 
+// --- Audit Logs ---
+AuditLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
 module.exports = {
     Letter,
     User,

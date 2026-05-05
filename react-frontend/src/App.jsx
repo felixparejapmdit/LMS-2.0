@@ -8,6 +8,7 @@ import Login from "./pages/auth/Login";
 // Dashboard
 import Dashboard from "./pages/dashboard/Dashboard";
 import Home from "./pages/dashboard/Home";
+import Outbox from "./pages/dashboard/Outbox";
 import VIPView from "./pages/dashboard/VIPView";
 import NewLetter from "./pages/management/NewLetter";
 import MasterTable from "./pages/management/MasterTable";
@@ -174,7 +175,7 @@ function AppRoutes() {
         <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/inbox" element={<ProtectedRoute><Dashboard view="inbox" /></ProtectedRoute>} />
-        <Route path="/outbox" element={<ProtectedRoute><Dashboard view="outbox" /></ProtectedRoute>} />
+        <Route path="/outbox" element={<ProtectedRoute><Outbox /></ProtectedRoute>} />
         <Route path="/vip-view" element={<ProtectedRoute><VIPView /></ProtectedRoute>} />
         <Route path="/new-letter" element={<ProtectedRoute><NewLetter /></ProtectedRoute>} />
         <Route path="/setup" element={<ProtectedRoute><SetupWizard /></ProtectedRoute>} />
