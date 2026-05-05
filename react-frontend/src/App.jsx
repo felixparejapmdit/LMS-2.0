@@ -63,8 +63,10 @@ axios.interceptors.response.use(
     console.error(`%c[API ERROR] ${status} | ${url}`, 'color: white; background: red; padding: 2px 5px; border-radius: 3px; font-weight: bold;');
     console.error('Details:', error.response?.data || error.message);
 
+    const isNetworkError = error.message === 'Network Error' || error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED';
+
     // Auto-redirect to maintenance on gateway errors (backend down/updating)
-    if (status === 502 || status === 503 || status === 504) {
+    if (status === 502 || status === 503 || status === 504 || isNetworkError) {
       if (window.location.pathname !== '/maintenance') {
         window.location.href = '/maintenance';
       }

@@ -1,7 +1,31 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Settings, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
+import axios from 'axios';
 
 const Maintenance = () => {
+    const [isReconnecting, setIsReconnecting] = useState(false);
+
+    useEffect(() => {
+        // Poll the backend to check if it's back online
+        const checkHealth = async () => {
+            try {
+                // Try fetching a lightweight endpoint or just the API base
+                const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/health`, { timeout: 3000 });
+                if (res.status === 200) {
+                    setIsReconnecting(true);
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1500);
+                }
+            } catch (error) {
+                // Still down, keep waiting
+            }
+        };
+
+        const interval = setInterval(checkHealth, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <div className="min-h-screen bg-[#F9FAFB] dark:bg-[#0D0D0D] flex items-center justify-center p-4 font-sans overflow-hidden relative">
             {/* Background Decorative Elements */}
@@ -31,7 +55,9 @@ const Maintenance = () => {
                     </h1>
                     
                     <p className="text-slate-600 dark:text-slate-400 text-lg md:text-xl font-medium max-w-lg mb-10 leading-relaxed">
-                        We're currently optimizing the LMS environment to provide you with a smoother, faster experience. We'll be back shortly!
+                        {isReconnecting 
+                            ? "Connection restored! Redirecting you back to the system..." 
+                            : "We're currently optimizing the LMS environment to provide you with a smoother, faster experience. We'll be back shortly!"}
                     </p>
 
                     {/* Status Grid */}
