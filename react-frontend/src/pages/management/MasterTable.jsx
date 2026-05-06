@@ -361,7 +361,12 @@ export default function MasterTable() {
         (async () => {
           try {
             await createEndorsement(selectedLetter.id, finalName);
-            const updatedLetter = await letterService.getById(selectedLetter.id);
+            const updatedLetter = await letterService.getById(selectedLetter.id, {
+                user_id: user?.id,
+                role: user?.roleData?.name || user?.role || "",
+                full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+            });
+
             // Keep the name in the textbox as requested, but update the endorsements list
             setSelectedLetter({ 
               ...updatedLetter, 
@@ -485,7 +490,12 @@ export default function MasterTable() {
 
     try {
       // Fetch fresh data to ensure we have the absolute latest endorsement history
-      const currentLetter = await letterService.getById(letterId);
+      const currentLetter = await letterService.getById(letterId, {
+        user_id: user?.id,
+        role: user?.roleData?.name || user?.role || "",
+        full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+      });
+
       const history = currentLetter.endorsements || [];
       // Check if this person is already in the endorsement history for this letter
       if (history.some(e => e.endorsed_to?.trim() === endorsedTo)) {
@@ -813,7 +823,12 @@ export default function MasterTable() {
 
   const handleTrackOpen = async (letter) => {
     try {
-      const fullLetter = await letterService.getById(letter.id);
+      const fullLetter = await letterService.getById(letter.id, {
+        user_id: user?.id,
+        role: user?.roleData?.name || user?.role || "",
+        full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+      });
+
       setTrackingLetter(fullLetter);
       setIsTrackDrawerOpen(true);
     } catch (error) {
@@ -1856,7 +1871,12 @@ export default function MasterTable() {
                             if (!name) return;
                             try {
                                 await createEndorsement(selectedLetter.id, name);
-                                const updatedLetter = await letterService.getById(selectedLetter.id);
+                                const updatedLetter = await letterService.getById(selectedLetter.id, {
+                                    user_id: user?.id,
+                                    role: user?.roleData?.name || user?.role || "",
+                                    full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+                                });
+
                                 setSelectedLetter({ ...updatedLetter, endorse_to: "" });
                                 setValidationError("");
                             } catch (err) {
@@ -1880,7 +1900,12 @@ export default function MasterTable() {
                                     try {
                                       await createEndorsement(selectedLetter.id, p.name);
                                       // Refresh endorsement list in current letter
-                                      const updatedLetter = await letterService.getById(selectedLetter.id);
+                                      const updatedLetter = await letterService.getById(selectedLetter.id, {
+                                          user_id: user?.id,
+                                          role: user?.roleData?.name || user?.role || "",
+                                          full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+                                      });
+
                                       setSelectedLetter({
                                         ...updatedLetter,
                                         endorse_to: p.name, // Keep the name in the box as requested

@@ -90,7 +90,13 @@ export default function LetterDetail() {
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letters/${id}`);
+      const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letters/${id}`, {
+        params: {
+          user_id: user?.id,
+          role: user?.roleData?.name || user?.role || "",
+          full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+        }
+      });
       setLetter(response.data);
     } catch (error) {
       console.error("Fetch failed:", error);

@@ -115,7 +115,12 @@ export default function AevmResumen() {
         setLoading(true);
         setError('');
         try {
-            const letter = await letterService.getByLmsId(targetId);
+            const letter = await letterService.getByLmsId(targetId, {
+                user_id: user?.id,
+                role: user?.roleData?.name || user?.role || "",
+                full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+            });
+
             if (letters.find(l => l.id === letter.id)) {
                 setError('Letter already in the list.');
                 return false;

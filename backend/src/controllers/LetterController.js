@@ -495,6 +495,27 @@ class LetterController {
         ],
       });
       if (!result) return res.status(404).json({ error: "Letter not found" });
+
+      // Enforcement of Hidden Letter privacy
+      if (result.is_hidden) {
+        const { user_id, role, full_name } = req.query;
+        const normalizedRole = role ? role.toString().toUpperCase().trim() : "";
+        const SUPER_ADMIN_ROLES = ["ADMINISTRATOR", "ADMIN", "SUPER ADMIN"];
+        const isSuperAdmin = SUPER_ADMIN_ROLES.includes(normalizedRole);
+
+        const fullName = full_name || "";
+        const isAuthorized = isSuperAdmin || 
+                           result.encoder_id === user_id || 
+                           (result.authorized_users && (
+                             result.authorized_users.toLowerCase().includes(fullName.toLowerCase()) ||
+                             result.authorized_users.toLowerCase().includes(`${fullName.split(" ").reverse().join(", ")}`.toLowerCase())
+                           ));
+
+        if (!isAuthorized) {
+          return res.status(403).json({ error: "Access Restricted: This letter is hidden." });
+        }
+      }
+
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: error.message });

@@ -196,7 +196,12 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         setIsAddingLetter(true);
         setModalError("");
         try {
-            const letter = await letterService.getByLmsId(targetId);
+            const letter = await letterService.getByLmsId(targetId, {
+                user_id: user?.id,
+                role: user?.roleData?.name || user?.role || "",
+                full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+            });
+
             if (modalLetters.find(l => l.id === letter.id)) {
                 setModalError("Letter already in the list.");
                 return false;
@@ -546,7 +551,12 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                         setLoading(true);
                                         const updated = await Promise.all(
                                             modalLetters.map(async (l) => {
-                                                try { return await letterService.getByLmsId(l.lms_id); } catch { return l; }
+                                                try { return await letterService.getByLmsId(l.lms_id, {
+                                                    user_id: user?.id,
+                                                    role: user?.roleData?.name || user?.role || "",
+                                                    full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+                                                }); } catch { return l; }
+
                                             })
                                         );
                                         setModalLetters(updated);

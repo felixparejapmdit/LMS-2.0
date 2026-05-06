@@ -175,7 +175,11 @@ export default function LetterTracker() {
     const handleTrackOpen = async (letter) => {
         try {
             // Fetch full letter with logs when opening track
-            const fullLetter = await letterService.getById(letter.id);
+            const fullLetter = await letterService.getById(letter.id, {
+                user_id: user?.id,
+                role: user?.roleData?.name || user?.role || "",
+                full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+            });
             setSelectedLetter(fullLetter);
             setIsTrackDrawerOpen(true);
         } catch (error) {

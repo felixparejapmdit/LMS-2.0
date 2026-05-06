@@ -17,13 +17,13 @@ class LetterService {
         }
     }
 
-    async getByLmsId(lms_id) {
-        const response = await axios.get(`${API_URL}/lms-id/${lms_id}`);
+    async getByLmsId(lms_id, params = {}) {
+        const response = await axios.get(`${API_URL}/lms-id/${lms_id}`, { params });
         return response.data;
     }
 
-    async getById(id) {
-        const response = await axios.get(`${API_URL}/${id}`);
+    async getById(id, params = {}) {
+        const response = await axios.get(`${API_URL}/${id}`, { params });
         return response.data;
     }
 

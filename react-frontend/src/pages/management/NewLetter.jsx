@@ -225,7 +225,12 @@ export default function NewLetter() {
           setPredictedLmsId(refCode);
           // Optionally fetch existing data if it's an "Empty Entry"
           const existing = await letterService
-            .getByLmsId(refCode)
+            .getByLmsId(refCode, {
+                user_id: user?.id,
+                role: user?.roleData?.name || user?.role || "",
+                full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+            })
+
             .catch(() => null);
           if (existing) {
             if (existing.dept_id) {
@@ -787,7 +792,12 @@ export default function NewLetter() {
       let created;
       if (refCode) {
         // If we have a refCode, we find the letter by LMS ID and update it
-        const existing = await letterService.getByLmsId(refCode);
+        const existing = await letterService.getByLmsId(refCode, {
+            user_id: user?.id,
+            role: user?.roleData?.name || user?.role || "",
+            full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+        });
+
         if (existing) {
           created = await letterService.update(existing.id, submissionData);
         } else {
