@@ -133,7 +133,8 @@ export default function Trays() {
             if (refreshSetupStatus) refreshSetupStatus();
         } catch (err) {
             console.error("Delete failed:", err);
-            alert("Delete failed.");
+            const msg = err.response?.data?.error || "Delete failed. The tray might still have letters.";
+            alert(msg);
         }
     };
 

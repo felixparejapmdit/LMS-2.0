@@ -140,8 +140,12 @@ function AppRoutes() {
         e.preventDefault();
         console.log("[SHORTCUT] Sequence primed: ctrl_y");
       } else if (e.ctrlKey && key === 'a') {
+        // Only prevent default for Ctrl+A if not in an input/textarea to allow "Select All"
+        const isInput = ['input', 'textarea'].includes(e.target.tagName.toLowerCase()) || e.target.isContentEditable;
+        if (!isInput) {
+          e.preventDefault();
+        }
         sequenceRef.current = 'ctrl_a';
-        e.preventDefault();
         console.log("[SHORTCUT] Sequence primed: ctrl_a");
       } 
       // Completions (X after Ctrl+Y, or M after Ctrl+A)

@@ -72,11 +72,24 @@ class TrayController {
 
     static async delete(req, res) {
         try {
-            const tray = await Tray.findByPk(req.params.id);
+            const { id } = req.params;
+            const { Tray, Letter } = require('../models/associations');
+            
+            const tray = await Tray.findByPk(id);
             if (!tray) return res.status(404).json({ error: 'Tray not found' });
+
+            // Check if tray has letters
+            const letterCount = await Letter.count({ where: { tray_id: id } });
+            if (letterCount > 0) {
+                return res.status(400).json({ 
+                    error: `Cannot delete tray because it still contains ${letterCount} letter(s). Please move them to another tray first.` 
+                });
+            }
+
             await tray.destroy();
             res.json({ message: 'Tray deleted successfully' });
         } catch (error) {
+            console.error('[TRAY DELETE ERROR]', error);
             res.status(500).json({ error: error.message });
         }
     }

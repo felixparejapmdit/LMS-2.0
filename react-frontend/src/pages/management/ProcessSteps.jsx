@@ -97,7 +97,8 @@ export default function ProcessSteps() {
             if (refreshSetupStatus) refreshSetupStatus();
         } catch (err) {
             console.error("Delete failed:", err);
-            alert("Delete failed.");
+            const msg = err.response?.data?.error || "Delete failed. The step may be in use.";
+            alert(msg);
         }
     };
 

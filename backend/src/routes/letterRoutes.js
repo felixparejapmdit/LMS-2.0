@@ -3,6 +3,7 @@ const router = express.Router();
 const LetterController = require('../controllers/LetterController');
 
 router.get('/', LetterController.getAll);
+router.get('/summary-suggestions', LetterController.getSummarySuggestions);
 router.get('/preview/ids', LetterController.getPreviewIds);
 router.get('/lms-id/:lms_id', LetterController.getByLmsId);
 router.get('/:id', LetterController.getById);

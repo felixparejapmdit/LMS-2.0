@@ -22,6 +22,38 @@ const isValidId = (id) =>
   id && id !== "all" && id !== "null" && id !== "undefined" && id !== "";
 
 class LetterController {
+  static async getSummarySuggestions(req, res) {
+    try {
+      const { query } = req.query;
+      if (!query || query.length < 2) {
+        return res.json([]);
+      }
+
+      // Fetch unique summaries that match the query
+      // We use DISTINCT to avoid suggesting the exact same subject multiple times
+      const summaries = await Letter.findAll({
+        attributes: [[sequelize.fn('DISTINCT', sequelize.col('summary')), 'summary']],
+        where: {
+          summary: {
+            [Op.like]: `%${query}%`
+          }
+        },
+        limit: 10,
+        raw: true
+      });
+
+      // Map to return a simple array of strings
+      const results = summaries
+        .map(s => s.summary)
+        .filter(s => s && s.trim().length > 0);
+
+      res.json(results);
+    } catch (error) {
+      console.error("Error fetching summary suggestions:", error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   static async getAll(req, res) {
     try {
       const {

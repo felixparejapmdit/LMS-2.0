@@ -18,7 +18,8 @@ import {
     GitMerge,
     Menu,
     Printer,
-    X
+    X,
+    ChevronDown
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -141,7 +142,7 @@ export default function LetterTracker() {
 
         // 3. Group filter (process step name)
         if (filterGroup) {
-            const stepMatch = letter.assignments?.some(a => 
+            const stepMatch = letter.assignments?.some(a =>
                 a.step?.step_name?.toLowerCase() === filterGroup.toLowerCase()
             );
             if (!stepMatch) return false;
@@ -149,8 +150,12 @@ export default function LetterTracker() {
 
         // 4. Status filter (status name)
         if (filterStatus) {
-            const statusName = letter.status?.status_name?.toLowerCase() || '';
-            if (statusName !== filterStatus.toLowerCase()) return false;
+            if (filterStatus.toLowerCase() === 'resolved') {
+                if (!letter.is_resolved) return false;
+            } else {
+                const statusName = letter.status?.status_name?.toLowerCase() || '';
+                if (statusName !== filterStatus.toLowerCase()) return false;
+            }
         }
 
         // 4. Search Filter
@@ -264,8 +269,8 @@ export default function LetterTracker() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
-                    <div className="max-w-full mx-auto space-y-6">
+                <div className="flex-1 flex flex-col overflow-hidden p-4 md:p-6">
+                    <div className="w-full max-w-full mx-auto space-y-6 flex-1 flex flex-col min-h-0">
                         {/* Summary & Search */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
 
@@ -316,11 +321,11 @@ export default function LetterTracker() {
 
 
                         {/* Table Container */}
-                        <div className={`rounded-3xl border overflow-hidden shadow-sm ${cardBg}`}>
-                            <div className="overflow-x-auto custom-scrollbar">
+                        <div className={`flex-1 flex flex-col min-h-0 rounded-3xl border shadow-sm ${cardBg}`}>
+                            <div className="flex-1 overflow-auto custom-scrollbar">
                                 <table className="w-full text-left border-collapse min-w-[1000px]">
-                                    <thead>
-                                        <tr className={`border-b ${'border-gray-50 dark:border-[#222] bg-gray-50/50'}`}>
+                                    <thead className="sticky top-0 z-20">
+                                        <tr className={`border-b ${'border-gray-50 dark:border-[#222] bg-gray-50 dark:bg-[#1a1a1a]'}`}>
                                             <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500 w-12 text-center">#</th>
                                             <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Reference #</th>
                                             <th className="px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">Date Received</th>
@@ -413,70 +418,187 @@ export default function LetterTracker() {
                 </div>
             </main>
 
-            {/* TRACK DRAWER */}
-            {
-                isTrackDrawerOpen && selectedLetter && (
-                    <div className="fixed inset-0 z-[100] flex justify-end">
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsTrackDrawerOpen(false)} />
-                        <div className={`w-full max-w-md ${cardBg} h-full relative z-10 animate-in slide-in-from-right duration-500 flex flex-col border-l`}>
-                            <div className="p-8 border-b flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/10 flex items-center justify-center text-indigo-500">
-                                        <GitMerge className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <h2 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>Workflow Track</h2>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedLetter.entry_id}</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setIsTrackDrawerOpen(false)} className="p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl text-gray-400"><ChevronRight className="w-6 h-6" /></button>
+            {isTrackDrawerOpen && selectedLetter && (
+                <div className="fixed inset-0 z-[100] flex justify-end">
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"
+                        onClick={() => setIsTrackDrawerOpen(false)}
+                    />
+                    <div className="w-full max-w-sm bg-white dark:bg-[#141414] shadow-2xl h-full relative z-10 animate-in slide-in-from-right duration-500 flex flex-col">
+                        {/* Header */}
+                        <div className="p-6 border-b border-gray-100 dark:border-[#222] flex items-center justify-between">
+                            <div>
+                                <span className="text-lg font-black text-orange-500 uppercase tracking-tight">
+                                    {selectedLetter?.lms_id}
+                                </span>
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                                    Activity Tracking
+                                </p>
                             </div>
+                            <button
+                                onClick={() => setIsTrackDrawerOpen(false)}
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors"
+                            >
+                                <X className="w-5 h-5 text-gray-400" />
+                            </button>
+                        </div>
 
-                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                                <div className="relative pl-8 space-y-12 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-white/5">
-                                    {/* Entry Point */}
-                                    <div className="relative">
-                                        <div className="absolute -left-9 w-6 h-6 rounded-full bg-orange-500 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
-                                        <div>
-                                            <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Entry Registration</p>
-                                            <h4 className={`text-sm font-bold mt-1 ${textColor}`}>Letter Registered by {selectedLetter.encoder?.first_name || 'Guest'}</h4>
-                                            <p className="text-xs text-gray-500 mt-2 line-clamp-3">{selectedLetter.summary}</p>
-                                            <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{new Date(selectedLetter.date_received).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short', hour12: true })}</p>
-                                        </div>
-                                    </div>
+                        {/* Timeline Content */}
+                        <div className="flex-1 overflow-y-auto px-4 py-8 custom-scrollbar">
+                            {!selectedLetter?.logs || selectedLetter.logs.length === 0 ? (
+                                <p className="text-center text-gray-400 py-20 uppercase font-black tracking-widest text-[10px]">
+                                    No activity recorded yet.
+                                </p>
+                            ) : (
+                                <div className="relative">
+                                    {(() => {
+                                        // 1. Sort ASCENDING (oldest to newest) to process progression
+                                        const sorted = [...selectedLetter.logs].sort(
+                                            (a, b) =>
+                                                new Date(a.timestamp || a.log_date || 0) -
+                                                new Date(b.timestamp || b.log_date || 0),
+                                        );
 
-                                    {selectedLetter.logs?.map((log, i) => {
-                                        const isEndorsement = log.action_type === 'Endorsed';
-                                        return (
-                                            <div key={i} className="relative">
-                                                <div className={`absolute -left-9 w-6 h-6 rounded-full border-4 border-white dark:border-[#141414] shadow-sm z-10 ${isEndorsement ? 'bg-orange-500' : 'bg-indigo-500'}`} />
-                                                <div>
-                                                    <p className={`text-[10px] font-black uppercase tracking-widest ${isEndorsement ? 'text-orange-500' : 'text-indigo-500'}`}>
-                                                        {isEndorsement ? 'Endorsement' : log.action_type || 'Update'}
-                                                    </p>
-                                                    <h4 className={`text-sm font-bold mt-1 ${isEndorsement ? 'text-orange-500' : textColor}`}>{log.log_details || log.action_taken}</h4>
-                                                    <p className="text-[9px] font-black text-gray-400 uppercase mt-2">{new Date(log.timestamp || log.log_date).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short', hour12: true })}</p>
+                                        // 2. Map and Filter Redundant Consecutive States
+                                        const uniqueSequence = [];
+                                        let lastStateKey = "";
+
+                                        sorted.forEach((log) => {
+                                            const statusComp = (log.status?.status_name || "")
+                                                .trim()
+                                                .toUpperCase();
+                                            const stepComp = (log.step?.step_name || "")
+                                                .trim()
+                                                .toUpperCase();
+                                            const actionType = (log.action_type || "")
+                                                .trim()
+                                                .toUpperCase();
+                                            const deptComp = (log.department?.dept_code || "")
+                                                .trim()
+                                                .toUpperCase();
+
+                                            let displayHeading = "";
+                                            let displaySubheading = "";
+
+                                            // Priority Status Checks (Bypass workflow matrix)
+                                            const isPriority =
+                                                statusComp.includes("FILED") ||
+                                                actionType.includes("FILED") ||
+                                                statusComp.includes("HOLD") ||
+                                                actionType.includes("HOLD");
+
+                                            // Strictly followed User Mapping Logic
+                                            if (actionType.includes("ENDORSE") || statusComp.includes("ENDORSE")) {
+                                                const endorsedTo = log.metadata?.endorsed_to;
+                                                if (!endorsedTo) return; // SKIP: Only show entries with specific recipient names
+                                                displayHeading = endorsedTo;
+                                                displaySubheading = ""; // Strictly empty as requested
+                                            } else if (statusComp === "INCOMING" || statusComp === "PENDING") {
+                                                displayHeading = "Processing";
+                                                displaySubheading = "For Incoming";
+                                            } else if (statusComp.includes("REVIEW") || stepComp.includes("REVIEW")) {
+                                                displayHeading = "ATG Office";
+                                                displaySubheading = selectedLetter?.atgnote || "Being Reviewed";
+                                            } else if (stepComp === "VEM LETTER" || (deptComp === "EVM" && statusComp.includes("FORWARD"))) {
+                                                displayHeading = "Office of the Executive Minister";
+                                                displaySubheading = selectedLetter?.evemnote || "Processing";
+                                            } else if (stepComp === "AEVM LETTER" || stepComp === "AEVEM LETTER" || (deptComp === "AEVM" && statusComp.includes("FORWARD"))) {
+                                                displayHeading = "Office of the Deputy Executive Minister";
+                                                displaySubheading = selectedLetter?.aevmnote || "Processing";
+                                            } else if (isPriority) {
+                                                displayHeading = log.status?.status_name || log.action_type || actionType;
+                                                displaySubheading = log.metadata?.location || "";
+                                            } else {
+                                                displayHeading = log.department?.dept_code || log.step?.step_name || "Activity";
+                                                displaySubheading = "";
+
+                                                // SKIP: Remove redundant "ATG" labels as "ATG Office" is already shown
+                                                if (displayHeading === "ATG") return;
+                                            }
+
+                                            // Detect Duplicate State
+                                            const currentStateKey =
+                                                `${displayHeading}-${displaySubheading}`.toUpperCase();
+                                            if (currentStateKey !== lastStateKey || isPriority) {
+                                                uniqueSequence.push({
+                                                    ...log,
+                                                    displayHeading,
+                                                    displaySubheading,
+                                                });
+                                                lastStateKey = currentStateKey;
+                                            }
+                                        });
+
+                                        // 3. Newest at bottom: do NOT reverse
+                                        return uniqueSequence.map((log, i, arr) => {
+                                            const logDate = new Date(log.timestamp || log.log_date);
+                                            const isLastItem = i === arr.length - 1;
+                                            const isResolved = selectedLetter?.is_resolved;
+
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className="relative grid grid-cols-[90px_auto_1fr] items-start gap-3 mb-8"
+                                                >
+                                                    <div className="text-right pt-0.5">
+                                                        <p className="text-xs font-black text-slate-800 dark:text-slate-200">
+                                                            {logDate.toLocaleDateString("en-PH", {
+                                                                day: "numeric",
+                                                                month: "short",
+                                                                timeZone: "Asia/Manila",
+                                                            })}
+                                                        </p>
+                                                        <p className="text-[10px] font-medium text-gray-400">
+                                                            {logDate.toLocaleTimeString("en-PH", {
+                                                                hour: "2-digit",
+                                                                minute: "2-digit",
+                                                                hour12: false,
+                                                                timeZone: "Asia/Manila",
+                                                            })}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="flex flex-col items-center">
+                                                        <div className={`w-5 h-5 rounded-full border-2 ${isResolved && isLastItem ? "border-red-500 bg-red-500 shadow-lg shadow-red-500/30" : "border-orange-400 bg-white dark:bg-[#141414]"} z-10 flex items-center justify-center shrink-0`}>
+                                                            {!isLastItem || !isResolved ? (
+                                                                <div className="w-2 h-2 rounded-full bg-orange-400" />
+                                                            ) : null}
+                                                        </div>
+                                                        {!isLastItem && (
+                                                            <div className="flex flex-col items-center flex-1">
+                                                                <div className="w-px flex-1 border-l-2 border-dashed border-gray-200 dark:border-[#333] min-h-[1.5rem]" />
+                                                                <ChevronDown className="w-3 h-3 text-gray-300 -mt-1 mb-1" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="pt-0.5">
+                                                        <p className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-tight">
+                                                            {log.displayHeading}
+                                                        </p>
+                                                        <p className="text-[10px] text-gray-500 font-medium mt-0.5 whitespace-pre-wrap">
+                                                            {log.displaySubheading}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )
-                                    })}
-
-                                    {/* Final Status */}
-                                    <div className="relative pt-4">
-                                        <div className="absolute -left-9 w-6 h-6 rounded-full bg-slate-200 dark:bg-white/10 border-4 border-white dark:border-[#141414] shadow-sm z-10" />
-                                        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
-                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Current State</p>
-                                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-500 text-white`}>
-                                                {selectedLetter.status?.status_name || 'PROCESSING'}
-                                            </span>
-                                        </div>
-                                    </div>
+                                            );
+                                        });
+                                    })()}
                                 </div>
-                            </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 border-t border-gray-100 dark:border-[#222]">
+                            <button
+                                onClick={() => setIsTrackDrawerOpen(false)}
+                                className="w-full py-3 bg-orange-500 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-orange-500/20"
+                            >
+                                Close
+                            </button>
                         </div>
                     </div>
-                )
-            }
+                </div>
+            )}
         </div >
     );
 }

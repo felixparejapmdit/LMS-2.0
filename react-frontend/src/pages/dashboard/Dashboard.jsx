@@ -95,7 +95,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     review: 'For Review',
     atg_note: 'FOR ATG NOTE',
     vem: 'VEM LETTER',
-    avem: 'AEVEM LETTER',
+    avem: 'AEVM LETTER',
     pending: 'PENDING',
     hold: 'HOLD',
     empty_entry: 'EMPTY ENTRY'
@@ -537,16 +537,14 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                   <button
                     key={id}
                     onClick={() => setActiveStepTab(id)}
-                    className={`px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${
-                      activeStepTab === id
+                    className={`px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === id
                         ? `bg-gradient-to-r ${tabGradients[id] || 'from-[#1A1A1B] to-[#333]'} text-white shadow-md`
                         : 'text-[#737373] dark:text-[#A3A3A3] hover:text-[#1A1A1B] dark:hover:text-white'
-                    }`}
+                      }`}
                   >
                     {label}
-                    <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${
-                      activeStepTab === id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'
-                    }`}>
+                    <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${activeStepTab === id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'
+                      }`}>
                       {inboxStats[id] || 0}
                     </span>
                   </button>

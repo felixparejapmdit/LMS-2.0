@@ -144,7 +144,7 @@ export default function DepartmentViewer() {
                 </header>
 
                 <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                    <div className="max-w-7xl mx-auto space-y-8">
+                    <div className="w-full space-y-8">
                         {/* Header Section */}
                         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                             <div>

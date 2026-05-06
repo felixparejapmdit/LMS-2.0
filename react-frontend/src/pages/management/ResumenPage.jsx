@@ -25,8 +25,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Maximize2,
-    ArrowUp,
-    ArrowDown
+    Menu
 } from "lucide-react";
 import jsQR from "jsqr";
 
@@ -239,20 +238,28 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         setModalLetters(prev => prev.filter(l => l.id !== id));
     };
 
-    const handleMoveUp = (index) => {
-        if (index === 0) return;
-        setModalLetters(prev => {
-            const next = [...prev];
-            [next[index - 1], next[index]] = [next[index], next[index - 1]];
-            return next;
-        });
+    const handleDragStart = (e, index) => {
+        e.dataTransfer.setData("index", index);
+        e.target.style.opacity = "0.4";
     };
 
-    const handleMoveDown = (index) => {
-        if (index === modalLetters.length - 1) return;
+    const handleDragEnd = (e) => {
+        e.target.style.opacity = "1";
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = (e, targetIndex) => {
+        e.preventDefault();
+        const sourceIndex = parseInt(e.dataTransfer.getData("index"));
+        if (sourceIndex === targetIndex) return;
+
         setModalLetters(prev => {
             const next = [...prev];
-            [next[index + 1], next[index]] = [next[index], next[index + 1]];
+            const [movedItem] = next.splice(sourceIndex, 1);
+            next.splice(targetIndex, 0, movedItem);
             return next;
         });
     };
@@ -708,7 +715,15 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                 </tr>
                                             ) : (
                                                 filteredLetters.map((l, idx) => (
-                                                    <tr key={l.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/2 transition-colors print:border-slate-300">
+                                                    <tr 
+                                                        key={l.id} 
+                                                        className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/2 transition-colors print:border-slate-300 cursor-move"
+                                                        draggable
+                                                        onDragStart={(e) => handleDragStart(e, idx)}
+                                                        onDragEnd={handleDragEnd}
+                                                        onDragOver={handleDragOver}
+                                                        onDrop={(e) => handleDrop(e, idx)}
+                                                    >
                                                         <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300 text-xs font-black text-slate-400 print:text-slate-900">{idx + 1}</td>
                                                         <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300 whitespace-nowrap">
                                                             <div className="flex flex-col text-[10px] font-bold text-slate-500 print:text-slate-900">
@@ -744,8 +759,9 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                         </td>
                                                         <td className="py-6 px-4 print:hidden text-right">
                                                             <div className="flex items-center justify-end gap-1">
-                                                                <button onClick={() => handleMoveUp(idx)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-colors" title="Move Up"><ArrowUp className="w-3 h-3" /></button>
-                                                                <button onClick={() => handleMoveDown(idx)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-colors" title="Move Down"><ArrowDown className="w-3 h-3" /></button>
+                                                                <div className="p-1.5 text-slate-300 hover:text-blue-500 transition-colors" title="Drag to reorder">
+                                                                    <Menu className="w-4 h-4" />
+                                                                </div>
                                                                 <button onClick={() => handleDeleteLetter(l.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors" title="Delete"><Trash2 className="w-3 h-3" /></button>
                                                             </div>
                                                         </td>

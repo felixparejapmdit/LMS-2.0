@@ -119,7 +119,7 @@ class LetterAssignmentController {
       }
 
       // 2. Department-based Visibility
-      if (isSuperAdmin) {
+      if (isSuperAdmin || vip === "true") {
         visibilityClauses.push(sequelize.literal("1=1"));
       } else if (isAdmin) {
         const deptToUse = department_id || myDeptId;
@@ -312,8 +312,11 @@ class LetterAssignmentController {
             { "$letter.status.status_name$": "ATG Note" },
           ],
         };
+        const trayFilter = { "$letter.tray_id$": { [Op.or]: [null, 0] } };
+
         if (!where[Op.and]) where[Op.and] = [];
         where[Op.and].push(atgStatusFilter);
+        where[Op.and].push(trayFilter);
 
         if (!step_id) {
           where.step_id = [1, 2, 5, 6];

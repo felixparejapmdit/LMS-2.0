@@ -31,7 +31,10 @@ class ProcessStepController {
             model: Letter,
             as: "letter",
             required: true,
-            where: { global_status: 2 },
+            where: {
+              global_status: 2,
+              tray_id: { [Op.or]: [null, 0] },
+            },
             include: [
               {
                 model: Status,
@@ -98,12 +101,33 @@ class ProcessStepController {
 
   static async delete(req, res) {
     try {
-      const step = await ProcessStep.findByPk(req.params.id);
+      const { id } = req.params;
+      const { ProcessStep, LetterAssignment, LetterLog } = require('../models/associations');
+
+      const step = await ProcessStep.findByPk(id);
       if (!step)
         return res.status(404).json({ error: "ProcessStep not found" });
+
+      // Check for active assignments
+      const assignmentCount = await LetterAssignment.count({ where: { step_id: id } });
+      if (assignmentCount > 0) {
+        return res.status(400).json({ 
+          error: `Cannot delete stage because it is still active in ${assignmentCount} assignment(s).` 
+        });
+      }
+
+      // Check for logs
+      const logCount = await LetterLog.count({ where: { step_id: id } });
+      if (logCount > 0) {
+        return res.status(400).json({ 
+          error: `Cannot delete stage because it is referenced in ${logCount} historical logs.` 
+        });
+      }
+
       await step.destroy();
       res.json({ message: "ProcessStep deleted successfully" });
     } catch (error) {
+      console.error('[PROCESS STEP DELETE ERROR]', error);
       res.status(500).json({ error: error.message });
     }
   }

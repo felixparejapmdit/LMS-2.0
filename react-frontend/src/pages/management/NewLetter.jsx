@@ -45,6 +45,35 @@ export default function NewLetter() {
   const refCode = searchParams.get("ref_code");
   const { user, layoutStyle, setIsMobileMenuOpen, isSetupComplete } = useAuth();
   const access = useAccess();
+  const todayDate = new Date();
+  const today = todayDate.toLocaleDateString("en-PH", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "Asia/Manila",
+  });
+
+  const getWeekNumber = (d) => {
+    const date = new Date(d.getTime());
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+    const week1 = new Date(date.getFullYear(), 0, 4);
+    return (
+      1 +
+      Math.round(
+        ((date.getTime() - week1.getTime()) / 86400000 -
+          3 +
+          ((week1.getDay() + 6) % 7)) /
+          7,
+      )
+    );
+  };
+
+  const dayName = todayDate.toLocaleDateString("en-PH", {
+    weekday: "long",
+    timeZone: "Asia/Manila",
+  });
+  const weekNumber = getWeekNumber(todayDate);
 
   const [loading, setLoading] = useState(false);
   const [kinds, setKinds] = useState([]);
@@ -108,6 +137,11 @@ export default function NewLetter() {
 
   const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
   const [conflictData, setConflictData] = useState({ currentCode: "", nextCode: "" });
+
+  const [summarySuggestions, setSummarySuggestions] = useState([]);
+  const [showSummarySuggestions, setShowSummarySuggestions] = useState(false);
+  const [highlightedSummaryIndex, setHighlightedSummaryIndex] = useState(-1);
+  const summarySuggestionRef = useRef(null);
 
   const [error, setError] = useState("");
   const canField = access?.canField || (() => true);
@@ -316,6 +350,12 @@ export default function NewLetter() {
       ) {
         setShowAuthorizedSuggestions(false);
       }
+      if (
+        summarySuggestionRef.current &&
+        !summarySuggestionRef.current.contains(event.target)
+      ) {
+        setShowSummarySuggestions(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -348,6 +388,25 @@ export default function NewLetter() {
       setHighlightedSuggestionIndex(cleaned.length > 0 ? 0 : -1);
     } catch (error) {
       console.error("Error fetching suggestions:", error);
+    }
+  };
+
+  const fetchSummarySuggestions = async (query) => {
+    if (!query || query.length < 2) {
+      setSummarySuggestions([]);
+      setShowSummarySuggestions(false);
+      setHighlightedSummaryIndex(-1);
+      return;
+    }
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/letters/summary-suggestions?query=${query}`,
+      );
+      setSummarySuggestions(response.data);
+      setShowSummarySuggestions(response.data.length > 0);
+      setHighlightedSummaryIndex(response.data.length > 0 ? 0 : -1);
+    } catch (error) {
+      console.error("Error fetching summary suggestions:", error);
     }
   };
 
@@ -447,8 +506,6 @@ export default function NewLetter() {
     }
     setShowSuggestions(false);
     setHighlightedSuggestionIndex(-1);
-    // Focus the subject/regarding field after selecting a suggestion
-    setTimeout(() => regardingRef.current?.focus(), 50);
   };
 
   const scrollHighlightedSuggestionIntoView = (index) => {
@@ -463,6 +520,7 @@ export default function NewLetter() {
 
   const handleSenderKeyDown = (e) => {
     if (activeField !== "sender") return;
+    if (e.ctrlKey || e.metaKey) return;
 
     if (!suggestions || suggestions.length === 0) {
       if (e.key === "Enter") {
@@ -549,6 +607,7 @@ export default function NewLetter() {
   };
 
   const handleAuthorizedKeyDown = (e) => {
+    if (e.ctrlKey || e.metaKey) return;
     if (!authorizedSuggestions || authorizedSuggestions.length === 0) return;
 
     if (e.key === "ArrowDown") {
@@ -841,6 +900,12 @@ export default function NewLetter() {
               </div>
             </div>
           </div>
+          <div className="hidden md:flex flex-col items-end">
+            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+              Week {weekNumber} - {dayName}
+            </span>
+            <span className={`text-xs font-bold ${textColor}`}>{today}</span>
+          </div>
         </header>
 
         <div
@@ -1094,7 +1159,10 @@ export default function NewLetter() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> Date
+                      <Clock className="w-3 h-3" /> DATE
+                      <span className="ml-1 text-[9px] font-black text-orange-500/80 lowercase italic tracking-tight">
+                        (Week {weekNumber} - {dayName})
+                      </span>
                     </label>
                     <input
                       type="datetime-local"
@@ -1199,17 +1267,71 @@ export default function NewLetter() {
                         Required
                       </span>
                     </div>
-                    <textarea
-                      ref={regardingRef}
-                      rows="3"
-                      required
-                      value={formData.summary}
-                      onChange={(e) =>
-                        setFormData({ ...formData, summary: e.target.value })
-                      }
-                      placeholder="Subject"
-                      className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 resize-none transition-all ${"bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300"}`}
-                    />
+                    <div className="relative">
+                      <textarea
+                        ref={regardingRef}
+                        rows="3"
+                        required
+                        value={formData.summary}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormData({ ...formData, summary: val });
+                          setActiveField("summary");
+                          fetchSummarySuggestions(val);
+                        }}
+                        onKeyDown={(e) => {
+                          if (showSummarySuggestions && summarySuggestions.length > 0) {
+                            if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              setHighlightedSummaryIndex(prev => (prev + 1) % summarySuggestions.length);
+                            } else if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              setHighlightedSummaryIndex(prev => (prev - 1 + summarySuggestions.length) % summarySuggestions.length);
+                            } else if (e.key === "Enter") {
+                              e.preventDefault();
+                              const selected = summarySuggestions[highlightedSummaryIndex];
+                              if (selected) {
+                                setFormData({ ...formData, summary: selected });
+                                setShowSummarySuggestions(false);
+                              }
+                            } else if (e.key === "Escape") {
+                              setShowSummarySuggestions(false);
+                            }
+                          }
+                        }}
+                        onFocus={() => {
+                          setActiveField("summary");
+                          if (summarySuggestions.length > 0) setShowSummarySuggestions(true);
+                        }}
+                        placeholder="Subject"
+                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-orange-500 resize-none transition-all ${"bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300"}`}
+                      />
+
+                      {showSummarySuggestions && (
+                        <div
+                          ref={summarySuggestionRef}
+                          className={`absolute z-[110] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${"bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]"}`}
+                        >
+                          {summarySuggestions.map((text, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => {
+                                setFormData({ ...formData, summary: text });
+                                setShowSummarySuggestions(false);
+                              }}
+                              onMouseEnter={() => setHighlightedSummaryIndex(idx)}
+                              className={`px-4 py-3 text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${idx === highlightedSummaryIndex
+                                ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
+                                : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
+                                }`}
+                            >
+                              <MessageSquare className="w-3 h-3 text-orange-400" />
+                              <span className="line-clamp-2">{text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </section>

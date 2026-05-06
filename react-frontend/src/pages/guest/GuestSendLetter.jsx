@@ -15,7 +15,8 @@ import {
     AlertCircle,
     Menu,
     ChevronDown,
-    Search
+    Search,
+    Clock
 } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
@@ -65,6 +66,12 @@ export default function GuestSendLetter() {
     const [conflictData, setConflictData] = useState({ currentCode: "", nextCode: "" });
     const [isExitModalOpen, setIsExitModalOpen] = useState(false);
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+    
+    const [summarySuggestions, setSummarySuggestions] = useState([]);
+    const [showSummarySuggestions, setShowSummarySuggestions] = useState(false);
+    const [highlightedSummaryIndex, setHighlightedSummaryIndex] = useState(-1);
+    const summarySuggestionRef = useRef(null);
+
     const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
     const fileInputRef = useRef(null);
     const suggestionRef = useRef(null);
@@ -81,12 +88,24 @@ export default function GuestSendLetter() {
     const canSubmit = canField("guest-send-letter", "submit_button");
     const canClear = canField("guest-send-letter", "clear_button");
     const canPrintQR = canField("guest-send-letter", "print_qr_button");
-    const today = new Date().toLocaleDateString('en-PH', {
+    const todayDate = new Date();
+    const today = todayDate.toLocaleDateString('en-PH', {
         month: 'long',
         day: 'numeric',
         year: 'numeric',
         timeZone: 'Asia/Manila'
     });
+
+    const getWeekNumber = (d) => {
+        const date = new Date(d.getTime());
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+        const week1 = new Date(date.getFullYear(), 0, 4);
+        return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    };
+
+    const dayName = todayDate.toLocaleDateString('en-PH', { weekday: 'long', timeZone: 'Asia/Manila' });
+    const weekNumber = getWeekNumber(todayDate);
 
     useEffect(() => {
         const fetchRefs = async () => {
@@ -185,6 +204,9 @@ export default function GuestSendLetter() {
             if (attachmentSearchRef.current && !attachmentSearchRef.current.contains(event.target)) {
                 setShowAttachmentResults(false);
             }
+            if (summarySuggestionRef.current && !summarySuggestionRef.current.contains(event.target)) {
+                setShowSummarySuggestions(false);
+            }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -215,6 +237,23 @@ export default function GuestSendLetter() {
             setHighlightedSuggestionIndex(cleaned.length > 0 ? 0 : -1);
         } catch (error) {
             console.error("Error fetching suggestions:", error);
+        }
+    };
+
+    const fetchSummarySuggestions = async (query) => {
+        if (!query || query.length < 2) {
+            setSummarySuggestions([]);
+            setShowSummarySuggestions(false);
+            setHighlightedSummaryIndex(-1);
+            return;
+        }
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letters/summary-suggestions?query=${query}`);
+            setSummarySuggestions(response.data);
+            setShowSummarySuggestions(response.data.length > 0);
+            setHighlightedSummaryIndex(response.data.length > 0 ? 0 : -1);
+        } catch (error) {
+            console.error("Error fetching summary suggestions:", error);
         }
     };
 
@@ -427,8 +466,6 @@ export default function GuestSendLetter() {
         }
         setShowSuggestions(false);
         setHighlightedSuggestionIndex(-1);
-        // Focus RE field after selection
-        setTimeout(() => regardingRef.current?.focus(), 50);
     };
 
     const scrollHighlightedSuggestionIntoView = (index) => {
@@ -440,6 +477,7 @@ export default function GuestSendLetter() {
     };
     const handleSuggestionKeyDown = (e, fieldKey) => {
         if (activeSenderIndex !== fieldKey) return;
+        if (e.ctrlKey || e.metaKey) return;
 
         if (!suggestions || suggestions.length === 0) {
             if (e.key === "Enter") {
@@ -477,8 +515,6 @@ export default function GuestSendLetter() {
             if (picked) {
                 e.preventDefault();
                 selectSuggestion(picked.name);
-                // After selecting, wait for state update then focus RE
-                setTimeout(() => regardingRef.current?.focus(), 50);
             }
             return;
         }
@@ -543,7 +579,7 @@ export default function GuestSendLetter() {
 
                     <div className="flex items-center gap-6">
                         <div className="hidden md:flex flex-col items-end">
-                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Date</span>
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Week {weekNumber} - {dayName}</span>
                             <span className={`text-xs font-bold ${textColor}`}>{today}</span>
                         </div>
                         {!isLoggedIn && (
@@ -574,6 +610,20 @@ export default function GuestSendLetter() {
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-6">
+                                    {/* Current Date Display */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                            <CalendarIcon className={`w-3 h-3 ${subTextColor}`} /> DATE
+                                            <span className="ml-1 text-[9px] font-black text-orange-500/80 lowercase italic tracking-tight">
+                                                (Week {weekNumber} - {dayName})
+                                            </span>
+                                        </label>
+                                        <div className={`w-full px-5 py-3 rounded-xl border-2 transition-all outline-none text-base font-semibold flex items-center justify-between ${'bg-slate-50/50 dark:bg-white/5 border-slate-100 dark:border-[#333] text-slate-400'}`}>
+                                            <span className="uppercase tracking-wider">{today}</span>
+                                            <Clock className="w-4 h-4 opacity-40" />
+                                        </div>
+                                    </div>
+
                                     {/* Department - Optional for everyone */}
                                     {canDepartmentSelector && (
                                         <div className="space-y-3" ref={deptSearchRef}>
@@ -756,13 +806,67 @@ export default function GuestSendLetter() {
                                             </div>
                                             <span className="text-[9px] text-red-500 font-bold tracking-widest">REQUIRED</span>
                                         </label>
-                                        <textarea
-                                            ref={regardingRef}
-                                            rows={4}
-                                            value={formData.regarding}
-                                            onChange={(e) => setFormData({ ...formData, regarding: e.target.value })}
-                                            className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-base font-medium outline-none resize-none`}
-                                        />
+                                        <div className="relative">
+                                            <textarea
+                                                ref={regardingRef}
+                                                rows={4}
+                                                value={formData.regarding}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setFormData({ ...formData, regarding: val });
+                                                    fetchSummarySuggestions(val);
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (showSummarySuggestions && summarySuggestions.length > 0) {
+                                                        if (e.key === "ArrowDown") {
+                                                            e.preventDefault();
+                                                            setHighlightedSummaryIndex(prev => (prev + 1) % summarySuggestions.length);
+                                                        } else if (e.key === "ArrowUp") {
+                                                            e.preventDefault();
+                                                            setHighlightedSummaryIndex(prev => (prev - 1 + summarySuggestions.length) % summarySuggestions.length);
+                                                        } else if (e.key === "Enter") {
+                                                            e.preventDefault();
+                                                            const selected = summarySuggestions[highlightedSummaryIndex];
+                                                            if (selected) {
+                                                                setFormData({ ...formData, regarding: selected });
+                                                                setShowSummarySuggestions(false);
+                                                            }
+                                                        } else if (e.key === "Escape") {
+                                                            setShowSummarySuggestions(false);
+                                                        }
+                                                    }
+                                                }}
+                                                onFocus={() => {
+                                                    if (summarySuggestions.length > 0) setShowSummarySuggestions(true);
+                                                }}
+                                                className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-base font-medium outline-none resize-none`}
+                                            />
+
+                                            {showSummarySuggestions && (
+                                                <div
+                                                    ref={summarySuggestionRef}
+                                                    className={`absolute z-[110] w-full mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl animate-in fade-in slide-in-from-top-1 ${'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333]'}`}
+                                                >
+                                                    {summarySuggestions.map((text, idx) => (
+                                                        <div
+                                                            key={idx}
+                                                            onClick={() => {
+                                                                setFormData({ ...formData, regarding: text });
+                                                                setShowSummarySuggestions(false);
+                                                            }}
+                                                            onMouseEnter={() => setHighlightedSummaryIndex(idx)}
+                                                            className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${idx === highlightedSummaryIndex
+                                                                ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
+                                                                : "hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
+                                                                }`}
+                                                        >
+                                                            <MessageSquare className="w-3 h-3 text-orange-400" />
+                                                            <span className="line-clamp-2">{text}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>}
 
                                     <div className="space-y-6">

@@ -285,7 +285,7 @@ export default function MasterTable() {
     setSelectedLetter({
       ...letter,
       currentStepId: letter.currentStepId || latestAssignment?.step_id,
-      endorse_to: latestEndorsement?.endorsed_to || "",
+      endorse_to: "", // Always start blank as requested
     });
     setValidationError("");
     setDrawerMode("edit");
@@ -341,21 +341,39 @@ export default function MasterTable() {
   };
 
   const handleEndorseKeyDown = (e) => {
-    if (!endorseSuggestions || endorseSuggestions.length === 0) return;
-
     if (e.key === "ArrowDown") {
+      if (!endorseSuggestions || endorseSuggestions.length === 0) return;
       e.preventDefault();
       if (!showEndorseSuggestions) setShowEndorseSuggestions(true);
       setHighlightedEndorseIndex((prev) => Math.min(prev < 0 ? 0 : prev + 1, endorseSuggestions.length - 1));
     } else if (e.key === "ArrowUp") {
+      if (!endorseSuggestions || endorseSuggestions.length === 0) return;
       e.preventDefault();
       setHighlightedEndorseIndex((prev) => Math.max(prev < 0 ? 0 : prev - 1, 0));
-    } else if (e.key === "Enter" && showEndorseSuggestions) {
+    } else if (e.key === "Enter") {
       e.preventDefault();
-      const picked = endorseSuggestions[highlightedEndorseIndex < 0 ? 0 : highlightedEndorseIndex];
-      if (picked) {
-        setSelectedLetter({ ...selectedLetter, endorse_to: picked.name });
-        setShowEndorseSuggestions(false);
+      const picked = (showEndorseSuggestions && highlightedEndorseIndex >= 0) 
+        ? endorseSuggestions[highlightedEndorseIndex]
+        : null;
+      const finalName = picked ? picked.name : (selectedLetter.endorse_to || "").trim();
+      
+      if (finalName) {
+        (async () => {
+          try {
+            await createEndorsement(selectedLetter.id, finalName);
+            const updatedLetter = await letterService.getById(selectedLetter.id);
+            // Keep the name in the textbox as requested, but update the endorsements list
+            setSelectedLetter({ 
+              ...updatedLetter, 
+              endorse_to: finalName 
+            });
+            setShowEndorseSuggestions(false);
+            setHighlightedEndorseIndex(-1);
+            setValidationError("");
+          } catch (err) {
+            console.error("Endorsement failed:", err);
+          }
+        })();
       }
     } else if (e.key === "Escape") {
       setShowEndorseSuggestions(false);
@@ -371,6 +389,7 @@ export default function MasterTable() {
       return;
     try {
       await letterService.delete(id);
+      setIsDrawerOpen(false); // Close modal after deletion
       fetchData();
     } catch (error) {
       console.error("Delete failed", error);
@@ -462,26 +481,40 @@ export default function MasterTable() {
 
   const createEndorsement = async (letterId, name = null) => {
     const endorsedTo = (name || selectedLetter.endorse_to || "").trim();
-    if (!endorsedTo) {
-      setValidationError("Please select a person to endorse to.");
+    if (!endorsedTo) return false;
+
+    try {
+      // Fetch fresh data to ensure we have the absolute latest endorsement history
+      const currentLetter = await letterService.getById(letterId);
+      const history = currentLetter.endorsements || [];
+      // Check if this person is already in the endorsement history for this letter
+      if (history.some(e => e.endorsed_to?.trim() === endorsedTo)) {
+        console.log("Skipping duplicate endorsement:", endorsedTo);
+        return true;
+      }
+
+      await axios.post(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/endorsements`,
+        {
+          letter_id: letterId,
+          endorsed_to: endorsedTo,
+          endorsed_by: user?.id || null,
+          notes: "",
+          dept_id: selectedLetter?.dept_id?.id ?? selectedLetter?.dept_id ?? null,
+        },
+      );
+      return true;
+    } catch (err) {
+      console.error("Failed to create endorsement:", err);
       return false;
     }
-
-    await axios.post(
-      `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/endorsements`,
-      {
-        letter_id: letterId,
-        endorsed_to: endorsedTo,
-        endorsed_by: user?.id || null,
-        notes: "",
-        dept_id: selectedLetter?.dept_id?.id ?? selectedLetter?.dept_id ?? null,
-      },
-    );
-    return true;
   };
 
   const updateDetailsInternal = async (forceCombine = null) => {
-    if (!selectedLetter.currentStepId) {
+    const latestAssignment = (selectedLetter.assignments || []).sort((a, b) => b.id - a.id)[0];
+    const currentStepId = selectedLetter.currentStepId || latestAssignment?.step_id;
+
+    if (!currentStepId) {
       setValidationError(
         "Please select a valid Stage (e.g. FOR REVIEW, FOR SIGNATURE, VEM LETTER) before saving.",
       );
@@ -492,7 +525,8 @@ export default function MasterTable() {
     const statusName = (statusObj?.status_name || "").toLowerCase();
     if (statusName.includes("forward") || statusName.includes("endorse")) {
       const endorsedTo = (selectedLetter.endorse_to || "").trim();
-      if (!endorsedTo) {
+      const hasHistory = (selectedLetter.endorsements || []).length > 0;
+      if (!endorsedTo && !hasHistory) {
         setValidationError(`Please select a person to endorse to when setting status to ${statusObj?.status_name || 'Endorsed/Forwarded'}.`);
         return null;
       }
@@ -565,11 +599,14 @@ export default function MasterTable() {
     const shouldMarkPending =
       !!updatedLetter.currentStepId &&
       (!updatedLetter.assignments || updatedLetter.assignments.length === 0);
-    await letterService.update(updatedLetter.id, {
+    const finalLetter = {
       ...updatedLetter,
       ...(shouldMarkPending ? { global_status: 8 } : {}),
       user_id: user?.id,
-    });
+      date_received: new Date().toISOString() // Automatically update date on save
+    };
+
+    await letterService.update(updatedLetter.id, finalLetter);
 
     // 2. Update/Add Assignment for the new step if it changed
     if (updatedLetter.currentStepId) {
@@ -1049,8 +1086,8 @@ export default function MasterTable() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-10 custom-scrollbar">
-          <div className="max-w-full mx-auto space-y-6">
+        <div className="flex-1 flex flex-col overflow-hidden p-4 md:p-6 lg:p-10">
+          <div className="w-full max-w-full mx-auto space-y-6 flex-1 flex flex-col min-h-0">
             {/* Summary & Search + Filters */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
@@ -1197,13 +1234,13 @@ export default function MasterTable() {
 
             {/* Table Container */}
             <div
-              className={`rounded-[2.5rem] border overflow-hidden shadow-sm ${layoutStyle === "minimalist" ? "bg-white dark:bg-black/20 border-[#E5E5E5] dark:border-[#222]" : "bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]"}`}
+              className={`flex-1 flex flex-col min-h-0 rounded-[2.5rem] border shadow-sm ${layoutStyle === "minimalist" ? "bg-white dark:bg-black/20 border-[#E5E5E5] dark:border-[#222]" : "bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]"}`}
             >
-              <div className="overflow-x-auto custom-scrollbar">
+              <div className="flex-1 overflow-auto custom-scrollbar">
                 <table className="w-full text-left border-collapse min-w-[1200px]">
-                  <thead>
+                  <thead className="sticky top-0 z-20">
                     <tr
-                      className={`border-b ${"border-gray-50 dark:border-[#222] bg-gray-50/50 dark:bg-white/5"}`}
+                      className={`border-b ${"border-gray-50 dark:border-[#222] bg-gray-50 dark:bg-[#1a1a1a]"}`}
                     >
                       <th className="p-5 w-12 text-center">
                         <button
@@ -1419,7 +1456,7 @@ export default function MasterTable() {
             </div>
 
             {/* Footer / Pagination */}
-            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-400 px-4">
+            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-400 px-4 shrink-0 py-2">
               <span>
                 Showing {letters.length} / {totalRecords} Records
               </span>
@@ -1520,12 +1557,11 @@ export default function MasterTable() {
                           const currentStepId =
                             selectedLetter.currentStepId ||
                             latestAssignment?.step_id;
-                          const isSelected = currentStepId === step.id;
+                          const isSelected = Number(currentStepId) === Number(step.id);
 
                           return (
                             <label
                               key={step.id}
-                              onClick={() => setValidationError("")}
                               className={`flex-1 min-w-[120px] flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${isSelected ? "bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/20" : "bg-white dark:bg-white/5 border-gray-100 dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20"}`}
                             >
                               <input
@@ -1613,13 +1649,22 @@ export default function MasterTable() {
                           {canEndorse && (
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={async () => {
                                 // Quick action to set for ATG Dashboard
-                                setSelectedLetter((prev) => ({
-                                  ...prev,
+                                const updated = {
+                                  ...selectedLetter,
                                   tray_id: null,
                                   global_status: 2,
-                                }));
+                                  date_received: new Date().toISOString()
+                                };
+                                setSelectedLetter(updated);
+                                try {
+                                  await letterService.update(selectedLetter.id, updated);
+                                  setIsDrawerOpen(false); // Close modal
+                                  fetchData();
+                                } catch (error) {
+                                  console.error("Failed to move to dashboard:", error);
+                                }
                               }}
                               className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 border border-indigo-100 dark:border-indigo-900/30 hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
                             >
@@ -1785,7 +1830,7 @@ export default function MasterTable() {
                       <p className="text-[9px] text-orange-400/80 font-medium mb-2">
                         Search person.
                       </p>
-                      <div className="relative">
+                       <div className="relative flex items-center">
                         <input
                           type="text"
                           placeholder="Type name to search..."
@@ -1801,8 +1846,29 @@ export default function MasterTable() {
                           onFocus={() => {
                             if (selectedLetter.endorse_to?.length >= 2) fetchEndorseSuggestions(selectedLetter.endorse_to);
                           }}
-                          className="w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-400/30 bg-white border-orange-100 text-gray-900 shadow-sm"
+                          className="w-full px-4 py-3 pr-12 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-400/30 bg-white border-orange-100 text-gray-900 shadow-sm"
                         />
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const name = (selectedLetter.endorse_to || "").trim();
+                            if (!name) return;
+                            try {
+                                await createEndorsement(selectedLetter.id, name);
+                                const updatedLetter = await letterService.getById(selectedLetter.id);
+                                setSelectedLetter({ ...updatedLetter, endorse_to: "" });
+                                setValidationError("");
+                            } catch (err) {
+                                console.error("Quick endorse failed:", err);
+                            }
+                          }}
+                          className="absolute right-2 p-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors shadow-sm"
+                          title="Add Endorsement"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      
                         {showEndorseSuggestions &&
                           endorseSuggestions.length > 0 && (
                             <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl overflow-hidden max-h-40 overflow-y-auto">
@@ -1810,11 +1876,18 @@ export default function MasterTable() {
                                 <button
                                   key={p.id}
                                   type="button"
-                                  onClick={() => {
-                                    setSelectedLetter({
-                                      ...selectedLetter,
-                                      endorse_to: p.name,
-                                    });
+                                  onClick={async () => {
+                                    try {
+                                      await createEndorsement(selectedLetter.id, p.name);
+                                      // Refresh endorsement list in current letter
+                                      const updatedLetter = await letterService.getById(selectedLetter.id);
+                                      setSelectedLetter({
+                                        ...updatedLetter,
+                                        endorse_to: p.name, // Keep the name in the box as requested
+                                      });
+                                    } catch (err) {
+                                      console.error("Endorsement failed:", err);
+                                    }
                                     setShowEndorseSuggestions(false);
                                   }}
                                   onMouseEnter={() => setHighlightedEndorseIndex(idx)}
@@ -2383,33 +2456,35 @@ export default function MasterTable() {
                         statusComp.includes("FILED") ||
                         actionType.includes("FILED") ||
                         statusComp.includes("HOLD") ||
-                        actionType.includes("HOLD") ||
-                        actionType.includes("ENDORSE");
+                        actionType.includes("HOLD");
 
                       // Strictly followed User Mapping Logic
                       if (actionType.includes("ENDORSE") || statusComp.includes("ENDORSE")) {
-                        const userName = log.user ? `${log.user.first_name || ""} ${log.user.last_name || ""}`.trim() : "";
-                        displayHeading = userName || "Endorsed";
+                        const endorsedTo = log.metadata?.endorsed_to;
+                        if (!endorsedTo) return; // SKIP: Only show entries with specific recipient names
+                        displayHeading = endorsedTo;
                         displaySubheading = ""; // Strictly empty as requested
                       } else if (statusComp === "INCOMING" || statusComp === "PENDING") {
                         displayHeading = "Processing";
                         displaySubheading = "For Incoming";
                       } else if (statusComp.includes("REVIEW") || stepComp.includes("REVIEW")) {
                         displayHeading = "ATG Office";
-                        displaySubheading = trackingLetter?.atgnote || "";
+                        displaySubheading = trackingLetter?.atgnote || "Being Reviewed";
                       } else if (stepComp === "VEM LETTER" || (deptComp === "EVM" && statusComp.includes("FORWARD"))) {
                         displayHeading = "Office of the Executive Minister";
-                        displaySubheading = trackingLetter?.evemnote || "";
+                        displaySubheading = trackingLetter?.evemnote || "Processing";
                       } else if (stepComp === "AEVM LETTER" || stepComp === "AEVEM LETTER" || (deptComp === "AEVM" && statusComp.includes("FORWARD"))) {
                         displayHeading = "Office of the Deputy Executive Minister";
-                        displaySubheading = trackingLetter?.aevmnote || "";
+                        displaySubheading = trackingLetter?.aevmnote || "Processing";
                       } else if (isPriority) {
                         displayHeading = log.status?.status_name || log.action_type || actionType;
                         displaySubheading = log.metadata?.location || "";
                       } else {
-                        // Remove if not matching any specified step or correct it
                         displayHeading = log.department?.dept_code || log.step?.step_name || "Activity";
                         displaySubheading = ""; 
+
+                        // SKIP: Remove redundant "ATG" labels as "ATG Office" is already shown
+                        if (displayHeading === "ATG") return;
                       }
 
                       // Detect Duplicate State

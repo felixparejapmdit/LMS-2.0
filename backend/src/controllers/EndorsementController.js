@@ -1,4 +1,4 @@
-const { Letter, LetterKind, LetterAssignment, User, Person, Status, Endorsement } = require('../models/associations');
+const { Letter, LetterKind, LetterAssignment, User, Person, Status, Endorsement, LetterLog } = require('../models/associations');
 const { Op } = require('sequelize');
 const sequelize = require('../config/db');
 const TelegramService = require('../services/telegramService');
@@ -156,7 +156,34 @@ class EndorsementController {
             if (!letter_id || !endorsed_to) {
                 return res.status(400).json({ error: 'letter_id and endorsed_to are required.' });
             }
+
+            // Prevent duplicate records for the same letter and recipient
+            const existing = await Endorsement.findOne({
+                where: {
+                    letter_id,
+                    endorsed_to: endorsed_to.trim()
+                }
+            });
+
+            if (existing) {
+                return res.json(existing); // Return existing record instead of creating a new one
+            }
+
             const record = await Endorsement.create({ letter_id, endorsed_to, endorsed_by, notes, dept_id });
+            
+            // Log this endorsement so it shows up in the tracker timeline
+            try {
+                await LetterLog.create({
+                    letter_id,
+                    user_id: endorsed_by || null,
+                    action_type: 'Endorsed',
+                    log_details: `Endorsed to ${endorsed_to}`,
+                    metadata: { endorsed_to: endorsed_to }
+                });
+            } catch (logErr) {
+                console.error('Failed to create LetterLog for endorsement:', logErr);
+            }
+
             res.status(201).json(record);
         } catch (error) {
             res.status(400).json({ error: error.message });

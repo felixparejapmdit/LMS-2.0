@@ -313,7 +313,7 @@ export default function VIPView() {
         : "bg-white dark:bg-[#141414] border-slate-200 dark:border-[#222] shadow-sm";
 
   const renderVIPContent = () => (
-    <div className="space-y-6">
+    <div className="space-y-6 flex-1 flex flex-col min-h-0">
       {/* Header section (Custom for VIP) */}
       <div className={`p-6 md:p-8 rounded-3xl border ${cardBg}`}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -431,11 +431,11 @@ export default function VIPView() {
       )}
 
       {/* Letters Table */}
-      <div className={`rounded-3xl border overflow-hidden ${cardBg}`}>
-        <div className="overflow-x-auto">
+      <div className={`flex-1 flex flex-col min-h-0 rounded-3xl border shadow-sm ${cardBg}`}>
+        <div className="flex-1 overflow-auto custom-scrollbar">
           <table className="w-full text-left border-collapse whitespace-nowrap md:whitespace-normal">
-            <thead>
-              <tr className="bg-slate-50/80 dark:bg-[#1A1A1A] border-b border-slate-200 dark:border-[#333]">
+            <thead className="sticky top-0 z-20">
+              <tr className="bg-slate-50 dark:bg-[#1A1A1A] border-b border-slate-200 dark:border-[#333]">
                 <th className="px-5 py-4 w-16 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                   #
                 </th>
@@ -551,7 +551,7 @@ export default function VIPView() {
     if (layoutStyle === "grid") {
       return (
         <div className="min-h-screen bg-slate-50 dark:bg-[#0D0D0D] font-sans flex flex-col">
-          <header className="h-16 bg-white dark:bg-[#0D0D0D] border-b border-slate-200 dark:border-[#222] px-4 md:px-6 flex items-center shadow-sm sticky top-0 z-20 shrink-0">
+          <header className="h-16 bg-white dark:bg-[#0D0D0D] border-b border-slate-200 dark:border-[#222] px-4 md:px-6 flex items-center shadow-sm shrink-0">
             <div className="w-full flex items-center">
               <h1 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
                 <LayoutDashboard className="w-3 h-3 text-blue-600" />
@@ -559,8 +559,8 @@ export default function VIPView() {
               </h1>
             </div>
           </header>
-          <main className="flex-1 p-4 md:p-6 overflow-x-hidden">
-            <div className="w-full">{renderVIPContent()}</div>
+          <main className="flex-1 flex flex-col overflow-hidden p-4 md:p-6">
+            <div className="w-full flex-1 flex flex-col min-h-0">{renderVIPContent()}</div>
           </main>
         </div>
       );
@@ -578,8 +578,8 @@ export default function VIPView() {
 
     // Modern / Default Layout
     return (
-      <div className="min-h-screen bg-[#F9FAFB] dark:bg-[#0D0D0D] font-sans flex flex-col">
-        <main className="flex-1 w-full px-4 md:px-6 py-6 border-b border-slate-200 dark:border-[#222]">
+      <div className="min-h-screen bg-[#F9FAFB] dark:bg-[#0D0D0D] font-sans flex flex-col overflow-hidden">
+        <main className="flex-1 w-full flex flex-col min-h-0 px-4 md:px-6 py-6 border-b border-slate-200 dark:border-[#222]">
           {renderVIPContent()}
         </main>
       </div>

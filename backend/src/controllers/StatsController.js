@@ -339,6 +339,15 @@ class StatsController {
             const mergedStatusMap = {};
             allStatuses.forEach(s => { mergedStatusMap[s.status_name] = 0; });
             Object.entries(statusCountMap).forEach(([name, count]) => { mergedStatusMap[name] = count; });
+
+            // Add Resolved to status distribution (pull from is_resolved checkbox)
+            const resolvedCount = await Letter.count({
+                where: { ...statusBaseWhere, is_resolved: true },
+                distinct: true,
+                col: 'id'
+            });
+            mergedStatusMap['Resolved'] = resolvedCount;
+
             const statusDistribution = Object.entries(mergedStatusMap).map(([name, value]) => ({ name, value }));
 
             res.json({

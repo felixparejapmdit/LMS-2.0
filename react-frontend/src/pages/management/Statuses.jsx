@@ -96,7 +96,8 @@ export default function Statuses() {
             if (refreshSetupStatus) refreshSetupStatus();
         } catch (err) {
             console.error("Delete failed:", err);
-            alert("Delete failed.");
+            const msg = err.response?.data?.error || "Delete failed. The status may be in use.";
+            alert(msg);
         }
     };
 
