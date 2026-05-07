@@ -216,9 +216,12 @@ class LetterAssignmentController {
           ];
         } else if (named_filter === "pending") {
           // Pending/Incoming: Status = 1 (Incoming) or 8 (Pending) AND No Process Step
+          // EXCLUDE Empty Entries (letters with no sender or no summary)
           where["$letter.global_status$"] = { [Op.in]: [1, 8] };
           where.step_id = null;
           where["$letter.tray_id$"] = { [Op.or]: [null, 0] };
+          where["$letter.sender$"] = { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }, { [Op.ne]: " " }] };
+          where["$letter.summary$"] = { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }, { [Op.ne]: " " }] };
         } else if (named_filter === "empty_entry") {
           where[Op.and] = [
             { "$letter.global_status$": { [Op.notIn]: [6, 9] } },
@@ -295,15 +298,6 @@ class LetterAssignmentController {
           }
         }
       }
-
-
-
-
-
-
-
-
-
 
       if (vip === "true") {
         const atgStatusFilter = {
@@ -407,7 +401,12 @@ class LetterAssignmentController {
         } else {
           unassignedWhere.global_status = { [Op.in]: [1, 8] };
           unassignedWhere.tray_id = { [Op.or]: [null, 0] };
-          if (named_filter === "empty_entry") {
+
+          if (named_filter === "pending") {
+            // EXCLUDE Empty Entries from Pending
+            unassignedWhere.sender = { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }, { [Op.ne]: " " }] };
+            unassignedWhere.summary = { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }, { [Op.ne]: " " }] };
+          } else if (named_filter === "empty_entry") {
             unassignedWhere[Op.and] = [
               {
                 [Op.or]: [

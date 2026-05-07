@@ -654,7 +654,15 @@ class StatsController {
                 // Pending (Assigned + Unassigned)
                 (async () => {
                     const assigned = await LetterAssignment.count({
-                        where: withLatestAssignment(withVipExcluded({ ...where, step_id: null, '$letter.tray_id$': { [Op.or]: [null, 0] }, '$letter.global_status$': [1, 8] })),
+                        where: withLatestAssignment(withVipExcluded({
+                            ...where,
+                            step_id: null,
+                            '$letter.tray_id$': { [Op.or]: [null, 0] },
+                            '$letter.global_status$': [1, 8],
+                            // EXCLUDE Empty Entries from Pending
+                            '$letter.sender$': { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }, { [Op.ne]: " " }] },
+                            '$letter.summary$': { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }, { [Op.ne]: " " }] }
+                        })),
                         include: [{ model: Letter, as: 'letter' }],
                         distinct: true,
                         col: 'letter_id'
@@ -664,6 +672,9 @@ class StatsController {
                             ...unassignedWhere,
                             tray_id: { [Op.or]: [null, 0] },
                             global_status: [1, 8],
+                            // EXCLUDE Empty Entries from Pending
+                            sender: { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }, { [Op.ne]: " " }] },
+                            summary: { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }, { [Op.ne]: " " }] },
                             id: { [Op.notIn]: sequelize.literal('(SELECT letter_id FROM letter_assignments WHERE letter_id IS NOT NULL)') }
                         }
                     });
