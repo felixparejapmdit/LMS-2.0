@@ -14,6 +14,7 @@ import {
     CheckCircle2,
     FileSearch,
     Eye,
+    ShieldOff,
     Menu
 } from "lucide-react";
 import letterService from "../../services/letterService";
@@ -111,6 +112,23 @@ export default function LettersWithComments() {
         return matchesTab && matchesSearch;
     });
 
+    const canUserViewPDF = (letter) => {
+        const isHidden = letter.is_hidden === true || letter.is_hidden === 1 || letter.is_hidden === 'true';
+        if (!isHidden) return true;
+        if (isSuperAdmin) return true;
+
+        const roleName = user?.roleData?.name?.toUpperCase() || '';
+        if (roleName === 'ENCODER') return true;
+
+        const authorizedUsers = Array.isArray(letter.authorized_users)
+            ? letter.authorized_users
+            : typeof letter.authorized_users === 'string'
+                ? letter.authorized_users.split(',').map(u => u.trim())
+                : [];
+
+        return authorizedUsers.includes(user?.username);
+    };
+
     const handleViewPDF = (letter) => {
         if (!letter.scanned_copy && !letter.attachment_id) return;
         const url = letter.scanned_copy
@@ -207,16 +225,36 @@ export default function LettersWithComments() {
                                         ) : filteredLetters.map((letter) => (
                                             <tr key={letter.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
                                                 <td className="p-6 text-center">
-                                                    {canPdf && (letter.scanned_copy || letter.attachment_id) ? (
-                                                        <button
-                                                            onClick={() => handleViewPDF(letter)}
-                                                            className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all mx-auto shadow-sm"
-                                                        >
-                                                            <FileText className="w-5 h-5" />
-                                                        </button>
-                                                    ) : (
-                                                        <span className="text-gray-200">-</span>
-                                                    )}
+                                                    {(() => {
+                                                        const isHidden = letter.is_hidden === true || letter.is_hidden === 1 || letter.is_hidden === 'true';
+                                                        const isAuthorized = canUserViewPDF(letter);
+
+                                                        if (!canPdf || !isAuthorized) {
+                                                            if (letter.scanned_copy || letter.attachment_id) {
+                                                                return (
+                                                                    <div 
+                                                                        className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-white/5 text-slate-300 dark:text-slate-600 flex items-center justify-center border border-slate-100 dark:border-white/10 opacity-50 cursor-not-allowed mx-auto"
+                                                                        title={isHidden ? "Hidden Letter: Access Restricted" : "No Permission"}
+                                                                    >
+                                                                        {isHidden ? <ShieldOff className="w-5 h-5 text-orange-400/50" /> : <FileText className="w-5 h-5" />}
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return <span className="text-gray-200 dark:text-gray-800">-</span>;
+                                                        }
+
+                                                        if (letter.scanned_copy || letter.attachment_id) {
+                                                            return (
+                                                                <button
+                                                                    onClick={() => handleViewPDF(letter)}
+                                                                    className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all mx-auto shadow-sm"
+                                                                >
+                                                                    <FileText className="w-5 h-5" />
+                                                                </button>
+                                                            );
+                                                        }
+                                                        return <span className="text-gray-200 dark:text-gray-800">-</span>;
+                                                    })()}
                                                 </td>
                                                 <td className="p-6">
                                                     <div className="flex flex-col gap-1">

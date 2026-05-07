@@ -343,6 +343,14 @@ class LetterAssignmentController {
         };
       }
 
+      // Prevent duplicates: only return the latest assignment row per letter_id
+      if (!where[Op.and]) where[Op.and] = [];
+      where[Op.and].push(
+        sequelize.literal(
+          `"LetterAssignment"."id" IN (SELECT MAX(id) FROM letter_assignments WHERE letter_id IS NOT NULL GROUP BY letter_id)`,
+        ),
+      );
+
       // Perform the primary assignment search
       const { count: realCount, rows: realRows } =
         await LetterAssignment.findAndCountAll({
@@ -478,10 +486,40 @@ class LetterAssignmentController {
   }
 
   static async create(req, res) {
+    let transaction;
     try {
-      const assignment = await LetterAssignment.create(req.body);
+      const { letter_id } = req.body || {};
+      if (!letter_id) {
+        return res.status(400).json({ error: "letter_id is required" });
+      }
+
+      transaction = await sequelize.transaction();
+
+      // Enforce one active assignment row per letter (prevents duplicates across browsers)
+      const existing = await LetterAssignment.findOne({
+        where: { letter_id },
+        order: [["id", "DESC"]],
+        transaction,
+      });
+
+      if (existing) {
+        await transaction.rollback();
+        return res.status(409).json({
+          error: "This letter has already been assigned.",
+          existing_assignment_id: existing.id,
+          letter_id,
+        });
+      }
+
+      const assignment = await LetterAssignment.create(req.body, { transaction });
+      await transaction.commit();
       res.status(201).json(assignment);
     } catch (error) {
+      if (transaction) {
+        try {
+          await transaction.rollback();
+        } catch { }
+      }
       res.status(400).json({ error: error.message });
     }
   }
@@ -496,6 +534,21 @@ class LetterAssignmentController {
       if (id.toString().startsWith("mock-")) {
         const letterId = id.replace("mock-", "");
         let { step_id, status_id, department_id } = req.body;
+
+        // If another user already assigned this letter, stop and let the UI refresh.
+        const existing = await LetterAssignment.findOne({
+          where: { letter_id: letterId },
+          order: [["id", "DESC"]],
+          transaction,
+        });
+        if (existing) {
+          await transaction.rollback();
+          return res.status(409).json({
+            error: "This letter has already been assigned.",
+            existing_assignment_id: existing.id,
+            letter_id: letterId,
+          });
+        }
 
         // Infer department from step if missing
         if (!department_id && step_id) {

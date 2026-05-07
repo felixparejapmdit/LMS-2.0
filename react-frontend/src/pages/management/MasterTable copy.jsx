@@ -43,7 +43,6 @@ import statusService from "../../services/statusService";
 import letterKindService from "../../services/letterKindService";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import ConflictModal from "../../components/ConflictModal";
 
 export default function MasterTable() {
   const { user, layoutStyle, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
@@ -99,7 +98,6 @@ export default function MasterTable() {
   const [showEndorseSuggestions, setShowEndorseSuggestions] = useState(false);
   const endorseRef = useRef(null);
   const [validationError, setValidationError] = useState("");
-  const [conflictState, setConflictState] = useState({ isOpen: false, message: "" });
   const [isCombining, setIsCombining] = useState(false);
   const [newFile, setNewFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -109,16 +107,6 @@ export default function MasterTable() {
   const [showAuthorizedSuggestions, setShowAuthorizedSuggestions] = useState(false);
   const [highlightedAuthIndex, setHighlightedAuthIndex] = useState(-1);
   const authorizedRef = useRef(null);
-  const canUserViewPDF = (letter) => {
-    if (!letter.is_hidden) return true;
-    if (isSuperAdmin) return true;
-    if (letter.encoder_id === user?.id) return true;
-    if (!letter.authorized_users) return false;
-    const authList = letter.authorized_users
-      .split(";")
-      .map((u) => u.trim().toLowerCase());
-    return authList.includes(user?.name?.toLowerCase());
-  };
   const canSearch = canField("master-table", "search");
   const canEdit = canField("master-table", "edit_button");
   const canDelete = canField("master-table", "delete_button");
@@ -730,10 +718,7 @@ export default function MasterTable() {
           );
         } catch (err) {
           if (err?.response?.status === 409) {
-            setConflictState({
-              isOpen: true,
-              message: "This letter has already been assigned by someone else. The list will refresh to prevent duplicates."
-            });
+            alert("This letter has already been assigned by someone else. The list will refresh to prevent duplicates.");
           }
           throw err;
         }
@@ -1525,21 +1510,17 @@ export default function MasterTable() {
                           </td>
                           <td className="p-5 text-center">
                             {letter.attachment_id || letter.scanned_copy ? (
-                              canUserViewPDF(letter) ? (
+                              isSuperAdmin || canPdf ? (
                                 <button
                                   onClick={() => handleViewPDF(letter)}
                                   className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all mx-auto"
-                                  title="View PDF"
                                 >
                                   <FileText className="w-4 h-4" />
                                 </button>
                               ) : (
-                                <div 
-                                  className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] text-gray-400 flex items-center justify-center mx-auto cursor-not-allowed"
-                                  title="Access Restricted: Hidden Letter"
-                                >
-                                  <FileText className="w-4 h-4 opacity-30" />
-                                </div>
+                                <span className="text-gray-200 dark:text-[#333]">
+                                  -
+                                </span>
                               )
                             ) : (
                               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 opacity-60">
@@ -2901,15 +2882,6 @@ export default function MasterTable() {
           </div>
         </div>
       )}
-      {/* Conflict Modal */}
-      <ConflictModal 
-        isOpen={conflictState.isOpen}
-        onClose={() => {
-          setConflictState({ isOpen: false, message: "" });
-          fetchLetters();
-        }}
-        message={conflictState.message}
-      />
     </div>
   );
 }

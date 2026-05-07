@@ -21,6 +21,9 @@ const normalizeLayoutStyle = (style) => {
 import { AUTH_USER_KEY, AUTH_PERMS_KEY, LAST_REFRESH_KEY, REFRESH_THROTTLE_MS } from "./authConstants";
 // REMOVED RE-EXPORT TO IMPROVE HMR
 
+// RBAC should be governed by the Access Matrix (role_permissions).
+// Avoid hard-coded permission bypasses; grant special access via the matrix instead.
+
 
 const readCachedJson = (key, fallback = null) => {
     try {
@@ -174,6 +177,32 @@ const authReducer = (state, action) => {
             window.location.href = "/login";
         }
     }, [authState.user?.id, authState.isGuest]);
+    
+    // --- IDLE LOGOUT LOGIC ---
+    useEffect(() => {
+        if (!authState.user) return;
+
+        const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+        let idleTimer;
+
+        const resetTimer = () => {
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => {
+                console.log("Inactivity detected. Logging out...");
+                logout();
+            }, IDLE_TIMEOUT);
+        };
+
+        const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
+        events.forEach(event => window.addEventListener(event, resetTimer));
+
+        resetTimer(); // Initialize timer
+
+        return () => {
+            events.forEach(event => window.removeEventListener(event, resetTimer));
+            clearTimeout(idleTimer);
+        };
+    }, [authState.user, logout]);
 
 
     const checkAuth = useCallback(async () => {
@@ -307,6 +336,50 @@ const authReducer = (state, action) => {
         }
     }, [authState.isGuest, logout]);
 
+    const refreshPermissions = useCallback(async () => {
+        if (!authState.user || authState.isGuest) return;
+        const directusStored = localStorage.getItem('directus_auth');
+        if (!directusStored) return;
+
+        let directusJson = null;
+        try {
+            directusJson = JSON.parse(directusStored);
+        } catch {
+            return;
+        }
+
+        const accessToken =
+            directusJson?.access_token ||
+            directusJson?.token ||
+            directusJson?.data?.access_token ||
+            directusJson?.data?.token;
+
+        if (!accessToken) return;
+
+        try {
+            const configRes = await axios.get(`${BACKEND_URL}/auth/access-config`, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            const { user: me, permissions: perms } = configRes.data || {};
+            if (!me || !Array.isArray(perms)) return;
+
+            writeCachedJson(AUTH_USER_KEY, me);
+            writeCachedJson(AUTH_PERMS_KEY, perms);
+
+            dispatch({
+                type: 'INIT_SESSION',
+                payload: {
+                    user: me,
+                    permissions: perms,
+                    permissionsLoaded: true,
+                    isGuest: false
+                }
+            });
+        } catch (e) {
+            console.warn("Failed to refresh permissions", e?.response?.data?.error || e?.message || e);
+        }
+    }, [authState.user, authState.isGuest]);
+
     const login = async (username, password, provider = null) => {
         const loginStartTime = Date.now();
         try {
@@ -411,24 +484,31 @@ const authReducer = (state, action) => {
     // --- PERMISSION LOGIC (Memoized) ---
     const hasPermission = useCallback((pageId, action = 'can_view') => {
         if (authState.isGuest) return pageId === 'guest-send-letter';
-
-        const roleName = (authState.user?.roleData?.name || authState.user?.role || '').toString().toUpperCase();
-        const SUPER_ADMIN_ROLES = ['ADMINISTRATOR'];
-        const isSuperAdmin = SUPER_ADMIN_ROLES.includes(roleName) ||
-            authState.user?.email === 'felixpareja07@gmail.com';
+        // No super-admin bypass here; all roles follow the matrix.
 
         // Access Manager Role (Previously bypassed, now follows matrix)
-        const isAccessManager = roleName === 'ACCESS MANAGER';
+        // const roleName = (authState.user?.roleData?.name || authState.user?.role || '').toString().toUpperCase();
 
+        // If permissions haven't loaded yet:
+        // - For navigation visibility (Sidebar), we prefer "hide until proven allowed"
+        // - ProtectedRoute already blocks rendering until permissionsLoaded = true
+        if (!authState.permissionsLoaded) return false;
         if (!authState.permissions || authState.permissions.length === 0) return false;
 
         const normalizePageId = (value = "") => value.toString().toLowerCase().replace(/[^a-z0-9]/g, "");
-        const perm = authState.permissions.find(p =>
-            p.page_name === pageId ||
-            normalizePageId(p.page_name) === normalizePageId(pageId)
-        );
-        return perm ? !!perm[action] : false;
-    }, [authState.permissions, authState.isGuest, authState.user]);
+
+        // Prefer exact matches to avoid accidentally hitting "legacy"/variant page_name records.
+        let perm = authState.permissions.find((p) => p.page_name === pageId);
+        if (!perm) {
+            const normalizedNeedle = normalizePageId(pageId);
+            perm = authState.permissions.find((p) => normalizePageId(p.page_name) === normalizedNeedle);
+        }
+
+        // No record in the DB for this page → deny by default.
+        // This keeps the Access Matrix as the single source of truth.
+        if (!perm) return false;
+        return !!perm[action];
+    }, [authState.permissions, authState.permissionsLoaded, authState.isGuest, authState.user]);
 
     // --- UI ACTIONS ---
     const toggleTheme = async () => {
@@ -537,8 +617,9 @@ const authReducer = (state, action) => {
         logout,
         loginGuest,
         hasPermission,
-        refreshSetupStatus
-    }), [authState, hasPermission, logout, refreshSetupStatus]);
+        refreshSetupStatus,
+        refreshPermissions
+    }), [authState, hasPermission, logout, refreshSetupStatus, refreshPermissions]);
 
     const uiContextValue = useMemo(() => ({
         theme, toggleTheme,
@@ -567,10 +648,8 @@ export const useAuth = () => {
     const ui = useContext(UIContext);
     if (!auth || !ui) return null;
 
-    const { user } = auth;
-    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    const isSuperAdmin = ['ADMINISTRATOR'].includes(roleName) ||
-        user?.email === 'felixpareja07@gmail.com';
+    const roleName = (auth.user?.roleData?.name || auth.user?.role || '').toString().toUpperCase();
+    const isSuperAdmin = ['ADMINISTRATOR', 'DEVELOPER', 'ROOT'].includes(roleName);
 
     // Return combined object for backward compatibility, but it will trigger re-renders
     // on ANY change. We should encourage using useSession() and useUI()
@@ -584,9 +663,7 @@ export const useSession = () => {
     // Memoize the super admin calculation so it doesn't change on every useSession call
     const isSuperAdmin = useMemo(() => {
         const roleName = (context.user?.roleData?.name || context.user?.role || '').toString().toUpperCase();
-        const SUPER_ADMIN_ROLES = ['ADMINISTRATOR'];
-        return SUPER_ADMIN_ROLES.includes(roleName) ||
-            context.user?.email === 'felixpareja07@gmail.com';
+        return ['ADMINISTRATOR', 'DEVELOPER', 'ROOT'].includes(roleName);
     }, [context.user]);
 
     return { ...context, isSuperAdmin };

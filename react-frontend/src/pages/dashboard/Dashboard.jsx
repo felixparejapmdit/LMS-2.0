@@ -61,6 +61,17 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [recordsPerPage] = useState(30);
+  const [conflictState, setConflictState] = useState({ isOpen: false, message: "" });
+
+  // Global Esc listener for closing modals
+  useEffect(() => {
+    const handleClose = () => {
+      setIsPrintModalOpen(false);
+      setIsMobileMenuOpen(false);
+    };
+    window.addEventListener('close_modals', handleClose);
+    return () => window.removeEventListener('close_modals', handleClose);
+  }, [setIsMobileMenuOpen]);
 
   const activeStepTab = searchParams.get('tab') || 'signature';
 
@@ -178,7 +189,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       const deptId = forcedDeptId ?? (user?.dept_id?.id ?? user?.dept_id ?? null);
       const roleName = user?.roleData?.role_name || user?.role || '';
       const fullName = `${user?.first_name} ${user?.last_name}`.trim();
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/stats/inbox?department_id=${deptId}&user_id=${user?.id}&role=${roleName}&full_name=${encodeURIComponent(fullName)}`);
+      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/stats/inbox?department_id=${deptId}&user_id=${user?.id}&role=${roleName}&full_name=${encodeURIComponent(fullName)}&exclude_vip=true`);
       setInboxStats(res.data);
     } catch (error) {
       console.error("Error fetching inbox stats:", error);
@@ -239,10 +250,11 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         .map(a => a.letter)
         .filter(Boolean);
       localStorage.setItem('resumen_letters', JSON.stringify(letters));
+      navigate('/resumen?source=inbox');
     } catch (err) {
       console.warn("Failed to prepare Resumen data:", err);
+      navigate('/resumen?source=inbox');
     }
-    setIsPrintModalOpen(true);
   };
 
   const toggleSelection = useCallback((e, id) => {
@@ -299,8 +311,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         await Promise.all(letterIds.map(id => letterService.update(id, { global_status: incomingStatusId })));
         await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { step_id: stepId })));
       } else if (action === 'delete') {
-        if (!window.confirm(`Delete ${selectedIds.length} letters?`)) { setLoading(false); return; }
-        await Promise.all(letterIds.map(id => letterService.delete(id)));
+        if (!window.confirm(`Delete ${selectedIds.length} letters? This will permanently delete them.`)) { setLoading(false); return; }
+        await Promise.all(letterIds.map(id => letterService.deletePermanent(id)));
       }
 
       setSelectedIds([]);
@@ -308,6 +320,12 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       fetchInboxStats();
     } catch (err) {
       console.error("Bulk action failed:", err);
+      if (err?.response?.status === 409) {
+        setConflictState({ 
+          isOpen: true, 
+          message: "Some letters were already assigned by someone else. Refreshing your list to prevent duplicate entries." 
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -316,8 +334,8 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const handleQuickAction = async (e, assignment, action) => {
     e.preventDefault(); e.stopPropagation();
     if (action === 'delete') {
-      if (!window.confirm("Are you sure?")) return;
-      try { await letterService.delete(assignment.letter.id); fetchAssignments(); } catch (err) { console.error(err); }
+      if (!window.confirm("Are you sure? This will permanently delete the letter.")) return;
+      try { await letterService.deletePermanent(assignment.letter.id); fetchAssignments(); } catch (err) { console.error(err); }
       return;
     }
     const stepId = action === 'signature' ? 1 : 2;
@@ -327,7 +345,16 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       await letterService.update(assignment.letter.id, { global_status: 1 });
       await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${assignment.id}`, { step_id: stepId });
       fetchAssignments();
-    } catch (err) { console.error(err); fetchAssignments(); }
+    } catch (err) {
+      console.error(err);
+      if (err?.response?.status === 409) {
+        setConflictState({ 
+          isOpen: true, 
+          message: "This letter has already been assigned by someone else. Refreshing to ensure data consistency." 
+        });
+      }
+      fetchAssignments();
+    }
   };
 
   const handleRecallToInbox = async (e, assignment) => {
@@ -698,6 +725,38 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
           </div>
         </div>
         {renderPrintSummaryModal()}
+
+        {/* Conflict Modal */}
+        {conflictState.isOpen && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <div 
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" 
+              onClick={() => { setConflictState({ isOpen: false, message: "" }); fetchAssignments(); }}
+            />
+            <div className="relative w-full max-w-md bg-white dark:bg-[#141414] rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-[#222] animate-in zoom-in-95 duration-300 overflow-hidden">
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 rounded-3xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center mx-auto mb-6">
+                  <AlertCircle className="w-8 h-8 text-amber-500" />
+                </div>
+                <h2 className={`text-xl font-black uppercase tracking-tight mb-3 ${textColor}`}>
+                  Assignment Conflict
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-8">
+                  {conflictState.message}
+                </p>
+                <button
+                  onClick={() => {
+                    setConflictState({ isOpen: false, message: "" });
+                    fetchAssignments();
+                  }}
+                  className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-amber-500/20 active:scale-[0.98]"
+                >
+                  Refresh & Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

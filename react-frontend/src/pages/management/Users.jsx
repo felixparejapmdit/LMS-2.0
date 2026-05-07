@@ -589,7 +589,10 @@ export default function Users() {
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Department</label>
                                             <SearchableSelect
-                                                options={departments}
+                                                options={[
+                                                    { id: "", dept_name: "No Dept" },
+                                                    ...departments
+                                                ]}
                                                 value={formData.dept_id}
                                                 onChange={val => setFormData({ ...formData, dept_id: val })}
                                                 placeholder="Select Department"

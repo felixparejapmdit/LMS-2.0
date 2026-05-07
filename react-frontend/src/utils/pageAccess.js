@@ -22,12 +22,22 @@ export const PAGE_NAME_OVERRIDES = {
     trays: "Trays",
     users: "Users",
     "role-matrix": "Access Matrix",
+    "dept-matrix": "Dept Access Matrix",
     setup: "Setup Wizard",
     "letter-detail": "Letter Detail",
     "department-letters": "Department Letters",
     "inter-dept": "Interdepartment Management",
     "dept-viewer": "Department Viewer",
     profile: "Profile",
+    roles: "Roles",
+    sections: "Section Registry",
+    "audit-logs": "Audit Logs",
+    trash: "Trash",
+    "vem-resumen": "VEM Resumen",
+    "aevm-resumen": "AEVM Resumen",
+    resumen: "Resumen",
+    "legacy-data": "Legacy Data",
+    "dept-viewer": "Department Viewer",
 };
 
 export const BASE_SYSTEM_PAGES = [
@@ -54,16 +64,27 @@ export const BASE_SYSTEM_PAGES = [
     { page_id: "trays", page_name: PAGE_NAME_OVERRIDES.trays },
     { page_id: "users", page_name: PAGE_NAME_OVERRIDES.users },
     { page_id: "role-matrix", page_name: PAGE_NAME_OVERRIDES["role-matrix"] },
+    { page_id: "dept-matrix", page_name: PAGE_NAME_OVERRIDES["dept-matrix"] },
     { page_id: "setup", page_name: PAGE_NAME_OVERRIDES.setup },
     { page_id: "letter-detail", page_name: PAGE_NAME_OVERRIDES["letter-detail"] },
     { page_id: "department-letters", page_name: PAGE_NAME_OVERRIDES["department-letters"] },
     { page_id: "inter-dept", page_name: PAGE_NAME_OVERRIDES["inter-dept"] },
     { page_id: "dept-viewer", page_name: PAGE_NAME_OVERRIDES["dept-viewer"] },
     { page_id: "profile", page_name: PAGE_NAME_OVERRIDES.profile },
+    { page_id: "roles", page_name: PAGE_NAME_OVERRIDES.roles },
+    { page_id: "sections", page_name: PAGE_NAME_OVERRIDES.sections },
+    { page_id: "audit-logs", page_name: PAGE_NAME_OVERRIDES["audit-logs"] },
+    { page_id: "trash", page_name: PAGE_NAME_OVERRIDES.trash },
+    { page_id: "vem-resumen", page_name: PAGE_NAME_OVERRIDES["vem-resumen"] },
+    { page_id: "aevm-resumen", page_name: PAGE_NAME_OVERRIDES["aevm-resumen"] },
+    { page_id: "resumen", page_name: PAGE_NAME_OVERRIDES.resumen },
+    { page_id: "legacy-data", page_name: PAGE_NAME_OVERRIDES["legacy-data"] },
 ];
 
 export const getPageKeyFromPath = (rawPath = "") => {
-    const path = rawPath.split("?")[0];
+    let path = rawPath.split("?")[0];
+    // Normalize trailing slash (except root) so RBAC lookups are stable.
+    if (path.length > 1) path = path.replace(/\/+$/, "");
     if (path === "/" || path === "/dashboard") return "home";
     if (path === "/guest/send-letter") return "guest-send-letter";
     if (/^\/letter\/[^/]+$/i.test(path)) return "letter-detail";
@@ -79,4 +100,3 @@ export const humanizePageId = (pageId = "") => {
         .replace(/\b\w/g, (m) => m.toUpperCase())
         .trim();
 };
-

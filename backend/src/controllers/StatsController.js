@@ -241,10 +241,14 @@ class StatsController {
             // 8. Task Distribution Map (by Step)
             let dateWhereClause = null;
             const now = new Date();
+            let dateRange = null;
 
             if (period === 'today') {
-                const start = new Date(now.setHours(0, 0, 0, 0));
-                dateWhereClause = { [Op.gte]: start };
+                const start = new Date(now);
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(now);
+                end.setHours(23, 59, 59, 999);
+                dateRange = [start, end];
             } else if (period === 'weekly') {
                 if (week && year) {
                     const simple = new Date(year, 0, 1 + (week - 1) * 7);
@@ -259,29 +263,41 @@ class StatsController {
                     const end = new Date(start);
                     end.setDate(end.getDate() + 6);
                     end.setHours(23, 59, 59, 999);
-                    dateWhereClause = { [Op.between]: [start, end] };
+                    dateRange = [start, end];
                 } else {
-                    const start = new Date(now.setDate(now.getDate() - 7));
-                    dateWhereClause = { [Op.gte]: start };
+                    const start = new Date(now);
+                    start.setDate(start.getDate() - 7);
+                    dateRange = [start, new Date()];
                 }
             } else if (period === 'monthly') {
                 if (month && year) {
                     const start = new Date(year, month - 1, 1);
                     const end = new Date(year, month, 0, 23, 59, 59, 999);
-                    dateWhereClause = { [Op.between]: [start, end] };
+                    dateRange = [start, end];
                 } else {
-                    const start = new Date(now.setMonth(now.getMonth() - 1));
-                    dateWhereClause = { [Op.gte]: start };
+                    const start = new Date(now);
+                    start.setMonth(start.getMonth() - 1);
+                    dateRange = [start, new Date()];
                 }
             } else if (period === 'yearly') {
                 if (year) {
                     const start = new Date(year, 0, 1);
                     const end = new Date(year, 11, 31, 23, 59, 59, 999);
-                    dateWhereClause = { [Op.between]: [start, end] };
+                    dateRange = [start, end];
                 } else {
-                    const start = new Date(now.setFullYear(now.getFullYear() - 1));
-                    dateWhereClause = { [Op.gte]: start };
+                    const start = new Date(now);
+                    start.setFullYear(start.getFullYear() - 1);
+                    dateRange = [start, new Date()];
                 }
+            }
+
+            if (dateRange) {
+                dateWhereClause = {
+                    [Op.or]: [
+                        { date_received: { [Op.between]: dateRange } },
+                        { created_at: { [Op.between]: dateRange } }
+                    ]
+                };
             }
 
             // Always fetch all process steps so we can show 0-count rows when period filters empty out data
@@ -290,27 +306,45 @@ class StatsController {
             const distributionWhere = {};
             if (isSpecificDept) distributionWhere.department_id = department_id;
 
-            const distAssignmentsInclude = [{ model: ProcessStep, as: 'step', attributes: ['step_name'] }];
+            // Only count the latest assignment per letter to prevent double-counting
+            if (!distributionWhere[Op.and]) distributionWhere[Op.and] = [];
+            distributionWhere[Op.and].push(
+                sequelize.literal(
+                    `"LetterAssignment"."id" IN (SELECT MAX(id) FROM letter_assignments WHERE letter_id IS NOT NULL GROUP BY letter_id)`,
+                ),
+            );
+
+            const letterWhereForDist = { ...baseLetterWhere };
             if (dateWhereClause) {
-                distAssignmentsInclude.push({
-                    model: Letter,
-                    as: 'letter',
-                    where: { created_at: dateWhereClause },
-                    attributes: ['id', 'created_at']
-                });
+                letterWhereForDist[Op.and] = [
+                    ...(letterWhereForDist[Op.and] ? (Array.isArray(letterWhereForDist[Op.and]) ? letterWhereForDist[Op.and] : [letterWhereForDist[Op.and]]) : []),
+                    dateWhereClause
+                ];
             }
 
             const distAssignments = await LetterAssignment.findAll({
                 where: distributionWhere,
-                attributes: ['id'],
-                include: distAssignmentsInclude
+                attributes: ['letter_id'],
+                include: [
+                    { model: ProcessStep, as: 'step', attributes: ['step_name'], required: true },
+                    { model: Letter, as: 'letter', attributes: ['id'], where: letterWhereForDist, required: true }
+                ]
             });
+
+            // Distinct letter counting per step (no duplicates)
+            const stepToLetters = new Map();
+            for (const a of distAssignments) {
+                const stepName = a.step?.step_name;
+                const letterId = a.letter_id;
+                if (!stepName || !letterId) continue;
+                if (!stepToLetters.has(stepName)) stepToLetters.set(stepName, new Set());
+                stepToLetters.get(stepName).add(letterId);
+            }
+
             const distributionMap = {};
-            distAssignments.forEach(a => {
-                if (a.step?.step_name) {
-                    distributionMap[a.step.step_name] = (distributionMap[a.step.step_name] || 0) + 1;
-                }
-            });
+            for (const [stepName, letterIds] of stepToLetters.entries()) {
+                distributionMap[stepName] = letterIds.size;
+            }
 
             // Always merge with all steps so 0-count entries are shown for every period
             const mergedMap = {};
@@ -321,7 +355,10 @@ class StatsController {
             // 9. Status Distribution Map (by Global Status)
             const statusBaseWhere = { ...baseLetterWhere };
             if (dateWhereClause) {
-                statusBaseWhere.created_at = dateWhereClause;
+                statusBaseWhere[Op.and] = [
+                    ...(statusBaseWhere[Op.and] ? (Array.isArray(statusBaseWhere[Op.and]) ? statusBaseWhere[Op.and] : [statusBaseWhere[Op.and]]) : []),
+                    dateWhereClause
+                ];
             }
             const allLettersForStats = await Letter.findAll({
                 where: statusBaseWhere,
@@ -375,7 +412,7 @@ class StatsController {
 
     static async getInboxStats(req, res) {
         try {
-            const { department_id, user_id, role, full_name: queryFullName, period } = req.query;
+            const { department_id, user_id, role, full_name: queryFullName, period, exclude_vip } = req.query;
             const where = {};
 
             const userRecord = user_id ? await User.findByPk(user_id, {
@@ -399,6 +436,51 @@ class StatsController {
                 raw: true
             });
             const incomingStatusId = incomingStatus?.id ?? null;
+
+            const atgStatus = await Status.findOne({
+                where: { status_name: 'ATG Note' },
+                attributes: ['id'],
+                raw: true
+            });
+            const atgStatusId = atgStatus?.id ?? null;
+
+            const shouldExcludeVip = `${exclude_vip}`.toLowerCase() === 'true';
+
+            const latestAssignmentClause = sequelize.literal(
+                `"LetterAssignment"."id" IN (SELECT MAX(id) FROM letter_assignments WHERE letter_id IS NOT NULL GROUP BY letter_id)`,
+            );
+
+            const withLatestAssignment = (base = {}) => {
+                const next = { ...(base || {}) };
+                const existing = next[Op.and];
+                const and = [];
+                if (existing) {
+                    if (Array.isArray(existing)) and.push(...existing);
+                    else and.push(existing);
+                }
+                and.push(latestAssignmentClause);
+                next[Op.and] = and;
+                return next;
+            };
+
+            const withVipExcluded = (base = {}) => {
+                if (!shouldExcludeVip) return base;
+                const next = { ...(base || {}) };
+
+                // Mirror inbox behavior: exclude VIP/ATG-note letters from general tabs
+                if (!atgStatusId) return base;
+
+                const atgFilter = { '$letter.global_status$': atgStatusId };
+
+                next[Op.not] = {
+                    [Op.and]: [
+                        { '$letter.tray_id$': { [Op.or]: [0, null] } },
+                        atgFilter
+                    ]
+                };
+
+                return next;
+            };
 
             const visibilityClauses = [];
 
@@ -536,21 +618,21 @@ class StatsController {
             ] = await Promise.all([
                 // Review
                 LetterAssignment.count({
-                    where: { ...where, step_id: 2, '$letter.tray_id$': { [Op.or]: [null, 0] }, '$letter.global_status$': [1, 8] },
+                    where: withLatestAssignment(withVipExcluded({ ...where, step_id: 2, '$letter.tray_id$': { [Op.or]: [null, 0] }, '$letter.global_status$': [1, 8] })),
                     include: [{ model: Letter, as: 'letter' }],
                     distinct: true,
                     col: 'letter_id'
                 }),
                 // Signature
                 LetterAssignment.count({
-                    where: { ...where, step_id: 1, '$letter.tray_id$': { [Op.or]: [null, 0] }, '$letter.global_status$': [1, 8] },
+                    where: withLatestAssignment(withVipExcluded({ ...where, step_id: 1, '$letter.tray_id$': { [Op.or]: [null, 0] }, '$letter.global_status$': [1, 8] })),
                     include: [{ model: Letter, as: 'letter' }],
                     distinct: true,
                     col: 'letter_id'
                 }),
                 // Hold
                 LetterAssignment.count({
-                    where: { ...where, '$letter.global_status$': 7 },
+                    where: withLatestAssignment(withVipExcluded({ ...where, '$letter.global_status$': 7 })),
                     include: [{ model: Letter, as: 'letter' }],
                     distinct: true,
                     col: 'letter_id'
@@ -559,7 +641,7 @@ class StatsController {
                 (async () => {
                     if (!incomingStatusId) return 0;
                     const assigned = await LetterAssignment.count({
-                        where: { ...where, '$letter.tray_id$': { [Op.gt]: 0 }, '$letter.global_status$': incomingStatusId },
+                        where: withLatestAssignment({ ...where, '$letter.tray_id$': { [Op.gt]: 0 }, '$letter.global_status$': incomingStatusId }),
                         include: [{ model: Letter, as: 'letter' }],
                         distinct: true,
                         col: 'letter_id'
@@ -572,19 +654,24 @@ class StatsController {
                 // Pending (Assigned + Unassigned)
                 (async () => {
                     const assigned = await LetterAssignment.count({
-                        where: { ...where, step_id: null, '$letter.tray_id$': { [Op.or]: [null, 0] }, '$letter.global_status$': [1, 8] },
+                        where: withLatestAssignment(withVipExcluded({ ...where, step_id: null, '$letter.tray_id$': { [Op.or]: [null, 0] }, '$letter.global_status$': [1, 8] })),
                         include: [{ model: Letter, as: 'letter' }],
                         distinct: true,
                         col: 'letter_id'
                     });
                     const unassigned = await Letter.count({
-                        where: { ...unassignedWhere, tray_id: { [Op.or]: [null, 0] }, global_status: [1, 8], id: { [Op.notIn]: sequelize.literal('(SELECT letter_id FROM letter_assignments WHERE letter_id IS NOT NULL)') } }
+                        where: {
+                            ...unassignedWhere,
+                            tray_id: { [Op.or]: [null, 0] },
+                            global_status: [1, 8],
+                            id: { [Op.notIn]: sequelize.literal('(SELECT letter_id FROM letter_assignments WHERE letter_id IS NOT NULL)') }
+                        }
                     });
                     return assigned + unassigned;
                 })(),
                 // VEM
                 LetterAssignment.count({
-                    where: {
+                    where: withLatestAssignment(withVipExcluded({
                         ...where,
                         '$step.step_name$': { [Op.like]: '%VEM%' },
                         [Op.and]: [
@@ -593,14 +680,14 @@ class StatsController {
                         ],
                         step_id: { [Op.notIn]: [1, 2] },
                         '$letter.global_status$': [1, 8]
-                    },
+                    })),
                     include: [{ model: Letter, as: 'letter' }, { model: ProcessStep, as: 'step' }],
                     distinct: true,
                     col: 'letter_id'
                 }),
                 // AVEM
                 LetterAssignment.count({
-                    where: {
+                    where: withLatestAssignment(withVipExcluded({
                         ...where,
                         [Op.or]: [
                             { '$step.step_name$': { [Op.like]: '%AEVM%' } },
@@ -608,7 +695,7 @@ class StatsController {
                         ],
                         step_id: { [Op.notIn]: [1, 2] },
                         '$letter.global_status$': [1, 8]
-                    },
+                    })),
                     include: [{ model: Letter, as: 'letter' }, { model: ProcessStep, as: 'step' }],
                     distinct: true,
                     col: 'letter_id'
@@ -616,14 +703,14 @@ class StatsController {
                 // Empty (Empty sender/summary)
                 (async () => {
                     const assigned = await LetterAssignment.count({
-                        where: {
+                        where: withLatestAssignment(withVipExcluded({
                             ...where,
                             '$letter.global_status$': { [Op.notIn]: [6, 9] },
                             [Op.or]: [
                                 { '$letter.sender$': { [Op.or]: [null, '', ' '] } },
                                 { '$letter.summary$': { [Op.or]: [null, '', ' '] } }
                             ]
-                        },
+                        })),
                         include: [{ model: Letter, as: 'letter' }],
                         distinct: true,
                         col: 'letter_id'

@@ -87,6 +87,13 @@ const Letter = sequelize.define('Letter', {
     is_resolved: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+    },
+    is_deleted: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    deleted_at: {
+        type: DataTypes.DATE
     }
 }, {
     tableName: 'letters',

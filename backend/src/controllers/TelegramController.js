@@ -1,4 +1,4 @@
-const { Letter, Comment, User, Person, Role, LetterLog, LetterAssignment, ProcessStep, Status } = require('../models/associations');
+const { Letter, Comment, User, Person, Role, LetterLog, LetterAssignment, ProcessStep, Status, sequelize } = require('../models/associations');
 const { Op } = require('sequelize');
 const TelegramService = require('../services/telegramService');
 const path = require('path');
@@ -540,6 +540,102 @@ class TelegramController {
             service: 'telegram-webhook',
             timestamp: new Date().toISOString()
         });
+    }
+
+    static async notifyLmsBot(req, res) {
+        try {
+            const body = req.body || {};
+            const typeRaw = (body.type || '').toString().trim().toUpperCase();
+            const type = typeRaw === 'AEVM' ? 'AEVM' : 'VEM';
+
+            const totalLetters = Number.isFinite(parseInt(body.total_letters, 10))
+                ? parseInt(body.total_letters, 10)
+                : null;
+            const succeeded = Number.isFinite(parseInt(body.succeeded, 10))
+                ? parseInt(body.succeeded, 10)
+                : null;
+            const failed = Number.isFinite(parseInt(body.failed, 10))
+                ? parseInt(body.failed, 10)
+                : null;
+
+            const forwardedBy = (body.forwarded_by || '').toString().trim();
+            const lmsIdsRaw = Array.isArray(body.lms_ids) ? body.lms_ids : [];
+            const lmsIds = lmsIdsRaw
+                .map((v) => (v === null || v === undefined ? '' : String(v)).trim())
+                .filter(Boolean)
+                .slice(0, 50);
+
+            const envChatId =
+                process.env.TELEGRAM_LMS_BOT_CHAT_ID ||
+                process.env.LMS_BOT_CHAT_ID ||
+                null;
+
+            let chatId = envChatId ? String(envChatId).trim() : null;
+
+            const lowerLike = (columnName, needle) =>
+                sequelize.where(
+                    sequelize.fn('LOWER', sequelize.col(columnName)),
+                    { [Op.like]: needle.toLowerCase() }
+                );
+
+            if (!chatId) {
+                const botUser = await User.findOne({
+                    where: {
+                        [Op.or]: [
+                            lowerLike('username', '%lms bot%'),
+                            lowerLike('username', '%lmsbot%')
+                        ]
+                    }
+                });
+                if (botUser?.telegram_chat_id) chatId = String(botUser.telegram_chat_id);
+            }
+
+            if (!chatId) {
+                const botPerson = await Person.findOne({
+                    where: lowerLike('name', '%lms bot%')
+                });
+                if (botPerson?.telegram_chat_id) chatId = String(botPerson.telegram_chat_id);
+            }
+
+            if (!chatId) {
+                return res.json({ ok: false, skipped: true, reason: 'No LMS bot chat id configured' });
+            }
+
+            const title = type === 'AEVM' ? 'AEVM-Resumen' : 'VEM-Resumen';
+            const safeBy = TelegramController.escapeHtml(forwardedBy || 'Unknown');
+
+            let text = `📦 <b>Resumen Forward</b>\n` +
+                `🗂️ <b>Source:</b> ${TelegramController.escapeHtml(title)}`;
+
+            if (totalLetters !== null) {
+                text += `\n📄 <b>Letters in list:</b> <b>${totalLetters}</b>`;
+            }
+            if (succeeded !== null || failed !== null) {
+                const okCount = succeeded !== null ? succeeded : 0;
+                const failCount = failed !== null ? failed : 0;
+                text += `\n✅ <b>Forwarded:</b> <b>${okCount}</b>  ❌ <b>Failed:</b> <b>${failCount}</b>`;
+            }
+
+            text += `\n👤 <b>Forwarded by:</b> ${safeBy}`;
+
+            if (lmsIds.length === 1) {
+                text += `\n\n📄 <b>Letter:</b> <code>${TelegramController.escapeHtml(lmsIds[0])}</code>`;
+            } else if (lmsIds.length > 1) {
+                const maxToShow = 12;
+                const shown = lmsIds.slice(0, maxToShow);
+                const remaining = lmsIds.length - shown.length;
+                text += `\n\n📄 <b>Letters:</b>\n` + shown.map((id) => `• <code>${TelegramController.escapeHtml(id)}</code>`).join('\n');
+                if (remaining > 0) {
+                    text += `\n• …and ${remaining} more`;
+                }
+            }
+
+            await TelegramService.sendMessage(chatId, text);
+            return res.json({ ok: true });
+        } catch (error) {
+            console.error('notifyLmsBot error:', error);
+            return res.status(500).json({ ok: false, error: error.message });
+        }
     }
 
     static extractCommand(message) {

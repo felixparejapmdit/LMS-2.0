@@ -29,7 +29,7 @@ Letter.belongsTo(User, { foreignKey: 'encoder_id', as: 'encoder' });
 Letter.belongsTo(Attachment, { foreignKey: 'attachment_id', as: 'attachment' });
 
 // --- Workflow Relationships (Unified Inbox Feature) ---
-Letter.hasMany(LetterAssignment, { foreignKey: 'letter_id', as: 'assignments' });
+Letter.hasMany(LetterAssignment, { foreignKey: 'letter_id', as: 'assignments', onDelete: 'CASCADE' });
 LetterAssignment.belongsTo(Letter, { foreignKey: 'letter_id', as: 'letter' });
 
 LetterAssignment.belongsTo(Department, { foreignKey: 'department_id', as: 'department' });
@@ -39,14 +39,14 @@ LetterAssignment.belongsTo(Status, { foreignKey: 'status_id', as: 'statusInfo' }
 LetterAssignment.belongsTo(User, { foreignKey: 'assigned_by', as: 'assigner' });
 
 // --- History & Collaboration ---
-Letter.hasMany(LetterLog, { foreignKey: 'letter_id', as: 'logs' });
+Letter.hasMany(LetterLog, { foreignKey: 'letter_id', as: 'logs', onDelete: 'CASCADE' });
 LetterLog.belongsTo(Letter, { foreignKey: 'letter_id' });
 LetterLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 LetterLog.belongsTo(Department, { foreignKey: 'department_id', as: 'department' });
 LetterLog.belongsTo(ProcessStep, { foreignKey: 'step_id', as: 'step' });
 LetterLog.belongsTo(Status, { foreignKey: 'status_id', as: 'status' });
 
-Letter.hasMany(Comment, { foreignKey: 'letter_id', as: 'comments' });
+Letter.hasMany(Comment, { foreignKey: 'letter_id', as: 'comments', onDelete: 'CASCADE' });
 Comment.belongsTo(Letter, { foreignKey: 'letter_id' });
 Comment.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
@@ -55,7 +55,8 @@ Letter.belongsTo(Tray, { foreignKey: 'tray_id', as: 'tray' });
 Tray.hasMany(Letter, { foreignKey: 'tray_id', as: 'letters' });
 
 // --- Linked Letters ---
-Letter.hasMany(LinkLetter, { foreignKey: 'main_letter_id', as: 'attachedLetters' });
+Letter.hasMany(LinkLetter, { foreignKey: 'main_letter_id', as: 'attachedLetters', onDelete: 'CASCADE' });
+Letter.hasMany(LinkLetter, { foreignKey: 'attached_letter_id', as: 'parentLinks', onDelete: 'CASCADE' });
 LinkLetter.belongsTo(Letter, { foreignKey: 'main_letter_id', as: 'mainLetter' });
 LinkLetter.belongsTo(Letter, { foreignKey: 'attached_letter_id', as: 'attachedLetter' });
 
@@ -76,7 +77,7 @@ Letter.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 Department.hasMany(Letter, { foreignKey: 'dept_id', as: 'letters' });
 
 // --- Endorsements ---
-Letter.hasMany(Endorsement, { foreignKey: 'letter_id', as: 'endorsements' });
+Letter.hasMany(Endorsement, { foreignKey: 'letter_id', as: 'endorsements', onDelete: 'CASCADE' });
 Endorsement.belongsTo(Letter, { foreignKey: 'letter_id', as: 'letter' });
 Endorsement.belongsTo(User, { foreignKey: 'endorsed_by', as: 'endorser' });
 

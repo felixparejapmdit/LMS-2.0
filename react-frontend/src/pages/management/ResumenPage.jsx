@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import { useAuth, useSession, useUI } from "../../context/AuthContext";
 import letterService from "../../services/letterService";
@@ -25,13 +26,18 @@ import {
     ChevronLeft,
     ChevronRight,
     Maximize2,
-    Menu
+    Menu,
+    CheckSquare,
+    Square
 } from "lucide-react";
 import jsQR from "jsqr";
 
 export default function ResumenPage({ embedded = false, onClose = null } = {}) {
     const { user } = useSession();
     const { layoutStyle, setIsMobileMenuOpen } = useUI();
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const isFromInbox = searchParams.get('source') === 'inbox';
 
     const [lmsIdInput, setLmsIdInput] = useState("");
     const [modalLetters, setModalLetters] = useState(() => {
@@ -49,8 +55,9 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         if (saved) return saved;
         return `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
     });
+    const [selectedIds, setSelectedIds] = useState([]);
     const [sentBy, setSentBy] = useState("");
-    const [timeframe, setTimeframe] = useState("today");
+    const [timeframe, setTimeframe] = useState("all");
     const [dateRange, setDateRange] = useState({ start: "", end: "" });
     const [isFetching, setIsFetching] = useState(false);
 
@@ -63,16 +70,32 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
     const requestRef = useRef();
     const lastAutoSubmitRef = useRef(null);
 
+    // Global Esc listener for closing modals
+    useEffect(() => {
+        const handleClose = () => {
+            if (typeof onClose === 'function') onClose();
+            setPdfPanel({ isOpen: false, url: null, name: null });
+            setShowAddLetterModal(false);
+            setShowScanner(false);
+        };
+        window.addEventListener('close_modals', handleClose);
+        return () => window.removeEventListener('close_modals', handleClose);
+    }, [onClose]);
+
     // Fetch "Incoming" letters based on timeframe and filters
     const fetchIncomingLetters = async () => {
         setIsFetching(true);
         try {
+            const statuses = await statusService.getAll();
+            const incomingStatus = statuses.find(s => s.status_name.toLowerCase().trim() === 'incoming');
+            const targetStatusId = incomingStatus ? incomingStatus.id : 1;
+
             const params = {
                 user_id: user?.id,
                 role: user?.roleData?.name || user?.role || '',
                 department_id: user?.dept_id?.id ?? user?.dept_id,
                 full_name: `${user?.first_name} ${user?.last_name}`.trim(),
-                global_status: 1, // Incoming
+                global_status: targetStatusId,
                 limit: 500
             };
 
@@ -142,8 +165,10 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
     };
 
     useEffect(() => {
-        fetchIncomingLetters();
-    }, [timeframe, dateRange.start, dateRange.end]);
+        if (!embedded && !isFromInbox) {
+            fetchIncomingLetters();
+        }
+    }, [timeframe, dateRange.start, dateRange.end, embedded, isFromInbox]);
 
     // Initial sync removed in favor of timeframe-based fetch
     useEffect(() => {
@@ -229,7 +254,6 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         setLmsIdInput(extracted);
 
         const added = await handleAddLetter(extracted);
-        if (added) setShowAddLetterModal(false);
     };
 
     const handleAtgInputChange = (e) => {
@@ -241,6 +265,25 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
 
     const handleDeleteLetter = (id) => {
         setModalLetters(prev => prev.filter(l => l.id !== id));
+        setSelectedIds(prev => prev.filter(i => i !== id));
+    };
+
+    const handleSummaryEdit = (id, newSummary) => {
+        setModalLetters(prev => prev.map(l => l.id === id ? { ...l, summary: newSummary } : l));
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === filteredLetters.length && filteredLetters.length > 0) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredLetters.map((l) => l.id));
+        }
+    };
+
+    const toggleSelect = (id) => {
+        setSelectedIds((prev) =>
+            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+        );
     };
 
     const handleDragStart = (e, index) => {
@@ -269,22 +312,49 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         });
     };
 
-    const handleAtgViewBulk = async () => {
-        if (modalLetters.length === 0) return;
+    const handleAtgNoteBulk = async () => {
+        if (selectedIds.length === 0) return;
         setLoading(true);
         try {
             const statuses = await statusService.getAll();
-            const reviewStatus = statuses.find(s => s.status_name.toLowerCase().includes('review'));
-            const targetStatusId = reviewStatus ? reviewStatus.id : 2;
+            const noteStatus = statuses.find(s => s.status_name.toLowerCase().trim() === 'atg note');
+            const targetStatusId = noteStatus ? noteStatus.id : 2;
 
-            await Promise.all(modalLetters.map(l =>
-                letterService.update(l.id, { global_status: targetStatusId, tray_id: null })
+            await Promise.all(selectedIds.map(id =>
+                letterService.update(id, { global_status: targetStatusId, tray_id: null })
             ));
-            // Success! Clear list or navigate
-            setModalLetters([]);
-            alert("Letters transitioned to Review successfully.");
+            
+            setModalLetters(prev => prev.filter(l => !selectedIds.includes(l.id)));
+            setSelectedIds([]);
+            alert("Selected letters transitioned to ATG Note successfully.");
         } catch (err) {
-            console.error("ATG View transition failed:", err);
+            console.error("ATG Note transition failed:", err);
+            alert("Transition failed. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleBeingReviewedBulk = async () => {
+        if (selectedIds.length === 0) return;
+        setLoading(true);
+        try {
+            const statuses = await statusService.getAll();
+            const reviewStatus = statuses.find(s => s.status_name.toLowerCase().trim() === 'being reviewed');
+            if (!reviewStatus) {
+                alert("'Being Reviewed' status not found in system. Please create it first.");
+                return;
+            }
+
+            await Promise.all(selectedIds.map(id =>
+                letterService.update(id, { global_status: reviewStatus.id, tray_id: null })
+            ));
+            
+            setModalLetters(prev => prev.filter(l => !selectedIds.includes(l.id)));
+            setSelectedIds([]);
+            alert("Selected letters transitioned to Being Reviewed successfully.");
+        } catch (err) {
+            console.error("Being Reviewed transition failed:", err);
             alert("Transition failed. Please try again.");
         } finally {
             setLoading(false);
@@ -415,6 +485,13 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         return latest?.step_id ?? latest?.step?.id ?? null;
     };
 
+    const getStepName = (letter) => {
+        const stepId = getLatestStepId(letter);
+        if (!stepId) return "No Group";
+        const step = steps.find(s => String(s.id) === String(stepId));
+        return step?.step_name || "Unknown";
+    };
+
     const selectedStepLabel = (() => {
         if (!selectedStepId) return "All";
         const step = steps.find((s) => String(s.id) === String(selectedStepId));
@@ -455,8 +532,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
 
                             <form onSubmit={async (e) => {
                                 e.preventDefault();
-                                const added = await handleAddLetter();
-                                if (added) setShowAddLetterModal(false);
+                                await handleAddLetter();
                             }} className="space-y-4">
                                 <div className="space-y-1.5">
                                     <input
@@ -531,6 +607,16 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                     title="Close"
                                 >
                                     <X className="w-5 h-5" />
+                                </button>
+                            )}
+                            {isFromInbox && (
+                                <button
+                                    onClick={() => navigate('/inbox')}
+                                    className="p-2.5 bg-slate-100 dark:bg-white/5 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl transition-all text-blue-600 border border-blue-100 dark:border-blue-500/20 flex items-center gap-2"
+                                    title="Back to Inbox"
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Back to Inbox</span>
                                 </button>
                             )}
                             <div className="flex items-center gap-3">
@@ -675,16 +761,6 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                 />
                                         </div>
 
-                                        <div className="flex flex-col gap-2 min-w-[150px]">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sent by:</label>
-                                                <input
-                                                    type="text"
-                                                    value={sentBy}
-                                                    onChange={(e) => setSentBy(e.target.value)}
-                                                    placeholder="Enter name..."
-                                                    className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300 normal-case"
-                                                />
-                                        </div>
 
                                         <div className="text-right flex flex-col items-end gap-1 ml-auto">
                                             <button
@@ -704,12 +780,22 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                     <table className="w-full text-left border-collapse print:border print:border-slate-300">
                                         <thead>
                                             <tr className="border-b-2 border-slate-100 dark:border-white/10 print:border-slate-300" style={{ backgroundColor: printHeaderStyle.bg }}>
+                                                <th className="py-6 px-4 print:hidden text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-12">
+                                                    <button onClick={toggleSelectAll} className="text-slate-300 hover:text-blue-500 transition-colors">
+                                                        {selectedIds.length === filteredLetters.length && filteredLetters.length > 0 ? (
+                                                            <CheckSquare className="w-5 h-5 text-blue-500" />
+                                                        ) : (
+                                                            <Square className="w-5 h-5" />
+                                                        )}
+                                                    </button>
+                                                </th>
                                                 <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-12 print:text-slate-900 whitespace-nowrap">No.</th>
                                                 <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-24 print:text-slate-900">Date/Time</th>
                                                 <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-28 print:text-slate-900">ATG No.</th>
                                                 <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-16 print:text-slate-900">PDF</th>
                                                 <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-[30%] print:text-slate-900">Sender/District</th>
                                                 <th className="py-6 px-4 print:py-2 print:px-2 print:border-r print:border-slate-300 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-[40%] print:text-slate-900">Summary</th>
+                                                <th className="py-6 px-4 print:hidden text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-32">Group</th>
                                                 <th className="py-6 px-4 print:py-2 print:px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-24 print:hidden">Actions</th>
                                             </tr>
                                         </thead>
@@ -727,13 +813,22 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                 filteredLetters.map((l, idx) => (
                                                     <tr 
                                                         key={l.id} 
-                                                        className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/2 transition-colors print:border-slate-300 cursor-move"
+                                                        className={`border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/2 transition-colors print:border-slate-300 cursor-move ${selectedIds.includes(l.id) ? 'bg-blue-50/50 dark:bg-blue-500/5' : ''}`}
                                                         draggable
                                                         onDragStart={(e) => handleDragStart(e, idx)}
                                                         onDragEnd={handleDragEnd}
                                                         onDragOver={handleDragOver}
                                                         onDrop={(e) => handleDrop(e, idx)}
                                                     >
+                                                        <td className="py-6 px-4 print:hidden text-center">
+                                                            <button onClick={() => toggleSelect(l.id)} className="text-slate-300 hover:text-blue-500 transition-colors">
+                                                                {selectedIds.includes(l.id) ? (
+                                                                    <CheckSquare className="w-5 h-5 text-blue-500" />
+                                                                ) : (
+                                                                    <Square className="w-5 h-5" />
+                                                                )}
+                                                            </button>
+                                                        </td>
                                                         <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300 text-xs font-black text-slate-400 print:text-slate-900">{idx + 1}</td>
                                                         <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300 whitespace-nowrap">
                                                             <div className="flex flex-col text-[10px] font-bold text-slate-500 print:text-slate-900">
@@ -765,7 +860,16 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                             </div>
                                                         </td>
                                                         <td className="py-6 px-4 print:py-1.5 print:px-2">
-                                                            <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-w-lg print:text-slate-900 italic" dangerouslySetInnerHTML={{ __html: l.summary || 'No summary available' }}></div>
+                                                            <div 
+                                                                className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-w-lg print:text-slate-900 italic focus:outline-none focus:bg-white dark:focus:bg-[#1A1A1B] hover:bg-slate-100 dark:hover:bg-white/5 p-1 -m-1 rounded transition-colors" 
+                                                                contentEditable
+                                                                suppressContentEditableWarning
+                                                                onBlur={(e) => handleSummaryEdit(l.id, e.target.innerHTML)}
+                                                                dangerouslySetInnerHTML={{ __html: l.summary || 'No summary available' }}
+                                                            />
+                                                        </td>
+                                                        <td className="py-6 px-4 print:hidden text-[10px] font-black uppercase text-indigo-500 whitespace-nowrap">
+                                                            {getStepName(l)}
                                                         </td>
                                                         <td className="py-6 px-4 print:hidden text-right">
                                                             <div className="flex items-center justify-end gap-1">
@@ -810,14 +914,24 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                             <span className="text-[10px] font-black uppercase tracking-widest">{showScanner ? 'Cancel' : 'Scan QR'}</span>
                                         </button>
 
-                                        {/* 4. ATG Review */}
+                                        {/* 4. ATG Note */}
                                         <button
-                                            onClick={handleAtgViewBulk}
-                                            disabled={filteredLetters.length === 0 || loading}
-                                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-blue-500/20 flex items-center gap-3 group"
+                                            onClick={handleAtgNoteBulk}
+                                            disabled={selectedIds.length === 0 || loading}
+                                            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-3 group"
                                         >
                                             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
-                                            ATG VIEW
+                                            ATG NOTE
+                                        </button>
+
+                                        {/* 5. Being Reviewed */}
+                                        <button
+                                            onClick={handleBeingReviewedBulk}
+                                            disabled={selectedIds.length === 0 || loading}
+                                            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-3 group"
+                                        >
+                                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />}
+                                            BEING REVIEWED
                                         </button>
                                     </div>
 
@@ -825,7 +939,6 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                     <div id="print-footer" className="hidden print:flex items-center justify-between w-full mt-8">
                                         <div className="flex flex-col gap-1">
                                             <span className="text-xs font-bold text-slate-900 normal-case">Prepared by: {preparedBy}</span>
-                                            {sentBy && <span className="text-xs font-bold text-slate-900 normal-case">Sent by: {sentBy}</span>}
                                         </div>
                                         <span className="text-xs font-bold text-slate-900">Page 1</span>
                                     </div>

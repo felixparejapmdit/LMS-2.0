@@ -42,6 +42,16 @@ class LetterService {
         return response.data;
     }
 
+    async restore(id) {
+        const response = await axios.post(`${API_URL}/${id}/restore`);
+        return response.data;
+    }
+
+    async deletePermanent(id) {
+        const response = await axios.delete(`${API_URL}/${id}/permanent`);
+        return response.data;
+    }
+
     async getPreviewIds(prefix = 'LMS', dept_id = null) {
         try {
             const params = new URLSearchParams();

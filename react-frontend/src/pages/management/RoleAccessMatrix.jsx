@@ -152,7 +152,7 @@ const PageRow = React.memo(({ index, page, matrix, onToggle, onToggleAll, canEdi
 });
 
 export default function RoleAccessMatrix() {
-    const { user, layoutStyle, setIsMobileMenuOpen } = useAuth();
+    const { user, layoutStyle, setIsMobileMenuOpen, refreshPermissions } = useAuth();
     const access = useAccess();
 
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
@@ -305,9 +305,11 @@ export default function RoleAccessMatrix() {
             setTimeout(() => setMessage({ type: "", text: "" }), 3000);
 
             // Reload auth context if current user role was updated
-            if (user?.role === selectedRoleId || user?.roleData?.id === selectedRoleId) {
-                localStorage.removeItem(LAST_REFRESH_KEY); localStorage.removeItem("auth_permissions");
-                window.location.reload();
+            const currentRoleId = (user?.roleData?.id || user?.role || '').toString();
+            if (currentRoleId && currentRoleId === (selectedRoleId || '').toString()) {
+                localStorage.removeItem(LAST_REFRESH_KEY);
+                localStorage.removeItem("auth_permissions");
+                await refreshPermissions?.();
             }
         } catch (error) {
             console.error("Save failed", error);

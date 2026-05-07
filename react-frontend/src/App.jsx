@@ -37,6 +37,7 @@ import Attachments from "./pages/management/Attachments";
 import UploadPDFFiles from "./pages/management/UploadPDFFiles";
 import SectionRegistry from "./pages/management/SectionRegistry";
 import AuditLogs from "./pages/management/AuditLogs";
+import Trash from "./pages/management/Trash";
 
 // Setup
 import SetupWizard from "./pages/setup/SetupWizard";
@@ -76,7 +77,7 @@ axios.interceptors.response.use(
   }
 );
 import systemPageService from "./services/systemPageService";
-import { getPageKeyFromPath, humanizePageId } from "./utils/pageAccess";
+import { getPageKeyFromPath, humanizePageId, BASE_SYSTEM_PAGES } from "./utils/pageAccess";
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading, hasPermission, permissionsLoaded, isGuest, isSuperAdmin } = useSession();
@@ -112,7 +113,7 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (user && !isSuperAdmin && hasPermission && !hasPermission(pageKey, 'can_view')) {
+  if (user && hasPermission && !hasPermission(pageKey, 'can_view')) {
     console.warn(`Access Denied for ${pageKey}. User Role: ${user?.role || user?.roleData?.name}. isSuperAdmin: ${isSuperAdmin}`);
     const fallbackCandidates = ["/", "/dashboard", "/letter-tracker", "/inbox", "/guest/send-letter"];
     const fallback = fallbackCandidates.find((path) => hasPermission(getPageKeyFromPath(path), 'can_view'));
@@ -127,13 +128,34 @@ const ProtectedRoute = ({ children }) => {
 
 function AppRoutes() {
   const navigate = useNavigate();
-  
+  const { user, permissionsLoaded } = useSession();
+
   const sequenceRef = useRef("");
+
+  // One-time bulk sync: register all known pages in the DB as soon as the
+  // user is authenticated. This makes them appear in the Role Access Matrix
+  // without requiring an admin to visit each route individually.
+  useEffect(() => {
+    if (!user || !permissionsLoaded) return;
+    systemPageService.syncPages(BASE_SYSTEM_PAGES).catch(() => { /* silent */ });
+  }, [user?.id, permissionsLoaded]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       const key = e.key.toLowerCase();
       
+      if (e.key === 'Escape') {
+        // Dispatch global event for modals to close
+        window.dispatchEvent(new CustomEvent('close_modals'));
+        
+        // Navigation back for specific pages
+        const backPages = ['/vem-resumen', '/aevm-resumen'];
+        if (backPages.includes(location.pathname)) {
+          navigate(-1);
+        }
+        return;
+      }
+
       // Triggers (Ctrl+Y or Ctrl+A)
       if (e.ctrlKey && key === 'y') {
         sequenceRef.current = 'ctrl_y';
@@ -207,6 +229,7 @@ function AppRoutes() {
         <Route path="/upload-pdf" element={<ProtectedRoute><UploadPDFFiles /></ProtectedRoute>} />
         <Route path="/setup/sections" element={<ProtectedRoute><SectionRegistry /></ProtectedRoute>} />
         <Route path="/setup/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
+        <Route path="/setup/trash" element={<ProtectedRoute><Trash /></ProtectedRoute>} />
         <Route path="/guest/send-letter" element={<ProtectedRoute><GuestSendLetter /></ProtectedRoute>} />
         <Route path="/endorsements" element={<ProtectedRoute><LetterEndorsement /></ProtectedRoute>} />
         <Route path="/letter/:id" element={<ProtectedRoute><LetterDetail /></ProtectedRoute>} />

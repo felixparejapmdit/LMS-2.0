@@ -11,6 +11,7 @@ import {
     Activity,
     FileText,
     Eye,
+    ShieldOff,
     Calendar,
     User as UserIcon,
     Hash,
@@ -171,6 +172,23 @@ export default function LetterTracker() {
         );
     });
 
+
+    const canUserViewPDF = (letter) => {
+        const isHidden = letter.is_hidden === true || letter.is_hidden === 1 || letter.is_hidden === 'true';
+        if (!isHidden) return true;
+        if (isSuperAdmin) return true;
+
+        const roleName = user?.roleData?.name?.toUpperCase() || '';
+        if (roleName === 'ENCODER') return true;
+
+        const authorizedUsers = Array.isArray(letter.authorized_users)
+            ? letter.authorized_users
+            : typeof letter.authorized_users === 'string'
+                ? letter.authorized_users.split(',').map(u => u.trim())
+                : [];
+
+        return authorizedUsers.includes(user?.username);
+    };
 
     const handleTrackOpen = async (letter) => {
         try {
@@ -396,17 +414,20 @@ export default function LetterTracker() {
                                                         {(letter.scanned_copy || letter.attachment_id) ? (
                                                             (() => {
                                                                 const isHidden = letter.is_hidden === true || letter.is_hidden === 1 || letter.is_hidden === 'true';
-                                                                const isAuthorized = !isHidden;
+                                                                const isAuthorized = canUserViewPDF(letter);
 
                                                                 if (!canPdf || !isAuthorized) {
-                                                                    return <span className="p-2 rounded-lg bg-gray-50 dark:bg-white/5 text-gray-300 border border-gray-100 dark:border-white/10 opacity-50 cursor-not-allowed" title={isHidden ? "Hidden Letter: Access Restricted" : "No Permission"}><FileText className="w-3.5 h-3.5" /></span>;
+                                                                    return (
+                                                                        <span 
+                                                                            className="p-2 rounded-lg bg-slate-50 dark:bg-white/5 text-slate-300 dark:text-slate-600 border border-slate-100 dark:border-white/10 opacity-50 cursor-not-allowed group-hover:scale-95 transition-all" 
+                                                                            title={isHidden ? "Hidden Letter: Access Restricted" : "No Permission"}
+                                                                        >
+                                                                            {isHidden ? <ShieldOff className="w-3.5 h-3.5 text-orange-400/50" /> : <FileText className="w-3.5 h-3.5" />}
+                                                                        </span>
+                                                                    );
                                                                 }
                                                                 return <button onClick={() => handleViewPDF(letter)} className="p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-3.5 h-3.5" /></button>;
                                                             })()
-
-
-
-
                                                         ) : (
                                                             <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 opacity-60">No File</span>
                                                         )}

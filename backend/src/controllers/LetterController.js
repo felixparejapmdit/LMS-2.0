@@ -12,6 +12,7 @@ const {
   LetterKind,
   Comment,
   Attachment,
+  LinkLetter,
 } = require("../models/associations");
 const sequelize = require("../config/db");
 const { Op } = require("sequelize");
@@ -68,8 +69,9 @@ class LetterController {
         start_date,
         end_date,
         search,
+        is_deleted = false // Default to not showing deleted
       } = req.query;
-      const where = {};
+      const where = { is_deleted: is_deleted === 'true' || is_deleted === true };
 
       const normalizedRole = role ? role.toString().toUpperCase().trim() : "";
       const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -1080,16 +1082,21 @@ class LetterController {
             : parseInt(updates.global_status)
           : oldStatusId;
 
-      const { is_hidden, authorized_users, ...otherUpdates } = updates;
-      
-      // Explicitly handle is_hidden to support boolean/string/number from frontend
-      const finalIsHidden = is_hidden === true || is_hidden === 1 || is_hidden === 'true';
+      const { is_hidden, authorized_users, user_id, ...otherUpdates } = updates;
 
-      await letter.update({
-        ...otherUpdates,
-        is_hidden: finalIsHidden,
-        authorized_users: authorized_users || null
-      }, { transaction });
+      // Build the final update payload — only include is_hidden / authorized_users
+      // when they were explicitly provided in the request body, so that a
+      // status-only update never silently clobbers those fields.
+      const finalUpdatePayload = { ...otherUpdates };
+
+      if (Object.prototype.hasOwnProperty.call(updates, 'is_hidden')) {
+        finalUpdatePayload.is_hidden = is_hidden === true || is_hidden === 1 || is_hidden === 'true';
+      }
+      if (Object.prototype.hasOwnProperty.call(updates, 'authorized_users')) {
+        finalUpdatePayload.authorized_users = authorized_users || null;
+      }
+
+      await letter.update(finalUpdatePayload, { transaction });
 
       // Create log if status changed
       if (newStatusId !== oldStatusId) {
@@ -1100,11 +1107,17 @@ class LetterController {
           transaction
         });
 
+        const isUUID = (val) => {
+          if (!val) return false;
+          return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test("" + val);
+        };
+        const validUserId = isUUID(req.body.user_id) ? req.body.user_id : null;
+
         const newStatus = await Status.findByPk(newStatusId, { transaction });
         await LetterLog.create(
           {
             letter_id: letter.id,
-            user_id: req.body.user_id || null, // Best effort for user id
+            user_id: validUserId, // Safe UUID only
             action_type: newStatus?.status_name || "Status Updated",
             status_id: newStatusId,
             step_id: currentAssignment?.step_id || null,
@@ -1126,11 +1139,58 @@ class LetterController {
 
   static async delete(req, res) {
     try {
-      const letter = await Letter.findByPk(req.params.id);
+      const { id } = req.params;
+      const letter = await Letter.findByPk(id);
       if (!letter) return res.status(404).json({ error: "Not found" });
-      await letter.destroy();
-      res.json({ message: "Deleted" });
+
+      // Soft delete
+      await letter.update({ is_deleted: true, deleted_at: new Date() });
+      res.json({ message: "Moved to Trash" });
     } catch (error) {
+      console.error("[LETTER_DELETE_ERROR]:", error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async restore(req, res) {
+    try {
+      const { id } = req.params;
+      const letter = await Letter.findByPk(id);
+      if (!letter) return res.status(404).json({ error: "Not found" });
+
+      await letter.update({ is_deleted: false, deleted_at: null });
+      res.json({ message: "Restored from Trash" });
+    } catch (error) {
+      console.error("[LETTER_RESTORE_ERROR]:", error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async deletePermanent(req, res) {
+    let transaction;
+    try {
+      transaction = await sequelize.transaction();
+      const { id } = req.params;
+      const letter = await Letter.findByPk(id, { transaction });
+      if (!letter) {
+        if (transaction) await transaction.rollback();
+        return res.status(404).json({ error: "Not found" });
+      }
+
+      await LetterAssignment.destroy({ where: { letter_id: id }, transaction });
+      await LetterLog.destroy({ where: { letter_id: id }, transaction });
+      await Comment.destroy({ where: { letter_id: id }, transaction });
+      await Endorsement.destroy({ where: { letter_id: id }, transaction });
+      await LinkLetter.destroy({ where: { main_letter_id: id }, transaction });
+      await LinkLetter.destroy({ where: { attached_letter_id: id }, transaction });
+
+      await letter.destroy({ transaction });
+
+      await transaction.commit();
+      res.json({ message: "Permanently Deleted" });
+    } catch (error) {
+      if (transaction) await transaction.rollback();
+      console.error("[LETTER_PERM_DELETE_ERROR]:", error);
       res.status(500).json({ error: error.message });
     }
   }

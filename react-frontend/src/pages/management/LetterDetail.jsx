@@ -22,6 +22,7 @@ import {
   Send,
   Menu,
   Star,
+  ShieldOff,
   X
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -115,6 +116,24 @@ export default function LetterDetail() {
     </div>
   );
 
+  const canUserViewLetter = (letterData) => {
+    if (!letterData) return false;
+    const isHidden = letterData.is_hidden === true || letterData.is_hidden === 1 || letterData.is_hidden === 'true';
+    if (!isHidden) return true;
+    if (isSuperAdmin) return true;
+
+    const roleName = user?.roleData?.name?.toUpperCase() || '';
+    if (roleName === 'ENCODER') return true;
+
+    const authorizedUsers = Array.isArray(letterData.authorized_users)
+      ? letterData.authorized_users
+      : typeof letterData.authorized_users === 'string'
+        ? letterData.authorized_users.split(',').map(u => u.trim())
+        : [];
+
+    return authorizedUsers.includes(user?.username);
+  };
+
   if (!letter) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-[#0D0D0D] p-8">
       <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/10 rounded-[2rem] flex items-center justify-center mb-6">
@@ -130,6 +149,30 @@ export default function LetterDetail() {
       </button>
     </div>
   );
+
+  const isAuthorized = canUserViewLetter(letter);
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-[#0D0D0D] p-8">
+        <div className="w-24 h-24 bg-orange-50 dark:bg-orange-900/10 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-xl shadow-orange-500/10 border border-orange-100 dark:border-orange-900/20">
+          <ShieldOff className="w-12 h-12 text-orange-600 dark:text-orange-400" />
+        </div>
+        <div className="text-center max-w-md">
+          <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-4">Access Restricted</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-10 leading-relaxed">
+            This record has been marked as <span className="text-orange-600 font-bold">HIDDEN</span>. You do not have the necessary authorization to view its contents or attachments.
+          </p>
+        </div>
+        <button
+          onClick={() => navigate(-1)}
+          className="px-10 py-4 bg-slate-900 dark:bg-white text-white dark:text-black text-[10px] font-black rounded-2xl uppercase tracking-[0.2em] shadow-2xl hover:scale-105 active:scale-95 transition-all"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
 
   if (layoutStyle === 'grid') {
     return (
@@ -274,19 +317,25 @@ export default function LetterDetail() {
                       const filePath = letter.scanned_copy || letter.attachment?.file_path;
                       const fileUrl = buildFileUrl(filePath);
                       const fileName = getFilename(filePath);
-                      return canPdf && fileUrl ? (
+                      return fileUrl ? (
                         <button
-                          onClick={() => setPdfPanel({ isOpen: true, url: fileUrl, name: fileName })}
-                          className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-2xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors group w-full text-left"
+                          onClick={() => {
+                            if (!canPdf) return;
+                            setPdfPanel({ isOpen: true, url: fileUrl, name: fileName });
+                          }}
+                          disabled={!canPdf}
+                          className={`flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-2xl transition-colors group w-full text-left ${!canPdf ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-100 dark:hover:bg-blue-900/20'}`}
                         >
                           <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 flex-shrink-0">
                             <FileText className="w-5 h-5 text-white" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-black text-slate-900 dark:text-white uppercase truncate">{fileName}</p>
-                            <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest mt-0.5">Scanned Copy · Click to Preview</p>
+                            <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest mt-0.5">
+                              {canPdf ? 'Scanned Copy · Click to Preview' : 'Access Restricted'}
+                            </p>
                           </div>
-                          <ExternalLink className="w-4 h-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                          {canPdf && <ExternalLink className="w-4 h-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />}
                         </button>
                       ) : (
                         <div className="py-4 text-center">
@@ -418,24 +467,30 @@ export default function LetterDetail() {
                         const filePath = letter.scanned_copy || letter.attachment?.file_path;
                         const fileUrl = buildFileUrl(filePath);
                         const fileName = getFilename(filePath);
-                        return canPdf && fileUrl ? (
-                          <button
-                            onClick={() => setPdfPanel({ isOpen: true, url: fileUrl, name: fileName })}
-                            className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-transparent hover:border-gray-200 transition-all group w-full text-left"
-                          >
-                            <div className="w-10 h-10 bg-[#1A1A1B] text-white rounded-lg flex items-center justify-center">
-                              <FileText className="w-5 h-5" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-[#1A1A1B] dark:text-white truncate">{fileName}</p>
-                              <p className="text-[9px] text-[#737373] uppercase tracking-widest mt-0.5">PDF Document · Preview</p>
-                            </div>
-                          </button>
-                        ) : (
-                          <div className="py-4 text-center border border-dashed border-gray-100 rounded-2xl">
-                            <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">No Electronic Copy</p>
+                      return fileUrl ? (
+                        <button
+                          onClick={() => {
+                            if (!canPdf) return;
+                            setPdfPanel({ isOpen: true, url: fileUrl, name: fileName });
+                          }}
+                          disabled={!canPdf}
+                          className={`flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-transparent transition-all group w-full text-left ${!canPdf ? 'opacity-50 cursor-not-allowed' : 'hover:border-gray-200'}`}
+                        >
+                          <div className="w-10 h-10 bg-[#1A1A1B] text-white rounded-lg flex items-center justify-center">
+                            <FileText className="w-5 h-5" />
                           </div>
-                        );
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-[#1A1A1B] dark:text-white truncate">{fileName}</p>
+                            <p className="text-[9px] text-[#737373] uppercase tracking-widest mt-0.5">
+                              {canPdf ? 'PDF Document · Preview' : 'Access Restricted'}
+                            </p>
+                          </div>
+                        </button>
+                      ) : (
+                        <div className="py-4 text-center border border-dashed border-gray-100 rounded-2xl">
+                          <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">No Electronic Copy</p>
+                        </div>
+                      );
                       })()}
                     </section>
                   </div>
@@ -510,17 +565,23 @@ export default function LetterDetail() {
                       const filePath = letter.scanned_copy || letter.attachment?.file_path;
                       const fileUrl = buildFileUrl(filePath);
                       const fileName = getFilename(filePath);
-                      return canPdf && fileUrl ? (
+                      return fileUrl ? (
                         <button
-                          onClick={() => setPdfPanel({ isOpen: true, url: fileUrl, name: fileName })}
-                          className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors group w-full text-left"
+                          onClick={() => {
+                            if (!canPdf) return;
+                            setPdfPanel({ isOpen: true, url: fileUrl, name: fileName });
+                          }}
+                          disabled={!canPdf}
+                          className={`flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-xl transition-colors group w-full text-left ${!canPdf ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-100 dark:hover:bg-blue-900/20'}`}
                         >
                           <FileText className="w-5 h-5 text-blue-500" />
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{fileName}</p>
-                            <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest">Scanned Copy · Preview</p>
+                            <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest">
+                              {canPdf ? 'Scanned Copy · Preview' : 'Access Restricted'}
+                            </p>
                           </div>
-                          <ExternalLink className="w-4 h-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          {canPdf && <ExternalLink className="w-4 h-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
                         </button>
                       ) : (
                         <div className="p-12 border-2 border-dashed border-gray-50 dark:border-[#222] rounded-xl text-center">
@@ -721,17 +782,23 @@ export default function LetterDetail() {
                     const filePath = letter.scanned_copy || letter.attachment?.file_path;
                     const fileUrl = buildFileUrl(filePath);
                     const fileName = getFilename(filePath);
-                    return canPdf && fileUrl ? (
+                    return fileUrl ? (
                       <button
-                        onClick={() => setPdfPanel({ isOpen: true, url: fileUrl, name: fileName })}
-                        className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-2xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors group w-full text-left"
+                        onClick={() => {
+                          if (!canPdf) return;
+                          setPdfPanel({ isOpen: true, url: fileUrl, name: fileName });
+                        }}
+                        disabled={!canPdf}
+                        className={`flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-2xl transition-colors group w-full text-left ${!canPdf ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-100 dark:hover:bg-blue-900/20'}`}
                       >
-                        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 flex-shrink-0">
+                        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20 flex-shrink-0">
                           <FileText className="w-5 h-5 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-black text-gray-900 dark:text-white uppercase truncate">{fileName}</p>
-                          <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest mt-0.5">Scanned Copy · Click to Preview</p>
+                          <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest mt-0.5">
+                            {canPdf ? 'Scanned Copy · Click to Preview' : 'Access Restricted'}
+                          </p>
                         </div>
                       </button>
                     ) : (

@@ -87,7 +87,7 @@ export default function NewLetter() {
     useState(false);
   const [predictedLmsId, setPredictedLmsId] = useState("Generating...");
   const [selectedDept, setSelectedDept] = useState("");
-  const [notifyKarl, setNotifyKarl] = useState(false);
+  const [notifyKarl, setNotifyKarl] = useState(true);
   const [formData, setFormData] = useState({
     date_received: (() => {
       const now = new Date();

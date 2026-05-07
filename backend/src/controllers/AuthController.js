@@ -25,6 +25,39 @@ const PAGES_CACHE_TTL = 3600000;
 // Most installs treat Directus "email" as the LMS username, so default to username first.
 const directusLoginHint = new Map();
 
+const ensureRolePermissionsForAllPages = async (roleId, systemPages = null) => {
+    if (!roleId) return;
+
+    const pages = Array.isArray(systemPages) && systemPages.length > 0
+        ? systemPages
+        : await SystemPage.findAll({ attributes: ['page_id'] });
+
+    const pageIds = pages.map((p) => p.page_id).filter(Boolean);
+    if (pageIds.length === 0) return;
+
+    const existing = await RolePermission.findAll({
+        where: { role_id: roleId },
+        attributes: ['page_name']
+    });
+    const existingPageNames = new Set(existing.map((r) => r.page_name));
+    const missingPages = pageIds.filter((pageId) => !existingPageNames.has(pageId));
+    if (missingPages.length === 0) return false;
+
+    const toCreate = missingPages.map((pageId) => ({
+        role_id: roleId,
+        page_name: pageId,
+        can_view: false,
+        can_create: false,
+        can_edit: false,
+        can_delete: false,
+        can_special: false,
+        field_permissions: withDefaultFieldPermissions(pageId, {})
+    }));
+
+    await RolePermission.bulkCreate(toCreate, { ignoreDuplicates: true });
+    return true;
+};
+
 const getCachedPerms = (roleId) => {
     if (!roleId || !Number.isFinite(PERMS_CACHE_TTL_MS) || PERMS_CACHE_TTL_MS <= 0) return null;
     const cached = permsCache.get(roleId);
@@ -69,7 +102,15 @@ const PAGE_FIELD_PRESETS = {
     'letter-detail': ['pdf_button', 'back_button'],
     'department-letters': ['back_button', 'search', 'refresh_button', 'tab_filter', 'tray_selector'],
     'profile': ['save_button', 'password_field', 'avatar_upload', 'username_field'],
-    'audit-logs': ['search', 'refresh_button']
+    'audit-logs': ['search', 'refresh_button'],
+    'dept-matrix': ['search', 'save_button', 'edit_field', 'allow_all_button', 'restrict_button', 'role_selector'],
+    'roles': ['add_button', 'edit_button', 'delete_button', 'save_button', 'refresh_button'],
+    'sections': ['add_button', 'edit_button', 'delete_button', 'save_button', 'refresh_button', 'view_toggle'],
+    'trash': ['restore_button', 'delete_button', 'search', 'refresh_button'],
+    'legacy-data': ['search', 'refresh_button', 'pdf_button'],
+    'vem-resumen': ['print_button', 'add_button', 'forward_button', 'back_button', 'scan_qr_button'],
+    'aevm-resumen': ['print_button', 'add_button', 'forward_button', 'back_button', 'scan_qr_button'],
+    'resumen': ['print_button', 'add_button', 'forward_button', 'back_button', 'scan_qr_button'],
 };
 
 const withDefaultFieldPermissions = (pageName, raw = {}) => {
@@ -162,6 +203,15 @@ class AuthController {
                 lap('Permission Fetch');
             } else {
                 lap('Permission Cache Hit');
+            }
+
+            // Ensure every SystemPage has an explicit permission row for this role.
+            // This prevents "missing row" pages from defaulting to open/unprotected.
+            const ensured = await ensureRolePermissionsForAllPages(user.role, systemPages);
+            if (ensured) {
+                permsCache.delete(user.role);
+                normalizedPerms = normalizePermissions(await RolePermission.findAll({ where: { role_id: user.role } }));
+                setCachedPerms(user.role, normalizedPerms);
             }
             lap('Data Prepared');
 
@@ -317,6 +367,9 @@ class AuthController {
 
             const user = await User.findByPk(directusUserId, { include: ['roleData', 'department'] });
             if (!user) return res.status(404).json({ error: 'User not found' });
+
+            const ensured = await ensureRolePermissionsForAllPages(user.role, cachedPages);
+            if (ensured) permsCache.delete(user.role);
 
             let normalizedPerms = getCachedPerms(user.role);
             if (!normalizedPerms) {

@@ -118,6 +118,16 @@
   to { transform: translateY(0); }
 }
 
+@keyframes shakeNotify {
+  0%, 86%, 100% { transform: translate3d(0, 0, 0); }
+  88% { transform: translate3d(0, 0, 0) rotate(3deg); }
+  90% { transform: translate3d(0, 0, 0) rotate(-3deg); }
+  92% { transform: translate3d(0, 0, 0) rotate(2deg); }
+  94% { transform: translate3d(0, 0, 0) rotate(-2deg); }
+  96% { transform: translate3d(0, 0, 0) rotate(1deg); }
+  98% { transform: translate3d(0, 0, 0) rotate(-1deg); }
+}
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -133,4 +143,11 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@layer utilities {
+  .animate-shake-notify {
+    animation: shakeNotify 2.2s ease-in-out infinite;
+    transform-origin: 50% 50%;
+  }
 }

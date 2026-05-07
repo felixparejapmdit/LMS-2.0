@@ -145,8 +145,7 @@ export default function AevmResumen() {
         if (loading) return;
         lastAutoSubmitRef.current = extracted;
         setLmsIdInput(extracted);
-        const added = await handleAddLetter(extracted);
-        if (added) setIsAddModalOpen(false);
+        await handleAddLetter(extracted);
     };
 
     const handleAtgInputChange = (e) => {
@@ -235,45 +234,142 @@ export default function AevmResumen() {
     };
 
     const handleDelete = (id) => setLetters(letters.filter(l => l.id !== id));
+    
+    const handleSummaryEdit = (id, newSummary) => {
+        setLetters(prev => prev.map(l => l.id === id ? { ...l, summary: newSummary } : l));
+    };
+    
     const handleBack = () => navigate(-1);
     const handleForward = async () => {
+        if (letters.length === 0) {
+            alert('No letters in the list to forward.');
+            return;
+        }
+        const lettersSnapshot = letters.slice();
         try {
+            const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
             const [statuses, stepsRes] = await Promise.all([
                 statusService.getAll(),
-                axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/process-steps`)
+                axios.get(`${API}/process-steps`)
             ]);
-            
-            const forwardStatus = statuses.find(s => s.status_name.toLowerCase().includes('forward'));
-            const aevmStep = stepsRes.data.find(s => 
-                s.step_name.toUpperCase().includes('AEVM LETTER') || 
-                s.step_name.toUpperCase().includes('AEVEM LETTER')
+
+            // Find the "Forwarded" status
+            const forwardStatus = statuses.find(s =>
+                s.status_name.toLowerCase().includes('forward')
             );
+            if (!forwardStatus) {
+                alert('Could not find a "Forwarded" status in the system. Please check your status configuration.');
+                return;
+            }
 
-            if (letters.length > 0) {
-                await Promise.all(letters.map(async (letter) => {
-                    const updates = {};
-                    if (forwardStatus) updates.global_status = forwardStatus.id;
-                    
-                    // Update letter status
-                    await letterService.update(letter.id, { ...updates, user_id: user?.id });
+            const toIntOrNull = (value) => {
+                if (value === undefined || value === null || value === '') return null;
+                const parsed = parseInt(value, 10);
+                return Number.isNaN(parsed) ? null : parsed;
+            };
 
-                    // Also update assignment to AEVM step if found
-                    if (aevmStep) {
-                        const currentAssign = letter.assignments?.sort((a,b) => b.id - a.id)[0];
-                        if (currentAssign) {
-                            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${currentAssign.id}`, {
-                                step_id: aevmStep.id,
-                                status_id: forwardStatus?.id || letter.global_status,
-                                user_id: user?.id
-                            });
+            const normalizeStepName = (value) =>
+                (value || '').toString().toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+
+            // Find the "AEVM Letter" step (context-specific to this page)
+            const targetStep = (stepsRes.data || []).find(s => {
+                const name = normalizeStepName(s.step_name);
+                return (/\bAEVM\b/.test(name) || /\bAEVEM\b/.test(name)) && /\bLETTER\b/.test(name);
+            });
+
+            const withRetry = async (fn, { tries = 3, baseDelayMs = 250 } = {}) => {
+                let lastErr;
+                for (let attempt = 1; attempt <= tries; attempt++) {
+                    try {
+                        return await fn();
+                    } catch (err) {
+                        lastErr = err;
+                        const msg = (err?.response?.data?.error || err?.message || '').toString();
+                        const transient =
+                            /deadlock/i.test(msg) ||
+                            /lock wait timeout/i.test(msg) ||
+                            /timeout/i.test(msg) ||
+                            /ECONNRESET/i.test(msg) ||
+                            /ETIMEDOUT/i.test(msg) ||
+                            /NETWORK/i.test(msg);
+
+                        if (!transient || attempt === tries) break;
+                        await new Promise(r => setTimeout(r, baseDelayMs * attempt));
+                    }
+                }
+                throw lastErr;
+            };
+
+            // Process sequentially to avoid deadlocks / partial updates under load
+            const failed = [];
+            let succeeded = 0;
+            for (const letter of letters) {
+                try {
+                    const letterId = toIntOrNull(letter?.id);
+                    if (!letterId) throw new Error('Invalid letter id');
+
+                    // 1) Update status to Forwarded (status-only payload + user for logging)
+                    await withRetry(() => letterService.update(letterId, {
+                        global_status: toIntOrNull(forwardStatus.id),
+                        user_id: user?.id
+                    }));
+
+                    // 2) Update / create the process-step assignment so Group/Steps reflects AEVM Letter
+                    if (targetStep?.id) {
+                        const currentAssign = letter.assignments
+                            ?.slice()
+                            .sort((a, b) => (b?.id || 0) - (a?.id || 0))[0];
+
+                        const assignmentPayload = {
+                            step_id: toIntOrNull(targetStep.id),
+                            status_id: toIntOrNull(forwardStatus.id),
+                            assigned_by: user?.id
+                        };
+
+                        if (currentAssign?.id) {
+                            await withRetry(() => axios.put(
+                                `${API}/letter-assignments/${currentAssign.id}`,
+                                assignmentPayload
+                            ));
+                        } else {
+                            await withRetry(() => axios.post(`${API}/letter-assignments`, {
+                                ...assignmentPayload,
+                                letter_id: letterId,
+                                department_id: toIntOrNull(targetStep.dept_id) || null
+                            }));
                         }
                     }
-                }));
+
+                    succeeded += 1;
+                } catch (err) {
+                    failed.push({ letter, err });
+                }
+            }
+
+            await fetchTodayLetters();
+
+            // Notify LMS bot (count-based message)
+            axios.post(`${API}/telegram/notify-lms-bot`, {
+                type: 'AEVM',
+                total_letters: lettersSnapshot.length,
+                succeeded,
+                failed: failed.length,
+                lms_ids: lettersSnapshot
+                    .map(l => (l?.lms_id || l?.entry_id || l?.id))
+                    .filter(Boolean),
+                forwarded_by: `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.username || user?.id || 'Unknown'
+            }).catch(() => { });
+
+            if (failed.length === 0) {
+                alert(`✅ All ${succeeded} letter(s) successfully forwarded as "AEVM Letter"!`);
+            } else {
+                console.error('[handleForward] Some letters failed:', failed.map(f => f.err));
+                alert(`⚠️ ${succeeded} forwarded, ${failed.length} failed. Check the console for details.`);
             }
         } catch (err) {
-            console.error("Failed to update status to Forwarded:", err);
+            console.error('handleForward unexpected error:', err);
+            alert('An unexpected error occurred while forwarding. Please try again.');
         }
-        navigate('/vip-view');
     };
     const handlePrint = () => {
         const originalTitle = document.title;
@@ -346,7 +442,13 @@ export default function AevmResumen() {
                                                 </div>
                                             </td>
                                             <td className="border border-gray-900 p-1.5">
-                                                <div className="text-xs text-gray-700 leading-snug" dangerouslySetInnerHTML={{ __html: letter.summary }} />
+                                                <div 
+                                                    className="text-xs text-gray-700 leading-snug outline-none focus:bg-gray-100 p-1 -m-1 rounded transition-colors" 
+                                                    contentEditable
+                                                    suppressContentEditableWarning
+                                                    onBlur={(e) => handleSummaryEdit(letter.id, e.target.innerHTML)}
+                                                    dangerouslySetInnerHTML={{ __html: letter.summary }} 
+                                                />
                                             </td>
                                             <td className="border border-gray-900 p-1.5 print:hidden">
                                                 <div className="flex items-center justify-center gap-1">
@@ -449,8 +551,7 @@ export default function AevmResumen() {
                         <div className="p-8 pt-14">
                             <form onSubmit={async (e) => {
                                 e.preventDefault();
-                                const added = await handleAddLetter();
-                                if (added) setIsAddModalOpen(false);
+                                await handleAddLetter();
                             }} className="space-y-4">
                                 <div className="space-y-1.5">
                                     <input

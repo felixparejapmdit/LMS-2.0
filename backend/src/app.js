@@ -44,8 +44,9 @@ app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 // Global Debug Logger for Letters
 app.use("/api/letters", (req, res, next) => {
   if (req.method === "POST") {
+    const bodyStr = JSON.stringify(req.body) || "";
     console.log(
-      `[GLOBAL_DEBUG] POST /api/letters Hit. Body size: ${JSON.stringify(req.body).length} chars`,
+      `[GLOBAL_DEBUG] POST /api/letters Hit. Body size: ${bodyStr.length} chars`,
     );
   }
   next();

@@ -32,7 +32,6 @@ import {
   Shield,
   Sparkles,
   Plus,
-  Bell,
   MessageSquare,
   ShieldCheck,
   CloudDownload,
@@ -41,7 +40,9 @@ import {
   LayoutGrid,
   Users,
   Eye,
-  Settings2
+  Settings2,
+  Trash2,
+  ShoppingCart
 } from "lucide-react";
 import { directusUrl, getAssetUrl } from "../hooks/useDirectus";
 import systemPageService from "../services/systemPageService";
@@ -56,6 +57,35 @@ export default function Sidebar() {
   const NAV_SCROLL_KEY = "sidebar_nav_scroll";
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
+
+  const settingsGroupOrder = ["Access", "Registry", "System"];
+  const getGroupedChildren = (item) => {
+    if (!item?.children?.length) return item?.children || [];
+    if (item.label !== "Settings") return item.children;
+
+    const groups = new Map();
+    for (const child of item.children) {
+      const group = child.group || "Other";
+      if (!groups.has(group)) groups.set(group, []);
+      groups.get(group).push(child);
+    }
+
+    const ordered = [];
+    for (const group of settingsGroupOrder) {
+      const items = groups.get(group);
+      if (!items?.length) continue;
+      ordered.push({ __type: "header", label: group });
+      ordered.push(...items);
+      groups.delete(group);
+    }
+
+    for (const [group, items] of Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
+      ordered.push({ __type: "header", label: group });
+      ordered.push(...items);
+    }
+
+    return ordered;
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -119,22 +149,25 @@ export default function Sidebar() {
       path: "#",
       color: "text-gray-500",
       children: [
-        { icon: Settings, label: "Access Matrix", path: "/setup/role-matrix", color: "text-red-500" },
-        { icon: ShieldCheck, label: "Unit Access Matrix", path: "/setup/dept-matrix", hidden: (user?.roleData?.name || user?.role || '').toString().toUpperCase() !== 'ACCESS MANAGER', color: "text-red-600" },
-        { icon: LayoutDashboard, label: "App Settings", path: "/settings", color: "text-slate-500" },
-        { icon: Paperclip, label: "Attachments", path: "/setup/attachments", color: "text-blue-500" },
-        { icon: UserIcon, label: "Contacts", path: "/setup/persons", color: "text-teal-500" },
-        { icon: CloudDownload, label: "Data Import", path: "/setup/data-import", color: "text-indigo-500" },
-        { icon: Building2, label: "Departments", path: "/setup/departments", color: "text-amber-500" },
-        { icon: Tags, label: "Kinds", path: "/setup/letter-kinds", color: "text-orange-500" },
-        { icon: ShieldCheck, label: "Roles", path: "/setup/roles", color: "text-violet-500" },
-        { icon: Activity, label: "Statuses", path: "/setup/statuses", color: "text-rose-500" },
-        { icon: GitMerge, label: "Steps", path: "/setup/process-steps", color: "text-cyan-500" },
-        { icon: Box, label: "Trays", path: "/setup/trays", color: "text-emerald-600" },
-        { icon: Users, label: "Users", path: "/setup/users", color: "text-purple-500" },
-        { icon: LayoutGrid, label: "Section Registry", path: "/setup/sections", color: "text-pink-500" },
-        { icon: Settings2, label: "Inter-Dept Management", path: "/setup/inter-dept", hidden: !hasPermission('inter-dept'), color: "text-yellow-600" },
-        { icon: Shield, label: "Audit Logs", path: "/setup/audit-logs", color: "text-gray-600" },
+        { icon: Settings, label: "Access Matrix", path: "/setup/role-matrix", color: "text-red-500", group: "Access" },
+        { icon: ShieldCheck, label: "Unit Access Matrix", path: "/setup/dept-matrix", hidden: (user?.roleData?.name || user?.role || '').toString().toUpperCase() !== 'ACCESS MANAGER', color: "text-red-600", group: "Access" },
+        { icon: ShieldCheck, label: "Roles", path: "/setup/roles", color: "text-violet-500", group: "Access" },
+        { icon: Users, label: "Users", path: "/setup/users", color: "text-purple-500", group: "Access" },
+
+        { icon: Building2, label: "Departments", path: "/setup/departments", color: "text-amber-500", group: "Registry" },
+        { icon: LayoutGrid, label: "Section Registry", path: "/setup/sections", color: "text-pink-500", group: "Registry" },
+        { icon: Tags, label: "Kinds", path: "/setup/letter-kinds", color: "text-orange-500", group: "Registry" },
+        { icon: Activity, label: "Statuses", path: "/setup/statuses", color: "text-rose-500", group: "Registry" },
+        { icon: GitMerge, label: "Steps", path: "/setup/process-steps", color: "text-cyan-500", group: "Registry" },
+        { icon: Box, label: "Trays", path: "/setup/trays", color: "text-emerald-600", group: "Registry" },
+        { icon: UserIcon, label: "Contacts", path: "/setup/persons", color: "text-teal-500", group: "Registry" },
+
+        { icon: LayoutDashboard, label: "App Settings", path: "/settings", color: "text-slate-500", group: "System" },
+        { icon: Paperclip, label: "Attachments", path: "/setup/attachments", color: "text-blue-500", group: "System" },
+        { icon: CloudDownload, label: "Data Import", path: "/setup/data-import", color: "text-indigo-500", group: "System" },
+        { icon: Settings2, label: "Inter-Dept Management", path: "/setup/inter-dept", hidden: !hasPermission('inter-dept'), color: "text-yellow-600", group: "System" },
+        { icon: Shield, label: "Audit Logs", path: "/setup/audit-logs", color: "text-gray-600", group: "System" },
+        { icon: Trash2, label: "Trash", path: "/setup/trash", color: "text-red-500", group: "System" },
       ]
     },
 
@@ -173,10 +206,10 @@ export default function Sidebar() {
 
   const filteredNavItems = navItems
     .map(item => {
+      if (item.hidden) return null;
       if (item.children) {
         const children = item.children
-          .filter(child => hasPermission(getPageKeyFromPath(child.path)))
-          .sort((a, b) => a.label.localeCompare(b.label)); // Sort children alphabetically
+          .filter(child => !child.hidden && hasPermission(getPageKeyFromPath(child.path), 'can_view'))
         if (children.length === 0) return null;
         return { ...item, children };
       }
@@ -186,7 +219,7 @@ export default function Sidebar() {
       const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
       const isDisabled = (item.label === "New Letter" && isAccessManager && !isSetupComplete);
 
-      return hasPermission(key) ? { ...item, isDisabled } : null;
+      return hasPermission(key, 'can_view') ? { ...item, isDisabled } : null;
     })
     .filter(Boolean);
 
@@ -222,30 +255,49 @@ export default function Sidebar() {
       return (
         <>
           <div className={`h-20 flex items-center border-b border-slate-100 shrink-0 relative overflow-visible transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-between px-5'}`}>
-            <div className="flex items-center gap-3 overflow-visible z-50">
-              <div
+            {(isSidebarExpanded || isMobileMenuOpen) ? (
+              <div className="flex items-center w-full overflow-visible z-50">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 transition-all min-w-0 select-none py-1">
+                    <span className="text-[28px] font-black leading-none tracking-tighter text-slate-900 dark:text-white">LMS</span>
+                    <span className="text-[24px] font-black text-orange-500 tracking-tighter leading-none">2.0</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleNotificationClick}
+                    className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 group/cart cursor-pointer relative transition-all hover:bg-blue-50/80 dark:hover:bg-blue-500/10 active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
+                    title="Open my endorsements"
+                  >
+                    <ShoppingCart className="w-7 h-7 text-blue-600 dark:text-blue-400 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
+                    {notificationCount > 0 && (
+                      <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-red-500 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[11px] font-black shadow-md leading-none px-1.5">
+                        {notificationCount > 99 ? '99+' : notificationCount}
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
                 onClick={handleNotificationClick}
-                className="w-11 h-11 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200 shrink-0 group/bell cursor-pointer relative transition-all hover:scale-105 active:scale-95"
+                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 group/cart cursor-pointer relative transition-all hover:bg-blue-50/80 dark:hover:bg-blue-500/10 active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
+                title="Open my endorsements"
               >
-                <Bell className="w-5 h-5 transition-transform group-hover/bell:rotate-12" />
+                <ShoppingCart className="w-7 h-7 text-blue-600 dark:text-blue-400 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
                 {notificationCount > 0 && (
-                  <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 border-2 border-white rounded-full flex items-center justify-center text-[8px] font-black animate-bounce shadow-sm">
-                    {notificationCount > 9 ? '9+' : notificationCount}
+                  <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-red-500 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[11px] font-black shadow-md leading-none px-1.5">
+                    {notificationCount > 99 ? '99+' : notificationCount}
                   </div>
                 )}
-              </div>
-              {(isSidebarExpanded || isMobileMenuOpen) && (
-                <div className="flex flex-col animate-in fade-in slide-in-from-left-2 transition-all">
-                  <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tighter leading-none">LMS 2026</span>
-                </div>
-              )}
-            </div>
+              </button>
+            )}
           </div>
 
           <nav
             ref={navScrollRef}
             onScroll={handleNavScroll}
-            className="flex-1 px-3 py-6 space-y-2 overflow-y-auto custom-scrollbar"
+            className="flex-1 px-3 py-7 space-y-3 overflow-y-auto custom-scrollbar"
           >
 
             {filteredNavItems.map((item) => (
@@ -264,31 +316,31 @@ export default function Sidebar() {
                   title={!isSidebarExpanded ? item.label : ""}
                   className={({ isActive }) => {
                     const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
-                    const activeBg = isAccessManager ? "bg-sky-500" : "bg-slate-700";
-                    const hoverBg = isAccessManager ? "hover:bg-sky-600" : "hover:bg-slate-700";
+                    const activeTint = isAccessManager ? "bg-sky-500/15 dark:bg-sky-400/15" : "bg-emerald-500/15 dark:bg-emerald-400/15";
+                    const indicator = isAccessManager ? "before:bg-sky-500" : "before:bg-emerald-500";
                     
                     if (item.isDisabled) {
                         return `
-                        flex items-center gap-4 p-3 rounded-2xl transition-all duration-300 group/item relative
+                        flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group/item relative
                         opacity-40 grayscale cursor-not-allowed pointer-events-none select-none
                         ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
                         `;
                     }
 
                     return `
-                    flex items-center gap-4 p-3 rounded-2xl transition-all duration-300 group/item relative
+                    flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group/item relative
                     ${isActive && !item.children && item.path !== "#"
-                        ? `${activeBg} text-white shadow-lg shadow-sky-500/20`
-                        : `text-slate-500 hover:text-white ${hoverBg}`}
+                        ? `${activeTint} text-slate-900 dark:text-white shadow-sm before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-7 before:w-1 before:rounded-full ${indicator}`
+                        : `text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-white/5`}
                     ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
                   `}}
                 >
                   {({ isActive }) => (
                     <>
-                      <item.icon className={`w-6 h-6 transition-transform group-hover/item:scale-110 shrink-0 ${isActive && !item.children && item.path !== "#" ? "text-white" : (item.color || '')}`} />
+                      <item.icon className={`w-6 h-6 transition-transform group-hover/item:scale-110 shrink-0 ${item.color || ''}`} />
                       {(isSidebarExpanded || isMobileMenuOpen) && (
                         <div className="flex flex-col">
-                          <span className="text-xs font-black tracking-widest">{item.label}</span>
+                          <span className="text-[15px] font-semibold tracking-wide leading-tight">{item.label}</span>
                           {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase">Complete Setup First</span>}
                         </div>
                       )}
@@ -300,85 +352,101 @@ export default function Sidebar() {
                 </NavLink>
 
                 {item.children && expandedMenus[item.label] && (isSidebarExpanded || isMobileMenuOpen) && (
-                  <div className="pl-4 pr-1 mt-1 space-y-1 animate-in slide-in-from-top-2 opacity-100 fade-in duration-200">
-                    {item.children.map(child => (
-                      <NavLink
-                        id={`nav-child-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
-                        key={child.path}
-                        to={child.path}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={({ isActive }) => {
-                          const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
-                          const activeBg = isAccessManager ? "bg-sky-500" : "bg-slate-700";
-                          const hoverBg = isAccessManager ? "hover:bg-sky-600" : "hover:bg-slate-700";
-                          return `
-                          flex items-center gap-3 p-2 rounded-xl transition-all duration-300
-                          ${isActive
-                              ? `${activeBg} text-white`
-                              : `text-slate-400 hover:text-white ${hoverBg}`}
-                          `
-                        }}
-                      >
-                        {({ isActive }) => (
-                          <>
-                            <child.icon className={`w-5 h-5 shrink-0 ${isActive ? "text-white" : (child.color || '')}`} />
-                            <span className="text-[10px] font-black tracking-widest">{child.label}</span>
-                          </>
-                        )}
-                      </NavLink>
-                    ))}
+                  <div className="pl-4 pr-1 mt-2 space-y-1.5 animate-in slide-in-from-top-2 opacity-100 fade-in duration-200">
+                    {getGroupedChildren(item).map((entry, idx) => {
+                      if (entry.__type === "header") {
+                        return (
+                          <div
+                            key={`settings-group-${entry.label}-${idx}`}
+                            className={`px-3 ${idx === 0 ? 'pt-0' : 'pt-3'} pb-1 text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-[0.22em]`}
+                          >
+                            {entry.label}
+                          </div>
+                        );
+                      }
+
+                      const child = entry;
+                      return (
+                        <NavLink
+                          id={`nav-child-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
+                          key={child.path}
+                          to={child.path}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className={({ isActive }) => {
+                            const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
+                            const activeTint = isAccessManager ? "bg-sky-500/15 dark:bg-sky-400/15" : "bg-emerald-500/15 dark:bg-emerald-400/15";
+                            const indicator = isAccessManager ? "before:bg-sky-500" : "before:bg-emerald-500";
+                            return `
+                            flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative
+                            ${isActive
+                                ? `${activeTint} text-slate-900 dark:text-white before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-full ${indicator}`
+                                : `text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-white/5`}
+                            `
+                          }}
+                        >
+                          {() => (
+                            <>
+                              <child.icon className={`w-5 h-5 shrink-0 ${child.color || ''}`} />
+                              <span className="text-[13px] font-semibold tracking-wide leading-tight">{child.label}</span>
+                            </>
+                          )}
+                        </NavLink>
+                      );
+                    })}
                   </div>
                 )}
               </div>
             ))}
           </nav>
 
-          <div className="p-3 border-t border-slate-100 shrink-0">
+          <div className="p-3 shrink-0">
             {/* Combined Profile & Logout Section - Bottom */}
-            <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
-              <button
-                onClick={() => navigate('/profile')}
-                title={!isSidebarExpanded && !isMobileMenuOpen ? "View Profile" : ""}
-                className={`
-                    flex-1 flex items-center gap-3 p-2 rounded-2xl transition-all duration-300 group/prof
-                    hover:bg-slate-200 dark:hover:bg-white/10 border border-transparent
-                    ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center p-2' : 'justify-start'}
-                  `}
-              >
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-500/10 transition-all overflow-hidden group-hover/prof:scale-110">
-                  {user?.avatar ? (
-                    <img
-                      src={getAssetUrl(user.avatar, "?width=100&height=100&fit=cover")}
-                      className="w-full h-full object-cover"
-                      alt="Profile"
-                      onError={(e) => {
-                        const firstName = user.first_name || user.username || 'U';
-                        const lastName = user.last_name || '';
-                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName + ' ' + lastName)}&background=0066FF&color=fff`;
-                      }}
-                    />
-                  ) : (
-                    <UserCircle className="w-5 h-5" />
-                  )}
-                </div>
-                {(isSidebarExpanded || isMobileMenuOpen) && (
-                  <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
-                    <span className="text-[11px] font-black text-slate-900 dark:text-gray-100 truncate tracking-tight group-hover/prof:text-blue-600">
-                      {user?.first_name} {user?.last_name}
-                    </span>
-                    <span className="text-[9px] font-bold text-blue-500 truncate tracking-widest leading-none mt-1">
-                      View Profile
-                    </span>
+            <div className="rounded-3xl bg-white/70 dark:bg-white/5 backdrop-blur-md border border-white/60 dark:border-white/10 shadow-lg shadow-slate-200/50 dark:shadow-none p-2">
+              <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
+                <button
+                  onClick={() => navigate('/profile')}
+                  title={!isSidebarExpanded && !isMobileMenuOpen ? "View Profile" : ""}
+                  className={`
+                      flex-1 flex items-center gap-3 p-2 rounded-2xl transition-all duration-300 group/prof
+                      hover:bg-slate-200/70 dark:hover:bg-white/10 border border-transparent
+                      ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center p-2' : 'justify-start'}
+                    `}
+                >
+                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-500/10 transition-all overflow-hidden group-hover/prof:scale-110">
+                    {user?.avatar ? (
+                      <img
+                        src={getAssetUrl(user.avatar, "?width=100&height=100&fit=cover")}
+                        className="w-full h-full object-cover"
+                        alt="Profile"
+                        onError={(e) => {
+                          const firstName = user.first_name || user.username || 'U';
+                          const lastName = user.last_name || '';
+                          e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName + ' ' + lastName)}&background=0066FF&color=fff`;
+                        }}
+                      />
+                    ) : (
+                      <UserCircle className="w-5 h-5" />
+                    )}
                   </div>
-                )}
-              </button>
-              <button
-                onClick={handleLogout}
-                className="p-3 text-slate-400 hover:text-red-500 transition-colors"
-                title="Logout"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
+                  {(isSidebarExpanded || isMobileMenuOpen) && (
+                    <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
+                      <span className="text-[11px] font-black text-slate-900 dark:text-gray-100 truncate tracking-tight group-hover/prof:text-blue-600">
+                        {user?.first_name} {user?.last_name}
+                      </span>
+                      <span className="text-[9px] font-bold text-blue-500 truncate tracking-widest leading-none mt-1">
+                        View Profile
+                      </span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="p-3 text-slate-400 hover:text-red-500 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
         </>
@@ -390,31 +458,49 @@ export default function Sidebar() {
       return (
         <>
           <div className={`p-4 mb-4 flex items-center shrink-0 overflow-visible transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-between'}`}>
-            <div className="flex items-center gap-3 overflow-visible z-50">
-              <div
+            {(isSidebarExpanded || isMobileMenuOpen) ? (
+              <div className="flex items-center w-full overflow-visible z-50">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 transition-all min-w-0 select-none py-1">
+                    <span className="text-[24px] font-black leading-none tracking-tighter text-slate-900 dark:text-white">LMS</span>
+                    <span className="text-[20px] font-black text-orange-500 tracking-tighter leading-none">2.0</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleNotificationClick}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 group/cart cursor-pointer relative transition-all hover:bg-orange-50 dark:hover:bg-orange-500/10 active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
+                    title="Open my endorsements"
+                  >
+                    <ShoppingCart className="w-6 h-6 text-orange-600 dark:text-orange-300 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
+                    {notificationCount > 0 && (
+                      <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-red-600 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[11px] font-black shadow-md leading-none px-1.5">
+                        {notificationCount > 99 ? '99+' : notificationCount}
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
                 onClick={handleNotificationClick}
-                className="w-7 h-7 bg-orange-500 rounded flex items-center justify-center text-white shrink-0 group/bell cursor-pointer relative transition-all hover:scale-110 active:scale-95 shadow-sm"
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 group/cart cursor-pointer relative transition-all hover:bg-orange-50 dark:hover:bg-orange-500/10 active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
+                title="Open my endorsements"
               >
-                <Bell className="w-4 h-4 transition-transform group-hover/bell:rotate-12" />
+                <ShoppingCart className="w-6 h-6 text-orange-600 dark:text-orange-300 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
                 {notificationCount > 0 && (
-                  <div className="absolute -top-2 -right-2 min-w-[16px] h-[16px] bg-red-600 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[7px] font-black animate-bounce shadow-sm">
-                    {notificationCount > 9 ? '9+' : notificationCount}
+                  <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-red-600 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[11px] font-black shadow-md leading-none px-1.5">
+                    {notificationCount > 99 ? '99+' : notificationCount}
                   </div>
                 )}
-              </div>
-              {(isSidebarExpanded || isMobileMenuOpen) && (
-                <div className="flex flex-col animate-in fade-in slide-in-from-left-2 transition-all">
-                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300 tracking-tight leading-none truncate">LMS 2026</span>
-
-                </div>
-              )}
-            </div>
+              </button>
+            )}
           </div>
 
           <nav
             ref={navScrollRef}
             onScroll={handleNavScroll}
-            className="flex-1 px-3 space-y-0.5 overflow-y-auto custom-scrollbar"
+            className="flex-1 px-3 pb-4 space-y-1.5 overflow-y-auto custom-scrollbar"
           >
 
             {(isSidebarExpanded || isMobileMenuOpen) && <div className="text-[11px] font-bold text-gray-400 px-3 py-2 tracking-wider">Navigation</div>}
@@ -437,25 +523,25 @@ export default function Sidebar() {
                   className={({ isActive }) => {
                     if (item.isDisabled) {
                         return `
-                        flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all duration-200 relative
+                        flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative
                         opacity-40 grayscale cursor-not-allowed pointer-events-none select-none
                         ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                         `;
                     }
                     return `
-                  flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all duration-200 relative
+                  flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative
                   ${isActive && !item.children && item.path !== "#"
-                      ? "bg-gray-200 dark:bg-[#333] text-gray-900 dark:text-white font-semibold"
-                      : "text-gray-500 dark:text-gray-400 hover:bg-gray-200/70 dark:hover:bg-white/5"}
+                      ? "bg-emerald-500/10 dark:bg-emerald-400/10 text-gray-900 dark:text-white font-semibold before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-full before:bg-emerald-500"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-200/70 dark:hover:bg-white/5"}
                   ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                 `}}
                 >
-                  {({ isActive }) => (
+                  {() => (
                     <>
-                      <item.icon className={`w-4 h-4 shrink-0 ${isActive && !item.children && item.path !== "#" ? "text-gray-900 dark:text-white" : (item.color || '')}`} />
+                      <item.icon className={`w-4 h-4 shrink-0 ${item.color || ''}`} />
                       {(isSidebarExpanded || isMobileMenuOpen) && (
                         <div className="flex flex-col truncate">
-                            <span className="text-sm">{item.label}</span>
+                            <span className="text-[16px] leading-tight">{item.label}</span>
                             {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
                         </div>
                       )}
@@ -468,70 +554,86 @@ export default function Sidebar() {
 
                 {item.children && expandedMenus[item.label] && (isSidebarExpanded || isMobileMenuOpen) && (
                   <div className="pl-6 mt-0.5 space-y-0.5 relative before:absolute before:left-[17px] before:top-0 before:bottom-0 before:w-px before:bg-gray-200">
-                    {item.children.map(child => (
-                      <NavLink
-                        id={`nav-child-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
-                        key={child.path}
-                        to={child.path}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={({ isActive }) => `
-                        flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all duration-200 relative
-                        ${isActive
-                            ? "bg-gray-200 dark:bg-[#333] text-gray-900 dark:text-white font-semibold"
-                            : "text-gray-400 dark:text-gray-500 hover:bg-gray-200/70 dark:hover:bg-white/5"}
-                        `}
-                      >
-                        <child.icon className="w-3.5 h-3.5 shrink-0" />
-                        <span className="text-sm truncate">{child.label}</span>
-                      </NavLink>
-                    ))}
+                    {getGroupedChildren(item).map((entry, idx) => {
+                      if (entry.__type === "header") {
+                        return (
+                          <div
+                            key={`settings-group-${entry.label}-${idx}`}
+                            className={`px-3 ${idx === 0 ? 'pt-1' : 'pt-3'} pb-1 text-[10px] font-extrabold text-gray-400 dark:text-gray-600 uppercase tracking-[0.24em]`}
+                          >
+                            {entry.label}
+                          </div>
+                        );
+                      }
+
+                      const child = entry;
+                      return (
+                        <NavLink
+                          id={`nav-child-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
+                          key={child.path}
+                          to={child.path}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className={({ isActive }) => `
+                          flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 relative
+                          ${isActive
+                              ? "bg-emerald-500/10 dark:bg-emerald-400/10 text-gray-900 dark:text-white font-semibold before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-emerald-500"
+                              : "text-gray-500 dark:text-gray-500 hover:bg-gray-200/70 dark:hover:bg-white/5"}
+                          `}
+                        >
+                          <child.icon className={`w-3.5 h-3.5 shrink-0 ${child.color || ''}`} />
+                          <span className="text-[15px] leading-tight truncate">{child.label}</span>
+                        </NavLink>
+                      );
+                    })}
                   </div>
                 )}
               </div>
             ))}
           </nav>
 
-          <div className="p-3 border-t border-gray-100 shrink-0">
+          <div className="p-3 shrink-0">
             {/* Combined Profile & Logout Section - Bottom */}
-            <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
-              <button
-                onClick={() => navigate('/profile')}
-                className={`
-                    flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group/prof
-                    hover:bg-gray-100 dark:hover:bg-white/5
-                    ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : 'justify-start'}
-                  `}
-              >
-                <div className="w-7 h-7 bg-orange-500 rounded flex items-center justify-center text-white shrink-0 shadow-sm transition-transform group-hover/prof:scale-110 overflow-hidden">
-                  {user?.avatar ? (
-                    <img
-                      src={getAssetUrl(user.avatar, "?width=80&height=80&fit=cover")}
-                      className="w-full h-full object-cover"
-                      alt="Profile"
-                      onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=F97316&color=fff'; }}
-                    />
-                  ) : (
-                    <UserCircle className="w-4 h-4" />
-                  )}
-                </div>
-                {(isSidebarExpanded || isMobileMenuOpen) && (
-                  <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
-                    <span className="text-[13px] font-semibold text-gray-700 dark:text-gray-300 truncate leading-tight group-hover/prof:text-orange-600">
-                      {user?.first_name} {user?.last_name}
-                    </span>
-                    <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate lowercase mt-0.5">
-                      View Profile
-                    </span>
+            <div className="rounded-2xl bg-white/70 dark:bg-white/5 backdrop-blur-md border border-white/60 dark:border-white/10 shadow-lg shadow-slate-200/40 dark:shadow-none p-2">
+              <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
+                <button
+                  onClick={() => navigate('/profile')}
+                  className={`
+                      flex-1 flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group/prof
+                      hover:bg-gray-100/70 dark:hover:bg-white/5
+                      ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : 'justify-start'}
+                    `}
+                >
+                  <div className="w-7 h-7 bg-orange-500 rounded flex items-center justify-center text-white shrink-0 shadow-sm transition-transform group-hover/prof:scale-110 overflow-hidden">
+                    {user?.avatar ? (
+                      <img
+                        src={getAssetUrl(user.avatar, "?width=80&height=80&fit=cover")}
+                        className="w-full h-full object-cover"
+                        alt="Profile"
+                        onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.first_name + '+' + user.last_name + '&background=F97316&color=fff'; }}
+                      />
+                    ) : (
+                      <UserCircle className="w-4 h-4" />
+                    )}
                   </div>
-                )}
-              </button>
-              <button
-                onClick={handleLogout}
-                className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                title="Logout"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
+                  {(isSidebarExpanded || isMobileMenuOpen) && (
+                    <div className="flex flex-col min-w-0 text-left animate-in fade-in slide-in-from-bottom-2 transition-all">
+                      <span className="text-[13px] font-semibold text-gray-700 dark:text-gray-300 truncate leading-tight group-hover/prof:text-orange-600">
+                        {user?.first_name} {user?.last_name}
+                      </span>
+                      <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate lowercase mt-0.5">
+                        View Profile
+                      </span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </>
@@ -543,32 +645,32 @@ export default function Sidebar() {
       return (
         <>
           <div className={`h-20 flex items-center border-b border-[#E5E5E5] dark:border-[#222] shrink-0 transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0 flex-col gap-2 py-4 h-auto' : 'px-6'}`}>
-            <div className={`flex items-center ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col gap-2' : 'gap-3'}`}>
-              <div className="w-8 h-8 shrink-0 bg-[#1A1A1B] dark:bg-white rounded-lg flex items-center justify-center text-white dark:text-[#1A1A1B] shadow-sm">
-                <FileText className="w-4 h-4" />
-              </div>
+            <div className={`flex items-center w-full ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col gap-2' : 'justify-between gap-3'}`}>
+              {(isSidebarExpanded || isMobileMenuOpen) && (
+                <div className="flex items-center gap-1.5 select-none min-w-0 py-1">
+                  <span className="text-[32px] font-black leading-none tracking-tighter text-slate-900 dark:text-white">LMS</span>
+                  <span className="text-[28px] font-black text-orange-500 tracking-tighter leading-none">2.0</span>
+                </div>
+              )}
               <button
                 onClick={handleNotificationClick}
-                className="w-8 h-8 shrink-0 rounded-lg border border-[#E5E5E5] dark:border-[#333] flex items-center justify-center text-[#1A1A1B] dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all relative"
+                className={`w-11 h-11 shrink-0 rounded-xl bg-transparent flex items-center justify-center text-[#1A1A1B] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all relative active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
                 title="Open my endorsements"
               >
-                <Bell className="w-4 h-4" />
+                <ShoppingCart className="w-7 h-7 drop-shadow-sm" />
                 {notificationCount > 0 && (
-                  <div className="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-red-500 text-white rounded-full text-[7px] font-black flex items-center justify-center">
-                    {notificationCount > 9 ? '9+' : notificationCount}
+                  <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-red-500 text-white rounded-full text-[11px] font-black flex items-center justify-center shadow-md leading-none px-1.5">
+                    {notificationCount > 99 ? '99+' : notificationCount}
                   </div>
                 )}
               </button>
-              {(isSidebarExpanded || isMobileMenuOpen) && (
-                <span className="text-sm font-bold text-[#1A1A1B] dark:text-white uppercase tracking-[0.2em] truncate">LMS 2026</span>
-              )}
             </div>
           </div>
 
           <nav
             ref={navScrollRef}
             onScroll={handleNavScroll}
-            className="flex-1 px-4 py-8 space-y-1 overflow-y-auto no-scrollbar"
+            className="flex-1 px-4 py-8 space-y-2 overflow-y-auto no-scrollbar"
           >
             {filteredNavItems.map((item) => (
               <div key={item.label} className="flex flex-col">
@@ -585,32 +687,31 @@ export default function Sidebar() {
                   }}
                   className={({ isActive }) => {
                     const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
-                    const activeBg = isAccessManager ? "bg-sky-500" : "bg-slate-700";
-                    const hoverBg = isAccessManager ? "hover:bg-sky-100 dark:hover:bg-sky-900/20" : "hover:bg-slate-700";
-                    const hoverText = isAccessManager ? "hover:text-sky-600 dark:hover:text-sky-400" : "hover:text-white";
+                    const activeTint = isAccessManager ? "bg-sky-500/10 dark:bg-sky-400/10" : "bg-emerald-500/10 dark:bg-emerald-400/10";
+                    const indicator = isAccessManager ? "before:bg-sky-500" : "before:bg-emerald-500";
                     
                     if (item.isDisabled) {
                         return `
-                        flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200
+                        flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative
                         opacity-40 grayscale cursor-not-allowed pointer-events-none select-none
                         ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                         `;
                     }
 
                     return `
-                    flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200
+                    flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative
                     ${isActive && !item.children && item.path !== "#"
-                      ? `${activeBg} text-white font-medium shadow-sm`
-                      : `text-[#737373] dark:text-[#A3A3A3] ${hoverBg} ${hoverText}`}
+                      ? `${activeTint} text-[#1A1A1B] dark:text-white font-semibold before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-full ${indicator}`
+                      : "text-[#737373] dark:text-[#A3A3A3] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[#1A1A1B] dark:hover:text-white"}
                     ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                   `}}
                 >
-                  {({ isActive }) => (
+                  {() => (
                     <>
-                      <item.icon className={`w-4 h-4 shrink-0 transition-colors ${isActive && !item.children && item.path !== "#" ? "text-white" : (item.color || '')}`} />
+                      <item.icon className={`w-4 h-4 shrink-0 transition-colors ${item.color || ''}`} />
                       {(isSidebarExpanded || isMobileMenuOpen) && (
                         <div className="flex flex-col truncate">
-                            <span className="text-sm">{item.label}</span>
+                            <span className="text-[16px] leading-tight font-medium">{item.label}</span>
                             {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
                         </div>
                       )}
@@ -622,38 +723,54 @@ export default function Sidebar() {
                 </NavLink>
 
                 {item.children && expandedMenus[item.label] && (isSidebarExpanded || isMobileMenuOpen) && (
-                  <div className="ml-6 border-l border-[#E5E5E5] mt-1 space-y-1">
-                    {item.children.map(child => (
-                       <NavLink
-                        id={`nav-child-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
-                        key={child.path}
-                        to={child.path}
-                        className={({ isActive }) => {
-                          const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
-                          const activeColor = isAccessManager ? "text-sky-600" : "text-[#1A1A1B]";
-                          const hoverBg = isAccessManager ? "hover:bg-sky-50 dark:hover:bg-sky-900/10" : "hover:bg-gray-200";
-                          return `flex items-center gap-3 px-4 py-1.5 text-xs transition-colors rounded-md ${
-                            isActive ? `${activeColor} font-bold` : `text-[#A3A3A3] hover:text-sky-600 ${hoverBg}`
-                          }`;
-                        }}
-                      >
-                        {({ isActive }) => (
-                          <>
-                            <child.icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-[#1A1A1B]" : (child.color || '')}`} />
-                            <span>{child.label}</span>
-                          </>
-                        )}
-                      </NavLink>
-                    ))}
+                  <div className="ml-6 border-l border-[#E5E5E5] mt-2 space-y-1.5">
+                    {getGroupedChildren(item).map((entry, idx) => {
+                      if (entry.__type === "header") {
+                        return (
+                          <div
+                            key={`settings-group-${entry.label}-${idx}`}
+                            className={`px-4 ${idx === 0 ? 'pt-1' : 'pt-3'} pb-1 text-[10px] font-extrabold text-[#A3A3A3] dark:text-[#737373] uppercase tracking-[0.24em]`}
+                          >
+                            {entry.label}
+                          </div>
+                        );
+                      }
+
+                      const child = entry;
+                      return (
+                        <NavLink
+                          id={`nav-child-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
+                          key={child.path}
+                          to={child.path}
+                          className={({ isActive }) => {
+                            const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
+                            const activeTint = isAccessManager ? "bg-sky-500/10 dark:bg-sky-400/10" : "bg-emerald-500/10 dark:bg-emerald-400/10";
+                            const indicator = isAccessManager ? "before:bg-sky-500" : "before:bg-emerald-500";
+                            return `flex items-center gap-3 px-4 py-2 text-[13px] transition-colors rounded-xl relative ${
+                              isActive
+                                ? `${activeTint} text-[#1A1A1B] dark:text-white font-semibold before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full ${indicator}`
+                                : "text-[#737373] dark:text-[#A3A3A3] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[#1A1A1B] dark:hover:text-white"
+                            }`;
+                          }}
+                        >
+                          {() => (
+                            <>
+                              <child.icon className={`w-3.5 h-3.5 shrink-0 ${child.color || ''}`} />
+                              <span className="leading-tight">{child.label}</span>
+                            </>
+                          )}
+                        </NavLink>
+                      );
+                    })}
                   </div>
                 )}
               </div>
             ))}
           </nav>
 
-          <div className="p-4 border-t border-[#E5E5E5] shrink-0">
+          <div className="p-4 shrink-0">
 
-            <div className={`flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-white/5 border border-[#E5E5E5] dark:border-[#222] ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
+            <div className={`flex items-center gap-2 p-2 rounded-2xl bg-white/70 dark:bg-white/5 backdrop-blur-md border border-white/60 dark:border-white/10 shadow-lg shadow-slate-200/40 dark:shadow-none ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
               <button
                 onClick={() => navigate('/profile')}
                 className="flex-1 flex items-center gap-3 min-w-0"
@@ -683,31 +800,49 @@ export default function Sidebar() {
     return (
       <>
         <div className={`h-16 flex items-center border-b border-gray-100 dark:border-[#222] shrink-0 transition-all ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : 'justify-between px-8'}`}>
-          <div className="flex items-center gap-3 overflow-visible z-50">
-            <div
+          {(isSidebarExpanded || isMobileMenuOpen) ? (
+            <div className="flex items-center w-full overflow-visible z-50">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 transition-all min-w-0 select-none py-1">
+                  <span className="text-[22px] font-black leading-none tracking-tighter text-slate-900 dark:text-white">LMS</span>
+                  <span className="text-[18px] font-black text-orange-500 tracking-tighter leading-none">2.0</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleNotificationClick}
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center group/cart cursor-pointer hover:bg-orange-50/80 dark:hover:bg-orange-900/20 transition-all shrink-0 relative active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
+                  title="Open my endorsements"
+                >
+                  <ShoppingCart className="text-orange-600 dark:text-orange-300 w-7 h-7 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
+                  {notificationCount > 0 && (
+                    <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-orange-500 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[11px] font-black shadow-md text-white leading-none px-1.5">
+                      {notificationCount > 99 ? '99+' : notificationCount}
+                    </div>
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
               onClick={handleNotificationClick}
-              className="w-10 h-10 bg-orange-50 dark:bg-orange-900/10 rounded-xl flex items-center justify-center group/bell cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-all shrink-0 relative"
+              className={`w-11 h-11 rounded-2xl flex items-center justify-center group/cart cursor-pointer hover:bg-orange-50/80 dark:hover:bg-orange-900/20 transition-all shrink-0 relative active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
+              title="Open my endorsements"
             >
-              <Bell className="text-orange-600 w-5 h-5 transition-transform group-hover/bell:rotate-12" />
+              <ShoppingCart className="text-orange-600 dark:text-orange-300 w-7 h-7 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
               {notificationCount > 0 && (
-                <div className="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-orange-500 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[7px] font-black animate-bounce shadow-sm text-white">
-                  {notificationCount > 9 ? '9+' : notificationCount}
+                <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-orange-500 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[11px] font-black shadow-md text-white leading-none px-1.5">
+                  {notificationCount > 99 ? '99+' : notificationCount}
                 </div>
               )}
-            </div>
-            {(isSidebarExpanded || isMobileMenuOpen) && (
-              <div className="flex flex-col animate-in fade-in slide-in-from-left-2 transition-all">
-                <span className="text-sm font-bold text-slate-800 dark:text-white tracking-tighter leading-none">LMS 2026</span>
-
-              </div>
-            )}
-          </div>
+            </button>
+          )}
         </div>
 
         <nav
           ref={navScrollRef}
           onScroll={handleNavScroll}
-          className="flex-1 px-2 py-6 space-y-2 overflow-y-auto custom-scrollbar"
+          className="flex-1 px-2 py-7 space-y-3 overflow-y-auto custom-scrollbar"
         >
           {filteredNavItems.map((item) => (
             <div key={item.label} className="flex flex-col">
@@ -726,25 +861,25 @@ export default function Sidebar() {
                 className={({ isActive }) => {
                     if (item.isDisabled) {
                         return `
-                        flex items-center gap-3 p-3 rounded-xl transition-all duration-200 relative
+                        flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-200 relative
                         opacity-40 grayscale cursor-not-allowed pointer-events-none select-none
                         ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                         `;
                     }
                     return `
-                flex items-center gap-3 p-3 rounded-xl transition-all duration-200 relative
+                flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-200 relative
                 ${isActive && !item.children && item.path !== "#"
-                    ? "bg-orange-100 text-orange-600 border border-orange-200 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"}
+                    ? "bg-sky-500/10 dark:bg-sky-400/10 text-slate-900 dark:text-white shadow-sm before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-7 before:w-1 before:rounded-full before:bg-sky-500"
+                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-white/5"}
                 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
               `}}
               >
-                {({ isActive }) => (
+                {() => (
                   <>
-                    <item.icon className={`w-5 h-5 transition-transform shrink-0 ${isActive && !item.children && item.path !== "#" ? "text-orange-600" : (item.color || '')}`} />
+                    <item.icon className={`w-5 h-5 transition-transform shrink-0 ${item.color || ''}`} />
                     {(isSidebarExpanded || isMobileMenuOpen) && (
                         <div className="flex flex-col">
-                            <span className="text-xs font-bold tracking-wide">{item.label}</span>
+                            <span className="text-[15px] font-semibold tracking-wide leading-tight">{item.label}</span>
                             {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
                         </div>
                     )}
@@ -756,43 +891,57 @@ export default function Sidebar() {
               </NavLink>
 
               {item.children && expandedMenus[item.label] && (isSidebarExpanded || isMobileMenuOpen) && (
-                <div className="pl-4 mt-1 space-y-1">
-                  {item.children.map(child => (
-                    <NavLink
-                      id={`nav-child-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
-                      key={child.path}
-                      to={child.path}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={({ isActive }) => `
-                      flex items-center gap-3 p-2 rounded-xl transition-all duration-200
-                      ${isActive
-                          ? "bg-orange-100 text-orange-600"
-                          : "text-slate-400 hover:text-slate-600 hover:bg-slate-200"}
-                      `}
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <child.icon className={`w-4 h-4 shrink-0 ${isActive ? "text-orange-600" : (child.color || '')}`} />
-                          <span className="text-[10px] font-bold tracking-wide">{child.label}</span>
-                        </>
-                      )}
-                    </NavLink>
-                  ))}
+                <div className="pl-4 mt-2 space-y-1.5">
+                  {getGroupedChildren(item).map((entry, idx) => {
+                    if (entry.__type === "header") {
+                      return (
+                        <div
+                          key={`settings-group-${entry.label}-${idx}`}
+                          className={`px-3 ${idx === 0 ? 'pt-0' : 'pt-3'} pb-1 text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-[0.22em]`}
+                        >
+                          {entry.label}
+                        </div>
+                      );
+                    }
+
+                    const child = entry;
+                    return (
+                      <NavLink
+                        id={`nav-child-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
+                        key={child.path}
+                        to={child.path}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={({ isActive }) => `
+                        flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative
+                        ${isActive
+                            ? "bg-sky-500/10 dark:bg-sky-400/10 text-slate-900 dark:text-white font-semibold before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-full before:bg-sky-500"
+                            : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-white/5"}
+                        `}
+                      >
+                        {() => (
+                          <>
+                            <child.icon className={`w-4 h-4 shrink-0 ${child.color || ''}`} />
+                            <span className="text-[13px] font-semibold tracking-wide leading-tight">{child.label}</span>
+                          </>
+                        )}
+                      </NavLink>
+                    );
+                  })}
                 </div>
               )}
             </div>
           ))}
         </nav>
 
-        <div className="p-2 border-t border-gray-100 shrink-0">
+        <div className="p-3 shrink-0">
           {/* Combined Profile & Logout Section - Bottom */}
-          <div className="pt-2">
+          <div className="rounded-3xl bg-white/70 dark:bg-white/5 backdrop-blur-md border border-white/60 dark:border-white/10 shadow-lg shadow-slate-200/45 dark:shadow-none p-2">
             <div className={`flex items-center gap-1 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'flex-col' : 'flex-row'}`}>
               <button
                 onClick={() => navigate('/profile')}
                 className={`
                   flex-1 flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-300 group/prof
-                  hover:bg-slate-200 border border-transparent
+                  hover:bg-slate-200/70 dark:hover:bg-white/10 border border-transparent
                   ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center p-2' : 'justify-start'}
                 `}
               >
