@@ -484,10 +484,11 @@ const authReducer = (state, action) => {
     // --- PERMISSION LOGIC (Memoized) ---
     const hasPermission = useCallback((pageId, action = 'can_view') => {
         if (authState.isGuest) return pageId === 'guest-send-letter';
-        // No super-admin bypass here; all roles follow the matrix.
-
-        // Access Manager Role (Previously bypassed, now follows matrix)
-        // const roleName = (authState.user?.roleData?.name || authState.user?.role || '').toString().toUpperCase();
+        
+        // --- Super Admin Bypass ---
+        const roleName = (authState.user?.roleData?.name || authState.user?.role || '').toString().toUpperCase();
+        const SUPER_ROLES = ['ADMINISTRATOR', 'DEVELOPER', 'ROOT', 'SUPER ADMIN'];
+        if (SUPER_ROLES.includes(roleName)) return true;
 
         // If permissions haven't loaded yet:
         // - For navigation visibility (Sidebar), we prefer "hide until proven allowed"
@@ -662,11 +663,16 @@ export const useSession = () => {
 
     // Memoize the super admin calculation so it doesn't change on every useSession call
     const isSuperAdmin = useMemo(() => {
-        const roleName = (context.user?.roleData?.name || context.user?.role || '').toString().toUpperCase();
-        return ['ADMINISTRATOR', 'DEVELOPER', 'ROOT'].includes(roleName);
+        const rData = context.user?.roleData;
+        const roleName = (rData?.name || context.user?.role || '').toString().toUpperCase();
+        return ['ADMINISTRATOR', 'DEVELOPER', 'ROOT', 'SUPER ADMIN'].includes(roleName);
     }, [context.user]);
 
-    return { ...context, isSuperAdmin };
+    const roleName = useMemo(() => {
+        return (context.user?.roleData?.name || context.user?.role || '').toString().toUpperCase();
+    }, [context.user]);
+
+    return { ...context, isSuperAdmin, roleName };
 };
 
 export const useUI = () => {

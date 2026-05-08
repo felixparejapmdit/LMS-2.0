@@ -21,9 +21,17 @@ export default function Login() {
 
     const result = await login(username, password);
     if (result.success) {
-      const roleName = (result.user?.roleData?.name || result.user?.role || '').toString().toUpperCase();
-      const targetPath = roleName === 'USER' ? '/letter-tracker' : (roleName === 'VIP' ? '/vip-view' : '/inbox');
-      console.log(`[NAV] Redirection to ${targetPath}...`);
+      const user = result.user;
+      const roleName = (user?.roleData?.name || user?.roleName || '').toString().toUpperCase();
+      
+      console.log(`[AUTH] Login success. Role: ${roleName}`);
+      
+      let targetPath = '/inbox'; // Default
+      if (roleName.includes('USER')) targetPath = '/letter-tracker';
+      else if (roleName.includes('VIP')) targetPath = '/vip-view';
+      else if (roleName.includes('ADMIN') || roleName.includes('MANAGER')) targetPath = '/inbox';
+      
+      console.log(`[NAV] Redirecting to ${targetPath}...`);
       navigate(targetPath);
     } else {
       setError(result.error || "Login failed. Please check your credentials.");

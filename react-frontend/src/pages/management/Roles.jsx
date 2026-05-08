@@ -19,7 +19,6 @@ import {
     List
 } from "lucide-react";
 import rolePermissionService from "../../services/rolePermissionService";
-import departmentService from "../../services/departmentService";
 import useAccess from "../../hooks/useAccess";
 import SearchableSelect from "../../components/SearchableSelect";
 
@@ -31,9 +30,7 @@ export default function Roles() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [currentRole, setCurrentRole] = useState({ id: null, name: "", dept_id: "" });
-    const [departments, setDepartments] = useState([]);
-    const [deptFilter, setDeptFilter] = useState("all");
+    const [currentRole, setCurrentRole] = useState({ id: null, name: "" });
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
     const [viewMode, setViewMode] = useState("grid");
@@ -46,8 +43,8 @@ export default function Roles() {
     const canRefresh = canField("roles", "refresh_button");
     const canViewToggle = canField("roles", "view_toggle");
 
-    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    const isSuperAdmin = ['ADMINISTRATOR'].includes(roleName);
+    const roleName = (user?.roleData?.name || user?.role || '').toString();
+    const isSuperAdmin = ['ADMINISTRATOR', 'DEVELOPER', 'ROOT', 'SUPER ADMIN'].includes(roleName.toUpperCase());
 
     // Names that must NEVER appear in Access Manager view
     const ADMIN_ROLE_NAMES = ['ADMINISTRATOR'];
@@ -55,30 +52,13 @@ export default function Roles() {
     const fetchRoles = async () => {
         setLoading(true);
         try {
-            const userDeptId = user?.dept_id?.id ?? user?.dept_id ?? null;
-
-            const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
             const params = {
-                role: roleName,
-                user_id: user?.id,
-                dept_id: isSuperAdmin ? (deptFilter !== 'all' ? deptFilter : null) : userDeptId,
-                exclude_admin: isSuperAdmin ? 'false' : 'true'
+                exclude_admin: 'false' // Always include all roles as requested
             };
 
             const data = await rolePermissionService.getRoles(params);
             const rawRoles = Array.isArray(data) ? data : [];
-
-            // Client-side safety net: strip admin-level roles from Access Manager view
-            const safeRoles = isSuperAdmin
-                ? rawRoles
-                : rawRoles.filter(r => !ADMIN_ROLE_NAMES.includes((r.name || '').toUpperCase()));
-
-            setRoles(safeRoles);
-
-            if (isSuperAdmin && departments.length === 0) {
-                const depts = await departmentService.getAll();
-                setDepartments(depts);
-            }
+            setRoles(rawRoles);
         } catch (error) {
             console.error("Fetch failed", error);
             setMessage({ type: "error", text: "Failed to load roles" });
@@ -89,26 +69,22 @@ export default function Roles() {
 
     useEffect(() => {
         fetchRoles();
-    }, [deptFilter, user?.dept_id, user?.roleData?.name]);
+    }, [user?.dept_id, user?.roleData?.name]);
 
     const handleSave = async () => {
         if (!currentRole.name.trim()) return;
         setIsSaving(true);
         try {
-            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
-            const finalDeptId = isSuperAdmin ? (currentRole.dept_id || null) : userDeptId;
-            
             if (currentRole.id) {
                 const updateData = { name: currentRole.name };
-                if (isSuperAdmin) updateData.dept_id = finalDeptId;
                 await rolePermissionService.updateRole(currentRole.id, updateData);
                 setMessage({ type: "success", text: "Role updated successfully" });
             } else {
-                await rolePermissionService.createRole({ name: currentRole.name, dept_id: finalDeptId });
+                await rolePermissionService.createRole({ name: currentRole.name });
                 setMessage({ type: "success", text: "Role created successfully" });
             }
             setIsModalOpen(false);
-            setCurrentRole({ id: null, name: "", dept_id: "" });
+            setCurrentRole({ id: null, name: "" });
             fetchRoles();
             if (refreshSetupStatus) refreshSetupStatus();
         } catch (error) {
@@ -140,12 +116,7 @@ export default function Roles() {
 
     const filteredRoles = roles.filter(role => {
         const matchesSearch = role.name?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesDept = !deptFilter || deptFilter === 'all' 
-            ? true 
-            : (deptFilter === 'null' 
-                ? (role.dept_id === null || role.dept_id === undefined || role.dept_id === "") 
-                : role.dept_id == deptFilter);
-        return matchesSearch && matchesDept;
+        return matchesSearch;
     });
 
     return (
@@ -177,7 +148,7 @@ export default function Roles() {
                         )}
                         {canAdd && (
                             <button 
-                                onClick={() => { setCurrentRole({ id: null, name: "", dept_id: "" }); setIsModalOpen(true); }}
+                                onClick={() => { setCurrentRole({ id: null, name: "" }); setIsModalOpen(true); }}
                                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-500/20 flex items-center gap-2 transition-all active:scale-95 group"
                             >
                                 <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
@@ -204,22 +175,7 @@ export default function Roles() {
                                     />
                                 </div>
                             </div>
-                            {isSuperAdmin && (
-                                <div className="flex-1 min-w-[250px]">
-                                    <SearchableSelect 
-                                        options={[
-                                            { id: 'all', dept_name: 'All Departments' },
-                                            { id: 'null', dept_name: 'Admin Defaults' },
-                                            ...departments
-                                        ]}
-                                        value={deptFilter}
-                                        onChange={setDeptFilter}
-                                        placeholder="Filter by Department"
-                                        icon={Filter}
-                                        allowClear={false}
-                                    />
-                                </div>
-                            )}
+                            {/* Removed department filter as all roles are now global */}
                             {canViewToggle && (
                                 <div className={`${cardBg} rounded-[2.5rem] border shadow-2xl p-2 relative overflow-hidden flex items-center gap-1 shrink-0`}>
                                     <button 
@@ -264,15 +220,7 @@ export default function Roles() {
                                             
                                             <div className={`flex-1 min-w-0 ${viewMode === 'grid' ? 'hidden' : 'block'}`}>
                                                 <div className="flex items-center gap-3">
-                                                    <h3 className={`text-sm font-black uppercase tracking-tight truncate ${textColor}`}>{role.name}</h3>
-                                                    {isSuperAdmin && (
-                                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 shrink-0">
-                                                            <Building2 className="w-2.5 h-2.5 text-slate-400" />
-                                                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[100px]">
-                                                                {role.department?.dept_name || "Admin"}
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                    <h3 className={`text-sm font-black tracking-tight truncate ${textColor}`}>{role.name}</h3>
                                                 </div>
                                                 <div className="flex items-center gap-3 mt-1">
                                                     <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
@@ -289,7 +237,7 @@ export default function Roles() {
                                                 <div className="flex gap-2 relative z-10">
                                                     {canEdit && (
                                                         <button 
-                                                            onClick={() => { setCurrentRole({ id: role.id, name: role.name, dept_id: role.dept_id || "" }); setIsModalOpen(true); }}
+                                                            onClick={() => { setCurrentRole({ id: role.id, name: role.name }); setIsModalOpen(true); }}
                                                             className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-blue-500 transition-colors"
                                                         >
                                                             <Edit3 className="w-4 h-4" />
@@ -310,19 +258,11 @@ export default function Roles() {
                                         {viewMode === 'grid' ? (
                                             <>
                                                 <div className="space-y-1 relative">
-                                                    <h3 className={`text-lg font-black uppercase tracking-tight ${textColor}`}>{role.name}</h3>
+                                                    <h3 className={`text-lg font-black tracking-tight ${textColor}`}>{role.name}</h3>
                                                     <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                                         <Users className="w-3 h-3" />
                                                         {role.userCount || 0} users assigned
                                                     </div>
-                                                    {isSuperAdmin && (
-                                                        <div className="flex items-center gap-1.5 mt-2">
-                                                            <Building2 className="w-3 h-3 text-slate-400" />
-                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                                                                {role.department?.dept_name || "Administrator's Default"}
-                                                            </span>
-                                                        </div>
-                                                    )}
                                                 </div>
 
                                                 <div className="pt-4 border-t border-gray-50 dark:border-white/5 flex items-center justify-between text-[8px] font-black uppercase tracking-widest text-slate-300">
@@ -334,7 +274,7 @@ export default function Roles() {
                                             <div className="flex items-center gap-2 relative z-10 shrink-0">
                                                 {canEdit && (
                                                     <button 
-                                                        onClick={() => { setCurrentRole({ id: role.id, name: role.name, dept_id: role.dept_id || "" }); setIsModalOpen(true); }}
+                                                        onClick={() => { setCurrentRole({ id: role.id, name: role.name }); setIsModalOpen(true); }}
                                                         className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all active:scale-95"
                                                         title="Edit Role"
                                                     >
@@ -382,7 +322,7 @@ export default function Roles() {
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{currentRole.id ? 'Edit Role' : 'New Role'}</span>
-                                    <h3 className={`text-xl font-black uppercase tracking-tight ${textColor}`}>{currentRole.id ? 'Edit Role' : 'Create Role'}</h3>
+                                    <h3 className={`text-xl font-black tracking-tight ${textColor}`}>{currentRole.id ? 'Edit Role' : 'Create Role'}</h3>
                                 </div>
                             </div>
                             <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl text-gray-400 transition-colors">
@@ -401,27 +341,14 @@ export default function Roles() {
                                         type="text"
                                         placeholder="e.g. Administrator, Guest, Encoder..."
                                         value={currentRole.name}
-                                        onChange={(e) => setCurrentRole(prev => ({ ...prev, name: e.target.value.toUpperCase() }))}
+                                        onChange={(e) => setCurrentRole(prev => ({ ...prev, name: e.target.value }))}
                                         className="w-full pl-12 pr-6 py-4 rounded-2xl border border-gray-100 dark:border-[#333] bg-slate-50/50 dark:bg-white/5 text-sm font-bold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all placeholder:text-slate-300"
                                         autoFocus
                                     />
                                 </div>
                             </div>
 
-                            {isSuperAdmin && (
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                        Assigned Department
-                                    </label>
-                                    <SearchableSelect 
-                                        options={departments}
-                                        value={currentRole.dept_id}
-                                        onChange={val => setCurrentRole(prev => ({ ...prev, dept_id: val }))}
-                                        placeholder="Select Department"
-                                        emptyMessage="No departments found."
-                                    />
-                                </div>
-                            )}
+                            {/* Removed department selection as all roles are forced to global (null) */}
 
                             <button
                                 onClick={handleSave}

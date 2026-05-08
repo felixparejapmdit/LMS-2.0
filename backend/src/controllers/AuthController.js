@@ -25,7 +25,7 @@ const PAGES_CACHE_TTL = 3600000;
 // Most installs treat Directus "email" as the LMS username, so default to username first.
 const directusLoginHint = new Map();
 
-const ensureRolePermissionsForAllPages = async (roleId, systemPages = null) => {
+const ensureRolePermissionsForAllPages = async (roleId, roleName = '', systemPages = null) => {
     if (!roleId) return;
 
     const pages = Array.isArray(systemPages) && systemPages.length > 0
@@ -41,18 +41,47 @@ const ensureRolePermissionsForAllPages = async (roleId, systemPages = null) => {
     });
     const existingPageNames = new Set(existing.map((r) => r.page_name));
     const missingPages = pageIds.filter((pageId) => !existingPageNames.has(pageId));
+    // Force-update essential pages for existing roles to ensure they aren't locked out of landing pages.
+    const essentialPages = ['home', 'profile', 'settings'];
+    const rName = String(roleName || '').toUpperCase();
+    if (rName.includes('ENCODER')) essentialPages.push('inbox');
+    if (rName.includes('USER')) essentialPages.push('letter-tracker');
+    if (rName.includes('VIP')) essentialPages.push('vip-view');
+
+    await RolePermission.update(
+        { can_view: true },
+        { 
+            where: { 
+                role_id: roleId, 
+                page_name: { [Op.in]: essentialPages },
+                can_view: false 
+            } 
+        }
+    );
+
     if (missingPages.length === 0) return false;
 
-    const toCreate = missingPages.map((pageId) => ({
-        role_id: roleId,
-        page_name: pageId,
-        can_view: false,
-        can_create: false,
-        can_edit: false,
-        can_delete: false,
-        can_special: false,
-        field_permissions: withDefaultFieldPermissions(pageId, {})
-    }));
+    const toCreate = missingPages.map((pageId) => {
+        // Default 'home' to accessible for all roles so they can at least land on the dashboard.
+        // Also default specific landing pages based on known role names to avoid immediate "Access Denied" on login.
+        let defaultView = pageId === 'home' || pageId === 'profile' || pageId === 'settings';
+        
+        const rName = String(roleName || '').toUpperCase();
+        if (rName.includes('ENCODER') && pageId === 'inbox') defaultView = true;
+        if (rName.includes('USER') && pageId === 'letter-tracker') defaultView = true;
+        if (rName.includes('VIP') && pageId === 'vip-view') defaultView = true;
+
+        return {
+            role_id: roleId,
+            page_name: pageId,
+            can_view: defaultView,
+            can_create: false,
+            can_edit: false,
+            can_delete: false,
+            can_special: false,
+            field_permissions: withDefaultFieldPermissions(pageId, {})
+        };
+    });
 
     await RolePermission.bulkCreate(toCreate, { ignoreDuplicates: true });
     return true;
@@ -207,7 +236,7 @@ class AuthController {
 
             // Ensure every SystemPage has an explicit permission row for this role.
             // This prevents "missing row" pages from defaulting to open/unprotected.
-            const ensured = await ensureRolePermissionsForAllPages(user.role, systemPages);
+            const ensured = await ensureRolePermissionsForAllPages(user.role, user.roleData?.name, systemPages);
             if (ensured) {
                 permsCache.delete(user.role);
                 normalizedPerms = normalizePermissions(await RolePermission.findAll({ where: { role_id: user.role } }));
@@ -368,7 +397,7 @@ class AuthController {
             const user = await User.findByPk(directusUserId, { include: ['roleData', 'department'] });
             if (!user) return res.status(404).json({ error: 'User not found' });
 
-            const ensured = await ensureRolePermissionsForAllPages(user.role, cachedPages);
+            const ensured = await ensureRolePermissionsForAllPages(user.role, user.roleData?.name, cachedPages);
             if (ensured) permsCache.delete(user.role);
 
             let normalizedPerms = getCachedPerms(user.role);

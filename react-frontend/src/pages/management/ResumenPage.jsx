@@ -60,6 +60,16 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
     const [timeframe, setTimeframe] = useState("all");
     const [dateRange, setDateRange] = useState({ start: "", end: "" });
     const [isFetching, setIsFetching] = useState(false);
+    const [notification, setNotification] = useState({ show: false, type: 'success', message: '' });
+
+    useEffect(() => {
+        if (notification.show) {
+            const timer = setTimeout(() => {
+                setNotification(n => ({ ...n, show: false }));
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification.show]);
 
     // QR Scanner States
     const [showScanner, setShowScanner] = useState(false);
@@ -320,16 +330,48 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
             const noteStatus = statuses.find(s => s.status_name.toLowerCase().trim() === 'atg note');
             const targetStatusId = noteStatus ? noteStatus.id : 2;
 
-            await Promise.all(selectedIds.map(id =>
-                letterService.update(id, { global_status: targetStatusId, tray_id: null })
-            ));
+            let succeeded = 0;
+            let failed = [];
+
+            for (const id of selectedIds) {
+                try {
+                    await letterService.update(id, { 
+                        global_status: targetStatusId, 
+                        tray_id: null,
+                        user_id: user?.id,
+                        full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+                        role: user?.roleData?.name || user?.role || ""
+                    });
+                    succeeded++;
+                } catch (err) {
+                    console.error(`Failed to update letter ${id}:`, err);
+                    failed.push(id);
+                }
+            }
             
-            setModalLetters(prev => prev.filter(l => !selectedIds.includes(l.id)));
-            setSelectedIds([]);
-            alert("Selected letters transitioned to ATG Note successfully.");
+            setModalLetters(prev => prev.filter(l => !selectedIds.includes(l.id) || failed.includes(l.id)));
+            setSelectedIds(failed); // Keep failed ones selected
+
+            if (failed.length === 0) {
+                setNotification({ 
+                    show: true, 
+                    type: 'success', 
+                    message: `Successfully transitioned ${succeeded} letters to ATG Note.` 
+                });
+            } else {
+                setNotification({ 
+                    show: true, 
+                    type: 'warning', 
+                    message: `${succeeded} succeeded, ${failed.length} failed. See console for details.` 
+                });
+            }
         } catch (err) {
-            console.error("ATG Note transition failed:", err);
-            alert("Transition failed. Please try again.");
+            console.error("ATG Note bulk process failed:", err);
+            setNotification({ 
+                show: true, 
+                type: 'error', 
+                message: "Bulk process failed. Please try again." 
+            });
         } finally {
             setLoading(false);
         }
@@ -346,16 +388,48 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                 return;
             }
 
-            await Promise.all(selectedIds.map(id =>
-                letterService.update(id, { global_status: reviewStatus.id, tray_id: null })
-            ));
+            let succeeded = 0;
+            let failed = [];
+
+            for (const id of selectedIds) {
+                try {
+                    await letterService.update(id, { 
+                        global_status: reviewStatus.id, 
+                        tray_id: null,
+                        user_id: user?.id,
+                        full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+                        role: user?.roleData?.name || user?.role || ""
+                    });
+                    succeeded++;
+                } catch (err) {
+                    console.error(`Failed to update letter ${id}:`, err);
+                    failed.push(id);
+                }
+            }
             
-            setModalLetters(prev => prev.filter(l => !selectedIds.includes(l.id)));
-            setSelectedIds([]);
-            alert("Selected letters transitioned to Being Reviewed successfully.");
+            setModalLetters(prev => prev.filter(l => !selectedIds.includes(l.id) || failed.includes(l.id)));
+            setSelectedIds(failed); // Keep failed ones selected
+
+            if (failed.length === 0) {
+                setNotification({ 
+                    show: true, 
+                    type: 'success', 
+                    message: `Successfully transitioned ${succeeded} letters to Being Reviewed.` 
+                });
+            } else {
+                setNotification({ 
+                    show: true, 
+                    type: 'warning', 
+                    message: `${succeeded} succeeded, ${failed.length} failed. See console for details.` 
+                });
+            }
         } catch (err) {
-            console.error("Being Reviewed transition failed:", err);
-            alert("Transition failed. Please try again.");
+            console.error("Being Reviewed bulk process failed:", err);
+            setNotification({ 
+                show: true, 
+                type: 'error', 
+                message: "Bulk process failed. Please try again." 
+            });
         } finally {
             setLoading(false);
         }
@@ -512,6 +586,36 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
 
     return (
         <>
+            {/* Notification Toast */}
+            {notification.show && (
+                <div className="fixed top-8 right-8 z-[200] animate-in slide-in-from-right duration-500">
+                    <div className={`flex items-center gap-4 p-4 rounded-2xl shadow-2xl border ${
+                        notification.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 
+                        notification.type === 'error' ? 'bg-red-50 border-red-100 text-red-800' : 
+                        'bg-amber-50 border-amber-100 text-amber-800'
+                    }`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                            notification.type === 'success' ? 'bg-emerald-500 text-white' : 
+                            notification.type === 'error' ? 'bg-red-500 text-white' : 
+                            'bg-amber-500 text-white'
+                        }`}>
+                            {notification.type === 'success' ? <CheckSquare className="w-5 h-5" /> : 
+                             notification.type === 'error' ? <X className="w-5 h-5" /> : 
+                             <RefreshCw className="w-5 h-5" />}
+                        </div>
+                        <div className="pr-4">
+                            <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">System Notification</h4>
+                            <p className="text-xs font-bold leading-relaxed">{notification.message}</p>
+                        </div>
+                        <button 
+                            onClick={() => setNotification(n => ({ ...n, show: false }))}
+                            className="p-1.5 hover:bg-black/5 rounded-lg transition-colors"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
             <PdfPanel pdfPanel={pdfPanel} setPdfPanel={setPdfPanel} />
 
             {/* Add Letter Modal */}

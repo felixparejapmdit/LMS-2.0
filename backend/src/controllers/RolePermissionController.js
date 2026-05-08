@@ -166,24 +166,9 @@ class RolePermissionController {
             // Roles that should NEVER be visible to non-admin users
             const ADMIN_ROLE_NAMES = ['ADMINISTRATOR'];
 
-            // Build where clause for dept_id filtering
+            // Build where clause
             const where = {};
-            
-            if (user_id) {
-                const user = await User.findByPk(user_id);
-                if (user) {
-                    // Force their assigned department (assigned or null)
-                    where.dept_id = user.dept_id || null;
-                    if (user.dept_id) {
-                        where.name = { [Op.notIn]: ADMIN_ROLE_NAMES };
-                    }
-                }
-            } else {
-                const { dept_id: queryDeptId } = req.query;
-                if (queryDeptId && queryDeptId !== 'all') {
-                    where.dept_id = (queryDeptId === 'null' || queryDeptId === 'undefined' || queryDeptId === '') ? null : queryDeptId;
-                }
-            }
+            // Removed dept_id filtering to make all roles globally visible.
 
             if (exclude_admin === 'true') {
                 where.name = { [Op.notIn]: ADMIN_ROLE_NAMES };
@@ -231,22 +216,7 @@ class RolePermissionController {
             const ADMIN_ROLE_NAMES = ['ADMINISTRATOR'];
 
             const where = {};
-            
-            if (user_id) {
-                const user = await User.findByPk(user_id);
-                if (user) {
-                    // Force their assigned department (assigned or null)
-                    where.dept_id = user.dept_id || null;
-                    if (user.dept_id) {
-                        where.name = { [Op.notIn]: ADMIN_ROLE_NAMES };
-                    }
-                }
-            } else {
-                const { dept_id: queryDeptId } = req.query;
-                if (queryDeptId && queryDeptId !== 'all') {
-                    where.dept_id = (queryDeptId === 'null' || queryDeptId === 'undefined' || queryDeptId === '') ? null : queryDeptId;
-                }
-            }
+            // Removed dept_id filtering to make all roles globally visible.
 
             if (exclude_admin === 'true') {
                 where.name = { [Op.notIn]: ADMIN_ROLE_NAMES };
@@ -282,7 +252,7 @@ class RolePermissionController {
             const newRole = await Role.create({
                 id: generateUUID(),
                 name,
-                dept_id
+                dept_id: null // Forced to null for global visibility
             });
 
             // Initialize permissions for all pages
@@ -317,9 +287,8 @@ class RolePermissionController {
 
             const updateData = {};
             if (name !== undefined) updateData.name = name;
-            if (dept_id !== undefined) {
-                updateData.dept_id = (dept_id === 'null' || dept_id === "" || dept_id === null) ? null : dept_id;
-            }
+            // Force dept_id to null for global visibility as requested
+            updateData.dept_id = null;
 
             await role.update(updateData);
             res.json(role);

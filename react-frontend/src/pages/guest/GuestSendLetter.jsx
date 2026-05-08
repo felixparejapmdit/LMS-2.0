@@ -56,6 +56,7 @@ export default function GuestSendLetter() {
     const [referenceNo, setReferenceNo] = useState("Select Department");
     const [departments, setDepartments] = useState([]);
     const [selectedDeptId, setSelectedDeptId] = useState("");
+    const [virtualDeptName, setVirtualDeptName] = useState("");
     const [kinds, setKinds] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -277,6 +278,7 @@ export default function GuestSendLetter() {
         });
         setAttachments([]);
         setSelectedDeptId("");
+        setVirtualDeptName("");
         setReferenceNo("Select Department");
     };
 
@@ -610,19 +612,6 @@ export default function GuestSendLetter() {
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-6">
-                                    {/* Current Date Display */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                            <CalendarIcon className={`w-3 h-3 ${subTextColor}`} /> DATE
-                                            <span className="ml-1 text-[9px] font-black text-orange-500/80 lowercase italic tracking-tight">
-                                                (Week {weekNumber} - {dayName})
-                                            </span>
-                                        </label>
-                                        <div className={`w-full px-5 py-3 rounded-xl border-2 transition-all outline-none text-base font-semibold flex items-center justify-between ${'bg-slate-50/50 dark:bg-white/5 border-slate-100 dark:border-[#333] text-slate-400'}`}>
-                                            <span className="uppercase tracking-wider">{today}</span>
-                                            <Clock className="w-4 h-4 opacity-40" />
-                                        </div>
-                                    </div>
 
                                     {/* Department - Optional for everyone */}
                                     {canDepartmentSelector && (
@@ -641,11 +630,11 @@ export default function GuestSendLetter() {
                                                     className={`w-full px-5 py-3 rounded-xl border-2 transition-all outline-none text-base font-semibold flex items-center justify-between cursor-pointer ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] hover:border-orange-500/50'}`}
                                                 >
                                                     <span className="truncate max-w-[85%] uppercase tracking-wider">
-                                                        {selectedDeptId
+                                                        {virtualDeptName || (selectedDeptId
                                                             ? departments.find(d => String(d.id) === String(selectedDeptId))?.dept_name || 
                                                               departments.find(d => String(d.id) === String(selectedDeptId))?.name || 
                                                               "Department Selected"
-                                                            : "Select department..."}
+                                                            : "Select department...")}
                                                     </span>
                                                     <ChevronDown className={`w-4 h-4 transition-transform ${showDeptResults ? 'rotate-180' : ''}`} />
                                                 </div>
@@ -674,14 +663,37 @@ export default function GuestSendLetter() {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => {
-                                                                    setSelectedDeptId("");
+                                                                    const atgDept = departments.find(d => 
+                                                                        (d.dept_name || d.name || "").toUpperCase().includes("ATG'S OFFICE") || 
+                                                                        (d.dept_code === "ATG")
+                                                                    );
+                                                                    setSelectedDeptId(atgDept ? String(atgDept.id) : "");
+                                                                    setVirtualDeptName("NONE");
                                                                     setShowDeptResults(false);
                                                                     setDeptSearch("");
                                                                 }}
-                                                                className={`w-full text-left px-4 py-2.5 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-between uppercase ${!selectedDeptId ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                                                                className={`w-full text-left px-4 py-2.5 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-between uppercase ${virtualDeptName === "NONE" ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5'}`}
                                                             >
                                                                 <span>NONE</span>
-                                                                {!selectedDeptId && <Check className="w-3 h-3" />}
+                                                                {virtualDeptName === "NONE" && <Check className="w-3 h-3" />}
+                                                            </button>
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const atgDept = departments.find(d => 
+                                                                        (d.dept_name || d.name || "").toUpperCase().includes("ATG'S OFFICE") || 
+                                                                        (d.dept_code === "ATG")
+                                                                    );
+                                                                    setSelectedDeptId(atgDept ? String(atgDept.id) : "");
+                                                                    setVirtualDeptName("OTHERS");
+                                                                    setShowDeptResults(false);
+                                                                    setDeptSearch("");
+                                                                }}
+                                                                className={`w-full text-left px-4 py-2.5 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-between uppercase ${virtualDeptName === "OTHERS" ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                                                            >
+                                                                <span>OTHERS</span>
+                                                                {virtualDeptName === "OTHERS" && <Check className="w-3 h-3" />}
                                                             </button>
 
                                                             {departments
@@ -692,6 +704,7 @@ export default function GuestSendLetter() {
                                                                         type="button"
                                                                         onClick={() => {
                                                                             setSelectedDeptId(String(d.id));
+                                                                            setVirtualDeptName("");
                                                                             setDeptSearch("");
                                                                             setShowDeptResults(false);
                                                                         }}

@@ -20,7 +20,8 @@ import {
     Menu,
     Printer,
     X,
-    ChevronDown
+    ChevronDown,
+    CheckCircle2
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -365,36 +366,37 @@ export default function LetterTracker() {
                                         ) : filteredLetters.length === 0 ? (
                                             <tr><td colSpan="9" className="p-20 text-center text-gray-400 font-bold uppercase tracking-widest">No matching records found</td></tr>
                                         ) : filteredLetters.map((letter, index) => (
-                                            <tr key={letter.id} className="hover:bg-gray-50/80 dark:hover:bg-white/5 transition-colors group">
-                                                <td className="px-5 py-4 text-center text-[10px] font-bold text-gray-400">{index + 1}</td>
-                                                <td className="px-5 py-4 whitespace-nowrap">
-                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 ${textColor}`}>
+                                            <tr key={letter.id} className={`hover:bg-gray-50/80 dark:hover:bg-white/5 transition-colors group ${letter.is_resolved ? "bg-emerald-50/30 dark:bg-emerald-500/5" : ""}`}>
+                                                <td className={`px-5 py-4 text-center text-[10px] font-bold text-gray-400 transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>{index + 1}</td>
+                                                <td className={`px-5 py-4 whitespace-nowrap transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 ${textColor} ${letter.is_resolved ? "line-through opacity-70" : ""}`}>
                                                         {letter.entry_id}
                                                     </span>
                                                 </td>
-                                                <td className="px-5 py-4 whitespace-nowrap">
+                                                <td className={`px-5 py-4 whitespace-nowrap transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                                                     <div className="flex flex-col">
                                                         <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{new Date(letter.date_received).toLocaleDateString()}</span>
                                                         <span className="text-[10px] text-orange-500 font-bold">{new Date(letter.date_received).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                                                     </div>
                                                 </td>
-                                                <td className="px-5 py-4 text-xs font-bold text-slate-700 dark:text-slate-200 uppercase truncate max-w-[150px]">
+                                                <td className={`px-5 py-4 text-xs font-bold text-slate-700 dark:text-slate-200 uppercase truncate max-w-[150px] transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                                                     {letter.sender}
                                                 </td>
-                                                <td className="px-5 py-4 max-w-xs">
+                                                <td className={`px-5 py-4 max-w-xs transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                                                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium line-clamp-1">{letter.summary}</p>
                                                 </td>
-                                                <td className="px-5 py-4 text-center">
+                                                <td className={`px-5 py-4 text-center transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                                                     <span className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest ${letter.status?.status_name === 'Incoming' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-gray-50 text-gray-600 border border-gray-100'}`}>
                                                         {letter.status?.status_name || 'REGISTERED'}
                                                     </span>
                                                 </td>
                                                 <td className="px-5 py-4 text-center">
-                                                    <div className="flex justify-center">
-                                                        {canTrack && <button onClick={() => handleTrackOpen(letter)} className="p-2 rounded-lg bg-indigo-50/50 dark:bg-indigo-900/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all border border-indigo-100 dark:border-indigo-900/20 shadow-sm"><Activity className="w-3.5 h-3.5" /></button>}
+                                                    <div className="flex justify-center items-center gap-1.5">
+                                                        {letter.is_resolved && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 animate-in zoom-in duration-300" title="Resolved" />}
+                                                        {canTrack && <button onClick={() => handleTrackOpen(letter)} className={`p-2 rounded-lg bg-indigo-50/50 dark:bg-indigo-900/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all border border-indigo-100 dark:border-indigo-900/20 shadow-sm ${letter.is_resolved ? "opacity-60" : ""}`}><Activity className="w-3.5 h-3.5" /></button>}
                                                     </div>
                                                 </td>
-                                                <td className="px-5 py-4 text-center">
+                                                <td className={`px-5 py-4 text-center transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                                                     <div className="flex justify-center">
                                                         {canPrintQR ? (
                                                             <button

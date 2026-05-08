@@ -1404,9 +1404,9 @@ export default function MasterTable() {
                       filteredLetters.map((letter) => (
                         <tr
                           key={letter.id}
-                          className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group"
+                          className={`hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group ${letter.is_resolved ? "bg-emerald-50/30 dark:bg-emerald-500/5" : ""}`}
                         >
-                          <td className="p-5 text-center">
+                          <td className={`p-5 text-center transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                             <button
                               onClick={() => toggleSelect(letter.id)}
                               className="text-gray-300 group-hover:text-gray-400 transition-colors"
@@ -1419,27 +1419,32 @@ export default function MasterTable() {
                             </button>
                           </td>
                           <td className="p-5 text-center px-0">
-                            {canEdit && (
-                              <PermissionGuard
-                                page="master-table"
-                                action="can_edit"
-                              >
-                                <button
-                                  onClick={() => handleEdit(letter)}
-                                  className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-900/10 text-orange-500 hover:bg-orange-500 hover:text-white transition-all transform hover:scale-105 mx-auto"
+                            <div className="flex items-center justify-center gap-1">
+                              {letter.is_resolved && (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500 animate-in zoom-in duration-300" title="Resolved" />
+                              )}
+                              {canEdit && (
+                                <PermissionGuard
+                                  page="master-table"
+                                  action="can_edit"
                                 >
-                                  <Edit className="w-4 h-4" />
-                                </button>
-                              </PermissionGuard>
-                            )}
+                                  <button
+                                    onClick={() => handleEdit(letter)}
+                                    className={`p-2.5 rounded-xl bg-orange-50 dark:bg-orange-900/10 text-orange-500 hover:bg-orange-500 hover:text-white transition-all transform hover:scale-105 ${letter.is_resolved ? "opacity-60" : ""}`}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                </PermissionGuard>
+                              )}
+                            </div>
                           </td>
-                          <td className="p-5 whitespace-nowrap">
+                          <td className={`p-5 whitespace-nowrap transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                             <span
-                              className={`text-[10px] font-black px-2.5 py-1 rounded bg-slate-100 dark:bg-white/10 ${textColor}`}
+                              className={`text-[10px] font-black px-2.5 py-1 rounded bg-slate-100 dark:bg-white/10 ${textColor} ${letter.is_resolved ? "line-through opacity-70" : ""}`}
                             >
                               {letter.lms_id || "PENDING"}
                               {letter.tray?.tray_no ? (
-                                <span className="text-orange-500 italic ml-1.5">
+                                <span className="text-orange-500 italic ml-1.5 no-underline">
                                   ({letter.tray.tray_no.toLowerCase()})
                                 </span>
                               ) : (
@@ -1447,7 +1452,7 @@ export default function MasterTable() {
                               )}
                             </span>
                           </td>
-                          <td className="p-5 whitespace-nowrap text-xs font-bold">
+                          <td className={`p-5 whitespace-nowrap text-xs font-bold transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                             <span
                               className={`px-3 py-1 rounded-full text-[10px] uppercase font-black tracking-widest ${letter.status?.status_name === "Incoming"
                                 ? "bg-blue-50 text-blue-600"
@@ -1459,11 +1464,16 @@ export default function MasterTable() {
                               {letter.status?.status_name || "N/A"}
                             </span>
                           </td>
-                          <td className="p-5 whitespace-nowrap text-xs font-bold text-indigo-500 uppercase tracking-tighter">
-                            {letter.assignments?.sort((a, b) => b.id - a.id)[0]
-                              ?.step?.step_name || "N/A"}
+                          <td className={`p-5 whitespace-nowrap text-xs font-bold text-indigo-500 uppercase tracking-tighter transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
+                            {(() => {
+                              const latestStep = letter.assignments?.sort((a, b) => b.id - a.id)[0]?.step?.step_name;
+                              if (latestStep === "VEM Letter" && letter.vemcode) {
+                                return letter.vemcode;
+                              }
+                              return latestStep || "N/A";
+                            })()}
                           </td>
-                          <td className="p-5 whitespace-nowrap text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                          <td className={`p-5 whitespace-nowrap text-[10px] font-bold text-gray-500 dark:text-gray-400 transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                             <div className="flex flex-col">
                               <span>
                                 {new Date(
@@ -1484,15 +1494,15 @@ export default function MasterTable() {
                               </span>
                             </div>
                           </td>
-                          <td className="p-5 text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">
+                          <td className={`p-5 text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                             {letter.sender}
                           </td>
-                          <td className="p-5 max-w-xs">
+                          <td className={`p-5 max-w-xs transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                             <p className="text-xs text-gray-500 dark:text-gray-400 font-medium line-clamp-2">
                               {letter.summary}
                             </p>
                           </td>
-                          <td className="p-5 text-center">
+                          <td className={`p-5 text-center transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                             {canTrack && (
                               <PermissionGuard
                                 page="master-table"
@@ -1508,7 +1518,7 @@ export default function MasterTable() {
                               </PermissionGuard>
                             )}
                           </td>
-                          <td className="p-5 text-center">
+                          <td className={`p-5 text-center transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                             {canPrintQR ? (
                               <button
                                 onClick={() => handlePrintQR(letter.lms_id)}
