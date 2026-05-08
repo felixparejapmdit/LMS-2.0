@@ -1137,6 +1137,16 @@ class LetterController {
     }
   }
 
+  static async getTrashCount(req, res) {
+    try {
+      const count = await Letter.count({ where: { is_deleted: true } });
+      res.json({ count });
+    } catch (error) {
+      console.error("[GET_TRASH_COUNT_ERROR]:", error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   static async delete(req, res) {
     try {
       const { id } = req.params;

@@ -23,14 +23,14 @@ export default function Login() {
     if (result.success) {
       const user = result.user;
       const roleName = (user?.roleData?.name || user?.roleName || '').toString().toUpperCase();
-      
+
       console.log(`[AUTH] Login success. Role: ${roleName}`);
-      
+
       let targetPath = '/inbox'; // Default
       if (roleName.includes('USER')) targetPath = '/letter-tracker';
       else if (roleName.includes('VIP')) targetPath = '/vip-view';
       else if (roleName.includes('ADMIN') || roleName.includes('MANAGER')) targetPath = '/inbox';
-      
+
       console.log(`[NAV] Redirecting to ${targetPath}...`);
       navigate(targetPath);
     } else {
@@ -56,8 +56,8 @@ export default function Login() {
               <div className="w-12 h-12 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-black/10 transition-transform group-hover:scale-110 duration-500">
                 <FileStack className="text-white dark:text-black w-6 h-6" />
               </div>
-            <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white">
-                LMS <span className="text-orange-500 tracking-normal">2026</span>
+              <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white">
+                LMS <span className="text-orange-500 tracking-normal">2.0</span>
               </h1>
             </div>
           </div>
@@ -138,7 +138,7 @@ export default function Login() {
 
         <div className="mt-12 flex flex-col items-center gap-2">
           <span className="px-3 py-1 bg-slate-100 dark:bg-white/5 rounded-full text-[9px] font-black text-slate-400 dark:text-gray-600 uppercase tracking-widest">
-            LMS 2026
+            LMS 2.0
           </span>
           <p className="text-center text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em] opacity-60">
             Developed by PMD-IT

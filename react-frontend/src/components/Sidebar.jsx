@@ -57,6 +57,7 @@ export default function Sidebar() {
   const NAV_SCROLL_KEY = "sidebar_nav_scroll";
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
+  const [trashCount, setTrashCount] = useState(0);
 
   const settingsGroupOrder = ["Access", "Registry", "System"];
   const getGroupedChildren = (item) => {
@@ -89,6 +90,36 @@ export default function Sidebar() {
 
   useEffect(() => {
     if (!user) return;
+    const fetchTrashCount = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letters/trash-count`);
+        const data = await res.json();
+        setTrashCount(data.count || 0);
+      } catch { }
+    };
+    fetchTrashCount();
+    const interval = setInterval(fetchTrashCount, 30000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
+  const handleNotificationClick = () => {
+    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
+    const isUserRole = roleName === 'USER';
+    navigate(isUserRole ? '/endorsements?mine=1' : '/endorsements');
+  };
+
+  const handleLogout = () => {
+    setIsLogoutModalOpen(true);
+  };
+
+  const confirmLogout = () => {
+    logout();
+    setIsLogoutModalOpen(false);
+    navigate("/login", { replace: true });
+  };
+
+  useEffect(() => {
+    if (!user) return;
     const fetchCount = async () => {
       try {
         const roleName = user?.roleData?.name || user?.role || '';
@@ -111,24 +142,6 @@ export default function Sidebar() {
     const interval = setInterval(fetchCount, 30000);
     return () => clearInterval(interval);
   }, [user?.id]);
-
-  const handleNotificationClick = () => {
-    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    const isUserRole = roleName === 'USER';
-    navigate(isUserRole ? '/endorsements?mine=1' : '/endorsements');
-  };
-
-  const handleLogout = () => {
-    setIsLogoutModalOpen(true);
-  };
-
-  const confirmLogout = () => {
-    logout();
-    setIsLogoutModalOpen(false);
-    navigate("/login", { replace: true });
-  };
-
-
 
   const navItems = [
     { icon: Home, label: "Home", path: "/", color: "text-blue-500" },
@@ -388,6 +401,11 @@ export default function Sidebar() {
                             <>
                               <child.icon className={`w-5 h-5 shrink-0 ${child.color || ''}`} />
                               <span className="text-[13px] font-semibold tracking-wide leading-tight">{child.label}</span>
+                              {child.label === "Trash" && trashCount > 0 && (
+                                <span className="ml-auto min-w-[18px] h-[18px] bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black px-1 leading-none shadow-sm animate-in zoom-in duration-300">
+                                  {trashCount > 99 ? '99+' : trashCount}
+                                </span>
+                              )}
                             </>
                           )}
                         </NavLink>
@@ -582,6 +600,11 @@ export default function Sidebar() {
                         >
                           <child.icon className={`w-3.5 h-3.5 shrink-0 ${child.color || ''}`} />
                           <span className="text-[15px] leading-tight truncate">{child.label}</span>
+                          {child.label === "Trash" && trashCount > 0 && (
+                            <span className="ml-auto min-w-[16px] h-[16px] bg-red-500 text-white rounded-full flex items-center justify-center text-[9px] font-black px-1 leading-none shadow-sm animate-in zoom-in duration-300">
+                              {trashCount > 99 ? '99+' : trashCount}
+                            </span>
+                          )}
                         </NavLink>
                       );
                     })}
@@ -757,6 +780,11 @@ export default function Sidebar() {
                             <>
                               <child.icon className={`w-3.5 h-3.5 shrink-0 ${child.color || ''}`} />
                               <span className="leading-tight">{child.label}</span>
+                              {child.label === "Trash" && trashCount > 0 && (
+                                <span className="ml-auto min-w-[16px] h-[16px] bg-red-500 text-white rounded-full flex items-center justify-center text-[9px] font-black px-1 leading-none shadow-sm animate-in zoom-in duration-300">
+                                  {trashCount > 99 ? '99+' : trashCount}
+                                </span>
+                              )}
                             </>
                           )}
                         </NavLink>
@@ -782,7 +810,7 @@ export default function Sidebar() {
                 </div>
                 {(isSidebarExpanded || isMobileMenuOpen) && (
                   <div className="flex flex-col min-w-0 text-left">
-                    <span className="text-xs font-bold text-[#1A1A1B] dark:text-white truncate leading-tight">{user?.first_name}</span>
+                    <span className="text-xs font-bold text-[#1A1A1B] dark:text-white truncate leading-tight">{user?.first_name} {user?.last_name}</span>
                     <span className="text-[10px] text-[#A3A3A3] truncate">Account</span>
                   </div>
                 )}
@@ -922,6 +950,11 @@ export default function Sidebar() {
                           <>
                             <child.icon className={`w-4 h-4 shrink-0 ${child.color || ''}`} />
                             <span className="text-[13px] font-semibold tracking-wide leading-tight">{child.label}</span>
+                            {child.label === "Trash" && trashCount > 0 && (
+                                <span className="ml-auto min-w-[18px] h-[18px] bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black px-1 leading-none shadow-sm animate-in zoom-in duration-300">
+                                  {trashCount > 99 ? '99+' : trashCount}
+                                </span>
+                            )}
                           </>
                         )}
                       </NavLink>

@@ -37,6 +37,8 @@ export default function GuestSendLetter() {
 
     // isLoggedIn means a real authenticated user (not a guest)
     const isLoggedIn = !!user?.id && !isGuest;
+    const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
+    const isRegularUser = roleName === 'USER';
 
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -131,6 +133,17 @@ export default function GuestSendLetter() {
         };
         fetchDepts();
     }, []);
+
+    // Auto-set department for regular users
+    useEffect(() => {
+        if (isLoggedIn && isRegularUser && user?.dept_id) {
+            const dId = user.dept_id.id || user.dept_id;
+            if (dId && String(selectedDeptId) !== String(dId)) {
+                setSelectedDeptId(String(dId));
+                setVirtualDeptName(""); // Clear any virtual names like NONE/OTHERS
+            }
+        }
+    }, [isLoggedIn, isRegularUser, user?.dept_id]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -613,8 +626,8 @@ export default function GuestSendLetter() {
 
                                 <div className="grid grid-cols-1 gap-6">
 
-                                    {/* Department - Optional for everyone */}
-                                    {canDepartmentSelector && (
+                                    {/* Department - Optional for everyone, hidden for regular users */}
+                                    {canDepartmentSelector && (!isLoggedIn || !isRegularUser) && (
                                         <div className="space-y-3" ref={deptSearchRef}>
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
