@@ -98,6 +98,7 @@ export default function MasterTable() {
   const [endorseSuggestions, setEndorseSuggestions] = useState([]);
   const [showEndorseSuggestions, setShowEndorseSuggestions] = useState(false);
   const endorseRef = useRef(null);
+  const endorseTimeoutRef = useRef(null);
   const [validationError, setValidationError] = useState("");
   const [conflictState, setConflictState] = useState({ isOpen: false, message: "" });
   const [isCombining, setIsCombining] = useState(false);
@@ -276,21 +277,36 @@ export default function MasterTable() {
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
   };
+  const fetchEndorseSuggestions = (query) => {
+    if (endorseTimeoutRef.current) clearTimeout(endorseTimeoutRef.current);
 
-  const fetchEndorseSuggestions = async (query) => {
     const token = (query || "").toString().split(";").pop().trim();
     if (!token || token.length < 2) {
       setEndorseSuggestions([]);
       setShowEndorseSuggestions(false);
       return;
     }
-    try {
-      const res = await axios.get(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/persons/search?query=${encodeURIComponent(token)}`,
-      );
-      setEndorseSuggestions(res.data);
-      setShowEndorseSuggestions(res.data.length > 0);
-    } catch { }
+
+    endorseTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await axios.get(
+          `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/persons/search?query=${encodeURIComponent(token)}`,
+        );
+
+        // Deduplicate and clean names
+        const seen = new Set();
+        const cleaned = (Array.isArray(res.data) ? res.data : [])
+          .map(p => ({ ...p, name: (p.name || "").replace(/,+$/, "").trim() }))
+          .filter(p => {
+            if (!p.name || seen.has(p.name)) return false;
+            seen.add(p.name);
+            return true;
+          });
+
+        setEndorseSuggestions(cleaned);
+        setShowEndorseSuggestions(cleaned.length > 0);
+      } catch { }
+    }, 300);
   };
 
   const splitSemicolonNames = (value) =>
@@ -417,28 +433,15 @@ export default function MasterTable() {
       const finalName = picked ? picked.name : currentValue.toString().split(";").pop().trim();
 
       if (finalName) {
-        (async () => {
-          try {
-            await createEndorsement(selectedLetter.id, finalValue);
-            const updatedLetter = await letterService.getById(selectedLetter.id, {
-              user_id: user?.id,
-              role: user?.roleData?.name || user?.role || "",
-              full_name: `${user?.first_name} ${user?.last_name}`.trim(),
-            });
-
-            // Keep the selected names visible and normalized
-            const normalized = normalizeSemicolonList(finalValue);
-            setSelectedLetter({
-              ...updatedLetter,
-              endorse_to: normalized ? `${normalized}; ` : ""
-            });
-            setShowEndorseSuggestions(false);
-            setHighlightedEndorseIndex(-1);
-            setValidationError("");
-          } catch (err) {
-            console.error("Endorsement failed:", err);
-          }
-        })();
+        // Keep the selected names visible and normalized locally
+        const normalized = normalizeSemicolonList(finalValue);
+        setSelectedLetter(prev => ({
+          ...prev,
+          endorse_to: normalized ? `${normalized}; ` : ""
+        }));
+        setShowEndorseSuggestions(false);
+        setHighlightedEndorseIndex(-1);
+        setValidationError("");
       }
     } else if (e.key === "Escape") {
       setShowEndorseSuggestions(false);
@@ -787,6 +790,43 @@ export default function MasterTable() {
     }
   };
 
+  const handleSaveAndEndorse = async (forceOverwrite = false, forceCombine = null) => {
+    // Validation: If files exist and we are NOT combining, ask for confirmation
+    const hasExistingFiles = (selectedLetter?.scanned_copy && selectedLetter.scanned_copy.trim() !== "") ||
+      (selectedLetter?.attachment_id && String(selectedLetter.attachment_id).trim() !== "");
+
+    const activeCombining = forceCombine !== null ? forceCombine : isCombining;
+
+    if (newFile && !activeCombining && hasExistingFiles && !forceOverwrite) {
+      setPendingAction('save-endorse');
+      setShowOverwriteConfirm(true);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const updated = await updateDetailsInternal(forceCombine);
+      if (!updated) return;
+
+      const ok = await createEndorsement(updated.id, selectedLetter.endorse_to);
+      if (!ok) return;
+
+      resetDrawerState();
+      fetchData();
+      setShowOverwriteConfirm(false);
+      setPendingAction(null);
+    } catch (error) {
+      console.error("Save and endorse failed", error);
+      const errMsg =
+        error.response?.data?.error ||
+        error.message ||
+        "Please check connection.";
+      setValidationError(`Failed to save and endorse: ${errMsg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteFile = async (type, specificId = null) => {
     if (!window.confirm("Are you sure you want to delete this file? This action cannot be undone.")) return;
 
@@ -846,63 +886,6 @@ export default function MasterTable() {
     }
   };
 
-
-  const handleEndorseOnly = async () => {
-    if (!selectedLetter?.id) return;
-    try {
-      setLoading(true);
-      const ok = await createEndorsement(selectedLetter.id, selectedLetter.endorse_to);
-      if (!ok) return;
-      resetDrawerState();
-      fetchData();
-      navigate("/endorsements");
-    } catch (error) {
-      console.error("Endorse failed", error);
-      const errMsg =
-        error.response?.data?.error ||
-        error.message ||
-        "Please check connection.";
-      setValidationError(`Failed to endorse: ${errMsg}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSaveAndEndorse = async (forceOverwrite = false, forceCombine = null) => {
-    // Validation: If files exist and we are NOT combining, ask for confirmation
-    const hasExistingFiles = (selectedLetter?.scanned_copy && selectedLetter.scanned_copy.trim() !== "") ||
-      (selectedLetter?.attachment_id && String(selectedLetter.attachment_id).trim() !== "");
-
-    const activeCombining = forceCombine !== null ? forceCombine : isCombining;
-
-    if (newFile && !activeCombining && hasExistingFiles && !forceOverwrite) {
-      setPendingAction('save-endorse');
-      setShowOverwriteConfirm(true);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const updated = await updateDetailsInternal(forceCombine);
-      if (!updated) return;
-      const ok = await createEndorsement(updated.id, selectedLetter.endorse_to);
-      if (!ok) return;
-      resetDrawerState();
-      fetchData();
-      setShowOverwriteConfirm(false);
-      setPendingAction(null);
-      navigate("/endorsements");
-    } catch (error) {
-      console.error("Save and endorse failed", error);
-      const errMsg =
-        error.response?.data?.error ||
-        error.message ||
-        "Please check connection.";
-      setValidationError(`Failed to save and endorse: ${errMsg}`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleTrackOpen = async (letter) => {
     try {
@@ -1211,10 +1194,10 @@ export default function MasterTable() {
                     value={filterStatus}
                     onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
                     className={`pl-8 pr-8 py-3 rounded-2xl border text-[11px] font-black uppercase tracking-widest transition-all focus:ring-2 focus:ring-orange-500/20 outline-none appearance-none cursor-pointer ${filterStatus
-                        ? "bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800 text-orange-600"
-                        : layoutStyle === "minimalist"
-                          ? "bg-white dark:bg-white/5 border-[#E5E5E5] dark:border-[#222] text-gray-500"
-                          : "bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-gray-500"
+                      ? "bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800 text-orange-600"
+                      : layoutStyle === "minimalist"
+                        ? "bg-white dark:bg-white/5 border-[#E5E5E5] dark:border-[#222] text-gray-500"
+                        : "bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-gray-500"
                       }`}
                   >
                     <option value="">All Status</option>
@@ -1233,10 +1216,10 @@ export default function MasterTable() {
                     value={filterGroup}
                     onChange={(e) => { setFilterGroup(e.target.value); setCurrentPage(1); }}
                     className={`pl-8 pr-8 py-3 rounded-2xl border text-[11px] font-black uppercase tracking-widest transition-all focus:ring-2 focus:ring-orange-500/20 outline-none appearance-none cursor-pointer ${filterGroup
-                        ? "bg-indigo-50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800 text-indigo-600"
-                        : layoutStyle === "minimalist"
-                          ? "bg-white dark:bg-white/5 border-[#E5E5E5] dark:border-[#222] text-gray-500"
-                          : "bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-gray-500"
+                      ? "bg-indigo-50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800 text-indigo-600"
+                      : layoutStyle === "minimalist"
+                        ? "bg-white dark:bg-white/5 border-[#E5E5E5] dark:border-[#222] text-gray-500"
+                        : "bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222] text-gray-500"
                       }`}
                   >
                     <option value="">All Groups</option>
@@ -1534,28 +1517,40 @@ export default function MasterTable() {
                             )}
                           </td>
                           <td className="p-5 text-center">
-                            {letter.attachment_id || letter.scanned_copy ? (
-                              canUserViewPDF(letter) ? (
-                                <button
-                                  onClick={() => handleViewPDF(letter)}
-                                  className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all mx-auto"
-                                  title="View PDF"
-                                >
-                                  <FileText className="w-4 h-4" />
-                                </button>
-                              ) : (
-                                <div 
-                                  className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] text-gray-400 flex items-center justify-center mx-auto cursor-not-allowed"
-                                  title="Access Restricted: Hidden Letter"
-                                >
-                                  <FileText className="w-4 h-4 opacity-30" />
-                                </div>
-                              )
-                            ) : (
-                              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 opacity-60">
-                                No File
-                              </span>
-                            )}
+                            {(() => {
+                              if (letter.attachment_id || letter.scanned_copy) {
+                                if (canUserViewPDF(letter)) {
+                                  return (
+                                    <button
+                                      onClick={() => handleViewPDF(letter)}
+                                      className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all mx-auto"
+                                      title="View PDF"
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                    </button>
+                                  );
+                                } else {
+                                  return (
+                                    <div
+                                      className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] text-gray-400 flex items-center justify-center mx-auto cursor-not-allowed"
+                                      title="Access Restricted: Hidden Letter"
+                                    >
+                                      <FileText className="w-4 h-4 opacity-30" />
+                                    </div>
+                                  );
+                                }
+                              } else {
+                                return (
+                                  <button
+                                    disabled
+                                    className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-white/5 text-gray-300 flex items-center justify-center cursor-not-allowed mx-auto"
+                                    title="No PDF file upload"
+                                  >
+                                    <FileText className="w-4 h-4 opacity-30" />
+                                  </button>
+                                );
+                              }
+                            })()}
                           </td>
                         </tr>
                       ))
@@ -1885,42 +1880,7 @@ export default function MasterTable() {
                     </label>
                   </div>
 
-                  {/* Kind Dropdown */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                      Kind
-                    </label>
-                    <select
-                      value={selectedLetter.kind || ""}
-                      onChange={(e) =>
-                        setSelectedLetter({
-                          ...selectedLetter,
-                          kind:
-                            e.target.value === ""
-                              ? null
-                              : parseInt(e.target.value),
-                        })
-                      }
-                      style={{ backgroundColor: "white", color: "black" }}
-                      className="w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm"
-                    >
-                      <option
-                        value=""
-                        style={{ color: "black", backgroundColor: "white" }}
-                      >
-                        -- Kind --
-                      </option>
-                      {letterKinds.map((k) => (
-                        <option
-                          key={k.id}
-                          value={k.id}
-                          style={{ color: "black", backgroundColor: "white" }}
-                        >
-                          {k.kind_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
@@ -1940,152 +1900,125 @@ export default function MasterTable() {
                   </div>
 
                   {/* Assign This Letter To (Endorsement) */}
-                  {canEndorse && (
-                    <div
-                      className="space-y-1 p-4 rounded-2xl bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20"
-                      ref={endorseRef}
-                    >
-                      <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-1.5">
-                        <Send className="w-3 h-3" /> Endorse
-                      </label>
-                      <p className="text-[9px] text-orange-400/80 font-medium mb-2">
-                        Search person.
-                      </p>
-                      <div className="relative flex items-center">
-                        <input
-                          type="text"
-                          placeholder="Type name to search..."
-                          value={selectedLetter.endorse_to || ""}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            setSelectedLetter({
-                              ...selectedLetter,
-                              endorse_to: raw,
-                            });
-                            fetchEndorseSuggestions(raw);
-                          }}
-                          onKeyDown={handleEndorseKeyDown}
-                          onFocus={() => {
-                            if (selectedLetter.endorse_to?.length >= 2) fetchEndorseSuggestions(selectedLetter.endorse_to);
-                          }}
-                          className="w-full px-4 py-3 pr-12 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-400/30 bg-white border-orange-100 text-gray-900 shadow-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            const rawValue = (selectedLetter.endorse_to || "").trim();
-                            if (!rawValue) return;
-                            try {
-                              await createEndorsement(selectedLetter.id, rawValue);
-                              const updatedLetter = await letterService.getById(selectedLetter.id, {
-                                user_id: user?.id,
-                                role: user?.roleData?.name || user?.role || "",
-                                full_name: `${user?.first_name} ${user?.last_name}`.trim(),
-                              });
+                  {canEndorse && (() => {
+                    const statusName = (statuses.find(s => s.id === selectedLetter.global_status)?.status_name || "").toLowerCase();
+                    const isEndorseEnabled = ["endorsed", "forwarded", "filed", "hold"].includes(statusName);
 
-                              const normalized = normalizeSemicolonList(rawValue);
-                              setSelectedLetter({ ...updatedLetter, endorse_to: normalized ? `${normalized}; ` : "" });
-                              setValidationError("");
-                            } catch (err) {
-                              console.error("Quick endorse failed:", err);
-                            }
-                          }}
-                          className="absolute right-2 p-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors shadow-sm"
-                          title="Add Endorsement"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
+                    return (
+                      <div className="space-y-4" ref={endorseRef}>
+                        {/* Endorsement History - Now at the top and always visible if names exist */}
+                        {(selectedLetter.endorsements || []).length > 0 && (
+                          <div className="p-4 rounded-2xl bg-orange-50/50 dark:bg-orange-900/5 border border-orange-100/50 dark:border-orange-900/10">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-2">Previous Endorsers:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {(() => {
+                                const items = (selectedLetter.endorsements || [])
+                                  .slice()
+                                  .sort((a, b) => (b?.id || 0) - (a?.id || 0))
+                                  .flatMap((e) =>
+                                    splitSemicolonNames(e?.endorsed_to).map((name) => ({
+                                      endorsementId: e.id,
+                                      name,
+                                    })),
+                                  );
 
-                        {showEndorseSuggestions &&
-                          endorseSuggestions.length > 0 && (
-                            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl overflow-hidden max-h-40 overflow-y-auto">
-                              {endorseSuggestions.map((p, idx) => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={async () => {
-                                    try {
-                                      await createEndorsement(selectedLetter.id, p.name);
-                                      // Refresh endorsement list in current letter
-                                      const updatedLetter = await letterService.getById(selectedLetter.id, {
-                                        user_id: user?.id,
-                                        role: user?.roleData?.name || user?.role || "",
-                                        full_name: `${user?.first_name} ${user?.last_name}`.trim(),
-                                      });
-
-                                      const currentValue = selectedLetter.endorse_to || "";
-                                      const parts = currentValue.split(";").map((x) => x.trim());
-                                      parts[parts.length - 1] = p.name;
-                                      const joined = parts.filter(Boolean).join("; ");
-                                      setSelectedLetter({ ...updatedLetter, endorse_to: joined ? `${joined}; ` : `${p.name}; ` });
-                                    } catch (err) {
-                                      console.error("Endorsement failed:", err);
-                                    }
-                                    setShowEndorseSuggestions(false);
-                                  }}
-                                  onMouseEnter={() => setHighlightedEndorseIndex(idx)}
-                                  className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-colors ${idx === highlightedEndorseIndex ? "bg-orange-50 text-orange-600 dark:bg-orange-900/10" : "text-gray-900 dark:text-white hover:bg-orange-50 dark:hover:bg-orange-900/10"}`}
-                                >
-                                  {p.name}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                      </div>
-
-                      {/* Endorsement History */}
-                      {(selectedLetter.endorsements || []).length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-orange-100/50 dark:border-orange-900/20">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-2">Previous Endorsers:</p>
-                          <div className="flex flex-wrap gap-2">
-                            {(() => {
-                              const items = (selectedLetter.endorsements || [])
-                                .slice()
-                                .sort((a, b) => (b?.id || 0) - (a?.id || 0))
-                                .flatMap((e) =>
-                                  splitSemicolonNames(e?.endorsed_to).map((name) => ({
-                                    endorsementId: e.id,
-                                    name,
-                                  })),
-                                );
-
-                              return items.map((item, idx) => (
-                                <div
-                                  key={`${item.endorsementId}-${item.name}-${idx}`}
-                                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-bold ${idx === 0 ? "bg-orange-500 text-white border-orange-500 shadow-sm" : "bg-white dark:bg-white/5 border-orange-100 dark:border-orange-900/20 text-orange-600 dark:text-orange-400"}`}
-                                >
-                                  <span>{item.name}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteEndorsement(item.endorsementId)}
-                                    className={`p-0.5 rounded-md transition-colors ${idx === 0 ? "hover:bg-white/20 text-white" : "hover:bg-orange-50 text-orange-400"}`}
-                                    title="Delete Endorsement"
+                                return items.map((item, idx) => (
+                                  <div
+                                    key={`${item.endorsementId}-${item.name}-${idx}`}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-bold ${idx === 0 ? "bg-orange-500 text-white border-orange-500 shadow-sm" : "bg-white dark:bg-white/5 border-orange-100 dark:border-orange-900/20 text-orange-600 dark:text-orange-400"}`}
                                   >
-                                    <X className="w-3 h-3" />
-                                  </button>
+                                    <span>{item.name}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteEndorsement(item.endorsementId)}
+                                      className={`p-0.5 rounded-md transition-colors ${idx === 0 ? "hover:bg-white/20 text-white" : "hover:bg-orange-50 text-orange-400"}`}
+                                      title="Delete Endorsement"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ));
+                              })()}
+                            </div>
+                          </div>
+                        )}
+
+                        <div
+                          className={`space-y-1 p-4 rounded-2xl border transition-all ${isEndorseEnabled ? "bg-orange-50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/20" : "bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/10 opacity-60"}`}
+                        >
+                          <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-1.5">
+                            <Send className="w-3 h-3" /> Endorse
+                          </label>
+                          <p className="text-[9px] text-orange-400/80 font-medium mb-2">
+                            {isEndorseEnabled ? "Search person." : "Endorse disabled for this status."}
+                          </p>
+                          <div className="relative flex items-center">
+                            <input
+                              type="text"
+                              disabled={!isEndorseEnabled}
+                              placeholder={isEndorseEnabled ? "Type name to search..." : "Interactivity Restricted"}
+                              value={selectedLetter.endorse_to || ""}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                setSelectedLetter(prev => ({
+                                  ...prev,
+                                  endorse_to: raw,
+                                }));
+                                fetchEndorseSuggestions(raw);
+                              }}
+                              onKeyDown={handleEndorseKeyDown}
+                              onFocus={() => {
+                                if (selectedLetter.endorse_to?.length >= 2) fetchEndorseSuggestions(selectedLetter.endorse_to);
+                              }}
+                              className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none transition-all ${isEndorseEnabled ? "focus:ring-2 focus:ring-orange-400/30 bg-white border-orange-100 text-gray-900 shadow-sm" : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"}`}
+                            />
+
+                            {showEndorseSuggestions &&
+                              endorseSuggestions.length > 0 && (
+                                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl overflow-hidden max-h-40 overflow-y-auto">
+                                  {endorseSuggestions.map((p, idx) => (
+                                    <button
+                                      key={p.id}
+                                      type="button"
+                                      onClick={async () => {
+                                        const newName = p.name;
+                                        const currentValue = selectedLetter.endorse_to || "";
+                                        const parts = currentValue.split(";").map((x) => x.trim());
+                                        parts[parts.length - 1] = newName;
+                                        const joined = parts.filter(Boolean).join("; ");
+                                        const finalValue = joined ? `${joined}; ` : `${newName}; `;
+
+                                        // Local Update only - no automatic saving
+                                        setSelectedLetter(prev => ({ ...prev, endorse_to: finalValue }));
+                                        setShowEndorseSuggestions(false);
+                                      }}
+                                      onMouseEnter={() => setHighlightedEndorseIndex(idx)}
+                                      className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-colors ${idx === highlightedEndorseIndex ? "bg-orange-50 text-orange-600 dark:bg-orange-900/10" : "text-gray-900 dark:text-white hover:bg-orange-50 dark:hover:bg-orange-900/10"}`}
+                                    >
+                                      {p.name}
+                                    </button>
+                                  ))}
                                 </div>
-                              ));
-                            })()}
+                              )}
                           </div>
                         </div>
-                      )}
-                    </div>
-                  )}
+                      </div>
+                    );
+                  })()}
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                      Summary
+                      Re
                     </label>
                     <textarea
                       rows="4"
                       className={`w-full px-4 py-3 rounded-xl border text-sm font-bold resize-none ${"bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white"}`}
                       value={selectedLetter.summary || ""}
                       onChange={(e) =>
-                        setSelectedLetter({
-                          ...selectedLetter,
+                        setSelectedLetter(prev => ({
+                          ...prev,
                           summary: e.target.value,
-                        })
+                        }))
                       }
                     />
                   </div>
@@ -2097,10 +2030,10 @@ export default function MasterTable() {
                     <select
                       value={selectedLetter.letter_type || "Non-Confidential"}
                       onChange={(e) =>
-                        setSelectedLetter({
-                          ...selectedLetter,
+                        setSelectedLetter(prev => ({
+                          ...prev,
                           letter_type: e.target.value,
-                        })
+                        }))
                       }
                       className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 ${"bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white"}`}
                     >
@@ -2115,10 +2048,10 @@ export default function MasterTable() {
                         type="checkbox"
                         checked={selectedLetter.is_hidden || false}
                         onChange={(e) =>
-                          setSelectedLetter({
-                            ...selectedLetter,
+                          setSelectedLetter(prev => ({
+                            ...prev,
                             is_hidden: e.target.checked,
-                          })
+                          }))
                         }
                         className="w-4 h-4 text-orange-500 focus:ring-orange-500 border-gray-300 rounded"
                       />
@@ -2192,6 +2125,21 @@ export default function MasterTable() {
                         })
                       }
                     />
+                  </div>
+
+                  <div className="flex flex-col gap-2 pt-2">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-4 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white text-xs font-black uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-orange-500/20 active:scale-[0.98]"
+                    >
+                      {loading ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <CheckSquare className="w-5 h-5" />
+                      )}
+                      {loading ? "Processing..." : "Save Changes"}
+                    </button>
                   </div>
 
                   <div className="space-y-1">
@@ -2502,7 +2450,7 @@ export default function MasterTable() {
                   className="flex-1 py-4 px-6 rounded-2xl bg-orange-500 text-white text-xs font-black uppercase tracking-widest shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading && <Loader2 className="w-3 h-3 animate-spin" />}
-                  Save
+                  Save Changes
                 </button>
               )}
               {canSave && canEndorse && (
@@ -2513,16 +2461,6 @@ export default function MasterTable() {
                 >
                   {loading && <Loader2 className="w-3 h-3 animate-spin" />}
                   Save &amp; Endorse
-                </button>
-              )}
-              {canEndorse && (
-                <button
-                  onClick={handleEndorseOnly}
-                  disabled={loading}
-                  className="flex-1 py-4 px-6 rounded-2xl bg-white dark:bg-white/5 border border-emerald-200 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-black uppercase tracking-widest hover:bg-emerald-50 dark:hover:bg-emerald-900/10 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {loading && <Loader2 className="w-3 h-3 animate-spin" />}
-                  Endorse
                 </button>
               )}
             </div>
@@ -2615,6 +2553,9 @@ export default function MasterTable() {
                       } else if (statusComp === "INCOMING" || statusComp === "PENDING") {
                         displayHeading = "Processing";
                         displaySubheading = "For Incoming";
+                      } else if (stepComp === "VEM LETTER" && (statusComp.includes("REVIEW") || stepComp.includes("REVIEW"))) {
+                        displayHeading = "Office of the Executive Minister";
+                        displaySubheading = trackingLetter?.evemnote || "Being Reviewed";
                       } else if (statusComp.includes("REVIEW") || stepComp.includes("REVIEW")) {
                         displayHeading = "ATG Office";
                         displaySubheading = trackingLetter?.atgnote || "Being Reviewed";
@@ -2912,7 +2853,7 @@ export default function MasterTable() {
         </div>
       )}
       {/* Conflict Modal */}
-      <ConflictModal 
+      <ConflictModal
         isOpen={conflictState.isOpen}
         onClose={() => {
           setConflictState({ isOpen: false, message: "" });

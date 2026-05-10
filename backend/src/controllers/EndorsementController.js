@@ -271,7 +271,10 @@ class EndorsementController {
                     await TelegramService.sendMessage(chatId, text);
                 }
                 
-                return res.json({ success: true, message: 'Notification sent' });
+                // Mark as notified in DB
+                await endorsement.update({ notified_at: new Date() });
+                
+                return res.json({ success: true, message: 'Notification sent', notified_at: endorsement.notified_at });
             }
 
             res.status(400).json({ error: 'No Telegram ID found for this person' });

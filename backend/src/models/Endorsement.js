@@ -8,6 +8,7 @@ const Endorsement = sequelize.define('Endorsement', {
     endorsed_by: { type: DataTypes.UUID, allowNull: true }, // user_id
     notes: { type: DataTypes.TEXT, allowNull: true },
     endorsed_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    notified_at: { type: DataTypes.DATE, allowNull: true },
     dept_id: { type: DataTypes.INTEGER, allowNull: true }
 }, {
     tableName: 'endorsements',

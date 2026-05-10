@@ -18,7 +18,7 @@ const LetterAssignment = sequelize.define('LetterAssignment', {
     },
     step_id: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: true // Changed to true to allow 'Recall to Pending' where step is removed
     },
     assigned_by: {
         type: DataTypes.UUID

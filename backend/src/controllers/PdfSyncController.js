@@ -69,24 +69,30 @@ class PdfSyncController {
             let finalPdfBytes;
 
             if (existingPdfPath) {
-                console.log(`[PdfSync] Merging: New PDF + Existing [${existingPdfPath}]`);
+                console.log(`[PdfSync] Merging: Existing [${existingPdfPath}] + New PDF`);
                 try {
                     const existingPdfBytes = fs.readFileSync(existingPdfPath);
 
                     const mergedPdf = await PDFDocument.create();
-                    const newPdf = await PDFDocument.load(newPdfBytes);
                     const existingPdf = await PDFDocument.load(existingPdfBytes);
+                    const newPdf = await PDFDocument.load(newPdfBytes);
 
-                    // 1. Add NEW pages first (Page 1)
-                    const newPages = await mergedPdf.copyPages(newPdf, newPdf.getPageIndices());
-                    newPages.forEach(page => mergedPdf.addPage(page));
-
-                    // 2. Add EXISTING pages after
+                    // 1. Add ALL existing pages first
                     const existingPages = await mergedPdf.copyPages(existingPdf, existingPdf.getPageIndices());
                     existingPages.forEach(page => mergedPdf.addPage(page));
 
+                    // 2. Add NEW pages after, skipping the first page (QR separator) if there's more than 1 page
+                    // If the new PDF is only 1 page (the QR separator), we don't add anything to avoid duplication.
+                    const newPageIndices = newPdf.getPageIndices();
+                    if (newPageIndices.length > 1) {
+                        const subsequentPages = await mergedPdf.copyPages(newPdf, newPageIndices.slice(1));
+                        subsequentPages.forEach(page => mergedPdf.addPage(page));
+                        console.log(`[PdfSync] Successfully appended ${subsequentPages.length} new pages to ${existingPages.length} existing pages.`);
+                    } else {
+                        console.log(`[PdfSync] New PDF only contains the QR separator page. Skipping append to prevent duplication.`);
+                    }
+
                     finalPdfBytes = await mergedPdf.save();
-                    console.log(`[PdfSync] Successfully merged ${newPages.length} new pages with ${existingPages.length} existing pages.`);
                 } catch (mergeErr) {
                     console.error("[PdfSync] Merge logic error (using new content only):", mergeErr.message);
                     finalPdfBytes = newPdfBytes;

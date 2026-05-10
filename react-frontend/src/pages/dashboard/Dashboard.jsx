@@ -54,6 +54,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const [inboxFilter, setInboxFilter] = useState('all');
   const [selectedTray, setSelectedTray] = useState(null);
   const [inboxStats, setInboxStats] = useState({ review: 0, signature: 0, vem: 0, pending: 0, hold: 0, empty_entry: 0 });
+  const [previewLetterId, setPreviewLetterId] = useState(null);
   const [trays, setTrays] = useState([]);
   const [steps, setSteps] = useState([]);
   const [atgNoteStatusId, setAtgNoteStatusId] = useState(2);
@@ -291,28 +292,44 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       }
 
       if (action === 'tray') {
-        await Promise.all(letterIds.map(id => letterService.update(id, { tray_id: data, global_status: 1 })));
+        for (const id of letterIds) {
+          await letterService.update(id, { tray_id: data, global_status: 1 });
+        }
       } else if (action === 'hold') {
         const holdStatusId = 7;
-        await Promise.all(letterIds.map(id => letterService.update(id, { global_status: holdStatusId })));
+        for (const id of letterIds) {
+          await letterService.update(id, { global_status: holdStatusId });
+        }
       } else if (action === 'atg_incoming') {
         const incomingStatusId = 1;
-        await Promise.all(letterIds.map(id => letterService.update(id, { global_status: incomingStatusId })));
-        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { step_id: null })));
+        for (const id of selectedIds) {
+          await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { 
+            step_id: null,
+            status_id: incomingStatusId 
+          });
+        }
       } else if (action === 'atg_note_step') {
-        await Promise.all(letterIds.map(id => letterService.update(id, { global_status: atgNoteStatusId })));
-        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { step_id: null })));
-      } else if (action === 'print') {
-        window.print();
-        setLoading(false); return;
+        for (const id of selectedIds) {
+          await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { 
+            step_id: null,
+            status_id: atgNoteStatusId 
+          });
+        }
       } else if (['approve_signature', 'approve_review'].includes(action)) {
         const stepId = action === 'approve_signature' ? 1 : 2;
-        const incomingStatusId = 1; // Change from Pending to Incoming when assigning
-        await Promise.all(letterIds.map(id => letterService.update(id, { global_status: incomingStatusId })));
-        await Promise.all(selectedIds.map(id => axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { step_id: stepId })));
+        const incomingStatusId = 1; // Move to Incoming status
+        
+        for (const id of selectedIds) {
+          await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${id}?user_id=${user?.id}`, { 
+            step_id: stepId,
+            status_id: incomingStatusId
+          });
+        }
       } else if (action === 'delete') {
         if (!window.confirm(`Delete ${selectedIds.length} letters? This will permanently delete them.`)) { setLoading(false); return; }
-        await Promise.all(letterIds.map(id => letterService.deletePermanent(id)));
+        for (const id of letterIds) {
+          await letterService.deletePermanent(id);
+        }
       }
 
       setSelectedIds([]);
@@ -357,34 +374,9 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     }
   };
 
-  const handleRecallToInbox = async (e, assignment) => {
-    e.preventDefault(); e.stopPropagation();
-    if (!window.confirm("Move this letter back to Pending?")) return;
-    try {
-      setRefreshing(true);
-      const incomingStatusId = 8; // Pending
-      await letterService.update(assignment.letter.id, { global_status: incomingStatusId });
-      await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letter-assignments/${assignment.id}`, { step_id: null });
-      fetchAssignments();
-      fetchInboxStats();
-    } catch (err) { console.error("Recall failed:", err); }
-    finally { setRefreshing(false); }
-  };
 
   const renderQuickActions = (assignment) => {
-    if (view === 'outbox') {
-      return (
-        <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-300">
-          <button
-            onClick={(e) => handleRecallToInbox(e, assignment)}
-            title="Recall to Inbox (Pending)"
-            className="p-1.5 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white border border-orange-100 transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      );
-    }
+    if (view === 'outbox') return null;
     if (activeStepTab !== 'pending') return null;
     return (
       <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-300">
@@ -454,7 +446,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     const showPrintHold = ['review', 'signature', 'vem', 'avem', 'atg_note', 'hold'].includes(activeStepTab);
     const isGrid = layoutStyle === 'grid';
     return (
-      <div className={`flex flex-wrap items-center gap-2 p-3 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-2xl shadow-sm transition-all duration-300 ${selectedIds.length > 0 ? 'opacity-100 scale-100 mb-4' : 'opacity-0 scale-95 h-0 overflow-hidden mb-0'}`}>
+      <div className={`flex flex-wrap items-center gap-2 p-3 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-2xl shadow-sm transition-all duration-300 print:hidden ${selectedIds.length > 0 ? 'opacity-100 scale-100 mb-4' : 'opacity-0 scale-95 h-0 overflow-hidden mb-0'}`}>
         <button onClick={handleSelectAll} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedIds.length > 0 ? (isGrid ? 'bg-blue-600' : 'bg-orange-600') + ' text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-400'}`}>
           {selectedIds.length === filteredBySteps.length && filteredBySteps.length > 0 ? 'Deselect All' : 'Check All'}
         </button>
@@ -477,15 +469,20 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
             >
               For Signature
             </button>
-            <button
-              onClick={() => handleBulkAction('delete')}
-              disabled={selectedIds.length === 0}
-              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-200 text-red-600 hover:bg-red-50 transition-all ${selectedIds.length === 0 ? 'opacity-30 pointer-events-none' : 'hover:scale-105 shadow-sm shadow-red-100'}`}
-              title="Delete Selected"
-            >
-              Delete
-            </button>
           </div>
+        )}
+
+
+
+        {activeStepTab === 'pending' && (
+          <button
+            onClick={() => handleBulkAction('delete')}
+            disabled={selectedIds.length === 0}
+            className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-200 text-red-600 hover:bg-red-50 transition-all ${selectedIds.length === 0 ? 'opacity-30 pointer-events-none' : 'hover:scale-105 shadow-sm shadow-red-100'}`}
+            title="Delete Selected"
+          >
+            Delete
+          </button>
         )}
 
         {showTrays && trays.map(t => (
@@ -499,7 +496,6 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         )}
         {showPrintHold && (
           <>
-            <button onClick={() => handleBulkAction('print')} disabled={selectedIds.length === 0} className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">Print List</button>
             <button onClick={handleOpenResumenModal} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${isGrid ? 'bg-blue-600' : 'bg-orange-500'} text-white shadow-sm`}>Print Resumen</button>
             {activeStepTab !== 'hold' && <button onClick={() => handleBulkAction('hold')} disabled={selectedIds.length === 0} className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-orange-200 text-orange-600 hover:bg-orange-50 transition-all">Hold</button>}
           </>
@@ -596,7 +592,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
         <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pt-0 md:pt-0 custom-scrollbar print:hidden">
           <div className="w-full space-y-4 md:space-y-4 lg:space-y-4">
             {view === 'inbox' && canTraySelector && activeStepTab === 'atg_note' && (
-              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-[#E5E5E5] dark:border-[#222] pb-4">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-[#E5E5E5] dark:border-[#222] pb-4 print:hidden">
                 <div className="flex items-center gap-1 p-1 bg-white dark:bg-[#141414] border border-[#E5E5E5] dark:border-[#222] rounded-xl shadow-sm overflow-x-auto no-scrollbar">
                   <button
                     onClick={() => setSelectedTray(null)}
@@ -678,6 +674,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
                             layout="minimalist"
                             isOutbox={view === 'outbox'}
                             endorsements={assignment.letter?.endorsements}
+                            onPreview={(assignment.letter?.scanned_copy || assignment.letter?.attachment_id) ? () => setPreviewLetterId(assignment.letter?.id) : null}
                             actions={
                               (trayActions || quickActions) ? (
                                 <div className="flex items-center gap-2">
@@ -725,6 +722,36 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
           </div>
         </div>
         {renderPrintSummaryModal()}
+
+        {/* PDF Preview Modal */}
+        {previewLetterId && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setPreviewLetterId(null)} />
+            <div className="bg-white dark:bg-[#141414] w-full max-w-6xl h-[90vh] rounded-[2.5rem] border shadow-2xl relative z-10 overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+              <div className="flex items-center justify-between p-6 border-b dark:border-[#222]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/10 rounded-xl flex items-center justify-center text-blue-600">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-tight dark:text-white">Document Preview</h3>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Internal LMS Viewer</p>
+                  </div>
+                </div>
+                <button onClick={() => setPreviewLetterId(null)} className="p-3 hover:bg-gray-100 dark:hover:bg-white/5 rounded-2xl transition-all text-gray-400">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 bg-gray-50 dark:bg-black/20">
+                <iframe
+                  src={`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/view-combined/${previewLetterId}`}
+                  className="w-full h-full border-none"
+                  title="PDF Preview"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Conflict Modal */}
         {conflictState.isOpen && (

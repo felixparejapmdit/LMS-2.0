@@ -370,7 +370,7 @@ export default function LetterTracker() {
                                                 <td className={`px-5 py-4 text-center text-[10px] font-bold text-gray-400 transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>{index + 1}</td>
                                                 <td className={`px-5 py-4 whitespace-nowrap transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 ${textColor} ${letter.is_resolved ? "line-through opacity-70" : ""}`}>
-                                                        {letter.entry_id}
+                                                        {letter.lms_id}
                                                     </span>
                                                 </td>
                                                 <td className={`px-5 py-4 whitespace-nowrap transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
@@ -400,7 +400,7 @@ export default function LetterTracker() {
                                                     <div className="flex justify-center">
                                                         {canPrintQR ? (
                                                             <button
-                                                                onClick={() => handlePrintQR(letter.entry_id)}
+                                                                onClick={() => handlePrintQR(letter.lms_id)}
                                                                 className="p-2 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all border border-blue-100 dark:border-blue-900/20 shadow-sm"
                                                                 title="Print QR Code"
                                                             >
@@ -523,6 +523,9 @@ export default function LetterTracker() {
                                             } else if (statusComp === "INCOMING" || statusComp === "PENDING") {
                                                 displayHeading = "Processing";
                                                 displaySubheading = "For Incoming";
+                                            } else if (stepComp === "VEM LETTER" && (statusComp.includes("REVIEW") || stepComp.includes("REVIEW"))) {
+                                                displayHeading = "Office of the Executive Minister";
+                                                displaySubheading = selectedLetter?.evemnote || "Being Reviewed";
                                             } else if (statusComp.includes("REVIEW") || stepComp.includes("REVIEW")) {
                                                 displayHeading = "ATG Office";
                                                 displaySubheading = selectedLetter?.atgnote || "Being Reviewed";

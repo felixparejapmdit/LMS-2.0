@@ -21,6 +21,7 @@ const STATUS_GRADIENTS = {
   released:   "from-blue-600 to-indigo-500",
   done:       "from-emerald-600 to-green-500",
   filed:      "from-amber-600 to-orange-500",
+  resolved:   "from-emerald-600 to-teal-500",
   forwarded:  "from-sky-500 to-blue-400",
   endorsed:   "from-violet-600 to-purple-500",
   dispatched: "from-teal-600 to-cyan-500",
@@ -305,6 +306,11 @@ export default function Outbox() {
                         layout="minimalist"
                         isOutbox={true}
                         endorsements={assignment.letter?.endorsements}
+                        onPreview={(assignment.letter?.scanned_copy || assignment.letter?.attachment_id) ? () => {
+                          const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+                          const fileUrl = assignment.letter?.scanned_copy || `${apiBase}/attachments/view/${assignment.letter?.attachment_id}`;
+                          window.open(fileUrl, '_blank');
+                        } : null}
                         actions={
                           <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-300">
                             <button

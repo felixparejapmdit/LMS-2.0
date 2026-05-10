@@ -461,7 +461,7 @@ export default function GuestSendLetter() {
         setFormData(prev => ({ ...prev, senders: newSenders }));
 
         setActiveSenderIndex(index);
-        fetchSuggestions(value.split(',').pop().trim());
+        fetchSuggestions(value);
     };
 
     const selectSuggestion = (name) => {
@@ -914,12 +914,12 @@ export default function GuestSendLetter() {
                                                         const val = e.target.value;
                                                         setFormData({ ...formData, encoder: val });
                                                         setActiveSenderIndex('encoder');
-                                                        fetchSuggestions(val.split(',').pop().trim());
+                                                        fetchSuggestions(val);
                                                     }}
                                                     onKeyDown={(e) => handleSuggestionKeyDown(e, 'encoder')}
                                                     onFocus={() => {
                                                         setActiveSenderIndex('encoder');
-                                                        if (formData.encoder.length >= 2) fetchSuggestions(formData.encoder.split(',').pop().trim());
+                                                        if (formData.encoder.length >= 2) fetchSuggestions(formData.encoder);
                                                     }}
                                                     className={`w-full px-5 py-3 border-2 rounded-xl focus:border-orange-500 focus:bg-white dark:focus:bg-white/10 transition-all text-sm font-bold uppercase tracking-wider outline-none ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] text-slate-600 dark:text-slate-200'}`}
                                                 />
@@ -1244,7 +1244,7 @@ export default function GuestSendLetter() {
                         <div className="p-6 overflow-y-auto custom-scrollbar space-y-4">
                             <div className="space-y-1">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Department</span>
-                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{departments.find(d => String(d.id) === String(selectedDeptId))?.dept_name || departments.find(d => String(d.id) === String(selectedDeptId))?.name || "None Selected"}</p>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{virtualDeptName || departments.find(d => String(d.id) === String(selectedDeptId))?.dept_name || departments.find(d => String(d.id) === String(selectedDeptId))?.name || "None Selected"}</p>
                             </div>
                             <div className="space-y-1">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sender(s)</span>

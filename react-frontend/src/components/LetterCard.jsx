@@ -12,7 +12,8 @@ import {
   User,
   MoreVertical,
   Hash,
-  Paperclip
+  Paperclip,
+  Eye
 } from "lucide-react";
 
 export default React.memo(function LetterCard({
@@ -30,7 +31,8 @@ export default React.memo(function LetterCard({
   isOutbox = false,
   endorsements = [],
   actions = null,
-  dateReceived = null
+  dateReceived = null,
+  onPreview = null
 }) {
   const isPastDue = dueDate && new Date(dueDate) < new Date();
   const formattedDate = dueDate ? new Date(dueDate).toLocaleDateString('en-US', {
@@ -107,7 +109,7 @@ export default React.memo(function LetterCard({
       >
         <div className="flex items-start justify-between">
           <div className="flex gap-4">
-            <div className="w-10 h-10 bg-gray-50 dark:bg-white/5 rounded-xl flex items-center justify-center text-gray-400 group-hover:text-[#1A1A1B] dark:group-hover:text-white transition-colors">
+            <div className="w-10 h-10 bg-gray-50 dark:bg-white/5 rounded-xl flex items-center justify-center text-gray-400 transition-colors">
               <FileText className="w-5 h-5" />
             </div>
             <div className="space-y-1">

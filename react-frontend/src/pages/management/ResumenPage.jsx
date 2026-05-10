@@ -800,87 +800,90 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
 
                                 <div className="flex-1 p-8 lg:p-12 flex flex-col print:p-0">
                                     {/* Dashboard Info Section */}
-                                    <div className="mb-8 print:hidden flex items-end justify-between gap-6 flex-wrap bg-slate-50/50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/10">
-                                        <div className="flex flex-col gap-2 min-w-[150px]">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Timeframe:</label>
-                                            <select
-                                                value={timeframe}
-                                                onChange={(e) => setTimeframe(e.target.value)}
-                                                className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all uppercase text-slate-600 dark:text-slate-300"
-                                            >
-                                                <option value="today">Today</option>
-                                                <option value="weekly">Weekly</option>
-                                                <option value="monthly">Monthly</option>
-                                                <option value="yearly">Yearly</option>
-                                                <option value="all">All Time</option>
-                                                <option value="range">Date Range</option>
-                                            </select>
-                                        </div>
-
-                                        {timeframe === 'range' && (
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex flex-col gap-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Start Date:</label>
-                                                    <input
-                                                        type="date"
-                                                        value={dateRange.start}
-                                                        onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                                                        className="px-4 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-col gap-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">End Date:</label>
-                                                    <input
-                                                        type="date"
-                                                        value={dateRange.end}
-                                                        onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                                                        className="px-4 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300"
-                                                    />
-                                                </div>
+                                    {!isFromInbox && (
+                                        <div className="mb-8 print:hidden flex items-end justify-between gap-6 flex-wrap bg-slate-50/50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/10">
+                                            <div className="flex flex-col gap-2 min-w-[150px]">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Timeframe:</label>
+                                                <select
+                                                    value={timeframe}
+                                                    onChange={(e) => setTimeframe(e.target.value)}
+                                                    className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all uppercase text-slate-600 dark:text-slate-300"
+                                                >
+                                                    <option value="today">Today</option>
+                                                    <option value="weekly">Weekly</option>
+                                                    <option value="monthly">Monthly</option>
+                                                    <option value="yearly">Yearly</option>
+                                                    <option value="all">All Time</option>
+                                                    <option value="range">Date Range</option>
+                                                </select>
                                             </div>
-                                        )}
 
-                                        <div className="flex flex-col gap-2 min-w-[200px]">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Letter Type (Step):</label>
-                                            <select
-                                                value={selectedStepId}
-                                                onChange={(e) => setSelectedStepId(e.target.value)}
-                                                className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all uppercase text-slate-600 dark:text-slate-300"
-                                            >
-                                                <option value="">All Types</option>
-                                                {steps.map((s) => (
-                                                    <option key={s.id} value={s.id}>{s.step_name}</option>
-                                                ))}
-                                            </select>
+                                            {timeframe === 'range' && (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex flex-col gap-2">
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Start Date:</label>
+                                                        <input
+                                                            type="date"
+                                                            value={dateRange.start}
+                                                            onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                                            className="px-4 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">End Date:</label>
+                                                        <input
+                                                            type="date"
+                                                            value={dateRange.end}
+                                                            onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                                            className="px-4 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="flex flex-col gap-2 min-w-[200px]">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Letter Type (Step):</label>
+                                                <select
+                                                    value={selectedStepId}
+                                                    onChange={(e) => setSelectedStepId(e.target.value)}
+                                                    className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all uppercase text-slate-600 dark:text-slate-300"
+                                                >
+                                                    <option value="">All Types</option>
+                                                    {steps.map((s) => (
+                                                        <option key={s.id} value={s.id}>{s.step_name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div className="flex flex-col gap-2 min-w-[150px]">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prepared by:</label>
+                                                    <input
+                                                        type="text"
+                                                        value={preparedBy}
+                                                        onChange={(e) => setPreparedBy(e.target.value)}
+                                                        placeholder="Enter name..."
+                                                        className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300 normal-case"
+                                                    />
+                                            </div>
+
+
+                                            <div className="text-right flex flex-col items-end gap-1 ml-auto">
+                                                <button
+                                                    onClick={fetchIncomingLetters}
+                                                    disabled={isFetching}
+                                                    className="mb-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
+                                                    title="Refresh Results"
+                                                >
+                                                    <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+                                                </button>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700">Printed:</span>
+                                                <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight">
+                                                    {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                </span>
+                                            </div>
                                         </div>
+                                    )}
 
-                                        <div className="flex flex-col gap-2 min-w-[150px]">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prepared by:</label>
-                                                <input
-                                                    type="text"
-                                                    value={preparedBy}
-                                                    onChange={(e) => setPreparedBy(e.target.value)}
-                                                    placeholder="Enter name..."
-                                                    className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300 normal-case"
-                                                />
-                                        </div>
-
-
-                                        <div className="text-right flex flex-col items-end gap-1 ml-auto">
-                                            <button
-                                                onClick={fetchIncomingLetters}
-                                                disabled={isFetching}
-                                                className="mb-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
-                                                title="Refresh Results"
-                                            >
-                                                <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-                                            </button>
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700">Printed:</span>
-                                            <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight">
-                                                {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                                            </span>
-                                        </div>
-                                    </div>
                                     <table className="w-full text-left border-collapse print:border print:border-slate-300">
                                         <thead>
                                             <tr className="border-b-2 border-slate-100 dark:border-white/10 print:border-slate-300" style={{ backgroundColor: printHeaderStyle.bg }}>

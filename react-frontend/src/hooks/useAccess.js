@@ -11,7 +11,7 @@ import { useAuth } from "../context/AuthContext";
  * if (canField('users', 'salary_field')) { ... }
  */
 export const useAccess = () => {
-    const { permissions } = useAuth();
+    const { permissions, isSuperAdmin } = useAuth();
     const normalizePageId = (value = "") => value.toString().toLowerCase().replace(/[^a-z0-9]/g, "");
     const normalizeFieldId = (value = "") => value.toString().toLowerCase().replace(/[^a-z0-9]/g, "");
     const isExplicitFalse = (value) => value === false || `${value}`.toLowerCase() === "false";
@@ -81,6 +81,7 @@ export const useAccess = () => {
      * @param {string} fieldId - The unique ID of the field/component
      */
     const canField = (pageName, fieldId) => {
+        if (isSuperAdmin) return true;
         if (!permissions || permissions.length === 0) return true;
         console.debug(`useAccess: checking ${pageName}.${fieldId}`, { permCount: permissions.length });
 
@@ -108,7 +109,7 @@ export const useAccess = () => {
         canView: can,
         can: can,
         canField,
-        isSuperAdmin: false,
+        isSuperAdmin,
         role: null
     };
 };

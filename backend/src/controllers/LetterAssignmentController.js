@@ -284,13 +284,16 @@ class LetterAssignmentController {
         where[Op.and].push({
           [Op.or]: [
             { "$letter.status.status_name$": { [Op.in]: outboxStatusNames } },
-            { "$letter.global_status$": { [Op.in]: [5, 6, 9, 10, 11] } }
+            { "$letter.global_status$": { [Op.in]: [5, 6, 9, 10, 11] } },
+            { "$letter.is_resolved$": true }
           ]
         });
         const inboxFilters = ['signature', 'review', 'pending', 'atg_note', 'empty_entry', 'hold', 'vem', 'avem'];
         if (named_filter && !inboxFilters.includes(named_filter)) {
           if (named_filter.toLowerCase() === 'done') {
             where["$letter.status.status_name$"] = "Done";
+          } else if (named_filter.toLowerCase() === 'resolved') {
+            where["$letter.is_resolved$"] = true;
           } else {
             // Dynamically capitalize the first letter for accurate LIKE matching (e.g., 'forwarded' -> '%Forwarded%')
             const capitalizedFilter = named_filter.charAt(0).toUpperCase() + named_filter.slice(1).toLowerCase();
@@ -531,7 +534,7 @@ class LetterAssignmentController {
 
       // Handle virtual 'mock-' IDs from Pending/Unassigned view
       if (id.toString().startsWith("mock-")) {
-        const letterId = id.replace("mock-", "");
+        const letterId = parseInt(id.replace("mock-", ""), 10);
         let { step_id, status_id, department_id } = req.body;
 
         // If another user already assigned this letter, stop and let the UI refresh.
@@ -568,10 +571,10 @@ class LetterAssignmentController {
         // Create a real assignment instead of updating
         const newAssignment = await LetterAssignment.create({
           letter_id: letterId,
-          step_id: step_id || null,
+          step_id: step_id ? parseInt(step_id, 10) : null,
           status_id: effectiveStatusId, // Denormalized mirror of Letter.global_status
-          department_id: department_id || null,
-          assigned_by: req.query.user_id || null,
+          department_id: department_id ? parseInt(department_id, 10) : null,
+          assigned_by: (req.query.user_id && req.query.user_id !== "undefined") ? req.query.user_id : null,
         }, { transaction });
 
         await transaction.commit();

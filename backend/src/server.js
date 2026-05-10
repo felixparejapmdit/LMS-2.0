@@ -121,6 +121,7 @@ async function startServer() {
         await ensureColumn('letters', 'is_resolved', "BOOLEAN DEFAULT 0");
         await ensureColumn('letters', 'is_deleted', "BOOLEAN DEFAULT 0");
         await ensureColumn('letters', 'deleted_at', "DATETIME DEFAULT NULL");
+        await ensureColumn('endorsements', 'notified_at', "DATETIME DEFAULT NULL");
 
         // Normalize any invalid tray_id=0 back to NULL (FK-safe unassigned tray)
         try {

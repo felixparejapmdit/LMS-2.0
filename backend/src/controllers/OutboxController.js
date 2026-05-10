@@ -119,10 +119,8 @@ class OutboxController {
             }
 
             // ── 5. Count letters per status (parallel queries) ────────────────────
-            const statusIds = outboxStatuses.map(s => s.id);
-
-            const counts = await Promise.all(
-                outboxStatuses.map(async (s) => {
+            const counts = await Promise.all([
+                ...outboxStatuses.map(async (s) => {
                     const count = await LetterAssignment.count({
                         where: {
                             ...where,
@@ -132,25 +130,59 @@ class OutboxController {
                         distinct: true,
                         col: 'letter_id'
                     });
-                    return { id: s.id, status_name: s.status_name, count };
-                })
-            );
+                    return { type: 'status', id: s.id, name: s.status_name, count };
+                }),
+                (async () => {
+                    const count = await LetterAssignment.count({
+                        where: {
+                            ...where,
+                            '$letter.is_resolved$': true
+                        },
+                        include: [{ model: Letter, as: 'letter', required: true }],
+                        distinct: true,
+                        col: 'letter_id'
+                    });
+                    return { type: 'resolved', id: 'resolved', name: 'Resolved', count };
+                })()
+            ]);
 
             // ── 6. Build response ─────────────────────────────────────────────────
-            // Returns both the ordered status list (for tab rendering) and a counts map
             const countsMap = {};
             counts.forEach(c => {
-                countsMap[c.status_name.toLowerCase()] = c.count;
+                countsMap[c.name.toLowerCase()] = c.count;
             });
 
-            res.json({
-                // Ordered list so the frontend can render tabs in the correct DB order
-                statuses: outboxStatuses.map(s => ({
-                    id:          s.id,
+            const finalStatuses = [];
+            let resolvedInserted = false;
+            
+            outboxStatuses.forEach(s => {
+                finalStatuses.push({
+                    id: s.id,
                     status_name: s.status_name,
-                    count:       countsMap[s.status_name.toLowerCase()] ?? 0
-                })),
-                // Flat map for quick count lookup by lowercase name
+                    count: countsMap[s.status_name.toLowerCase()] ?? 0
+                });
+                
+                // User requested: "Resolved letters after the Filed"
+                if (s.status_name.toLowerCase().includes('filed')) {
+                    finalStatuses.push({
+                        id: 'resolved',
+                        status_name: 'Resolved',
+                        count: countsMap['resolved'] ?? 0
+                    });
+                    resolvedInserted = true;
+                }
+            });
+
+            if (!resolvedInserted) {
+                finalStatuses.push({
+                    id: 'resolved',
+                    status_name: 'Resolved',
+                    count: countsMap['resolved'] ?? 0
+                });
+            }
+
+            res.json({
+                statuses: finalStatuses,
                 counts: countsMap
             });
 

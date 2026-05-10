@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
@@ -24,7 +23,7 @@ import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import jsQR from "jsqr";
 import useAccess from "../../hooks/useAccess";
 
-// Configure PDF.js worker locally for Vite reliability
+// Use local worker via Vite to avoid 404 errors and MIME type issues
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 export default function UploadPDFFiles() {
