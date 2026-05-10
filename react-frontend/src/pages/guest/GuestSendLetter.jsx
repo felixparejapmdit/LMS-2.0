@@ -58,7 +58,6 @@ export default function GuestSendLetter() {
     const [referenceNo, setReferenceNo] = useState("Select Department");
     const [departments, setDepartments] = useState([]);
     const [selectedDeptId, setSelectedDeptId] = useState("");
-    const [virtualDeptName, setVirtualDeptName] = useState("");
     const [kinds, setKinds] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -140,7 +139,6 @@ export default function GuestSendLetter() {
             const dId = user.dept_id.id || user.dept_id;
             if (dId && String(selectedDeptId) !== String(dId)) {
                 setSelectedDeptId(String(dId));
-                setVirtualDeptName(""); // Clear any virtual names like NONE/OTHERS
             }
         }
     }, [isLoggedIn, isRegularUser, user?.dept_id]);
@@ -291,7 +289,6 @@ export default function GuestSendLetter() {
         });
         setAttachments([]);
         setSelectedDeptId("");
-        setVirtualDeptName("");
         setReferenceNo("Select Department");
     };
 
@@ -643,11 +640,11 @@ export default function GuestSendLetter() {
                                                     className={`w-full px-5 py-3 rounded-xl border-2 transition-all outline-none text-base font-semibold flex items-center justify-between cursor-pointer ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] hover:border-orange-500/50'}`}
                                                 >
                                                     <span className="truncate max-w-[85%] uppercase tracking-wider">
-                                                        {virtualDeptName || (selectedDeptId
+                                                        {selectedDeptId
                                                             ? departments.find(d => String(d.id) === String(selectedDeptId))?.dept_name || 
                                                               departments.find(d => String(d.id) === String(selectedDeptId))?.name || 
                                                               "Department Selected"
-                                                            : "Select department...")}
+                                                            : "Select department..."}
                                                     </span>
                                                     <ChevronDown className={`w-4 h-4 transition-transform ${showDeptResults ? 'rotate-180' : ''}`} />
                                                 </div>
@@ -673,41 +670,6 @@ export default function GuestSendLetter() {
 
                                                         {/* Options List */}
                                                         <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const atgDept = departments.find(d => 
-                                                                        (d.dept_name || d.name || "").toUpperCase().includes("ATG'S OFFICE") || 
-                                                                        (d.dept_code === "ATG")
-                                                                    );
-                                                                    setSelectedDeptId(atgDept ? String(atgDept.id) : "");
-                                                                    setVirtualDeptName("NONE");
-                                                                    setShowDeptResults(false);
-                                                                    setDeptSearch("");
-                                                                }}
-                                                                className={`w-full text-left px-4 py-2.5 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-between uppercase ${virtualDeptName === "NONE" ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5'}`}
-                                                            >
-                                                                <span>NONE</span>
-                                                                {virtualDeptName === "NONE" && <Check className="w-3 h-3" />}
-                                                            </button>
-
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const atgDept = departments.find(d => 
-                                                                        (d.dept_name || d.name || "").toUpperCase().includes("ATG'S OFFICE") || 
-                                                                        (d.dept_code === "ATG")
-                                                                    );
-                                                                    setSelectedDeptId(atgDept ? String(atgDept.id) : "");
-                                                                    setVirtualDeptName("OTHERS");
-                                                                    setShowDeptResults(false);
-                                                                    setDeptSearch("");
-                                                                }}
-                                                                className={`w-full text-left px-4 py-2.5 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-between uppercase ${virtualDeptName === "OTHERS" ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5'}`}
-                                                            >
-                                                                <span>OTHERS</span>
-                                                                {virtualDeptName === "OTHERS" && <Check className="w-3 h-3" />}
-                                                            </button>
 
                                                             {departments
                                                                 .filter(d => (d.dept_name || d.name || "").toLowerCase().includes(deptSearch.toLowerCase()))
@@ -717,7 +679,6 @@ export default function GuestSendLetter() {
                                                                         type="button"
                                                                         onClick={() => {
                                                                             setSelectedDeptId(String(d.id));
-                                                                            setVirtualDeptName("");
                                                                             setDeptSearch("");
                                                                             setShowDeptResults(false);
                                                                         }}
