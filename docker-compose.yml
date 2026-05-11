@@ -69,7 +69,8 @@ services:
       SQLITE_BUSY_TIMEOUT: "30000"
       SQLITE_SYNCHRONOUS: "OFF"
     depends_on:
-      - directus
+      directus:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
