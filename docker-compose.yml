@@ -21,7 +21,7 @@ services:
       CORS_CREDENTIALS: "true"
       CORS_METHODS: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
       CORS_ALLOWED_HEADERS: "Content-Type,Authorization"
-      PUBLIC_URL: "${DIRECTUS_PUBLIC_URL:-http://localhost:8055}"
+      PUBLIC_URL: "http://${HOST_IP}/directus"
       # WAL mode + Single instances = maximum SQLite stability
       DB_SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
       DB_SQLITE_BUSY_TIMEOUT: "30000"
@@ -31,6 +31,12 @@ services:
       # Performance: Disable background session metadata tracking
       AUTH_SESSION_IP_TIE: "false"
       AUTH_SESSION_USER_AGENT_TIE: "false"
+      TRUST_PROXY: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8055/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     restart: unless-stopped
     networks:
       lms-net:
