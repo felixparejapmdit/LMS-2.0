@@ -182,22 +182,24 @@ export default function LegacyData() {
                             font-family: sans-serif; 
                             background: white; 
                             display: flex;
-                            align-items: flex-start;
+                            align-items: center;
+                            height: 9mm;
+                            overflow: hidden;
                         }
                         @page { size: auto; margin: 0mm; }
                         .container { 
                             display: flex; 
                             align-items: center; 
-                            gap: 2mm; 
-                            padding: 2mm; 
+                            gap: 1mm; 
+                            padding: 0 1mm; 
                         }
                         img { 
-                            width: 9mm; 
-                            height: 9mm; 
+                            width: 7mm; 
+                            height: 7mm; 
                             object-fit: contain;
                         }
                         .ref { 
-                            font-size: 8pt; 
+                            font-size: 6pt; 
                             font-weight: 900; 
                             white-space: nowrap;
                         }

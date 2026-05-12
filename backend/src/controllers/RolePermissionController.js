@@ -142,10 +142,20 @@ class RolePermissionController {
                 field_permissions: withDefaultFieldPermissions(p.page_name, p.field_permissions)
             }));
 
-            // Use transactional manual update for complex field_permissions if bulkCreate has issues with JSON updateOnDuplicate
+            // Use transactional manual UPDATE-first strategy.
+            // This is resilient even if the DB has accidental duplicate rows (same role_id + page_name),
+            // which would otherwise make upsert/ignoreDuplicates behave incorrectly in SQLite.
             await sequelize.transaction(async (t) => {
                 for (const item of toUpsert) {
-                    await RolePermission.upsert(item, { transaction: t });
+                    const { page_name, ...updatePayload } = item;
+                    const [affected] = await RolePermission.update(updatePayload, {
+                        where: { role_id, page_name },
+                        transaction: t
+                    });
+
+                    if (!affected) {
+                        await RolePermission.create(item, { transaction: t });
+                    }
                 }
             });
 

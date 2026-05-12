@@ -943,22 +943,24 @@ export default function MasterTable() {
                             font-family: sans-serif; 
                             background: white; 
                             display: flex;
-                            align-items: flex-start;
+                            align-items: center;
+                            height: 9mm;
+                            overflow: hidden;
                         }
                         @page { size: auto; margin: 0mm; }
                         .container { 
                             display: flex; 
                             align-items: center; 
-                            gap: 2mm; 
-                            padding: 2mm; 
+                            gap: 1mm; 
+                            padding: 0 1mm; 
                         }
                         img { 
-                            width: 9mm; 
-                            height: 9mm; 
+                            width: 7mm; 
+                            height: 7mm; 
                             object-fit: contain;
                         }
                         .ref { 
-                            font-size: 8pt; 
+                            font-size: 6pt; 
                             font-weight: 900; 
                             white-space: nowrap;
                         }
@@ -1478,7 +1480,9 @@ export default function MasterTable() {
                             </div>
                           </td>
                           <td className={`p-5 text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
-                            {letter.sender}
+                            {letter.sender ? letter.sender.toString().split(';').map(s => s.trim()).filter(Boolean).map((s, idx) => (
+                              <div key={idx} className="mb-1 last:mb-0">{s}</div>
+                            )) : null}
                           </td>
                           <td className={`p-5 max-w-xs transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
                             <p className="text-xs text-gray-500 dark:text-gray-400 font-medium line-clamp-2">
@@ -2127,21 +2131,6 @@ export default function MasterTable() {
                     />
                   </div>
 
-                  <div className="flex flex-col gap-2 pt-2">
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full py-4 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white text-xs font-black uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-orange-500/20 active:scale-[0.98]"
-                    >
-                      {loading ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <CheckSquare className="w-5 h-5" />
-                      )}
-                      {loading ? "Processing..." : "Save Changes"}
-                    </button>
-                  </div>
-
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                       AEVM Number
@@ -2543,12 +2532,25 @@ export default function MasterTable() {
                       if (actionType.includes("ENDORSE") || statusComp.includes("ENDORSE")) {
                         const endorsedTo = log.metadata?.endorsed_to;
                         if (!endorsedTo) return; // SKIP: Only show entries with specific recipient names
-                        displayHeading = endorsedTo
+                        
+                        // Extract currently active endorsers for this letter
+                        const activeEndorsersSet = new Set(
+                          (trackingLetter?.endorsements || [])
+                            .flatMap(e => (e.endorsed_to || "").toString().split(";"))
+                            .map(name => name.trim().toLowerCase())
+                            .filter(Boolean)
+                        );
+
+                        // Filter the log's endorsed_to list
+                        const validEndorsers = endorsedTo
                           .toString()
                           .split(";")
                           .map((p) => p.trim())
-                          .filter(Boolean)
-                          .join(" • ");
+                          .filter(name => name && activeEndorsersSet.has(name.toLowerCase()));
+
+                        if (validEndorsers.length === 0) return; // SKIP if all names were deleted
+                        
+                        displayHeading = validEndorsers.join(" • ");
                         displaySubheading = ""; // Strictly empty as requested
                       } else if (statusComp === "INCOMING" || statusComp === "PENDING") {
                         displayHeading = "Processing";

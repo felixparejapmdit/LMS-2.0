@@ -485,10 +485,11 @@ const authReducer = (state, action) => {
     const hasPermission = useCallback((pageId, action = 'can_view') => {
         if (authState.isGuest) return pageId === 'guest-send-letter';
         
-        // --- Super Admin Bypass ---
+        // ROOT and DEVELOPER are the only absolute bypasses for the matrix.
+        // ADMINISTRATOR and SUPER ADMIN must now follow the matrix rules as requested.
         const roleName = (authState.user?.roleData?.name || authState.user?.role || '').toString().toUpperCase();
-        const SUPER_ROLES = ['ADMINISTRATOR', 'DEVELOPER', 'ROOT', 'SUPER ADMIN'];
-        if (SUPER_ROLES.includes(roleName)) return true;
+        const IS_ROOT = ['DEVELOPER', 'ROOT'].includes(roleName);
+        if (IS_ROOT) return true; 
 
         // If permissions haven't loaded yet:
         // - For navigation visibility (Sidebar), we prefer "hide until proven allowed"
@@ -650,7 +651,7 @@ export const useAuth = () => {
     if (!auth || !ui) return null;
 
     const roleName = (auth.user?.roleData?.name || auth.user?.role || '').toString().toUpperCase();
-    const isSuperAdmin = ['ADMINISTRATOR', 'DEVELOPER', 'ROOT'].includes(roleName);
+    const isSuperAdmin = ['ADMINISTRATOR', 'ADMIN', 'DEVELOPER', 'ROOT', 'SUPER ADMIN'].includes(roleName);
 
     // Return combined object for backward compatibility, but it will trigger re-renders
     // on ANY change. We should encourage using useSession() and useUI()
@@ -665,7 +666,7 @@ export const useSession = () => {
     const isSuperAdmin = useMemo(() => {
         const rData = context.user?.roleData;
         const roleName = (rData?.name || context.user?.role || '').toString().toUpperCase();
-        return ['ADMINISTRATOR', 'DEVELOPER', 'ROOT', 'SUPER ADMIN'].includes(roleName);
+        return ['ADMINISTRATOR', 'ADMIN', 'DEVELOPER', 'ROOT', 'SUPER ADMIN'].includes(roleName);
     }, [context.user]);
 
     const roleName = useMemo(() => {

@@ -434,6 +434,11 @@ class LetterController {
             ],
           },
           {
+            model: Endorsement,
+            as: "endorsements",
+            required: false,
+          },
+          {
             model: LetterLog,
             as: "logs",
             include: [

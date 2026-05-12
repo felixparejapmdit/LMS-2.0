@@ -156,8 +156,7 @@ export default function RoleAccessMatrix() {
     const access = useAccess();
 
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
-    const isAdministrator = ['ADMINISTRATOR', 'ADMIN', 'SUPER ADMIN', 'DEVELOPER', 'ROOT'].includes(roleName)
-        || user?.email === 'felixpareja07@gmail.com';
+    const isAdministrator = ['ADMINISTRATOR', 'ADMIN', 'SUPER ADMIN', 'DEVELOPER', 'ROOT'].includes(roleName);
 
     const [roles, setRoles] = useState([]);
     const [allRoles, setAllRoles] = useState([]); // Full unfiltered list for dept filter

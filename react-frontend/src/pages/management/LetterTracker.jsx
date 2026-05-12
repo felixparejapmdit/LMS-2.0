@@ -236,22 +236,24 @@ export default function LetterTracker() {
                             font-family: sans-serif; 
                             background: white; 
                             display: flex;
-                            align-items: flex-start;
+                            align-items: center;
+                            height: 9mm;
+                            overflow: hidden;
                         }
                         @page { size: auto; margin: 0mm; }
                         .container { 
                             display: flex; 
                             align-items: center; 
-                            gap: 2mm; 
-                            padding: 2mm; 
+                            gap: 1mm; 
+                            padding: 0 1mm; 
                         }
                         img { 
-                            width: 9mm; 
-                            height: 9mm; 
+                            width: 7mm; 
+                            height: 7mm; 
                             object-fit: contain;
                         }
                         .ref { 
-                            font-size: 8pt; 
+                            font-size: 6pt; 
                             font-weight: 900; 
                             white-space: nowrap;
                         }
@@ -518,7 +520,25 @@ export default function LetterTracker() {
                                             if (actionType.includes("ENDORSE") || statusComp.includes("ENDORSE")) {
                                                 const endorsedTo = log.metadata?.endorsed_to;
                                                 if (!endorsedTo) return; // SKIP: Only show entries with specific recipient names
-                                                displayHeading = endorsedTo;
+                                                
+                                                // Extract currently active endorsers for this letter
+                                                const activeEndorsersSet = new Set(
+                                                  (selectedLetter?.endorsements || [])
+                                                    .flatMap(e => (e.endorsed_to || "").toString().split(";"))
+                                                    .map(name => name.trim().toLowerCase())
+                                                    .filter(Boolean)
+                                                );
+
+                                                // Filter the log's endorsed_to list
+                                                const validEndorsers = endorsedTo
+                                                  .toString()
+                                                  .split(";")
+                                                  .map((p) => p.trim())
+                                                  .filter(name => name && activeEndorsersSet.has(name.toLowerCase()));
+
+                                                if (validEndorsers.length === 0) return; // SKIP if all names were deleted
+                                                
+                                                displayHeading = validEndorsers.join(" • ");
                                                 displaySubheading = ""; // Strictly empty as requested
                                             } else if (statusComp === "INCOMING" || statusComp === "PENDING") {
                                                 displayHeading = "Processing";

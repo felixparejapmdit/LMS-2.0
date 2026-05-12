@@ -132,7 +132,38 @@ async function startServer() {
 
         // 3. Specific Index & UI Performance Fixes
         try {
-            await sequelize.query("CREATE UNIQUE INDEX IF NOT EXISTS role_page_unique ON role_permissions (role_id, page_name)");
+            const dedupeRolePermissions = async () => {
+                // Keep the most recent row (highest id) per (role_id, page_name).
+                // This unblocks unique-index creation and prevents RBAC lookups from hitting stale rows.
+                try {
+                    await sequelize.query(`
+                        DELETE FROM role_permissions
+                        WHERE id NOT IN (
+                            SELECT MAX(id)
+                            FROM role_permissions
+                            GROUP BY role_id, page_name
+                        )
+                    `);
+                    console.warn("[DATABASE] role_permissions deduplication applied (if needed).");
+                } catch (e) {
+                    console.warn("[DATABASE] role_permissions deduplication skipped:", e.message);
+                }
+            };
+
+            try {
+                await sequelize.query("CREATE UNIQUE INDEX IF NOT EXISTS role_page_unique ON role_permissions (role_id, page_name)");
+            } catch (idxCreateErr) {
+                const msg = String(idxCreateErr?.message || '').toLowerCase();
+                // If duplicates already exist, SQLite will refuse to create the unique index.
+                // Auto-heal by deduping then retrying once.
+                if (msg.includes('unique') && msg.includes('role_permissions')) {
+                    console.warn("[DATABASE] Unique index creation failed; attempting role_permissions dedupe...");
+                    await dedupeRolePermissions();
+                    await sequelize.query("CREATE UNIQUE INDEX IF NOT EXISTS role_page_unique ON role_permissions (role_id, page_name)");
+                } else {
+                    throw idxCreateErr;
+                }
+            }
             
             // Performance Indexes for Dashboard/Inbox
             const performanceIndexes = [

@@ -42,18 +42,19 @@ const ensureRolePermissionsForAllPages = async (roleId, roleName = '', systemPag
     const existingPageNames = new Set(existing.map((r) => r.page_name));
     const missingPages = pageIds.filter((pageId) => !existingPageNames.has(pageId));
     // Force-update essential pages for existing roles to ensure they aren't locked out of landing pages.
-    const essentialPages = ['home', 'profile', 'settings'];
+    const corePages = ['home', 'profile', 'settings'];
     const rName = String(roleName || '').toUpperCase();
-    if (rName.includes('ENCODER')) essentialPages.push('inbox');
-    if (rName.includes('USER')) essentialPages.push('letter-tracker');
-    if (rName.includes('VIP')) essentialPages.push('vip-view');
+    const IS_ADMIN = ['ADMINISTRATOR', 'ADMIN', 'SUPER ADMIN', 'DEVELOPER', 'ROOT'].includes(rName);
+    if (IS_ADMIN) {
+        corePages.push('role-matrix', 'dept-matrix');
+    }
 
     await RolePermission.update(
         { can_view: true },
         { 
             where: { 
                 role_id: roleId, 
-                page_name: { [Op.in]: essentialPages },
+                page_name: { [Op.in]: corePages },
                 can_view: false 
             } 
         }
