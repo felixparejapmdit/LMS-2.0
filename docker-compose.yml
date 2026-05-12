@@ -21,7 +21,8 @@ services:
       CORS_CREDENTIALS: "true"
       CORS_METHODS: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
       CORS_ALLOWED_HEADERS: "Content-Type,Authorization"
-      PUBLIC_URL: "http://${HOST_IP}/directus"
+      #PUBLIC_URL: "http://${HOST_IP}/directus"
+      PUBLIC_URL: "${DIRECTUS_PUBLIC_URL:-http://localhost:8055}"
       # WAL mode + Single instances = maximum SQLite stability
       DB_SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
       DB_SQLITE_BUSY_TIMEOUT: "30000"
@@ -34,7 +35,7 @@ services:
     command: >
       sh -c "npx directus bootstrap && npx directus start"
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8055/server/ping', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))"]
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:8055/server/ping', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))" ]
       interval: 15s
       timeout: 10s
       retries: 10
