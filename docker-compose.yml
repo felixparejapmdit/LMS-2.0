@@ -2,6 +2,7 @@ services:
   directus:
     container_name: lms-directus
     image: directus/directus:11.15.4
+    user: "root" # FIX: Pinipilit ang container na magkaroon ng write access sa mounted volumes
     ports:
       - "8055:8055"
     volumes:
@@ -45,6 +46,7 @@ services:
 
   backend:
     container_name: lms-backend
+    user: "root" # FIX: Siguraduhin na ang backend ay makakasulat din sa shared data.db
     build:
       context: ./backend
       dockerfile: Dockerfile

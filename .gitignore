@@ -12,7 +12,7 @@ build/
 .env.local
 .env.development.local
 .env.test.local
-# Note: .env (production/Proxmox config) IS committed intentionally
+.env (production/Proxmox config) IS committed intentionally
 
 # Logs
 logs/
@@ -22,7 +22,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Database (SQLite file contains real data)
-# directus/database/*.db (Uncommented to allow tracking the main DB)
+#directus/database/*.db (Uncommented to allow tracking the main DB)
 directus/database/*.db-shm
 directus/database/*.db-wal
 
