@@ -11,7 +11,7 @@ ENV VITE_DIRECTUS_URL=$VITE_DIRECTUS_URL
 
 # Copy and install dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 # Copy source and build
 COPY . .

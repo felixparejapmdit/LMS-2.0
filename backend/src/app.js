@@ -23,6 +23,7 @@ const sectionRoutes = require("./routes/sectionRoutes");
 const auditLogRoutes = require("./routes/auditLogRoutes");
 const dashboardNoteRoutes = require("./routes/dashboardNoteRoutes");
 const outboxRoutes = require("./routes/outboxRoutes");
+const endpointCatalogRoutes = require("./routes/endpointCatalogRoutes");
 
 const path = require("path");
 
@@ -137,6 +138,7 @@ apiRouter.use("/telegram", telegramRoutes);
 apiRouter.use("/inter-dept", interDeptRoutes);
 apiRouter.use("/sections", sectionRoutes);
 apiRouter.use("/audit-logs", auditLogRoutes);
+apiRouter.use("/endpoint-catalog", endpointCatalogRoutes);
 apiRouter.use("/import", require("./routes/importRoutes"));
 
 // Catch-all inside apiRouter to help diagnose missing routes

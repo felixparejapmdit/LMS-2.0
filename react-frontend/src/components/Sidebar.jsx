@@ -180,6 +180,7 @@ export default function Sidebar() {
         { icon: CloudDownload, label: "Data Import", path: "/setup/data-import", color: "text-indigo-500", group: "System" },
         { icon: Settings2, label: "Inter-Dept Management", path: "/setup/inter-dept", hidden: !hasPermission('inter-dept'), color: "text-yellow-600", group: "System" },
         { icon: Shield, label: "Audit Logs", path: "/setup/audit-logs", color: "text-gray-600", group: "System" },
+        { icon: Zap, label: "Endpoints", path: "/setup/endpoints", color: "text-amber-500", group: "System" },
         { icon: Trash2, label: "Trash", path: "/setup/trash", color: "text-red-500", group: "System" },
       ]
     },

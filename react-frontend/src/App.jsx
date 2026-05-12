@@ -37,6 +37,7 @@ import Attachments from "./pages/management/Attachments";
 import UploadPDFFiles from "./pages/management/UploadPDFFiles";
 import SectionRegistry from "./pages/management/SectionRegistry";
 import AuditLogs from "./pages/management/AuditLogs";
+import EndpointsCatalog from "./pages/management/EndpointsCatalog";
 import Trash from "./pages/management/Trash";
 
 // Setup
@@ -229,6 +230,7 @@ function AppRoutes() {
         <Route path="/upload-pdf" element={<ProtectedRoute><UploadPDFFiles /></ProtectedRoute>} />
         <Route path="/setup/sections" element={<ProtectedRoute><SectionRegistry /></ProtectedRoute>} />
         <Route path="/setup/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
+        <Route path="/setup/endpoints" element={<ProtectedRoute><EndpointsCatalog /></ProtectedRoute>} />
         <Route path="/setup/trash" element={<ProtectedRoute><Trash /></ProtectedRoute>} />
         <Route path="/guest/send-letter" element={<ProtectedRoute><GuestSendLetter /></ProtectedRoute>} />
         <Route path="/endorsements" element={<ProtectedRoute><LetterEndorsement /></ProtectedRoute>} />
