@@ -11,6 +11,7 @@ import statusService from '../../services/statusService';
 import Sidebar from '../../components/Sidebar';
 import jsQR from 'jsqr';
 import axios from 'axios';
+import API_BASE from '../../config/apiConfig';
 
 export default function VemResumen() {
     const navigate = useNavigate();
@@ -249,7 +250,7 @@ export default function VemResumen() {
         }
         const lettersSnapshot = letters.slice();
         try {
-            const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+            const API = API_BASE;
             const [statuses, stepsRes] = await Promise.all([
                 statusService.getAll(),
                 axios.get(`${API}/process-steps`)

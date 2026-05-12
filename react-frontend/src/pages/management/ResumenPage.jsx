@@ -5,6 +5,7 @@ import { useAuth, useSession, useUI } from "../../context/AuthContext";
 import letterService from "../../services/letterService";
 import statusService from "../../services/statusService";
 import axios from "axios";
+import API_BASE from "../../config/apiConfig";
 import {
     FileText,
     Inbox,
@@ -184,7 +185,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
     useEffect(() => {
         const fetchSteps = async () => {
             try {
-                const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/process-steps`);
+                const res = await axios.get(`${API_BASE}/process-steps`);
                 setSteps(Array.isArray(res.data) ? res.data : []);
             } catch (err) {
                 console.error("Failed to fetch process steps:", err);
@@ -540,7 +541,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
             if (!rawPath) return null;
             const normalized = rawPath.replace(/\\/g, '/');
             const filename = normalized.split('/uploads/').pop();
-            const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+            const baseUrl = (API_BASE).replace('/api', '');
             return `${baseUrl}/uploads/${filename}`;
         };
 

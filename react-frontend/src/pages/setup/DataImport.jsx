@@ -12,6 +12,7 @@ import {
     ShieldCheck
 } from "lucide-react";
 import axios from "axios";
+import API_BASE from "../../config/apiConfig";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
 import useAccess from "../../hooks/useAccess";
@@ -26,7 +27,6 @@ export default function DataImport() {
     const canPersonsImport = canField("data-import", "persons_import_button");
     const canUsersImport = canField("data-import", "users_import_button");
 
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
     const handleImport = async (type) => {
         setLoading(prev => ({ ...prev, [type]: true }));

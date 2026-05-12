@@ -42,6 +42,7 @@ import departmentService from "../../services/departmentService";
 import statusService from "../../services/statusService";
 import letterKindService from "../../services/letterKindService";
 import axios from "axios";
+import API_BASE from "../../config/apiConfig";
 import { useNavigate } from "react-router-dom";
 import ConflictModal from "../../components/ConflictModal";
 
@@ -210,8 +211,7 @@ export default function MasterTable() {
       }
 
       // Fetch reference data with individual safety catches
-      const apiBase =
-        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const apiBase = API_BASE;
 
       departmentService
         .getAll()
@@ -2346,7 +2346,7 @@ export default function MasterTable() {
                                     <button
                                       onClick={(e) => {
                                         e.preventDefault();
-                                        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+                                        const apiBase = API_BASE;
                                         window.open(`${apiBase}/attachments/view/${aid}`, '_blank');
                                       }}
                                       className="p-2.5 rounded-xl bg-white dark:bg-white/5 text-orange-500 hover:bg-orange-500 hover:text-white border border-orange-100 dark:border-white/10 transition-all shadow-sm"

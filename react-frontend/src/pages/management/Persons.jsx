@@ -20,6 +20,7 @@ import {
     Search
 } from "lucide-react";
 import axios from "axios";
+import API_BASE from "../../config/apiConfig";
 
 export default function Persons() {
     const access = useAccess();
@@ -59,7 +60,7 @@ export default function Persons() {
     const fetchData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons`);
+            const res = await axios.get(`${API_BASE}/persons`);
             setPersons(Array.isArray(res.data) ? res.data : []);
         } catch (error) {
             console.error("Fetch failed", error);
@@ -88,9 +89,9 @@ export default function Persons() {
         setError("");
         try {
             if (modalMode === 'create') {
-                await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons`, formData);
+                await axios.post(`${API_BASE}/persons`, formData);
             } else {
-                await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/${selectedPerson.id}`, formData);
+                await axios.put(`${API_BASE}/persons/${selectedPerson.id}`, formData);
             }
             setIsModalOpen(false);
             fetchData();
@@ -105,7 +106,7 @@ export default function Persons() {
     const handleDelete = async (id) => {
         if (!window.confirm("Delete contact?")) return;
         try {
-            await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/${id}`);
+            await axios.delete(`${API_BASE}/persons/${id}`);
             fetchData();
         } catch (err) {
             console.error("Delete failed:", err);

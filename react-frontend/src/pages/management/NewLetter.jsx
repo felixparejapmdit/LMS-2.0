@@ -34,6 +34,7 @@ import trayService from "../../services/trayService";
 import attachmentService from "../../services/attachmentService";
 import letterService from "../../services/letterService";
 import axios from "axios";
+import API_BASE from "../../config/apiConfig";
 import processStepService from "../../services/processStepService";
 import ConflictModal from "../../components/ConflictModal";
 import SuccessModal from "../../components/SuccessModal";
@@ -405,7 +406,7 @@ export default function NewLetter() {
     }
     try {
       const response = await axios.get(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/letters/summary-suggestions?query=${query}`,
+        `${API_BASE}/letters/summary-suggestions?query=${query}`,
       );
       setSummarySuggestions(response.data);
       setShowSummarySuggestions(response.data.length > 0);
@@ -591,7 +592,7 @@ export default function NewLetter() {
     }
     try {
       const response = await axios.get(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/persons/search?query=${query}`,
+        `${API_BASE}/persons/search?query=${query}`,
       );
       setAuthorizedSuggestions(response.data);
       setShowAuthorizedSuggestions(response.data.length > 0);
@@ -758,7 +759,7 @@ export default function NewLetter() {
         );
 
         const response = await axios.post(
-          `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/upload`,
+          `${API_BASE}/attachments/upload`,
           formDataUpload,
           {
             headers: { "Content-Type": "multipart/form-data" },

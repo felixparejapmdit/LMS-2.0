@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Settings, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
 import axios from 'axios';
+import API_BASE from '../config/apiConfig';
 
 const Maintenance = () => {
     const [isReconnecting, setIsReconnecting] = useState(false);
@@ -10,7 +11,7 @@ const Maintenance = () => {
         const checkHealth = async () => {
             try {
                 // Try fetching a lightweight endpoint or just the API base
-                const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/health`, { timeout: 3000 });
+                const res = await axios.get(`${API_BASE}/health`, { timeout: 3000 });
                 if (res.status === 200) {
                     setIsReconnecting(true);
                     setTimeout(() => {

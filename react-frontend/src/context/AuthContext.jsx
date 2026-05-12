@@ -3,18 +3,11 @@ import React, { createContext, useContext, useState, useEffect, useReducer, useM
 import { directus } from "../hooks/useDirectus";
 import { readMe } from "@directus/sdk";
 import axios from "axios";
+import API_BASE from "../config/apiConfig";
 
 // --- HELPERS ---
 
-const getBackendUrl = () => {
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-        return `http://${window.location.hostname}:5000/api`;
-    }
-    return 'http://localhost:5000/api';
-};
-
-const BACKEND_URL = getBackendUrl();
+const BACKEND_URL = API_BASE;
 const normalizeLayoutStyle = (style) => {
     return "minimalist";
 };
