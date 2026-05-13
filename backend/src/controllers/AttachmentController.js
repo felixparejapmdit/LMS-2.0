@@ -272,6 +272,7 @@ class AttachmentController {
 
             const mergedPdf = await PDFDocument.create();
             let pagesAdded = 0;
+            const processedPaths = new Set();
 
             // 1. Additional Attachments (Processed first, newest was prepended in frontend)
             if (letter.attachment_id) {
@@ -279,12 +280,16 @@ class AttachmentController {
                 for (const id of ids) {
                     const att = await Attachment.findByPk(id.trim());
                     if (att && att.file_path && fs.existsSync(att.file_path)) {
+                        const absPath = path.resolve(att.file_path);
+                        if (processedPaths.has(absPath)) continue;
+
                         try {
-                            const bytes = fs.readFileSync(att.file_path);
+                            const bytes = fs.readFileSync(absPath);
                             const pdf = await PDFDocument.load(bytes);
                             const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
                             pages.forEach(page => mergedPdf.addPage(page));
                             pagesAdded += pages.length;
+                            processedPaths.add(absPath);
                         } catch (err) {
                             console.warn(`Failed to process attachment ${id}:`, err.message);
                         }
@@ -294,14 +299,18 @@ class AttachmentController {
 
             // 2. Main Letter (Scanned Copy) - Processed last (bottom of stack)
             if (letter.scanned_copy && fs.existsSync(letter.scanned_copy)) {
-                try {
-                    const bytes = fs.readFileSync(letter.scanned_copy);
-                    const pdf = await PDFDocument.load(bytes);
-                    const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-                    pages.forEach(page => mergedPdf.addPage(page));
-                    pagesAdded += pages.length;
-                } catch (err) {
-                    console.warn(`Failed to process scanned_copy:`, err.message);
+                const absPath = path.resolve(letter.scanned_copy);
+                if (!processedPaths.has(absPath)) {
+                    try {
+                        const bytes = fs.readFileSync(absPath);
+                        const pdf = await PDFDocument.load(bytes);
+                        const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                        pages.forEach(page => mergedPdf.addPage(page));
+                        pagesAdded += pages.length;
+                        processedPaths.add(absPath);
+                    } catch (err) {
+                        console.warn(`Failed to process scanned_copy:`, err.message);
+                    }
                 }
             }
 

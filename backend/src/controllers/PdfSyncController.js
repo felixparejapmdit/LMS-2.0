@@ -37,24 +37,23 @@ class PdfSyncController {
             let existingPdfPath = null;
             let existingAttachment = null;
 
-            // 2. Identify existing PDF path - be VERY robust
-            // Try Attachment first
+            // 2. Identify existing PDF path - handle comma-separated IDs
             if (letter.attachment_id) {
-                existingAttachment = await Attachment.findByPk(letter.attachment_id);
-                if (existingAttachment && existingAttachment.file_path) {
-                    // Try absolute first, then relative to base
-                    let p = existingAttachment.file_path;
-                    if (fs.existsSync(p)) {
-                        existingPdfPath = p;
-                    } else {
-                        // Try relative to project root
-                        let altP = path.resolve(process.cwd(), p);
-                        if (fs.existsSync(altP)) existingPdfPath = altP;
+                const ids = String(letter.attachment_id).split(',').filter(id => id.trim());
+                if (ids.length > 0) {
+                    // Try to find the most recent attachment in the list
+                    for (let i = ids.length - 1; i >= 0; i--) {
+                        const att = await Attachment.findByPk(ids[i].trim());
+                        if (att && att.file_path && fs.existsSync(att.file_path)) {
+                            existingAttachment = att;
+                            existingPdfPath = att.file_path;
+                            break;
+                        }
                     }
                 }
             }
 
-            // Try scanned_copy fallback
+            // Try scanned_copy fallback if no attachment found
             if (!existingPdfPath && letter.scanned_copy) {
                 let p = letter.scanned_copy;
                 if (fs.existsSync(p)) {
@@ -69,7 +68,7 @@ class PdfSyncController {
             let finalPdfBytes;
 
             if (existingPdfPath) {
-                console.log(`[PdfSync] Merging: Existing [${existingPdfPath}] + New PDF`);
+                console.log(`[PdfSync] Merging: New PDF + Existing [${existingPdfPath}]`);
                 try {
                     const existingPdfBytes = fs.readFileSync(existingPdfPath);
 
@@ -77,21 +76,15 @@ class PdfSyncController {
                     const existingPdf = await PDFDocument.load(existingPdfBytes);
                     const newPdf = await PDFDocument.load(newPdfBytes);
 
-                    // 1. Add ALL existing pages first
+                    // 1. Add NEW pages first (PREPEND MODE)
+                    const newPages = await mergedPdf.copyPages(newPdf, newPdf.getPageIndices());
+                    newPages.forEach(page => mergedPdf.addPage(page));
+
+                    // 2. Add EXISTING pages after
                     const existingPages = await mergedPdf.copyPages(existingPdf, existingPdf.getPageIndices());
                     existingPages.forEach(page => mergedPdf.addPage(page));
 
-                    // 2. Add NEW pages after, skipping the first page (QR separator) if there's more than 1 page
-                    // If the new PDF is only 1 page (the QR separator), we don't add anything to avoid duplication.
-                    const newPageIndices = newPdf.getPageIndices();
-                    if (newPageIndices.length > 1) {
-                        const subsequentPages = await mergedPdf.copyPages(newPdf, newPageIndices.slice(1));
-                        subsequentPages.forEach(page => mergedPdf.addPage(page));
-                        console.log(`[PdfSync] Successfully appended ${subsequentPages.length} new pages to ${existingPages.length} existing pages.`);
-                    } else {
-                        console.log(`[PdfSync] New PDF only contains the QR separator page. Skipping append to prevent duplication.`);
-                    }
-
+                    console.log(`[PdfSync] Successfully prepended ${newPages.length} new pages to ${existingPages.length} existing pages.`);
                     finalPdfBytes = await mergedPdf.save();
                 } catch (mergeErr) {
                     console.error("[PdfSync] Merge logic error (using new content only):", mergeErr.message);
@@ -112,12 +105,6 @@ class PdfSyncController {
 
             // 5. Update BOTH records to ensure all views refresh
             if (existingAttachment) {
-                // If it's a different file, we can optionally clean up the old one,
-                // but let's keep it safe for now unless it's obviously the same path.
-                if (existingPdfPath && existingPdfPath !== filePath && !existingPdfPath.includes('template')) {
-                    // Optional: try { fs.unlinkSync(existingPdfPath); } catch (e) {}
-                }
-
                 await existingAttachment.update({
                     attachment_name: fileName,
                     file_path: filePath,
@@ -132,8 +119,18 @@ class PdfSyncController {
                     file_path: filePath,
                     description: `Created via Sync Service (LMS: ${lms_id})`
                 });
+                
+                // If attachment_id already has content, append the new ID
+                let newIds = newAttachment.id.toString();
+                if (letter.attachment_id) {
+                    const existingIds = String(letter.attachment_id).split(',').filter(id => id.trim());
+                    if (!existingIds.includes(newAttachment.id.toString())) {
+                        newIds = [...existingIds, newAttachment.id.toString()].join(',');
+                    }
+                }
+
                 await letter.update({
-                    attachment_id: newAttachment.id,
+                    attachment_id: newIds,
                     scanned_copy: filePath
                 });
             }
