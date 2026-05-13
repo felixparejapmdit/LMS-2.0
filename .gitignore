@@ -28,6 +28,7 @@ directus/database/*.db-wal
 
 # Uploaded files (can be large)
 backend/uploads/
+directus/uploads/
 
 # OS files
 .DS_Store
