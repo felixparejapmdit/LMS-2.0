@@ -33,10 +33,6 @@ server { \
     client_max_body_size 50m; \
     root /usr/share/nginx/html; \
     index index.html; \
-    error_page 502 503 504 /maintenance; \
-    location = /maintenance { \
-    try_files /index.html =503; \
-    } \
     location = /api { \
     return 301 /api/; \
     } \
@@ -47,7 +43,7 @@ server { \
     proxy_set_header X-Real-IP $remote_addr; \
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; \
     proxy_set_header X-Forwarded-Proto $scheme; \
-    proxy_intercept_errors on; \
+    proxy_intercept_errors off; \
     } \
     location /uploads/ { \
     proxy_pass http://backend:5000/uploads/; \
@@ -67,7 +63,7 @@ server { \
     proxy_set_header X-Real-IP $remote_addr; \
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; \
     proxy_set_header X-Forwarded-Proto $scheme; \
-    proxy_intercept_errors on; \
+    proxy_intercept_errors off; \
     } \
     location / { \
     try_files $uri $uri/ /index.html; \

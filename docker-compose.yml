@@ -64,8 +64,8 @@ services:
       DB_PATH: "${DB_PATH:-/directus/database/data.db}"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
       TELEGRAM_WEBHOOK_URL: "${TELEGRAM_WEBHOOK_URL}"
-      # Static IP Bypasses Docker DNS (No more 4s wait)
-      DIRECTUS_INTERNAL_URL: "http://10.50.0.10:8055"
+      # Use service name for internal communication (Docker DNS)
+      DIRECTUS_INTERNAL_URL: "http://directus:8055"
       NODE_OPTIONS: "--dns-result-order=ipv4first"
       SQLITE_SQL_LOG_LEVEL: "warn"
       SQLITE_JOURNAL_MODE: "${SQLITE_JOURNAL_MODE:-WAL}"
