@@ -66,13 +66,15 @@ axios.interceptors.response.use(
     console.error('Details:', error.response?.data || error.message);
 
     const isNetworkError = error.message === 'Network Error' || error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED';
-
+    
+    /* 
     // Auto-redirect to maintenance on gateway errors (backend down/updating)
     if (status === 502 || status === 503 || status === 504 || isNetworkError) {
       if (window.location.pathname !== '/maintenance') {
         window.location.href = '/maintenance';
       }
     }
+    */
 
     return Promise.reject(error);
   }
