@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import axios from "axios";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth, useSession, useUI } from "../context/AuthContext";
 import {
@@ -92,9 +93,8 @@ export default function Sidebar() {
     if (!user) return;
     const fetchTrashCount = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letters/trash-count`);
-        const data = await res.json();
-        setTrashCount(data.count || 0);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/letters/trash-count`);
+        setTrashCount(res.data.count || 0);
       } catch { }
     };
     fetchTrashCount();
@@ -133,9 +133,8 @@ export default function Sidebar() {
           full_name: fullName,
           ...(isUserRole ? { mine: 'true' } : {})
         });
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements/count?${params.toString()}`);
-        const data = await res.json();
-        setNotificationCount(data.count || 0);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements/count?${params.toString()}`);
+        setNotificationCount(res.data.count || 0);
       } catch { }
     };
     fetchCount();

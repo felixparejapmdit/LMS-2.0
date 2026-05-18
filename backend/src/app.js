@@ -113,10 +113,17 @@ apiRouter.get("/api-check", healthHandler); // Support health check via /api/api
 
 // High-priority dashboard notes
 apiRouter.get("/test-notes", (req, res) => res.json({ message: "Test route works" }));
-apiRouter.use("/dashboard-notes", dashboardNoteRoutes);
 
-// Register all other routers onto the apiRouter
+// Register public routers onto the apiRouter
 apiRouter.use("/auth", authRoutes);
+apiRouter.use("/telegram", telegramRoutes);
+
+// Apply authentication middleware for all subsequent routes
+const { ensureAuthenticated } = require("./middleware/auth");
+apiRouter.use(ensureAuthenticated);
+
+// Protected routes
+apiRouter.use("/dashboard-notes", dashboardNoteRoutes);
 apiRouter.use("/pdf-sync", pdfSyncRoutes);
 apiRouter.use("/trays", trayRoutes);
 apiRouter.use("/departments", departmentRoutes);
@@ -134,7 +141,6 @@ apiRouter.use("/persons", personRoutes);
 apiRouter.use("/endorsements", endorsementRoutes);
 apiRouter.use("/role-permissions", rolePermissionRoutes);
 apiRouter.use("/system-pages", systemPageRoutes);
-apiRouter.use("/telegram", telegramRoutes);
 apiRouter.use("/inter-dept", interDeptRoutes);
 apiRouter.use("/sections", sectionRoutes);
 apiRouter.use("/audit-logs", auditLogRoutes);

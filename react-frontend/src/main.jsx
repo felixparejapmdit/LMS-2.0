@@ -5,6 +5,32 @@ import App from "./App";
 import "./index.css";
 
 // --- Global API Interceptor for Graceful Error Handling ---
+axios.interceptors.request.use((config) => {
+    try {
+        const directusStored = localStorage.getItem('directus_auth');
+        if (directusStored) {
+            const directusJson = JSON.parse(directusStored);
+            const accessToken =
+                directusJson?.access_token ||
+                directusJson?.token ||
+                directusJson?.data?.access_token ||
+                directusJson?.data?.token;
+
+            if (accessToken) {
+                // Exclude legacy PHP API endpoints from receiving the Authorization token 
+                // because it triggers a CORS preflight error (Access-Control-Allow-Headers).
+                const url = config.url || '';
+                if (!url.includes('172.18.162.84') && !url.includes('letters_detailed.php')) {
+                    config.headers.Authorization = `Bearer ${accessToken}`;
+                }
+            }
+        }
+    } catch (e) {
+        // Ignore JSON parse errors
+    }
+    return config;
+});
+
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
