@@ -335,20 +335,29 @@ class AuthController {
             }
 
             const directusStart = Date.now();
-            const hint = directusLoginHint.get(user.id) || 'username';
+            const hint = directusLoginHint.get(user.id) || 'email';
             const candidates = [];
 
-            if (hint === 'email' && user.email) candidates.push(user.email);
-            candidates.push(user.username);
-            if (user.email) candidates.push(user.email);
+            // Helper to check if identifier is a valid email format
+            const isEmail = (str) => typeof str === 'string' && str.includes('@') && str.includes('.');
+
+            if (hint === 'email' && isEmail(user.email)) candidates.push(user.email);
+            if (isEmail(user.username)) candidates.push(user.username);
+            if (isEmail(user.email)) candidates.push(user.email);
 
             const uniq = candidates.filter(Boolean).filter((v, idx, arr) => arr.indexOf(v) === idx);
 
             let sawInvalidCredentials = false;
             let sawNonAuthError = false;
 
+            if (uniq.length === 0) {
+                console.error(`[AUTH] Directus Login failed: No valid email candidates found for user ${user.username}`);
+                sawInvalidCredentials = true;
+            }
+
             for (const identifier of uniq) {
                 try {
+                    console.log(`[AUTH] Attempting Directus authentication for ${identifier}...`);
                     const response = await directusClient.post('/auth/login', {
                         email: identifier,
                         password: password
@@ -363,7 +372,10 @@ class AuthController {
                     });
                 } catch (error) {
                     const status = error?.response?.status;
-                    if (status === 401 || status === 403) {
+                    const errorMsg = error?.response?.data || error.message;
+                    console.error(`[AUTH DIRECTUS ERROR] Authentication failed for candidate ${identifier}:`, status, errorMsg);
+
+                    if (status === 400 || status === 401 || status === 403) {
                         sawInvalidCredentials = true;
                     } else {
                         sawNonAuthError = true;
@@ -377,6 +389,7 @@ class AuthController {
             }
             return res.status(503).json({ error: 'Authentication provider unavailable. Please try again.' });
         } catch (error) {
+            console.error('[AUTH DIRECTUS CRITICAL ERROR]:', error.stack || error);
             res.status(500).json({ error: error.message });
         }
     }

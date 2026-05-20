@@ -393,19 +393,19 @@ const authReducer = (state, action) => {
             if (directusAuth) {
                 localStorage.setItem('directus_auth', JSON.stringify(directusAuth));
             } else if (directusDeferred) {
-                console.log(`[AUTH] Directus session deferred. Continuing login and syncing in background...`);
-                axios.post(`${BACKEND_URL}/auth/directus-login`, { username, password, provider })
-                    .then((dRes) => {
-                        if (dRes?.data?.directus_auth) {
-                            localStorage.setItem('directus_auth', JSON.stringify(dRes.data.directus_auth));
-                            console.log(`[AUTH] Directus session synced.`);
-                        } else {
-                            console.warn(`[AUTH] Directus sync completed without a session.`);
-                        }
-                    })
-                    .catch((e) => {
-                        console.warn(`[AUTH] Directus session sync failed:`, e?.response?.data?.error || e?.message || e);
-                    });
+                console.log(`[AUTH] Directus session deferred. Synchronizing login...`);
+                try {
+                    const dRes = await axios.post(`${BACKEND_URL}/auth/directus-login`, { username, password, provider });
+                    if (dRes?.data?.directus_auth) {
+                        localStorage.setItem('directus_auth', JSON.stringify(dRes.data.directus_auth));
+                        console.log(`[AUTH] Directus session synced.`);
+                    } else {
+                        throw new Error("Directus sync completed without a session.");
+                    }
+                } catch (e) {
+                    console.error(`[AUTH] Directus session sync failed:`, e?.response?.data?.error || e?.message || e);
+                    throw new Error(e?.response?.data?.error || "Directus sync failed. Access denied.");
+                }
             }
             localStorage.removeItem("isGuest");
 
