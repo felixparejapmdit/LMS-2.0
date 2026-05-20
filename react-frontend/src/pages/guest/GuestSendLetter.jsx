@@ -1205,7 +1205,7 @@ export default function GuestSendLetter() {
                         <div className="p-6 overflow-y-auto custom-scrollbar space-y-4">
                             <div className="space-y-1">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Department</span>
-                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{virtualDeptName || departments.find(d => String(d.id) === String(selectedDeptId))?.dept_name || departments.find(d => String(d.id) === String(selectedDeptId))?.name || "None Selected"}</p>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{departments.find(d => String(d.id) === String(selectedDeptId))?.dept_name || departments.find(d => String(d.id) === String(selectedDeptId))?.name || "None Selected"}</p>
                             </div>
                             <div className="space-y-1">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sender(s)</span>

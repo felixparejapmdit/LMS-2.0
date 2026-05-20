@@ -10,6 +10,24 @@ const ensureAuthenticated = async (req, res, next) => {
         const cookieHeader = req.headers.cookie;
 
         if (!authHeader && !cookieHeader) {
+            const pathToCheck = (req.path || req.url || '').split('?')[0];
+            
+            // Whitelisted paths and methods for guest portal operations
+            const isGuestPath = 
+                (pathToCheck === '/departments' && req.method === 'GET') ||
+                (pathToCheck === '/letter-kinds' && req.method === 'GET') ||
+                (pathToCheck === '/attachments' && req.method === 'GET') ||
+                (pathToCheck === '/letters/preview/ids' && req.method === 'GET') ||
+                (pathToCheck === '/persons/search' && req.method === 'GET') ||
+                (pathToCheck === '/letters/summary-suggestions' && req.method === 'GET') ||
+                (pathToCheck === '/attachments/upload' && req.method === 'POST') ||
+                (pathToCheck === '/letters' && req.method === 'POST');
+
+            if (isGuestPath) {
+                req.user = { id: null, first_name: "Guest", last_name: "User", username: "guest" };
+                return next();
+            }
+
             return res.status(401).json({ error: "Unauthorized access. Please log in first." });
         }
 

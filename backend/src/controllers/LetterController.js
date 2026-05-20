@@ -104,6 +104,14 @@ class LetterController {
         visibilityClauses.push({ sender: user_id });
         visibilityClauses.push({ endorsed: user_id });
 
+        if (userRecord?.username) {
+          visibilityClauses.push(
+            sequelize.literal(
+              `EXISTS (SELECT 1 FROM endorsements e WHERE e.letter_id = Letter.id AND e.endorsed_to LIKE ${sequelize.escape(`%${userRecord.username}%`)})`
+            )
+          );
+        }
+
         if (full_name) {
           const nameParts = full_name.split(" ").filter((p) => p.length > 0);
           const nameMatches = [`%${full_name}%`];
@@ -249,6 +257,7 @@ class LetterController {
           {
             model: Endorsement,
             as: "endorsements",
+            include: [{ model: Department, as: "department" }],
             required: false,
           },
         ],
@@ -436,6 +445,7 @@ class LetterController {
           {
             model: Endorsement,
             as: "endorsements",
+            include: [{ model: Department, as: "department" }],
             required: false,
           },
           {

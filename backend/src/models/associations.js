@@ -80,6 +80,7 @@ Department.hasMany(Letter, { foreignKey: 'dept_id', as: 'letters' });
 Letter.hasMany(Endorsement, { foreignKey: 'letter_id', as: 'endorsements', onDelete: 'CASCADE' });
 Endorsement.belongsTo(Letter, { foreignKey: 'letter_id', as: 'letter' });
 Endorsement.belongsTo(User, { foreignKey: 'endorsed_by', as: 'endorser' });
+Endorsement.belongsTo(Department, { foreignKey: 'dept_id', as: 'department' });
 
 // --- Interdepartment Access ---
 User.hasMany(UserDeptAccess, { foreignKey: 'user_id', as: 'deptAccess' });

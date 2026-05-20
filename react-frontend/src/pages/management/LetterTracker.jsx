@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import { useAuth, useSession, useUI } from "../../context/AuthContext";
@@ -82,12 +81,10 @@ export default function LetterTracker() {
     const fetchLetters = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
-            const userDeptId = user?.dept_id?.id ?? user?.dept_id;
             const roleName = user?.roleData?.name || user?.role || '';
             const response = await letterService.getAll({
                 user_id: user?.id,
                 role: roleName,
-                department_id: userDeptId,
                 full_name: `${user?.first_name} ${user?.last_name}`.trim(),
                 limit: 200 // Higher limit for tracker view
             });
@@ -128,9 +125,24 @@ export default function LetterTracker() {
                 (fullName1 && (senderStr.includes(fullName1) || endorseStr.includes(fullName1))) ||
                 (fullName2 && (senderStr.includes(fullName2) || endorseStr.includes(fullName2)));
 
+            const isEndorsedToMe = letter.endorsements?.some(e => {
+                const toName = (e.endorsed_to || '').toLowerCase().trim();
+                const uName = (user?.username || '').toLowerCase().trim();
+                const fName1 = fullName1.toLowerCase().trim();
+                const fName2 = fullName2.toLowerCase().trim();
+
+                if (!toName) return false;
+
+                if (uName && (toName === uName || toName.includes(uName) || uName.includes(toName))) return true;
+                if (fName1 && (toName === fName1 || toName.includes(fName1) || fName1.includes(toName))) return true;
+                if (fName2 && (toName === fName2 || toName.includes(fName2) || fName2.includes(toName))) return true;
+
+                return false;
+            });
+
             const userDeptId = user?.dept_id?.id ?? user?.dept_id;
             const isInDept = letter.assignments?.some(a => (a.department_id?.id ?? a.department_id) === userDeptId) || letter.dept_id === userDeptId;
-            if (!isOwner && !isInDept && !isSenderOrEndorsed) return false;
+            if (!isOwner && !isInDept && !isSenderOrEndorsed && !isEndorsedToMe) return false;
         }
 
         // 2. Period filter (date range)
@@ -367,78 +379,112 @@ export default function LetterTracker() {
                                             <tr><td colSpan="9" className="p-20 text-center"><Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto" /></td></tr>
                                         ) : filteredLetters.length === 0 ? (
                                             <tr><td colSpan="9" className="p-20 text-center text-gray-400 font-bold uppercase tracking-widest">No matching records found</td></tr>
-                                        ) : filteredLetters.map((letter, index) => (
-                                            <tr key={letter.id} className={`hover:bg-gray-50/80 dark:hover:bg-white/5 transition-colors group ${letter.is_resolved ? "bg-emerald-50/30 dark:bg-emerald-500/5" : ""}`}>
-                                                <td className={`px-5 py-4 text-center text-[10px] font-bold text-gray-400 transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>{index + 1}</td>
-                                                <td className={`px-5 py-4 whitespace-nowrap transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
-                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 ${textColor} ${letter.is_resolved ? "line-through opacity-70" : ""}`}>
-                                                        {letter.lms_id}
-                                                    </span>
-                                                </td>
-                                                <td className={`px-5 py-4 whitespace-nowrap transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{new Date(letter.date_received).toLocaleDateString()}</span>
-                                                        <span className="text-[10px] text-orange-500 font-bold">{new Date(letter.date_received).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
-                                                    </div>
-                                                </td>
-                                                <td className={`px-5 py-4 text-xs font-bold text-slate-700 dark:text-slate-200 uppercase truncate max-w-[150px] transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
-                                                    {letter.sender}
-                                                </td>
-                                                <td className={`px-5 py-4 max-w-xs transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium line-clamp-1">{letter.summary}</p>
-                                                </td>
-                                                <td className={`px-5 py-4 text-center transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
-                                                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest ${letter.status?.status_name === 'Incoming' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-gray-50 text-gray-600 border border-gray-100'}`}>
-                                                        {letter.status?.status_name || 'REGISTERED'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-5 py-4 text-center">
-                                                    <div className="flex justify-center items-center gap-1.5">
-                                                        {letter.is_resolved && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 animate-in zoom-in duration-300" title="Resolved" />}
-                                                        {canTrack && <button onClick={() => handleTrackOpen(letter)} className={`p-2 rounded-lg bg-indigo-50/50 dark:bg-indigo-900/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all border border-indigo-100 dark:border-indigo-900/20 shadow-sm ${letter.is_resolved ? "opacity-60" : ""}`}><Activity className="w-3.5 h-3.5" /></button>}
-                                                    </div>
-                                                </td>
-                                                <td className={`px-5 py-4 text-center transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
-                                                    <div className="flex justify-center">
-                                                        {canPrintQR ? (
-                                                            <button
-                                                                onClick={() => handlePrintQR(letter.lms_id)}
-                                                                className="p-2 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all border border-blue-100 dark:border-blue-900/20 shadow-sm"
-                                                                title="Print QR Code"
-                                                            >
-                                                                <Printer className="w-3.5 h-3.5" />
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-gray-300">-</span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-5 py-4 text-center">
-                                                    <div className="flex justify-center">
-                                                        {(letter.scanned_copy || letter.attachment_id) ? (
-                                                            (() => {
-                                                                const isHidden = letter.is_hidden === true || letter.is_hidden === 1 || letter.is_hidden === 'true';
-                                                                const isAuthorized = canUserViewPDF(letter);
+                                        ) : filteredLetters.map((letter, index) => {
+                                            const userLastName = user?.last_name?.toLowerCase() || '';
+                                            const userFirstName = user?.first_name?.toLowerCase() || '';
+                                            const fullName1 = `${userFirstName} ${userLastName}`.trim();
+                                            const fullName2 = `${userLastName}, ${userFirstName}`.trim();
 
-                                                                if (!canPdf || !isAuthorized) {
-                                                                    return (
-                                                                        <span 
-                                                                            className="p-2 rounded-lg bg-slate-50 dark:bg-white/5 text-slate-300 dark:text-slate-600 border border-slate-100 dark:border-white/10 opacity-50 cursor-not-allowed group-hover:scale-95 transition-all" 
-                                                                            title={isHidden ? "Hidden Letter: Access Restricted" : "No Permission"}
-                                                                        >
-                                                                            {isHidden ? <ShieldOff className="w-3.5 h-3.5 text-orange-400/50" /> : <FileText className="w-3.5 h-3.5" />}
-                                                                        </span>
-                                                                    );
-                                                                }
-                                                                return <button onClick={() => handleViewPDF(letter)} className="p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-3.5 h-3.5" /></button>;
-                                                            })()
+                                            const myEndorsement = letter.endorsements?.find(e => {
+                                                const toName = (e.endorsed_to || '').toLowerCase();
+                                                const uName = (user?.username || '').toLowerCase().trim();
+                                                 const fName1 = fullName1.toLowerCase().trim();
+                                                 const fName2 = fullName2.toLowerCase().trim();
+                                                 if (uName && (toName === uName || toName.includes(uName) || uName.includes(toName))) return true;
+                                                 if (fName1 && (toName === fName1 || toName.includes(fName1) || fName1.includes(toName))) return true;
+                                                 if (fName2 && (toName === fName2 || toName.includes(fName2) || fName2.includes(toName))) return true;
+                                                 return false;
+                                            });
+
+                                            const isEndorsedToMe = !!myEndorsement;
+                                            const endorsingOffice = myEndorsement?.department?.dept_code || myEndorsement?.department?.dept_name || '';
+
+                                            return (
+                                                <tr key={letter.id} className={`hover:bg-gray-50/80 dark:hover:bg-white/5 transition-colors group ${letter.is_resolved ? "bg-emerald-50/30 dark:bg-emerald-500/5" : ""}`}>
+                                                    <td className={`px-5 py-4 text-center text-[10px] font-bold text-gray-400 transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>{index + 1}</td>
+                                                    <td className={`px-5 py-4 whitespace-nowrap transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
+                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 ${textColor} ${letter.is_resolved ? "line-through opacity-70" : ""}`}>
+                                                            {letter.lms_id}
+                                                        </span>
+                                                    </td>
+                                                    <td className={`px-5 py-4 whitespace-nowrap transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{new Date(letter.date_received).toLocaleDateString()}</span>
+                                                            <span className="text-[10px] text-orange-500 font-bold">{new Date(letter.date_received).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className={`px-5 py-4 text-xs font-bold text-slate-700 dark:text-slate-200 uppercase truncate max-w-[150px] transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
+                                                        {letter.sender}
+                                                    </td>
+                                                    <td className={`px-5 py-4 max-w-xs transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium line-clamp-1">{letter.summary}</p>
+                                                    </td>
+                                                    <td className={`px-5 py-4 text-center transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
+                                                        {isEndorsedToMe ? (
+                                                            <div className="flex flex-col items-center gap-0.5">
+                                                                <span className="px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/30">
+                                                                    ENDORSED
+                                                                </span>
+                                                                {endorsingOffice && (
+                                                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">
+                                                                        BY {endorsingOffice}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         ) : (
-                                                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 opacity-60">No File</span>
+                                                            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest ${letter.status?.status_name === 'Incoming' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-gray-50 text-gray-600 border border-gray-100'}`}>
+                                                                {letter.status?.status_name || 'REGISTERED'}
+                                                            </span>
                                                         )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                    </td>
+                                                    <td className="px-5 py-4 text-center">
+                                                        <div className="flex justify-center items-center gap-1.5">
+                                                            {letter.is_resolved && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 animate-in zoom-in duration-300" title="Resolved" />}
+                                                            {canTrack && <button onClick={() => handleTrackOpen(letter)} className={`p-2 rounded-lg bg-indigo-50/50 dark:bg-indigo-900/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all border border-indigo-100 dark:border-indigo-900/20 shadow-sm ${letter.is_resolved ? "opacity-60" : ""}`}><Activity className="w-3.5 h-3.5" /></button>}
+                                                        </div>
+                                                    </td>
+                                                    <td className={`px-5 py-4 text-center transition-opacity ${letter.is_resolved ? "opacity-60" : ""}`}>
+                                                        <div className="flex justify-center">
+                                                            {canPrintQR ? (
+                                                                <button
+                                                                    onClick={() => handlePrintQR(letter.lms_id)}
+                                                                    className="p-2 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all border border-blue-100 dark:border-blue-900/20 shadow-sm"
+                                                                    title="Print QR Code"
+                                                                >
+                                                                    <Printer className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-gray-300">-</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-5 py-4 text-center">
+                                                        <div className="flex justify-center">
+                                                            {(letter.scanned_copy || letter.attachment_id) ? (
+                                                                (() => {
+                                                                    const isHidden = letter.is_hidden === true || letter.is_hidden === 1 || letter.is_hidden === 'true';
+                                                                    const isAuthorized = canUserViewPDF(letter);
+
+                                                                    if (!canPdf || !isAuthorized) {
+                                                                        return (
+                                                                            <span 
+                                                                                className="p-2 rounded-lg bg-slate-50 dark:bg-white/5 text-slate-300 dark:text-slate-600 border border-slate-100 dark:border-white/10 opacity-50 cursor-not-allowed group-hover:scale-95 transition-all" 
+                                                                                title={isHidden ? "Hidden Letter: Access Restricted" : "No Permission"}
+                                                                            >
+                                                                                {isHidden ? <ShieldOff className="w-3.5 h-3.5 text-orange-400/50" /> : <FileText className="w-3.5 h-3.5" />}
+                                                                            </span>
+                                                                        );
+                                                                    }
+                                                                    return <button onClick={() => handleViewPDF(letter)} className="p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-100 dark:border-red-900/20 shadow-sm"><FileText className="w-3.5 h-3.5" /></button>;
+                                                                })()
+                                                            ) : (
+                                                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 opacity-60">No File</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
