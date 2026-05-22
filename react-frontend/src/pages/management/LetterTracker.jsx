@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import API_BASE from "../../config/apiConfig";
+import { withAuthToken } from "../../utils/authToken";
 
 export default function LetterTracker() {
     const { user, isSuperAdmin } = useSession();
@@ -221,14 +223,14 @@ export default function LetterTracker() {
 
     const handleViewPDF = (letter) => {
         if (!letter.scanned_copy && !letter.attachment_id) return;
-        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const apiBase = API_BASE;
 
         if ((letter.scanned_copy && letter.attachment_id) || (letter.attachment_id && String(letter.attachment_id).includes(','))) {
-            window.open(`${apiBase}/attachments/view-combined/${letter.id}`, "_blank");
+            window.open(withAuthToken(`${apiBase}/attachments/view-combined/${letter.id}`), "_blank");
         } else {
             const url = letter.scanned_copy
-                ? `${apiBase}/attachments/view-path?path=${btoa(letter.scanned_copy)}`
-                : `${apiBase}/attachments/view/${letter.attachment_id}`;
+                ? withAuthToken(`${apiBase}/attachments/view-path?path=${btoa(letter.scanned_copy)}`)
+                : withAuthToken(`${apiBase}/attachments/view/${letter.attachment_id}`);
             window.open(url, "_blank");
         }
     };

@@ -28,6 +28,7 @@ import rolePermissionService from "../../services/rolePermissionService";
 import systemPageService from "../../services/systemPageService";
 import { humanizePageId } from "../../utils/pageAccess";
 import { getFieldPresetForPage } from "../../utils/fieldPresets";
+import { DASHBOARD_TAB_LABELS } from "../../utils/dashboardTabs";
 import useAccess from "../../hooks/useAccess";
 import axios from "axios";
 import API_BASE from "../../config/apiConfig";
@@ -420,37 +421,77 @@ export default function DeptAccessMatrix() {
                                 <button onClick={() => setFieldModal({ isOpen: false, pageId: null, fields: {} })}><X className="w-5 h-5 text-slate-400" /></button>
                             </div>
                         </div>
-                        <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-4">
-                            <div className="grid grid-cols-1 gap-4">
-                                {Object.keys(fieldModal.fields).map((key) => (
-                                    <div
-                                        key={key}
-                                        onClick={() => setFieldModal(p => ({ ...p, fields: { ...p.fields, [key]: !p.fields[key] } }))}
-                                        className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group ${fieldModal.fields[key]
-                                            ? 'border-blue-500/20 bg-blue-500/5 dark:bg-blue-500/10'
-                                            : 'border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 opacity-60'
-                                            }`}
-                                    >
-                                        <div className="flex flex-col">
-                                            <span className={`text-[10px] font-black uppercase tracking-widest ${fieldModal.fields[key] ? 'text-blue-500' : 'text-slate-400'}`}>Field</span>
-                                            <span className={`text-sm font-bold capitalize ${textColor}`}>{key.replace(/_/g, ' ')}</span>
+                        <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                            {Object.keys(fieldModal.fields).length === 0 ? (
+                                <div className="py-12 text-center text-slate-400 font-medium italic">
+                                    No fields defined.
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {Object.keys(fieldModal.fields).some(k => k.startsWith('tab_')) && (
+                                        <div>
+                                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Tabs</span>
+                                            <div className="grid grid-cols-1 gap-4 mt-3">
+                                                {Object.keys(fieldModal.fields).filter(k => k.startsWith('tab_')).map((key) => {
+                                                    const tabId = key.replace('tab_', '');
+                                                    const label = DASHBOARD_TAB_LABELS[tabId] || tabId.replace(/_/g, ' ');
+                                                    return (
+                                                        <div
+                                                            key={key}
+                                                            onClick={() => setFieldModal(p => ({ ...p, fields: { ...p.fields, [key]: !p.fields[key] } }))}
+                                                            className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group ${fieldModal.fields[key]
+                                                                ? 'border-blue-500/20 bg-blue-500/5 dark:bg-blue-500/10'
+                                                                : 'border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 opacity-60'
+                                                                }`}
+                                                        >
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className={`text-[10px] font-black uppercase tracking-widest ${fieldModal.fields[key] ? 'text-blue-500' : 'text-slate-400'}`}>Tab</span>
+                                                                <span className={`text-sm font-bold truncate ${textColor}`}>{label}</span>
+                                                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest font-mono truncate">{key}</span>
+                                                            </div>
+                                                            <div className={`w-12 h-6 rounded-full p-1 transition-colors relative ${fieldModal.fields[key] ? 'bg-blue-600' : 'bg-slate-200 dark:bg-white/20'}`}>
+                                                                <div className={`w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${fieldModal.fields[key] ? 'translate-x-6' : 'translate-x-0'}`} />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                        <div className={`w-12 h-6 rounded-full p-1 transition-colors relative ${fieldModal.fields[key] ? 'bg-blue-600' : 'bg-slate-200 dark:bg-white/20'}`}>
-                                            <div className={`w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${fieldModal.fields[key] ? 'translate-x-6' : 'translate-x-0'}`} />
+                                    )}
+
+                                    {Object.keys(fieldModal.fields).some(k => !k.startsWith('tab_')) && (
+                                        <div>
+                                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Components</span>
+                                            <div className="grid grid-cols-1 gap-4 mt-3">
+                                                {Object.keys(fieldModal.fields).filter(k => !k.startsWith('tab_')).map((key) => (
+                                                    <div
+                                                        key={key}
+                                                        onClick={() => setFieldModal(p => ({ ...p, fields: { ...p.fields, [key]: !p.fields[key] } }))}
+                                                        className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group ${fieldModal.fields[key]
+                                                            ? 'border-blue-500/20 bg-blue-500/5 dark:bg-blue-500/10'
+                                                            : 'border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 opacity-60'
+                                                            }`}
+                                                    >
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className={`text-[10px] font-black uppercase tracking-widest ${fieldModal.fields[key] ? 'text-blue-500' : 'text-slate-400'}`}>Field</span>
+                                                            <span className={`text-sm font-bold capitalize truncate ${textColor}`}>{key.replace(/_/g, ' ')}</span>
+                                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest font-mono truncate">{key}</span>
+                                                        </div>
+                                                        <div className={`w-12 h-6 rounded-full p-1 transition-colors relative ${fieldModal.fields[key] ? 'bg-blue-600' : 'bg-slate-200 dark:bg-white/20'}`}>
+                                                            <div className={`w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${fieldModal.fields[key] ? 'translate-x-6' : 'translate-x-0'}`} />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                                {Object.keys(fieldModal.fields).length === 0 && (
-                                    <div className="py-12 text-center text-slate-400 font-medium italic">
-                                        No fields defined.
-                                    </div>
-                                )}
-                            </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <div className="p-8 bg-slate-50/50 dark:bg-white/5 border-t border-gray-100 dark:border-white/10">
                             <button
                                 onClick={() => {
-                                    setMatrix(prev => ({ ...prev, [fieldModal.pageId]: { ...prev[fieldModal.pageId], field_permissions: fieldModal.fields } }));
+                                    setMatrix(prev => ({ ...prev, [fieldModal.pageId]: { ...prev[fieldModal.pageId], field_permissions: mergeFieldPermissions(fieldModal.pageId, fieldModal.fields) } }));
                                     setFieldModal({ isOpen: false, pageId: null, fields: {} });
                                 }}
                                 className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"

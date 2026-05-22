@@ -19,6 +19,7 @@ import {
   Trash2,
 } from "lucide-react";
 import useAccess from "../../hooks/useAccess";
+import { withAuthToken } from "../../utils/authToken";
 
 export default function VIPView() {
   const { user, logout } = useSession();
@@ -213,8 +214,8 @@ export default function VIPView() {
 
     setIsPdfLoading(true);
     const url = letter.scanned_copy
-      ? `${API_URL}/attachments/view-path?path=${btoa(letter.scanned_copy)}`
-      : `${API_URL}/attachments/view/${letter.attachment_id}`;
+      ? withAuthToken(`${API_URL}/attachments/view-path?path=${btoa(letter.scanned_copy)}`)
+      : withAuthToken(`${API_URL}/attachments/view/${letter.attachment_id}`);
 
     try {
       const res = await axios.get(url, { responseType: "blob" });

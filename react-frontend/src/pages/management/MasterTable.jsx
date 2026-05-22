@@ -45,6 +45,7 @@ import axios from "axios";
 import API_BASE from "../../config/apiConfig";
 import { useNavigate } from "react-router-dom";
 import ConflictModal from "../../components/ConflictModal";
+import { withAuthToken } from "../../utils/authToken";
 
 export default function MasterTable() {
   const { user, layoutStyle, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
@@ -105,6 +106,35 @@ export default function MasterTable() {
   const [isCombining, setIsCombining] = useState(false);
   const [newFile, setNewFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  const hasActualValue = (value) => {
+    if (value === null || value === undefined) return false;
+    const str = String(value).trim();
+    if (!str) return false;
+    return str.toLowerCase() !== "n/a";
+  };
+
+  const canChangeStatus = React.useMemo(() => {
+    if (!selectedLetter) return true;
+    const senderOk = hasActualValue(selectedLetter.sender);
+    const reOk = hasActualValue(selectedLetter.summary);
+
+    const latestAssignment =
+      (selectedLetter.assignments || []).slice().sort((a, b) => b.id - a.id)[0] ||
+      null;
+    const stepId =
+      selectedLetter.currentStepId ||
+      latestAssignment?.step_id ||
+      latestAssignment?.step_id?.id ||
+      null;
+    const stepName =
+      steps.find((s) => Number(s.id) === Number(stepId))?.step_name ||
+      latestAssignment?.step?.step_name ||
+      "";
+    const groupOk = !!stepId && hasActualValue(stepName || stepId);
+
+    return senderOk && reOk && groupOk;
+  }, [selectedLetter, steps]);
 
   const [authorizedSuggestions, setAuthorizedSuggestions] = useState([]);
   const [highlightedEndorseIndex, setHighlightedEndorseIndex] = useState(-1);
@@ -501,17 +531,14 @@ export default function MasterTable() {
     if (!statusIdOrName) return;
     try {
       setLoading(true);
-      if (statusIdOrName === "Combine Selected PDFs") {
-        const res = await axios.post(
-          `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/combine-selected`,
-          {
-            letter_ids: selectedIds,
-          },
-        );
+        if (statusIdOrName === "Combine Selected PDFs") {
+        const res = await axios.post(`${API_BASE}/attachments/combine-selected`, {
+          letter_ids: selectedIds,
+        });
         if (res.data.file_path) {
           const b64 = btoa(res.data.file_path);
           window.open(
-            `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/view-path?path=${b64}`,
+            withAuthToken(`${API_BASE}/attachments/view-path?path=${b64}`),
             "_blank",
           );
         }
@@ -910,16 +937,15 @@ export default function MasterTable() {
       return;
     }
     if (!letter.scanned_copy && !letter.attachment_id) return;
-    const apiBase =
-      import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    const apiBase = API_BASE;
 
     // Use combined view if there are multiple parts (or forced merge)
     if ((letter.scanned_copy && letter.attachment_id) || (letter.attachment_id && String(letter.attachment_id).includes(','))) {
-      window.open(`${apiBase}/attachments/view-combined/${letter.id}`, "_blank");
+      window.open(withAuthToken(`${apiBase}/attachments/view-combined/${letter.id}`), "_blank");
     } else {
       const url = letter.scanned_copy
-        ? `${apiBase}/attachments/view-path?path=${btoa(letter.scanned_copy)}`
-        : `${apiBase}/attachments/view/${letter.attachment_id}`;
+        ? withAuthToken(`${apiBase}/attachments/view-path?path=${btoa(letter.scanned_copy)}`)
+        : withAuthToken(`${apiBase}/attachments/view/${letter.attachment_id}`);
       window.open(url, "_blank");
     }
   };
@@ -1799,6 +1825,11 @@ export default function MasterTable() {
                           )}
                         </div>
                       </div>
+                      {!canChangeStatus && (
+                        <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                          Fill in Sender, Re, and select a Group first to enable Status.
+                        </p>
+                      )}
                       <select
                         value={selectedLetter.global_status || ""}
                         onChange={(e) => {
@@ -1810,8 +1841,9 @@ export default function MasterTable() {
                           }));
                           setValidationError("");
                         }}
+                        disabled={!canChangeStatus}
                         style={{ backgroundColor: "white", color: "black" }}
-                        className="w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm"
+                        className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm ${!canChangeStatus ? "opacity-50 cursor-not-allowed" : ""}`}
                       >
                         <option
                           value=""
@@ -2347,7 +2379,7 @@ export default function MasterTable() {
                                       onClick={(e) => {
                                         e.preventDefault();
                                         const apiBase = API_BASE;
-                                        window.open(`${apiBase}/attachments/view/${aid}`, '_blank');
+                                        window.open(withAuthToken(`${apiBase}/attachments/view/${aid}`), '_blank');
                                       }}
                                       className="p-2.5 rounded-xl bg-white dark:bg-white/5 text-orange-500 hover:bg-orange-500 hover:text-white border border-orange-100 dark:border-white/10 transition-all shadow-sm"
                                       title="View Secondary Document"

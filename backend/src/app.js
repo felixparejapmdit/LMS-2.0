@@ -117,6 +117,7 @@ apiRouter.get("/test-notes", (req, res) => res.json({ message: "Test route works
 // Register public routers onto the apiRouter
 apiRouter.use("/auth", authRoutes);
 apiRouter.use("/telegram", telegramRoutes);
+apiRouter.use("/app-settings", require("./routes/appSettingsRoutes"));
 
 // Apply authentication middleware for all subsequent routes
 const { ensureAuthenticated } = require("./middleware/auth");

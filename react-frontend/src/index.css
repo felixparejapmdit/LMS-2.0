@@ -1,5 +1,103 @@
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&family=Public+Sans:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap");
-/* Geist font usually needs a different source or local hosting, but for many themes, Inter or standard system fonts are used. Assuming standard system-ui fallback if Geist is not available via Google Fonts, but I will include it if possible. Geist is currently not on Google Fonts, I'll use Geist's characteristics or just stick to the requested names. */
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap");
+
+:root {
+  /* Default theme: black */
+  --color-primary: 17, 17, 17;
+  --color-primary-hover: 0, 0, 0;
+  --color-primary-light: 245, 245, 245;
+}
+
+/* Default (Black) Theme */
+.theme-default {
+  --color-primary: 17, 17, 17;
+  --color-primary-hover: 0, 0, 0;
+  --color-primary-light: 245, 245, 245;
+}
+
+/* Blue Theme (legacy default) */
+.theme-blue {
+  --color-primary: 37, 99, 235;
+  --color-primary-hover: 29, 78, 216;
+  --color-primary-light: 239, 246, 255;
+}
+
+/* Emerald Theme */
+.theme-emerald {
+  --color-primary: 16, 185, 129;
+  /* emerald-500 */
+  --color-primary-hover: 5, 150, 105;
+  /* emerald-600 */
+  --color-primary-light: 236, 253, 245;
+  /* emerald-50 */
+}
+
+/* Indigo Theme */
+.theme-indigo {
+  --color-primary: 79, 70, 229;
+  /* indigo-600 */
+  --color-primary-hover: 67, 56, 202;
+  /* indigo-700 */
+  --color-primary-light: 238, 242, 255;
+  /* indigo-50 */
+}
+
+/* Violet Theme */
+.theme-violet {
+  --color-primary: 139, 92, 246;
+  /* violet-500 */
+  --color-primary-hover: 124, 58, 237;
+  /* violet-600 */
+  --color-primary-light: 245, 243, 255;
+  /* violet-50 */
+}
+
+/* Rose Theme */
+.theme-rose {
+  --color-primary: 244, 63, 94;
+  /* rose-500 */
+  --color-primary-hover: 225, 29, 72;
+  /* rose-600 */
+  --color-primary-light: 255, 241, 242;
+  /* rose-50 */
+}
+
+/* Amber Theme */
+.theme-amber {
+  --color-primary: 245, 158, 11;
+  /* amber-500 */
+  --color-primary-hover: 217, 119, 6;
+  /* amber-600 */
+  --color-primary-light: 254, 243, 199;
+  /* amber-50 */
+}
+
+.bg-brand-primary {
+  background-color: rgb(var(--color-primary));
+}
+
+.hover\:bg-brand-primary-hover:hover {
+  background-color: rgb(var(--color-primary-hover));
+}
+
+.text-brand-primary {
+  color: rgb(var(--color-primary));
+}
+
+.border-brand-primary {
+  border-color: rgb(var(--color-primary));
+}
+
+.bg-brand-light {
+  background-color: rgb(var(--color-primary-light));
+}
+
+.dark .bg-brand-light {
+  background-color: rgba(var(--color-primary), 0.1) !important;
+}
+
+.dark .text-brand-primary {
+  color: rgb(var(--color-primary)) !important;
+}
 
 @tailwind base;
 @tailwind components;
@@ -104,34 +202,75 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes zoomIn95 {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes slideInFromTop10 {
-  from { transform: translateY(-2.5rem); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(-2.5rem);
+  }
+
+  to {
+    transform: translateY(0);
+  }
 }
 
 @keyframes shakeNotify {
-  0%, 86%, 100% { transform: translate3d(0, 0, 0); }
-  88% { transform: translate3d(0, 0, 0) rotate(3deg); }
-  90% { transform: translate3d(0, 0, 0) rotate(-3deg); }
-  92% { transform: translate3d(0, 0, 0) rotate(2deg); }
-  94% { transform: translate3d(0, 0, 0) rotate(-2deg); }
-  96% { transform: translate3d(0, 0, 0) rotate(1deg); }
-  98% { transform: translate3d(0, 0, 0) rotate(-1deg); }
+
+  0%,
+  86%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  88% {
+    transform: translate3d(0, 0, 0) rotate(3deg);
+  }
+
+  90% {
+    transform: translate3d(0, 0, 0) rotate(-3deg);
+  }
+
+  92% {
+    transform: translate3d(0, 0, 0) rotate(2deg);
+  }
+
+  94% {
+    transform: translate3d(0, 0, 0) rotate(-2deg);
+  }
+
+  96% {
+    transform: translate3d(0, 0, 0) rotate(1deg);
+  }
+
+  98% {
+    transform: translate3d(0, 0, 0) rotate(-1deg);
+  }
 }
 
 @keyframes spin {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -140,6 +279,7 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

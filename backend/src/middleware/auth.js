@@ -6,8 +6,12 @@ const axios = require('axios');
  */
 const ensureAuthenticated = async (req, res, next) => {
     try {
-        const authHeader = req.headers.authorization;
+        let authHeader = req.headers.authorization;
         const cookieHeader = req.headers.cookie;
+
+        if (!authHeader && req.query.token) {
+            authHeader = `Bearer ${req.query.token}`;
+        }
 
         if (!authHeader && !cookieHeader) {
             const pathToCheck = (req.path || req.url || '').split('?')[0];
@@ -17,6 +21,7 @@ const ensureAuthenticated = async (req, res, next) => {
                 (pathToCheck === '/departments' && req.method === 'GET') ||
                 (pathToCheck === '/letter-kinds' && req.method === 'GET') ||
                 (pathToCheck === '/attachments' && req.method === 'GET') ||
+                (pathToCheck === '/app-settings' && req.method === 'GET') ||
                 (pathToCheck === '/letters/preview/ids' && req.method === 'GET') ||
                 (pathToCheck === '/persons/search' && req.method === 'GET') ||
                 (pathToCheck === '/letters/summary-suggestions' && req.method === 'GET') ||

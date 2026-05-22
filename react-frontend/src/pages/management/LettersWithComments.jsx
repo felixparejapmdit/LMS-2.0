@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import axios from "axios";
+import API_BASE from "../../config/apiConfig";
+import { withAuthToken } from "../../utils/authToken";
 
 export default function LettersWithComments() {
     const { user, layoutStyle, setIsMobileMenuOpen, isSuperAdmin } = useAuth();
@@ -131,9 +133,10 @@ export default function LettersWithComments() {
 
     const handleViewPDF = (letter) => {
         if (!letter.scanned_copy && !letter.attachment_id) return;
+        const apiBase = API_BASE;
         const url = letter.scanned_copy
-            ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view-path?path=${btoa(letter.scanned_copy)}`
-            : `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/attachments/view/${letter.attachment_id}`;
+            ? withAuthToken(`${apiBase}/attachments/view-path?path=${btoa(letter.scanned_copy)}`)
+            : withAuthToken(`${apiBase}/attachments/view/${letter.attachment_id}`);
         window.open(url, '_blank');
     };
 

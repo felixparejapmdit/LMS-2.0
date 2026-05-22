@@ -121,6 +121,22 @@ const authReducer = (state, action) => {
         return saved ? JSON.parse(saved) : {};
     });
 
+    const [appSettings, setAppSettings] = useState({
+        favicon: null,
+        sidebar_logo: null,
+        login_logo: null,
+        system_theme: 'default'
+    });
+
+    const fetchAppSettings = useCallback(async () => {
+        try {
+            const res = await axios.get(`${BACKEND_URL}/app-settings`);
+            setAppSettings(res.data);
+        } catch (e) {
+            console.error("Failed to load app settings", e);
+        }
+    }, []);
+
     const toggleSubmenu = useCallback((label) => {
         setExpandedMenus(prev => ({
             ...prev,
@@ -538,7 +554,29 @@ const authReducer = (state, action) => {
     // --- EFFECTS ---
     useEffect(() => {
         checkAuth();
+        fetchAppSettings();
     }, []);
+
+    useEffect(() => {
+        const themeClass = `theme-${appSettings.system_theme || 'default'}`;
+        const themes = ['theme-default', 'theme-blue', 'theme-emerald', 'theme-indigo', 'theme-violet', 'theme-rose', 'theme-amber'];
+        themes.forEach(t => document.documentElement.classList.remove(t));
+        document.documentElement.classList.add(themeClass);
+    }, [appSettings.system_theme]);
+
+    useEffect(() => {
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.getElementsByTagName('head')[0].appendChild(link);
+        }
+        if (appSettings?.favicon) {
+            link.href = `${BACKEND_URL.replace('/api', '')}${appSettings.favicon}`;
+        } else {
+            link.href = "/favicon.ico";
+        }
+    }, [appSettings?.favicon]);
 
     useEffect(() => {
         const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -624,8 +662,9 @@ const authReducer = (state, action) => {
         isSidebarExpanded, toggleSidebar,
         isMobileMenuOpen, setIsMobileMenuOpen,
         isTutorialOpen, startTutorial, closeTutorial,
-        expandedMenus, setExpandedMenus, toggleSubmenu
-    }), [theme, layoutStyle, fontFamily, fontSize, isSidebarExpanded, isMobileMenuOpen, isTutorialOpen, startTutorial, closeTutorial, expandedMenus, toggleSubmenu]);
+        expandedMenus, setExpandedMenus, toggleSubmenu,
+        appSettings, fetchAppSettings, setAppSettings
+    }), [theme, layoutStyle, fontFamily, fontSize, isSidebarExpanded, isMobileMenuOpen, isTutorialOpen, startTutorial, closeTutorial, expandedMenus, toggleSubmenu, appSettings, fetchAppSettings]);
 
     return (
         <AuthContext.Provider value={authContextValue}>

@@ -190,8 +190,8 @@ export default function GuestSendLetter() {
                 const prefix = isLoggedIn ? "ATG" : "LMS";
                 const targetDeptId = isLoggedIn ? selectedDeptId : (selectedDeptId || null);
 
-                // For logged in users, department is required to generate a specific code
-                if (isLoggedIn && !selectedDeptId) {
+                // Department is required to generate a proper Reference No on this page
+                if (!selectedDeptId) {
                     setReferenceNo("Select Department");
                     return;
                 }
@@ -293,6 +293,10 @@ export default function GuestSendLetter() {
     };
 
     const handleReview = () => {
+        if (!selectedDeptId) {
+            alert("Department is required.");
+            return;
+        }
         const filledSenders = formData.senders.filter(s => s && s.trim());
         if (filledSenders.length === 0) {
             alert("At least one sender name is required.");
@@ -306,7 +310,10 @@ export default function GuestSendLetter() {
     };
 
     const handleSend = async () => {
-        // Department is now optional for everyone on this page.
+        if (!selectedDeptId) {
+            alert("Department is required.");
+            return;
+        }
 
         // Only validate format if senders are provided
         const filledSenders = formData.senders.filter(s => s && s.trim());
@@ -623,14 +630,14 @@ export default function GuestSendLetter() {
 
                                 <div className="grid grid-cols-1 gap-6">
 
-                                    {/* Department - Optional for everyone, hidden for regular users */}
+                                    {/* Department - Required for proper Reference No, hidden for regular users */}
                                     {canDepartmentSelector && (!isLoggedIn || !isRegularUser) && (
                                         <div className="space-y-3" ref={deptSearchRef}>
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
                                                     <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
                                                 </div>
-                                                <span className="text-[9px] text-gray-400 font-bold tracking-widest">OPTIONAL</span>
+                                                <span className="text-[9px] text-red-500 font-black tracking-widest">REQUIRED</span>
                                             </label>
                                             
                                             <div className="relative">

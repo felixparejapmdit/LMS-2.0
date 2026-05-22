@@ -13,8 +13,10 @@ import {
   Menu as MenuIcon,
 } from "lucide-react";
 import letterService from "../../services/letterService";
+import API_BASE from "../../config/apiConfig";
+import { withAuthToken } from "../../utils/authToken";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API = API_BASE;
 
 // Colour gradients matched per lowercase status keyword
 const STATUS_GRADIENTS = {
@@ -307,8 +309,10 @@ export default function Outbox() {
                         isOutbox={true}
                         endorsements={assignment.letter?.endorsements}
                         onPreview={(assignment.letter?.scanned_copy || assignment.letter?.attachment_id) ? () => {
-                          const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-                          const fileUrl = assignment.letter?.scanned_copy || `${apiBase}/attachments/view/${assignment.letter?.attachment_id}`;
+                          const apiBase = API_BASE;
+                          const fileUrl = assignment.letter?.scanned_copy
+                            ? `${apiBase.replace('/api', '')}${assignment.letter.scanned_copy}`
+                            : withAuthToken(`${apiBase}/attachments/view/${assignment.letter?.attachment_id}`);
                           window.open(fileUrl, '_blank');
                         } : null}
                         actions={

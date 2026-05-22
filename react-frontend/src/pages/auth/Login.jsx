@@ -12,7 +12,9 @@ export default function Login() {
 
   const { login, loginGuest } = useAuth();
   const navigate = useNavigate();
-  const { startTutorial } = useUI();
+  const { startTutorial, appSettings } = useUI();
+  const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+  const loginLogoUrl = appSettings?.login_logo ? `${backendBase}${appSettings.login_logo}` : null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,12 +55,18 @@ export default function Login() {
           {/* Logo & Header Section - Combined & Minimalist */}
           <div className="flex flex-col items-center mb-12">
             <div className="flex items-center gap-4 group">
-              <div className="w-12 h-12 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-black/10 transition-transform group-hover:scale-110 duration-500">
-                <FileStack className="text-white dark:text-black w-6 h-6" />
-              </div>
-              <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white">
-                LMS <span className="text-orange-500 tracking-normal">2.0</span>
-              </h1>
+              {loginLogoUrl ? (
+                <img src={loginLogoUrl} alt="LMS Logo" className="h-16 max-w-[200px] object-contain" />
+              ) : (
+                <>
+                  <div className="w-12 h-12 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-black/10 transition-transform group-hover:scale-110 duration-500">
+                    <FileStack className="text-white dark:text-black w-6 h-6" />
+                  </div>
+                  <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white">
+                    LMS <span className="text-orange-500 tracking-normal">2.0</span>
+                  </h1>
+                </>
+              )}
             </div>
           </div>
 
@@ -104,7 +112,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-5 bg-slate-900 dark:bg-white text-white dark:text-black text-[11px] font-black rounded-[20px] transition-all shadow-xl shadow-black/20 hover:scale-[1.02] active:scale-[0.98] uppercase tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-50 mt-10 group"
+              className="w-full py-5 bg-brand-primary hover:bg-brand-primary-hover text-white text-[11px] font-black rounded-[20px] transition-all shadow-xl shadow-blue-500/10 hover:scale-[1.02] active:scale-[0.98] uppercase tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-50 mt-10 group"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

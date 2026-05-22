@@ -39,6 +39,23 @@ import letterService from "../../services/letterService";
 import trayService from "../../services/trayService";
 import statusService from "../../services/statusService";
 import useAccess from "../../hooks/useAccess";
+import { DASHBOARD_TAB_LABELS, DASHBOARD_TAB_GRADIENTS } from "../../utils/dashboardTabs";
+
+const getAuthToken = () => {
+  try {
+    const directusStored = localStorage.getItem('directus_auth');
+    if (!directusStored) return "";
+    const directusJson = JSON.parse(directusStored);
+    return directusJson?.access_token ||
+           directusJson?.token ||
+           directusJson?.data?.access_token ||
+           directusJson?.data?.token || "";
+  } catch (e) {
+    return "";
+  }
+};
+
+
 
 export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
   const { user } = useSession();
@@ -74,7 +91,30 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     return () => window.removeEventListener('close_modals', handleClose);
   }, [setIsMobileMenuOpen]);
 
-  const activeStepTab = searchParams.get('tab') || 'signature';
+  const canField = access?.canField || (() => true);
+  const pageId = forcedDeptId ? "department-letters" : (view === "outbox" ? "outbox" : "inbox");
+  const canSearch = canField(pageId, "search");
+  const canRefresh = canField(pageId, "refresh_button");
+  const canTabFilter = canField(pageId, "tab_filter");
+  const canTraySelector = canField(pageId, "tray_selector");
+
+  const visibleTabs = useMemo(() => {
+    return Object.entries(DASHBOARD_TAB_LABELS).filter(([id]) => {
+      const permKey = `tab_${id}`;
+      return canField(pageId, permKey);
+    });
+  }, [canField, pageId]);
+
+  const visibleTabIds = useMemo(() => visibleTabs.map(([id]) => id), [visibleTabs]);
+
+  const activeStepTab = useMemo(() => {
+    const paramTab = searchParams.get('tab');
+    if (paramTab && visibleTabIds.includes(paramTab)) {
+      return paramTab;
+    }
+    if (visibleTabIds.includes('signature')) return 'signature';
+    return visibleTabIds[0] || 'signature';
+  }, [searchParams, visibleTabIds]);
 
   const setActiveStepTab = (tab) => {
     setSelectedIds([]); // Clear selections when changing tabs
@@ -83,13 +123,6 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
       return prev;
     });
   };
-
-  const canField = access?.canField || (() => true);
-  const pageId = forcedDeptId ? "department-letters" : (view === "outbox" ? "outbox" : "inbox");
-  const canSearch = canField(pageId, "search");
-  const canRefresh = canField(pageId, "refresh_button");
-  const canTabFilter = canField(pageId, "tab_filter");
-  const canTraySelector = canField(pageId, "tray_selector");
 
   const pageBg = "bg-[#F7F7F7] dark:bg-[#0D0D0D]";
   const headerBg = "bg-white dark:bg-[#0D0D0D] border-b border-[#E5E5E5] dark:border-[#222]";
@@ -102,35 +135,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     });
   };
 
-  const tabLabels = {
-    signature: 'For Signature',
-    review: 'For Review',
-    atg_note: 'FOR ATG NOTE',
-    vem: 'VEM LETTER',
-    avem: 'AEVM LETTER',
-    pending: 'PENDING',
-    hold: 'HOLD',
-    empty_entry: 'EMPTY ENTRY'
-  };
-
-  const tabGradients = {
-    signature: 'from-blue-500 to-cyan-400',
-    review: 'from-emerald-500 to-teal-400',
-    atg_note: 'from-indigo-500 to-violet-400',
-    released: 'from-blue-600 to-indigo-500',
-    done: 'from-emerald-600 to-green-500',
-    filed: 'from-amber-600 to-orange-500',
-    forwarded: 'from-sky-500 to-blue-400',
-    endorsed: 'from-violet-600 to-purple-500',
-    dispatched: 'from-teal-600 to-cyan-500',
-    vem: 'from-amber-500 to-orange-400',
-    avem: 'from-rose-500 to-pink-400',
-    pending: 'from-slate-600 to-slate-500',
-    hold: 'from-red-500 to-orange-400',
-    empty_entry: 'from-gray-600 to-gray-500'
-  };
-
-  const activeTabLabel = tabLabels[activeStepTab] || 'Letters';
+  const activeTabLabel = DASHBOARD_TAB_LABELS[activeStepTab] || 'Letters';
 
   const fetchAssignments = async (showRefresh = false, retryCount = 0) => {
     if (!user?.id) return;
@@ -556,12 +561,12 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
             {/* ── Tab filter ──────────────────────────────────────────── */}
             {canTabFilter && (
               <div className="flex items-center gap-1 border border-[#E5E5E5] dark:border-[#333] p-1.5 rounded-xl bg-gray-50/50 dark:bg-white/5 no-scrollbar overflow-x-auto min-w-0">
-                {Object.entries(tabLabels).map(([id, label]) => (
+                {visibleTabs.map(([id, label]) => (
                   <button
                     key={id}
                     onClick={() => setActiveStepTab(id)}
                     className={`px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${activeStepTab === id
-                        ? `bg-gradient-to-r ${tabGradients[id] || 'from-[#1A1A1B] to-[#333]'} text-white shadow-md`
+                        ? `bg-gradient-to-r ${DASHBOARD_TAB_GRADIENTS[id] || 'from-[#1A1A1B] to-[#333]'} text-white shadow-md`
                         : 'text-[#737373] dark:text-[#A3A3A3] hover:text-[#1A1A1B] dark:hover:text-white'
                       }`}
                   >
@@ -744,7 +749,7 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
               </div>
               <div className="flex-1 bg-gray-50 dark:bg-black/20">
                 <iframe
-                  src={`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/view-combined/${previewLetterId}`}
+                  src={`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/attachments/view-combined/${previewLetterId}?token=${getAuthToken()}`}
                   className="w-full h-full border-none"
                   title="PDF Preview"
                 />

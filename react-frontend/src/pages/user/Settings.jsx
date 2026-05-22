@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -23,8 +23,22 @@ import axios from "axios";
 import API_BASE from "../../config/apiConfig";
 import useAccess from "../../hooks/useAccess";
 
+const getAuthToken = () => {
+    try {
+        const directusStored = localStorage.getItem('directus_auth');
+        if (!directusStored) return "";
+        const directusJson = JSON.parse(directusStored);
+        return directusJson?.access_token ||
+               directusJson?.token ||
+               directusJson?.data?.access_token ||
+               directusJson?.data?.token || "";
+    } catch (e) {
+        return "";
+    }
+};
+
 export default function Settings() {
-    const { user, login, layoutStyle, toggleLayoutStyle, fontFamily, changeFontFamily, fontSize, changeFontSize, setIsMobileMenuOpen } = useAuth();
+    const { user, login, layoutStyle, toggleLayoutStyle, fontFamily, changeFontFamily, fontSize, changeFontSize, setIsMobileMenuOpen, appSettings, fetchAppSettings } = useAuth();
     const access = useAccess();
     const [loading, setLoading] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -39,11 +53,95 @@ export default function Settings() {
     const canSave = canField("settings", "save_button");
     const canLayoutSelector = canField("settings", "layout_selector");
     const canFontSelector = canField("settings", "font_selector");
+    const canAppCustomization = canField("settings", "app_customization");
+    const canSystemTheme = canField("settings", "system_theme");
+    const canFaviconUpload = canField("settings", "favicon_upload");
+    const canSidebarLogoUpload = canField("settings", "sidebar_logo_upload");
+    const canLoginLogoUpload = canField("settings", "login_logo_upload");
+    const canApplySystemSettings = canField("settings", "apply_system_settings_button");
 
     const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F9FAFB] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
     const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
     const textColor = layoutStyle === 'minimalist' ? 'text-[#1A1A1B] dark:text-white' : 'text-gray-900 dark:text-white';
     const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
+
+    const [selectedTheme, setSelectedTheme] = useState(appSettings?.system_theme || 'default');
+    const [faviconFile, setFaviconFile] = useState(null);
+    const [sidebarLogoFile, setSidebarLogoFile] = useState(null);
+    const [loginLogoFile, setLoginLogoFile] = useState(null);
+    
+    const [faviconPreview, setFaviconPreview] = useState(null);
+    const [sidebarLogoPreview, setSidebarLogoPreview] = useState(null);
+    const [loginLogoPreview, setLoginLogoPreview] = useState(null);
+
+    const [resetFavicon, setResetFavicon] = useState(false);
+    const [resetSidebarLogo, setResetSidebarLogo] = useState(false);
+    const [resetLoginLogo, setResetLoginLogo] = useState(false);
+
+    const [savingSettings, setSavingSettings] = useState(false);
+
+    useEffect(() => {
+        if (appSettings) {
+            setSelectedTheme(appSettings.system_theme || 'default');
+            const backendBase = API_BASE.replace('/api', '');
+            setFaviconPreview(appSettings.favicon ? `${backendBase}${appSettings.favicon}` : null);
+            setSidebarLogoPreview(appSettings.sidebar_logo ? `${backendBase}${appSettings.sidebar_logo}` : null);
+            setLoginLogoPreview(appSettings.login_logo ? `${backendBase}${appSettings.login_logo}` : null);
+        }
+    }, [appSettings]);
+
+    const handleThemeChange = (themeName) => {
+        setSelectedTheme(themeName);
+        const themeClass = `theme-${themeName}`;
+        const themes = ['theme-default', 'theme-blue', 'theme-emerald', 'theme-indigo', 'theme-violet', 'theme-rose', 'theme-amber'];
+        themes.forEach(t => document.documentElement.classList.remove(t));
+        document.documentElement.classList.add(themeClass);
+    };
+
+    const handleSaveSystemSettings = async () => {
+        if (!canApplySystemSettings) {
+            alert("You don't have permission to update system settings.");
+            return;
+        }
+        setSavingSettings(true);
+        try {
+            const formData = new FormData();
+            formData.append('system_theme', selectedTheme);
+            if (faviconFile) formData.append('favicon', faviconFile);
+            if (sidebarLogoFile) formData.append('sidebar_logo', sidebarLogoFile);
+            if (loginLogoFile) formData.append('login_logo', loginLogoFile);
+
+            formData.append('reset_favicon', resetFavicon);
+            formData.append('reset_sidebar_logo', resetSidebarLogo);
+            formData.append('reset_login_logo', resetLoginLogo);
+
+            const token = getAuthToken();
+            await axios.post(`${API_BASE}/app-settings`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    ...(token && { Authorization: `Bearer ${token}` })
+                }
+            });
+
+            if (fetchAppSettings) {
+                await fetchAppSettings();
+            }
+            
+            setFaviconFile(null);
+            setSidebarLogoFile(null);
+            setLoginLogoFile(null);
+            setResetFavicon(false);
+            setResetSidebarLogo(false);
+            setResetLoginLogo(false);
+            
+            alert("App settings updated successfully!");
+        } catch (err) {
+            console.error("Failed to save app settings", err);
+            alert("Failed to update app settings");
+        } finally {
+            setSavingSettings(false);
+        }
+    };
 
     const handleFileUpload = async (file) => {
         if (!file || !file.type.startsWith('image/')) return;
@@ -179,6 +277,208 @@ export default function Settings() {
                                     </div>
                                 </div>}
                             </section>
+
+                            {/* App Settings Customization */}
+                            {canAppCustomization && (
+                            <section className={`${cardBg} rounded-2xl border p-8 shadow-sm`}>
+                                <div className={`flex items-center gap-2 mb-6 ${textColor}`}>
+                                    <Palette className="w-5 h-5 text-gray-400" />
+                                    <h3 className="font-bold">App Customization (Favicon & Logos)</h3>
+                                </div>
+
+                                <div className="space-y-8">
+                                    {/* System Theme Selection */}
+                                    <div>
+                                        <h4 className={`text-sm font-bold flex items-center gap-2 mb-4 ${textColor}`}>
+                                            <span className="w-1.5 h-1.5 bg-brand-primary rounded-full"></span>
+                                            System Theme Color
+                                        </h4>
+                                        <div className="flex flex-wrap gap-4">
+                                            {[
+                                                { id: 'default', name: 'Default Black', colorClass: 'bg-black' },
+                                                { id: 'emerald', name: 'Emerald', colorClass: 'bg-emerald-500' },
+                                                { id: 'indigo', name: 'Indigo', colorClass: 'bg-indigo-600' },
+                                                { id: 'violet', name: 'Violet', colorClass: 'bg-violet-500' },
+                                                { id: 'rose', name: 'Rose', colorClass: 'bg-rose-500' },
+                                                { id: 'amber', name: 'Amber', colorClass: 'bg-amber-500' },
+                                            ].map((t) => (
+                                                <button
+                                                    key={t.id}
+                                                    type="button"
+                                                    disabled={!canSystemTheme}
+                                                    onClick={() => canSystemTheme && handleThemeChange(t.id)}
+                                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${selectedTheme === t.id ? 'border-brand-primary bg-brand-light font-bold' : 'border-gray-100 dark:border-[#333] hover:border-gray-200'} ${!canSystemTheme ? 'opacity-40 pointer-events-none' : ''}`}
+                                                >
+                                                    <span className={`w-4 h-4 rounded-full ${t.colorClass} shrink-0`} />
+                                                    <span className={`text-xs ${textColor}`}>{t.name}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Logo / Favicon Uploaders */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-gray-100 dark:border-white/5">
+                                        
+                                        {/* Favicon */}
+                                        <div className="flex flex-col gap-3">
+                                            <span className={`text-xs font-bold ${textColor}`}>Browser Favicon</span>
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-white/5 flex items-center justify-center overflow-hidden border border-gray-200 dark:border-white/10">
+                                                    {faviconPreview ? (
+                                                        <img src={faviconPreview} className="w-6 h-6 object-contain" alt="Favicon Preview" />
+                                                    ) : (
+                                                        <span className="text-[10px] text-gray-400 uppercase font-bold">Default</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className={`px-3 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-[10px] font-black rounded-lg cursor-pointer uppercase text-center ${!canFaviconUpload ? 'opacity-40 pointer-events-none' : ''}`}>
+                                                        Upload
+                                                        <input 
+                                                            type="file" 
+                                                            disabled={!canFaviconUpload}
+                                                            accept=".png,.ico,image/png,image/x-icon,image/vnd.microsoft.icon" 
+                                                            className="hidden" 
+                                                            onChange={(e) => {
+                                                                const file = e.target.files[0];
+                                                                if (file) {
+                                                                    setFaviconFile(file);
+                                                                    setFaviconPreview(URL.createObjectURL(file));
+                                                                    setResetFavicon(false);
+                                                                }
+                                                            }}
+                                                        />
+                                                    </label>
+                                                    {faviconPreview && (
+                                                        <button 
+                                                            type="button" 
+                                                            disabled={!canApplySystemSettings}
+                                                            onClick={() => {
+                                                                setFaviconFile(null);
+                                                                setFaviconPreview(null);
+                                                                setResetFavicon(true);
+                                                            }}
+                                                            className={`text-[9px] font-bold text-red-500 uppercase ${!canApplySystemSettings ? 'opacity-40 pointer-events-none' : 'hover:underline'}`}
+                                                        >
+                                                            Reset
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <p className="text-[9px] text-gray-400">16x16 or 32x32 PNG/ICO format.</p>
+                                        </div>
+
+                                        {/* Sidebar Logo */}
+                                        <div className="flex flex-col gap-3">
+                                            <span className={`text-xs font-bold ${textColor}`}>Sidebar Logo</span>
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-20 h-12 rounded-xl bg-slate-100 dark:bg-white/5 flex items-center justify-center overflow-hidden border border-gray-200 dark:border-white/10 p-1">
+                                                    {sidebarLogoPreview ? (
+                                                        <img src={sidebarLogoPreview} className="max-h-full max-w-full object-contain" alt="Sidebar Logo Preview" />
+                                                    ) : (
+                                                        <span className="text-[10px] text-gray-400 uppercase font-bold">Default</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className={`px-3 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-[10px] font-black rounded-lg cursor-pointer uppercase text-center ${!canSidebarLogoUpload ? 'opacity-40 pointer-events-none' : ''}`}>
+                                                        Upload
+                                                        <input 
+                                                            type="file" 
+                                                            disabled={!canSidebarLogoUpload}
+                                                            accept="image/*" 
+                                                            className="hidden" 
+                                                            onChange={(e) => {
+                                                                const file = e.target.files[0];
+                                                                if (file) {
+                                                                    setSidebarLogoFile(file);
+                                                                    setSidebarLogoPreview(URL.createObjectURL(file));
+                                                                    setResetSidebarLogo(false);
+                                                                }
+                                                            }}
+                                                        />
+                                                    </label>
+                                                    {sidebarLogoPreview && (
+                                                        <button 
+                                                            type="button" 
+                                                            disabled={!canApplySystemSettings}
+                                                            onClick={() => {
+                                                                setSidebarLogoFile(null);
+                                                                setSidebarLogoPreview(null);
+                                                                setResetSidebarLogo(true);
+                                                            }}
+                                                            className={`text-[9px] font-bold text-red-500 uppercase ${!canApplySystemSettings ? 'opacity-40 pointer-events-none' : 'hover:underline'}`}
+                                                        >
+                                                            Reset
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <p className="text-[9px] text-gray-400">Constrained dimensions (max 32px height).</p>
+                                        </div>
+
+                                        {/* Login Logo */}
+                                        <div className="flex flex-col gap-3">
+                                            <span className={`text-xs font-bold ${textColor}`}>Login Logo</span>
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-20 h-12 rounded-xl bg-slate-100 dark:bg-white/5 flex items-center justify-center overflow-hidden border border-gray-200 dark:border-white/10 p-1">
+                                                    {loginLogoPreview ? (
+                                                        <img src={loginLogoPreview} className="max-h-full max-w-full object-contain" alt="Login Logo Preview" />
+                                                    ) : (
+                                                        <span className="text-[10px] text-gray-400 uppercase font-bold">Default</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className={`px-3 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-[10px] font-black rounded-lg cursor-pointer uppercase text-center ${!canLoginLogoUpload ? 'opacity-40 pointer-events-none' : ''}`}>
+                                                        Upload
+                                                        <input 
+                                                            type="file" 
+                                                            disabled={!canLoginLogoUpload}
+                                                            accept="image/*" 
+                                                            className="hidden" 
+                                                            onChange={(e) => {
+                                                                const file = e.target.files[0];
+                                                                if (file) {
+                                                                    setLoginLogoFile(file);
+                                                                    setLoginLogoPreview(URL.createObjectURL(file));
+                                                                    setResetLoginLogo(false);
+                                                                }
+                                                            }}
+                                                        />
+                                                    </label>
+                                                    {loginLogoPreview && (
+                                                        <button 
+                                                            type="button" 
+                                                            disabled={!canApplySystemSettings}
+                                                            onClick={() => {
+                                                                setLoginLogoFile(null);
+                                                                setLoginLogoPreview(null);
+                                                                setResetLoginLogo(true);
+                                                            }}
+                                                            className={`text-[9px] font-bold text-red-500 uppercase ${!canApplySystemSettings ? 'opacity-40 pointer-events-none' : 'hover:underline'}`}
+                                                        >
+                                                            Reset
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <p className="text-[9px] text-gray-400">Constrained dimensions (max 64px height).</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Action button */}
+                                    <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-white/5">
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveSystemSettings}
+                                            disabled={savingSettings || !canApplySystemSettings}
+                                            className="flex items-center gap-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50"
+                                        >
+                                            {savingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                            Apply System Settings
+                                        </button>
+                                    </div>
+                                </div>
+                            </section>
+                            )}
 
                             {canSave && (
                                 <div className="flex justify-end pt-4 pb-12">

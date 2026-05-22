@@ -32,6 +32,7 @@ import systemPageService from "../../services/systemPageService";
 import departmentService from "../../services/departmentService";
 import { BASE_SYSTEM_PAGES, humanizePageId } from "../../utils/pageAccess";
 import { getFieldPresetForPage } from "../../utils/fieldPresets";
+import { DASHBOARD_TAB_LABELS } from "../../utils/dashboardTabs";
 import useAccess from "../../hooks/useAccess";
 
 
@@ -703,40 +704,87 @@ export default function RoleAccessMatrix() {
                             </div>
 
                             <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                                <div className="grid grid-cols-1 gap-4">
-                                    {Object.keys(fieldModal.fields).map((fieldKey) => (
-                                        <div
-                                            key={fieldKey}
-                                            onClick={() => {
-                                                setFieldModal(prev => ({
-                                                    ...prev,
-                                                    fields: {
-                                                        ...prev.fields,
-                                                        [fieldKey]: !prev.fields[fieldKey]
-                                                    }
-                                                }));
-                                            }}
-                                            className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group ${
-                                                fieldModal.fields[fieldKey]
-                                                    ? 'border-blue-500/20 bg-blue-500/5 dark:bg-blue-500/10'
-                                                    : 'border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 opacity-60'
-                                            }`}
-                                        >
-                                            <div className="flex flex-col">
-                                                <span className={`text-[10px] font-black uppercase tracking-widest ${fieldModal.fields[fieldKey] ? 'text-blue-500' : 'text-slate-400'}`}>Component ID</span>
-                                                <span className={`text-sm font-bold capitalize ${textColor}`}>{fieldKey.replace(/_/g, ' ')}</span>
+                                {Object.keys(fieldModal.fields).length === 0 ? (
+                                    <div className="py-12 text-center text-slate-400 font-medium italic">
+                                        No explicit components defined for this page.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        {Object.keys(fieldModal.fields).some(k => k.startsWith('tab_')) && (
+                                            <div>
+                                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Tabs</span>
+                                                <div className="grid grid-cols-1 gap-4 mt-3">
+                                                    {Object.keys(fieldModal.fields).filter(k => k.startsWith('tab_')).map((fieldKey) => {
+                                                        const tabId = fieldKey.replace('tab_', '');
+                                                        const label = DASHBOARD_TAB_LABELS[tabId] || tabId.replace(/_/g, ' ');
+                                                        return (
+                                                            <div
+                                                                key={fieldKey}
+                                                                onClick={() => {
+                                                                    setFieldModal(prev => ({
+                                                                        ...prev,
+                                                                        fields: {
+                                                                            ...prev.fields,
+                                                                            [fieldKey]: !prev.fields[fieldKey]
+                                                                        }
+                                                                    }));
+                                                                }}
+                                                                className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group ${fieldModal.fields[fieldKey]
+                                                                    ? 'border-blue-500/20 bg-blue-500/5 dark:bg-blue-500/10'
+                                                                    : 'border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 opacity-60'
+                                                                    }`}
+                                                            >
+                                                                <div className="flex flex-col min-w-0">
+                                                                    <span className={`text-[10px] font-black uppercase tracking-widest ${fieldModal.fields[fieldKey] ? 'text-blue-500' : 'text-slate-400'}`}>Tab</span>
+                                                                    <span className={`text-sm font-bold truncate ${textColor}`}>{label}</span>
+                                                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest font-mono truncate">{fieldKey}</span>
+                                                                </div>
+                                                                <div className={`w-12 h-6 rounded-full p-1 transition-colors relative ${fieldModal.fields[fieldKey] ? 'bg-blue-600' : 'bg-slate-200 dark:bg-white/20'}`}>
+                                                                    <div className={`w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${fieldModal.fields[fieldKey] ? 'translate-x-6' : 'translate-x-0'}`} />
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
-                                            <div className={`w-12 h-6 rounded-full p-1 transition-colors relative ${fieldModal.fields[fieldKey] ? 'bg-blue-600' : 'bg-slate-200 dark:bg-white/20'}`}>
-                                                <div className={`w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${fieldModal.fields[fieldKey] ? 'translate-x-6' : 'translate-x-0'}`} />
+                                        )}
+
+                                        {Object.keys(fieldModal.fields).some(k => !k.startsWith('tab_')) && (
+                                            <div>
+                                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Components</span>
+                                                <div className="grid grid-cols-1 gap-4 mt-3">
+                                                    {Object.keys(fieldModal.fields).filter(k => !k.startsWith('tab_')).map((fieldKey) => (
+                                                        <div
+                                                            key={fieldKey}
+                                                            onClick={() => {
+                                                                setFieldModal(prev => ({
+                                                                    ...prev,
+                                                                    fields: {
+                                                                        ...prev.fields,
+                                                                        [fieldKey]: !prev.fields[fieldKey]
+                                                                    }
+                                                                }));
+                                                            }}
+                                                            className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group ${fieldModal.fields[fieldKey]
+                                                                ? 'border-blue-500/20 bg-blue-500/5 dark:bg-blue-500/10'
+                                                                : 'border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 opacity-60'
+                                                                }`}
+                                                        >
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className={`text-[10px] font-black uppercase tracking-widest ${fieldModal.fields[fieldKey] ? 'text-blue-500' : 'text-slate-400'}`}>Component ID</span>
+                                                                <span className={`text-sm font-bold capitalize truncate ${textColor}`}>{fieldKey.replace(/_/g, ' ')}</span>
+                                                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest font-mono truncate">{fieldKey}</span>
+                                                            </div>
+                                                            <div className={`w-12 h-6 rounded-full p-1 transition-colors relative ${fieldModal.fields[fieldKey] ? 'bg-blue-600' : 'bg-slate-200 dark:bg-white/20'}`}>
+                                                                <div className={`w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${fieldModal.fields[fieldKey] ? 'translate-x-6' : 'translate-x-0'}`} />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                    {Object.keys(fieldModal.fields).length === 0 && (
-                                        <div className="py-12 text-center text-slate-400 font-medium italic">
-                                            No explicit components defined for this page.
-                                        </div>
-                                    )}
-                                </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             
                             <div className="p-8 bg-slate-50/50 dark:bg-white/5 border-t border-gray-100 dark:border-white/10">
@@ -746,7 +794,7 @@ export default function RoleAccessMatrix() {
                                             ...prev,
                                             [fieldModal.pageId]: {
                                                 ...prev[fieldModal.pageId],
-                                                field_permissions: fieldModal.fields
+                                                field_permissions: mergeFieldPermissions(fieldModal.pageId, fieldModal.fields)
                                             }
                                         }));
                                         setFieldModal({ isOpen: false, pageId: null, fields: {} });
