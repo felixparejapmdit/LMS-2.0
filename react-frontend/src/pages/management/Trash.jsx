@@ -74,7 +74,20 @@ export default function Trash() {
             } else if (confirmDialog.type === 'delete_permanent') {
                 await letterService.deletePermanent(confirmDialog.id);
             } else if (confirmDialog.type === 'empty') {
-                await Promise.all(letters.map(l => letterService.deletePermanent(l.id)));
+                // IMPORTANT: Run sequentially to avoid SQLite "database is locked" errors on servers.
+                const failedIds = [];
+                for (const l of letters) {
+                    try {
+                        // eslint-disable-next-line no-await-in-loop
+                        await letterService.deletePermanent(l.id);
+                    } catch (e) {
+                        failedIds.push(l.id);
+                        console.error(`[TRASH] Failed to purge letter ${l.id}:`, e?.response?.data || e?.message || e);
+                    }
+                }
+                if (failedIds.length > 0) {
+                    alert(`Some items could not be deleted right now (IDs: ${failedIds.join(', ')}). Please try again.`);
+                }
             }
             fetchData();
         } catch (err) {

@@ -39,9 +39,27 @@ export const getAssetUrl = (assetId, queryParams = "") => {
     
     try {
         const raw = localStorage.getItem('directus_auth');
-        if (!raw) return url + (queryParams ? (queryParams.startsWith('?') ? queryParams : '?' + queryParams) : '');
+        if (!raw) {
+            // Fallback: some older builds stored tokens under other keys
+            const legacy = localStorage.getItem('directus_token') || localStorage.getItem('token');
+            if (legacy) {
+                const finalQuery = queryParams ? (queryParams.startsWith('?') ? queryParams : '?' + queryParams) : '';
+                const sep = finalQuery ? '&' : '?';
+                return url + finalQuery + `${sep}access_token=${encodeURIComponent(legacy)}`;
+            }
+            return url + (queryParams ? (queryParams.startsWith('?') ? queryParams : '?' + queryParams) : '');
+        }
 
-        const authData = JSON.parse(raw);
+        let authData = null;
+        try {
+            authData = JSON.parse(raw);
+        } catch {
+            // Some environments may persist as a raw token string
+            const rawToken = String(raw || "").trim().replace(/^\"|\"$/g, "");
+            const finalQuery = queryParams ? (queryParams.startsWith('?') ? queryParams : '?' + queryParams) : '';
+            const sep = finalQuery ? '&' : '?';
+            return url + finalQuery + `${sep}access_token=${encodeURIComponent(rawToken)}`;
+        }
         
         // Robust token extraction (handle various structures: {access_token}, {data: {access_token}}, etc)
         const token = authData.access_token || authData.token || (authData.data && (authData.data.access_token || authData.data.token));
@@ -67,7 +85,7 @@ export const getAssetUrl = (assetId, queryParams = "") => {
             
             // Append access token last
             const finalSeparator = url.includes('?') ? '&' : '?';
-            url += `${finalSeparator}access_token=${token}`;
+            url += `${finalSeparator}access_token=${encodeURIComponent(token)}`;
             return url;
         }
     } catch (e) {

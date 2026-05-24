@@ -22,6 +22,13 @@ const TelegramService = require("../services/telegramService");
 const isValidId = (id) =>
   id && id !== "all" && id !== "null" && id !== "undefined" && id !== "";
 
+const SQLITE_BUSY_RETRIES = 6;
+const SQLITE_BUSY_BASE_DELAY_MS = 150;
+const isSqliteBusyError = (error) =>
+  String(error?.message || "").includes("SQLITE_BUSY") ||
+  String(error?.message || "").toLowerCase().includes("database is locked");
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
 class LetterController {
   static async getSummarySuggestions(req, res) {
     try {
@@ -1192,31 +1199,67 @@ class LetterController {
   }
 
   static async deletePermanent(req, res) {
-    let transaction;
-    try {
-      transaction = await sequelize.transaction();
-      const { id } = req.params;
-      const letter = await Letter.findByPk(id, { transaction });
-      if (!letter) {
-        if (transaction) await transaction.rollback();
-        return res.status(404).json({ error: "Not found" });
+    const { id } = req.params;
+
+    for (let attempt = 0; attempt <= SQLITE_BUSY_RETRIES; attempt++) {
+      let transaction;
+      try {
+        transaction = await sequelize.transaction();
+        const letter = await Letter.findByPk(id, { transaction });
+        if (!letter) {
+          await transaction.rollback();
+          return res.status(404).json({ error: "Not found" });
+        }
+
+        const safeDestroy = async (model, where) => {
+          if (!model) return;
+          try {
+            await model.destroy({ where, transaction });
+          } catch (e) {
+            const msg = String(e?.message || "").toLowerCase();
+            // Some deployments may not have optional tables yet (SQLite/no migration).
+            if (
+              msg.includes("no such table") ||
+              msg.includes("doesn't exist") ||
+              msg.includes("unknown table")
+            ) {
+              console.warn(
+                `[LETTER_PERM_DELETE] Skipped missing table for ${model?.name || "model"}:`,
+                e.message,
+              );
+              return;
+            }
+            throw e;
+          }
+        };
+
+        await safeDestroy(LetterAssignment, { letter_id: id });
+        await safeDestroy(LetterLog, { letter_id: id });
+        await safeDestroy(Comment, { letter_id: id });
+        await safeDestroy(Endorsement, { letter_id: id });
+        await safeDestroy(LinkLetter, { main_letter_id: id });
+        await safeDestroy(LinkLetter, { attached_letter_id: id });
+
+        await letter.destroy({ transaction });
+
+        await transaction.commit();
+        return res.json({ message: "Permanently Deleted" });
+      } catch (error) {
+        if (transaction) await transaction.rollback().catch(() => {});
+
+        if (isSqliteBusyError(error) && attempt < SQLITE_BUSY_RETRIES) {
+          const waitMs = SQLITE_BUSY_BASE_DELAY_MS * (attempt + 1);
+          console.warn(
+            `[LETTER_PERM_DELETE] SQLITE_BUSY; retrying in ${waitMs}ms (attempt ${attempt + 1}/${SQLITE_BUSY_RETRIES})`,
+          );
+          // eslint-disable-next-line no-await-in-loop
+          await delay(waitMs);
+          continue;
+        }
+
+        console.error("[LETTER_PERM_DELETE_ERROR]:", error);
+        return res.status(500).json({ error: error.message });
       }
-
-      await LetterAssignment.destroy({ where: { letter_id: id }, transaction });
-      await LetterLog.destroy({ where: { letter_id: id }, transaction });
-      await Comment.destroy({ where: { letter_id: id }, transaction });
-      await Endorsement.destroy({ where: { letter_id: id }, transaction });
-      await LinkLetter.destroy({ where: { main_letter_id: id }, transaction });
-      await LinkLetter.destroy({ where: { attached_letter_id: id }, transaction });
-
-      await letter.destroy({ transaction });
-
-      await transaction.commit();
-      res.json({ message: "Permanently Deleted" });
-    } catch (error) {
-      if (transaction) await transaction.rollback();
-      console.error("[LETTER_PERM_DELETE_ERROR]:", error);
-      res.status(500).json({ error: error.message });
     }
   }
 
