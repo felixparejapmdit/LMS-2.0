@@ -74,18 +74,10 @@ export default function Trash() {
             } else if (confirmDialog.type === 'delete_permanent') {
                 await letterService.deletePermanent(confirmDialog.id);
             } else if (confirmDialog.type === 'empty') {
-                // IMPORTANT: Run sequentially to avoid SQLite "database is locked" errors on servers.
-                const failedIds = [];
-                for (const l of letters) {
-                    try {
-                        // eslint-disable-next-line no-await-in-loop
-                        await letterService.deletePermanent(l.id);
-                    } catch (e) {
-                        failedIds.push(l.id);
-                        console.error(`[TRASH] Failed to purge letter ${l.id}:`, e?.response?.data || e?.message || e);
-                    }
-                }
-                if (failedIds.length > 0) {
+                const ids = letters.map(l => l.id);
+                const result = await letterService.bulkDeletePermanent(ids);
+                if (Array.isArray(result?.failed) && result.failed.length > 0) {
+                    const failedIds = result.failed.map(x => x.id).filter(Boolean);
                     alert(`Some items could not be deleted right now (IDs: ${failedIds.join(', ')}). Please try again.`);
                 }
             }

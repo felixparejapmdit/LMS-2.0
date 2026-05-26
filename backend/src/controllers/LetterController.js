@@ -29,6 +29,46 @@ const isSqliteBusyError = (error) =>
   String(error?.message || "").toLowerCase().includes("database is locked");
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const isMissingTableError = (error) => {
+  const msg = String(error?.message || "").toLowerCase();
+  return (
+    msg.includes("no such table") ||
+    msg.includes("doesn't exist") ||
+    msg.includes("unknown table")
+  );
+};
+
+const deleteLetterPermanentInTransaction = async (letterId, transaction) => {
+  const letter = await Letter.findByPk(letterId, { transaction });
+  if (!letter) return { deleted: false, reason: "not_found" };
+
+  const safeDestroy = async (model, where) => {
+    if (!model) return;
+    try {
+      await model.destroy({ where, transaction });
+    } catch (e) {
+      if (isMissingTableError(e)) {
+        console.warn(
+          `[LETTER_PERM_DELETE] Skipped missing table for ${model?.name || "model"}:`,
+          e.message,
+        );
+        return;
+      }
+      throw e;
+    }
+  };
+
+  await safeDestroy(LetterAssignment, { letter_id: letterId });
+  await safeDestroy(LetterLog, { letter_id: letterId });
+  await safeDestroy(Comment, { letter_id: letterId });
+  await safeDestroy(Endorsement, { letter_id: letterId });
+  await safeDestroy(LinkLetter, { main_letter_id: letterId });
+  await safeDestroy(LinkLetter, { attached_letter_id: letterId });
+
+  await letter.destroy({ transaction });
+  return { deleted: true };
+};
+
 class LetterController {
   static async getSummarySuggestions(req, res) {
     try {
@@ -1205,42 +1245,11 @@ class LetterController {
       let transaction;
       try {
         transaction = await sequelize.transaction();
-        const letter = await Letter.findByPk(id, { transaction });
-        if (!letter) {
+        const result = await deleteLetterPermanentInTransaction(id, transaction);
+        if (!result.deleted && result.reason === "not_found") {
           await transaction.rollback();
           return res.status(404).json({ error: "Not found" });
         }
-
-        const safeDestroy = async (model, where) => {
-          if (!model) return;
-          try {
-            await model.destroy({ where, transaction });
-          } catch (e) {
-            const msg = String(e?.message || "").toLowerCase();
-            // Some deployments may not have optional tables yet (SQLite/no migration).
-            if (
-              msg.includes("no such table") ||
-              msg.includes("doesn't exist") ||
-              msg.includes("unknown table")
-            ) {
-              console.warn(
-                `[LETTER_PERM_DELETE] Skipped missing table for ${model?.name || "model"}:`,
-                e.message,
-              );
-              return;
-            }
-            throw e;
-          }
-        };
-
-        await safeDestroy(LetterAssignment, { letter_id: id });
-        await safeDestroy(LetterLog, { letter_id: id });
-        await safeDestroy(Comment, { letter_id: id });
-        await safeDestroy(Endorsement, { letter_id: id });
-        await safeDestroy(LinkLetter, { main_letter_id: id });
-        await safeDestroy(LinkLetter, { attached_letter_id: id });
-
-        await letter.destroy({ transaction });
 
         await transaction.commit();
         return res.json({ message: "Permanently Deleted" });
@@ -1260,6 +1269,83 @@ class LetterController {
         console.error("[LETTER_PERM_DELETE_ERROR]:", error);
         return res.status(500).json({ error: error.message });
       }
+    }
+  }
+
+  static async bulkDeletePermanent(req, res) {
+    try {
+      const ids = req.body?.ids;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "Invalid payload: ids[] required" });
+      }
+
+      const normalizedIds = ids
+        .map((x) => Number.parseInt(String(x), 10))
+        .filter((n) => Number.isFinite(n) && n > 0);
+
+      const uniqueIds = Array.from(new Set(normalizedIds));
+      if (uniqueIds.length === 0) {
+        return res.status(400).json({ error: "Invalid payload: no valid ids" });
+      }
+
+      const results = {
+        deleted: [],
+        not_found: [],
+        failed: [],
+      };
+
+      // IMPORTANT: sequential deletes to avoid SQLite locks under load.
+      for (const id of uniqueIds) {
+        let ok = false;
+
+        for (let attempt = 0; attempt <= SQLITE_BUSY_RETRIES; attempt++) {
+          let transaction;
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            transaction = await sequelize.transaction();
+            // eslint-disable-next-line no-await-in-loop
+            const out = await deleteLetterPermanentInTransaction(id, transaction);
+
+            if (!out.deleted && out.reason === "not_found") {
+              // eslint-disable-next-line no-await-in-loop
+              await transaction.rollback();
+              results.not_found.push(id);
+              ok = true;
+              break;
+            }
+
+            // eslint-disable-next-line no-await-in-loop
+            await transaction.commit();
+            results.deleted.push(id);
+            ok = true;
+            break;
+          } catch (e) {
+            if (transaction) await transaction.rollback().catch(() => {});
+            if (isSqliteBusyError(e) && attempt < SQLITE_BUSY_RETRIES) {
+              const waitMs = SQLITE_BUSY_BASE_DELAY_MS * (attempt + 1);
+              console.warn(
+                `[LETTER_BULK_DELETE] SQLITE_BUSY; retrying id=${id} in ${waitMs}ms (attempt ${attempt + 1}/${SQLITE_BUSY_RETRIES})`,
+              );
+              // eslint-disable-next-line no-await-in-loop
+              await delay(waitMs);
+              continue;
+            }
+            results.failed.push({ id, error: e?.message || String(e) });
+            ok = true;
+            break;
+          }
+        }
+
+        if (!ok) results.failed.push({ id, error: "unknown failure" });
+      }
+
+      return res.json({
+        message: "Bulk delete completed",
+        ...results,
+      });
+    } catch (error) {
+      console.error("[LETTER_BULK_PERM_DELETE_ERROR]:", error);
+      return res.status(500).json({ error: error.message });
     }
   }
 

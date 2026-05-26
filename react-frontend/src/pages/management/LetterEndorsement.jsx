@@ -31,6 +31,7 @@ export default function LetterEndorsement() {
     const [endorsements, setEndorsements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [selectedIds, setSelectedIds] = useState([]);
     const printRef = useRef(null);
     const canSearch = canField("endorsements", "search");
     const canPrint = canField("endorsements", "print_button");
@@ -73,6 +74,11 @@ export default function LetterEndorsement() {
         return () => clearInterval(interval);
     }, [user?.id, searchParams.toString()]);
 
+    useEffect(() => {
+        const existing = new Set((endorsements || []).map((e) => e.id));
+        setSelectedIds((prev) => prev.filter((id) => existing.has(id)));
+    }, [endorsements]);
+
     const handleDelete = async (id) => {
         if (!window.confirm("Remove this endorsement record?")) return;
         try {
@@ -80,6 +86,62 @@ export default function LetterEndorsement() {
             fetchEndorsements();
         } catch (e) {
             alert("Delete failed.");
+        }
+    };
+
+    const toggleSelected = (id) => {
+        setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    };
+
+    const toggleGroupSelected = (items) => {
+        const ids = (items || []).map((e) => e.id);
+        if (ids.length === 0) return;
+
+        setSelectedIds((prev) => {
+            const prevSet = new Set(prev);
+            const allSelected = ids.every((id) => prevSet.has(id));
+            if (allSelected) {
+                ids.forEach((id) => prevSet.delete(id));
+            } else {
+                ids.forEach((id) => prevSet.add(id));
+            }
+            return Array.from(prevSet);
+        });
+    };
+
+    const bulkDeleteByIds = async (idsToDelete) => {
+        await axios.post(
+            `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/endorsements/bulk-delete`,
+            { ids: idsToDelete },
+        );
+        setSelectedIds([]);
+        fetchEndorsements();
+    };
+
+    const handleDeleteSelected = async () => {
+        if (!canDelete) return;
+        if (selectedIds.length === 0) return;
+        if (!window.confirm(`Delete ${selectedIds.length} selected endorsement record(s)?`)) return;
+
+        try {
+            await bulkDeleteByIds(selectedIds);
+        } catch (e) {
+            console.error("Bulk delete (selected) failed:", e);
+            alert("Bulk delete failed.");
+        }
+    };
+
+    const handleDeleteAllShown = async () => {
+        if (!canDelete) return;
+        const idsToDelete = filtered.map((e) => e.id);
+        if (idsToDelete.length === 0) return;
+        if (!window.confirm(`Delete ALL ${idsToDelete.length} endorsement record(s) currently shown?`)) return;
+
+        try {
+            await bulkDeleteByIds(idsToDelete);
+        } catch (e) {
+            console.error("Bulk delete (all shown) failed:", e);
+            alert("Bulk delete failed.");
         }
     };
 
@@ -273,30 +335,50 @@ export default function LetterEndorsement() {
                             <h1 className={`text-xl font-black tracking-tighter uppercase font-outfit ${textColor}`}>Endorsements</h1>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        {canPrint && (
-                            <button 
-                                onClick={() => handlePrint()} 
-                                className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400"
-                                title="Print All Endorsements"
-                            >
-                                <Printer className="w-5 h-5" />
-                            </button>
-                        )}
-                        <button 
-                            onClick={() => navigate('/new-letter')} 
-                            className="p-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl transition-all text-white shadow-lg shadow-emerald-500/20"
-                            title="New Letter"
-                        >
-                            <FilePlus className="w-5 h-5" />
-                        </button>
-                        {canRefresh && <button onClick={() => fetchEndorsements()} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
-                            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                        </button>}
-                    </div>
-                    {canSearch && (
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300" />
+                     <div className="flex items-center gap-4">
+                         {canPrint && (
+                             <button 
+                                 onClick={() => handlePrint()} 
+                                 className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400"
+                                 title="Print All Endorsements"
+                             >
+                                 <Printer className="w-5 h-5" />
+                             </button>
+                         )}
+                         <button 
+                             onClick={() => navigate('/new-letter')} 
+                             className="p-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl transition-all text-white shadow-lg shadow-emerald-500/20"
+                             title="New Letter"
+                         >
+                             <FilePlus className="w-5 h-5" />
+                         </button>
+                         {canRefresh && <button onClick={() => fetchEndorsements()} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400">
+                             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                         </button>}
+                         {canDelete && (
+                             <>
+                                 <button
+                                     onClick={handleDeleteSelected}
+                                     disabled={loading || selectedIds.length === 0}
+                                     className={`p-3 rounded-2xl transition-all ${loading || selectedIds.length === 0 ? "text-slate-300 cursor-not-allowed" : "text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10"}`}
+                                     title={selectedIds.length > 0 ? `Delete selected (${selectedIds.length})` : "Delete selected"}
+                                 >
+                                     <Trash2 className="w-5 h-5" />
+                                 </button>
+                                 <button
+                                     onClick={handleDeleteAllShown}
+                                     disabled={loading || filtered.length === 0}
+                                     className={`px-4 py-3 rounded-2xl transition-all text-[10px] font-black uppercase tracking-widest border ${loading || filtered.length === 0 ? "text-slate-300 border-transparent cursor-not-allowed" : "text-white bg-red-500 border-red-500 hover:bg-red-600 shadow-lg shadow-red-500/20"}`}
+                                     title={`Delete all shown (${filtered.length})`}
+                                 >
+                                     Delete All
+                                 </button>
+                             </>
+                         )}
+                     </div>
+                     {canSearch && (
+                         <div className="relative">
+                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300" />
                             <input
                                 type="text"
                                 placeholder="Search endorsements..."
@@ -350,26 +432,44 @@ export default function LetterEndorsement() {
                                     </div>
 
                                     {/* Table */}
-                                    <div className={`${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'} rounded-2xl border shadow-sm overflow-hidden`}>
-                                        <table className="w-full">
-                                            <thead>
-                                                <tr className={`${'border-gray-50 dark:border-[#222] bg-gray-50 dark:bg-white/5'} border-b`}>
-                                                    <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3">LMS ID</th>
-                                                    <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3">Sender</th>
-                                                    <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3 hidden md:table-cell">Letter Summary</th>
-                                                    <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3 hidden md:table-cell">Status</th>
-                                                    <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3 hidden md:table-cell">Endorsed On</th>
-                                                    <th className="text-right text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className={`divide-y ${'divide-gray-50 dark:divide-[#222]'}`}>
-                                                {items.map(e => (
-                                                    <tr key={e.id} className={`transition-colors ${'hover:bg-gray-50/50 dark:hover:bg-white/5'}`}>
-                                                        <td className="px-6 py-4">
-                                                            <span className={`text-xs font-black uppercase tracking-widest ${'text-orange-600'}`}>
-                                                                {e.letter?.lms_id || `#${e.letter_id}`}
-                                                            </span>
-                                                        </td>
+                                     <div className={`${'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]'} rounded-2xl border shadow-sm overflow-hidden`}>
+                                         <table className="w-full">
+                                             <thead>
+                                                 <tr className={`${'border-gray-50 dark:border-[#222] bg-gray-50 dark:bg-white/5'} border-b`}>
+                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3 w-10">
+                                                         <input
+                                                             type="checkbox"
+                                                             checked={items.length > 0 && items.every((e) => selectedIds.includes(e.id))}
+                                                             onChange={() => toggleGroupSelected(items)}
+                                                             className="w-4 h-4 accent-orange-500"
+                                                             aria-label="Select all in group"
+                                                         />
+                                                     </th>
+                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3">LMS ID</th>
+                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3">Sender</th>
+                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3 hidden md:table-cell">Letter Summary</th>
+                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3 hidden md:table-cell">Status</th>
+                                                     <th className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3 hidden md:table-cell">Endorsed On</th>
+                                                     <th className="text-right text-[9px] font-black text-gray-400 uppercase tracking-widest px-6 py-3">Actions</th>
+                                                 </tr>
+                                             </thead>
+                                             <tbody className={`divide-y ${'divide-gray-50 dark:divide-[#222]'}`}>
+                                                 {items.map(e => (
+                                                     <tr key={e.id} className={`transition-colors ${'hover:bg-gray-50/50 dark:hover:bg-white/5'}`}>
+                                                         <td className="px-6 py-4">
+                                                             <input
+                                                                 type="checkbox"
+                                                                 checked={selectedIds.includes(e.id)}
+                                                                 onChange={() => toggleSelected(e.id)}
+                                                                 className="w-4 h-4 accent-orange-500"
+                                                                 aria-label={`Select endorsement ${e.letter?.lms_id || e.letter_id}`}
+                                                             />
+                                                         </td>
+                                                         <td className="px-6 py-4">
+                                                             <span className={`text-xs font-black uppercase tracking-widest ${'text-orange-600'}`}>
+                                                                 {e.letter?.lms_id || `#${e.letter_id}`}
+                                                             </span>
+                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <p className={`text-xs font-bold ${'text-gray-900 dark:text-white'}`}>
                                                                 {e.letter?.sender || "—"}

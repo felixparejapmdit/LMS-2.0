@@ -52,6 +52,11 @@ class LetterService {
         return response.data;
     }
 
+    async bulkDeletePermanent(ids = []) {
+        const response = await axios.post(`${API_URL}/bulk-permanent-delete`, { ids });
+        return response.data;
+    }
+
     async getPreviewIds(prefix = 'LMS', dept_id = null) {
         try {
             const params = new URLSearchParams();

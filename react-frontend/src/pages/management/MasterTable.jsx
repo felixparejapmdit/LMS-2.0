@@ -136,6 +136,11 @@ export default function MasterTable() {
     return senderOk && reOk && groupOk;
   }, [selectedLetter, steps]);
 
+  const canSelectGroup = React.useMemo(() => {
+    if (!selectedLetter) return false;
+    return hasActualValue(selectedLetter.sender) && hasActualValue(selectedLetter.summary);
+  }, [selectedLetter?.sender, selectedLetter?.summary]);
+
   const [authorizedSuggestions, setAuthorizedSuggestions] = useState([]);
   const [highlightedEndorseIndex, setHighlightedEndorseIndex] = useState(-1);
   const [showAuthorizedSuggestions, setShowAuthorizedSuggestions] = useState(false);
@@ -1683,6 +1688,11 @@ export default function MasterTable() {
                       <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                         <GitMerge className="w-3 h-3" /> Groups
                       </label>
+                      {!canSelectGroup && (
+                        <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                          Fill in Sender and Re first to enable Group selection.
+                        </p>
+                      )}
                       <div className="flex flex-wrap gap-2 mt-2">
                         {steps.map((step) => {
                           const latestAssignment =
@@ -1693,18 +1703,27 @@ export default function MasterTable() {
                             selectedLetter.currentStepId ||
                             latestAssignment?.step_id;
                           const isSelected = Number(currentStepId) === Number(step.id);
+                          const isDisabled = !canSelectGroup;
 
                           return (
                             <label
                               key={step.id}
-                              className={`flex-1 min-w-[120px] flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${isSelected ? "bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/20" : "bg-white dark:bg-white/5 border-gray-100 dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20"}`}
+                              onClick={(e) => {
+                                if (isDisabled) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }
+                              }}
+                              className={`flex-1 min-w-[120px] flex items-center gap-2 p-2 rounded-xl border transition-all ${isSelected ? "bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/20" : `bg-white dark:bg-white/5 border-gray-100 dark:border-white/10 ${isDisabled ? "" : "hover:border-gray-200 dark:hover:border-white/20"}`} ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                             >
                               <input
                                 type="radio"
                                 name="process_step"
                                 className="hidden"
                                 checked={isSelected}
+                                disabled={isDisabled}
                                 onChange={() => {
+                                  if (isDisabled) return;
                                   const incomingStatus = statuses.find(
                                     (s) => s.status_name === "Incoming",
                                   );

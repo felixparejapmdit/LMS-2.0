@@ -202,6 +202,26 @@ class EndorsementController {
         }
     }
 
+    // BULK DELETE endorsements
+    static async bulkDelete(req, res) {
+        try {
+            const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+            const uniqueIds = [...new Set(ids.map((v) => Number(v)).filter((n) => Number.isFinite(n) && n > 0))];
+
+            if (uniqueIds.length === 0) {
+                return res.status(400).json({ error: 'ids[] is required.' });
+            }
+
+            const deletedCount = await Endorsement.destroy({
+                where: { id: { [Op.in]: uniqueIds } }
+            });
+
+            res.json({ message: 'Deleted', deletedCount });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
     // COUNT (for notification badge)
     static async count(req, res) {
         try {

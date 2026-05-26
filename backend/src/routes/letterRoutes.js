@@ -10,6 +10,7 @@ router.get('/lms-id/:lms_id', LetterController.getByLmsId);
 router.get('/:id', LetterController.getById);
 router.post('/', LetterController.create);
 router.post('/bulk-create-empty', LetterController.bulkCreateEmpty);
+router.post('/bulk-permanent-delete', LetterController.bulkDeletePermanent);
 router.put('/:id', LetterController.update);
 router.post('/:id/restore', LetterController.restore);
 router.delete('/:id/scanned-copy', LetterController.deleteScannedCopy);
