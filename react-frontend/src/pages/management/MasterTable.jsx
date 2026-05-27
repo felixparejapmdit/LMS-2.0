@@ -436,6 +436,9 @@ export default function MasterTable() {
       e.preventDefault();
       const picked = authorizedSuggestions[highlightedAuthIndex < 0 ? 0 : highlightedAuthIndex];
       if (picked) selectAuthorizedSuggestion(picked.name);
+    } else if (e.key === "Tab" && showAuthorizedSuggestions) {
+      const picked = authorizedSuggestions[highlightedAuthIndex < 0 ? 0 : highlightedAuthIndex];
+      if (picked) selectAuthorizedSuggestion(picked.name);
     } else if (e.key === "Escape") {
       setShowAuthorizedSuggestions(false);
     }
@@ -451,6 +454,22 @@ export default function MasterTable() {
       if (!endorseSuggestions || endorseSuggestions.length === 0) return;
       e.preventDefault();
       setHighlightedEndorseIndex((prev) => Math.max(prev < 0 ? 0 : prev - 1, 0));
+    } else if (e.key === "Tab" && showEndorseSuggestions) {
+      const picked =
+        endorseSuggestions[highlightedEndorseIndex < 0 ? 0 : highlightedEndorseIndex];
+      if (picked) {
+        const currentValue = selectedLetter.endorse_to || "";
+        const parts = currentValue.split(";").map((p) => p.trim());
+        parts[parts.length - 1] = picked.name;
+        const joined = parts.filter(Boolean).join("; ");
+        const normalized = normalizeSemicolonList(joined);
+        setSelectedLetter((prev) => ({
+          ...prev,
+          endorse_to: normalized ? `${normalized}; ` : "",
+        }));
+      }
+      setShowEndorseSuggestions(false);
+      setHighlightedEndorseIndex(-1);
     } else if (e.key === "Enter") {
       e.preventDefault();
       const picked = (showEndorseSuggestions && highlightedEndorseIndex >= 0)

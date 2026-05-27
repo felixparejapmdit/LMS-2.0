@@ -536,6 +536,14 @@ export default function NewLetter() {
       return;
     }
 
+    if (e.key === "Tab" && showSuggestions) {
+      const idx =
+        highlightedSuggestionIndex < 0 ? 0 : highlightedSuggestionIndex;
+      const picked = suggestions[idx];
+      if (picked) selectSuggestion(picked.name);
+      return;
+    }
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (!showSuggestions) setShowSuggestions(true);

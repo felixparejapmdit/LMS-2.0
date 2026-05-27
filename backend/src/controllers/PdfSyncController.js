@@ -35,32 +35,28 @@ class PdfSyncController {
             console.log(`[PdfSync] Found letter ID ${letter.id} for lms_id ${lms_id}`);
 
             let existingPdfPath = null;
-            let existingAttachment = null;
 
-            // 2. Identify existing PDF path - handle comma-separated IDs
-            if (letter.attachment_id) {
-                const ids = String(letter.attachment_id).split(',').filter(id => id.trim());
-                if (ids.length > 0) {
-                    // Try to find the most recent attachment in the list
-                    for (let i = ids.length - 1; i >= 0; i--) {
-                        const att = await Attachment.findByPk(ids[i].trim());
-                        if (att && att.file_path && fs.existsSync(att.file_path)) {
-                            existingAttachment = att;
-                            existingPdfPath = att.file_path;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // Try scanned_copy fallback if no attachment found
-            if (!existingPdfPath && letter.scanned_copy) {
-                let p = letter.scanned_copy;
+            // 2. Identify existing PDF path:
+            // Prefer scanned_copy (treated as the canonical "letter PDF"), but allow a fallback to an attachment file
+            // WITHOUT creating/updating Attachment records (to avoid polluting the Attachments page).
+            if (letter.scanned_copy) {
+                const p = letter.scanned_copy;
                 if (fs.existsSync(p)) {
                     existingPdfPath = p;
                 } else {
-                    let altP = path.resolve(process.cwd(), p);
+                    const altP = path.resolve(process.cwd(), p);
                     if (fs.existsSync(altP)) existingPdfPath = altP;
+                }
+            }
+
+            if (!existingPdfPath && letter.attachment_id) {
+                const ids = String(letter.attachment_id).split(',').filter(id => id.trim());
+                for (let i = ids.length - 1; i >= 0; i--) {
+                    const att = await Attachment.findByPk(ids[i].trim());
+                    if (att && att.file_path && fs.existsSync(att.file_path)) {
+                        existingPdfPath = att.file_path;
+                        break;
+                    }
                 }
             }
 
@@ -103,37 +99,9 @@ class PdfSyncController {
             const filePath = path.join(uploadsDir, fileName);
             fs.writeFileSync(filePath, finalPdfBytes);
 
-            // 5. Update BOTH records to ensure all views refresh
-            if (existingAttachment) {
-                await existingAttachment.update({
-                    attachment_name: fileName,
-                    file_path: filePath,
-                    description: `Merged via Sync Service (LMS: ${lms_id})`
-                });
-
-                // Update letter scanned_copy too
-                await letter.update({ scanned_copy: filePath });
-            } else {
-                const newAttachment = await Attachment.create({
-                    attachment_name: fileName,
-                    file_path: filePath,
-                    description: `Created via Sync Service (LMS: ${lms_id})`
-                });
-                
-                // If attachment_id already has content, append the new ID
-                let newIds = newAttachment.id.toString();
-                if (letter.attachment_id) {
-                    const existingIds = String(letter.attachment_id).split(',').filter(id => id.trim());
-                    if (!existingIds.includes(newAttachment.id.toString())) {
-                        newIds = [...existingIds, newAttachment.id.toString()].join(',');
-                    }
-                }
-
-                await letter.update({
-                    attachment_id: newIds,
-                    scanned_copy: filePath
-                });
-            }
+            // 5. Update letter scanned_copy only.
+            // Do NOT create/update Attachment records here — merged/synced PDFs are letter-scanned copies, not "Attachments page" entries.
+            await letter.update({ scanned_copy: filePath });
 
             // 6. Log the action
             try {

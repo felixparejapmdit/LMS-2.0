@@ -43,7 +43,7 @@ import {
   Eye,
   Settings2,
   Trash2,
-  ShoppingCart
+  Bell
 } from "lucide-react";
 import { directusUrl, getAssetUrl } from "../hooks/useDirectus";
 import systemPageService from "../services/systemPageService";
@@ -230,7 +230,7 @@ export default function Sidebar() {
       }
       if (item.path === "#") return item;
       const key = getPageKeyFromPath(item.path);
-      
+
       const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
       const isDisabled = (item.label === "New Letter" && isAccessManager && !isSetupComplete);
 
@@ -289,7 +289,7 @@ export default function Sidebar() {
                     className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 group/cart cursor-pointer relative transition-all hover:bg-blue-50/80 dark:hover:bg-blue-500/10 active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
                     title="Open my endorsements"
                   >
-                    <ShoppingCart className="w-7 h-7 text-blue-600 dark:text-blue-400 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
+                    <Bell className="w-9 h-9 text-blue-600 dark:text-blue-400 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
                     {notificationCount > 0 && (
                       <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-red-500 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[11px] font-black shadow-md leading-none px-1.5">
                         {notificationCount > 99 ? '99+' : notificationCount}
@@ -305,7 +305,7 @@ export default function Sidebar() {
                 className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 group/cart cursor-pointer relative transition-all hover:bg-blue-50/80 dark:hover:bg-blue-500/10 active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
                 title="Open my endorsements"
               >
-                <ShoppingCart className="w-7 h-7 text-blue-600 dark:text-blue-400 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
+                <Bell className="w-9 h-9 text-blue-600 dark:text-blue-400 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
                 {notificationCount > 0 && (
                   <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-red-500 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[11px] font-black shadow-md leading-none px-1.5">
                     {notificationCount > 99 ? '99+' : notificationCount}
@@ -339,9 +339,9 @@ export default function Sidebar() {
                     const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
                     const activeTint = isAccessManager ? "bg-sky-500/15 dark:bg-sky-400/15" : "bg-emerald-500/15 dark:bg-emerald-400/15";
                     const indicator = isAccessManager ? "before:bg-sky-500" : "before:bg-emerald-500";
-                    
+
                     if (item.isDisabled) {
-                        return `
+                      return `
                         flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group/item relative
                         opacity-40 grayscale cursor-not-allowed pointer-events-none select-none
                         ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
@@ -503,7 +503,7 @@ export default function Sidebar() {
                     className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 group/cart cursor-pointer relative transition-all hover:bg-orange-50 dark:hover:bg-orange-500/10 active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
                     title="Open my endorsements"
                   >
-                    <ShoppingCart className="w-6 h-6 text-orange-600 dark:text-orange-300 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
+                    <Bell className="w-6 h-6 text-orange-600 dark:text-orange-300 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
                     {notificationCount > 0 && (
                       <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-red-600 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[11px] font-black shadow-md leading-none px-1.5">
                         {notificationCount > 99 ? '99+' : notificationCount}
@@ -519,7 +519,7 @@ export default function Sidebar() {
                 className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 group/cart cursor-pointer relative transition-all hover:bg-orange-50 dark:hover:bg-orange-500/10 active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
                 title="Open my endorsements"
               >
-                <ShoppingCart className="w-6 h-6 text-orange-600 dark:text-orange-300 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
+                <Bell className="w-6 h-6 text-orange-600 dark:text-orange-300 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
                 {notificationCount > 0 && (
                   <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-red-600 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[11px] font-black shadow-md leading-none px-1.5">
                     {notificationCount > 99 ? '99+' : notificationCount}
@@ -554,7 +554,7 @@ export default function Sidebar() {
                   title={!isSidebarExpanded ? item.label : ""}
                   className={({ isActive }) => {
                     if (item.isDisabled) {
-                        return `
+                      return `
                         flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative
                         opacity-40 grayscale cursor-not-allowed pointer-events-none select-none
                         ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
@@ -563,8 +563,8 @@ export default function Sidebar() {
                     return `
                   flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative
                   ${isActive && !item.children && item.path !== "#"
-                      ? "bg-emerald-500/10 dark:bg-emerald-400/10 text-gray-900 dark:text-white font-semibold before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-full before:bg-emerald-500"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-200/70 dark:hover:bg-white/5"}
+                        ? "bg-emerald-500/10 dark:bg-emerald-400/10 text-gray-900 dark:text-white font-semibold before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-full before:bg-emerald-500"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-200/70 dark:hover:bg-white/5"}
                   ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                 `}}
                 >
@@ -573,8 +573,8 @@ export default function Sidebar() {
                       <item.icon className={`w-4 h-4 shrink-0 ${item.color || ''}`} />
                       {(isSidebarExpanded || isMobileMenuOpen) && (
                         <div className="flex flex-col truncate">
-                            <span className="text-[16px] leading-tight">{item.label}</span>
-                            {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
+                          <span className="text-[16px] leading-tight">{item.label}</span>
+                          {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
                         </div>
                       )}
                       {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
@@ -640,7 +640,7 @@ export default function Sidebar() {
                       ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : 'justify-start'}
                     `}
                 >
-                  <div className="w-7 h-7 bg-orange-500 rounded flex items-center justify-center text-white shrink-0 shadow-sm transition-transform group-hover/prof:scale-110 overflow-hidden">
+                  <div className="w-9 h-9 bg-orange-500 rounded flex items-center justify-center text-white shrink-0 shadow-sm transition-transform group-hover/prof:scale-110 overflow-hidden">
                     {user?.avatar ? (
                       <img
                         src={getAssetUrl(user.avatar, "?width=80&height=80&fit=cover")}
@@ -700,7 +700,7 @@ export default function Sidebar() {
                 className={`w-11 h-11 shrink-0 rounded-xl bg-transparent flex items-center justify-center text-[#1A1A1B] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all relative active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
                 title="Open my endorsements"
               >
-                <ShoppingCart className="w-7 h-7 drop-shadow-sm" />
+                <Bell className="w-9 h-9 drop-shadow-sm" />
                 {notificationCount > 0 && (
                   <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-red-500 text-white rounded-full text-[11px] font-black flex items-center justify-center shadow-md leading-none px-1.5">
                     {notificationCount > 99 ? '99+' : notificationCount}
@@ -732,9 +732,9 @@ export default function Sidebar() {
                     const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
                     const activeTint = isAccessManager ? "bg-sky-500/10 dark:bg-sky-400/10" : "bg-emerald-500/10 dark:bg-emerald-400/10";
                     const indicator = isAccessManager ? "before:bg-sky-500" : "before:bg-emerald-500";
-                    
+
                     if (item.isDisabled) {
-                        return `
+                      return `
                         flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative
                         opacity-40 grayscale cursor-not-allowed pointer-events-none select-none
                         ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
@@ -744,8 +744,8 @@ export default function Sidebar() {
                     return `
                     flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative
                     ${isActive && !item.children && item.path !== "#"
-                      ? `${activeTint} text-[#1A1A1B] dark:text-white font-semibold before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-full ${indicator}`
-                      : "text-[#737373] dark:text-[#A3A3A3] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[#1A1A1B] dark:hover:text-white"}
+                        ? `${activeTint} text-[#1A1A1B] dark:text-white font-semibold before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-full ${indicator}`
+                        : "text-[#737373] dark:text-[#A3A3A3] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[#1A1A1B] dark:hover:text-white"}
                     ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                   `}}
                 >
@@ -754,8 +754,8 @@ export default function Sidebar() {
                       <item.icon className={`w-4 h-4 shrink-0 transition-colors ${item.color || ''}`} />
                       {(isSidebarExpanded || isMobileMenuOpen) && (
                         <div className="flex flex-col truncate">
-                            <span className="text-[16px] leading-tight font-medium">{item.label}</span>
-                            {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
+                          <span className="text-[16px] leading-tight font-medium">{item.label}</span>
+                          {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
                         </div>
                       )}
                       {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
@@ -789,11 +789,10 @@ export default function Sidebar() {
                             const isAccessManager = (user?.roleData?.name || user?.role || '').toString().toUpperCase() === 'ACCESS MANAGER';
                             const activeTint = isAccessManager ? "bg-sky-500/10 dark:bg-sky-400/10" : "bg-emerald-500/10 dark:bg-emerald-400/10";
                             const indicator = isAccessManager ? "before:bg-sky-500" : "before:bg-emerald-500";
-                            return `flex items-center gap-3 px-4 py-2 text-[13px] transition-colors rounded-xl relative ${
-                              isActive
-                                ? `${activeTint} text-[#1A1A1B] dark:text-white font-semibold before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full ${indicator}`
-                                : "text-[#737373] dark:text-[#A3A3A3] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[#1A1A1B] dark:hover:text-white"
-                            }`;
+                            return `flex items-center gap-3 px-4 py-2 text-[13px] transition-colors rounded-xl relative ${isActive
+                              ? `${activeTint} text-[#1A1A1B] dark:text-white font-semibold before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full ${indicator}`
+                              : "text-[#737373] dark:text-[#A3A3A3] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[#1A1A1B] dark:hover:text-white"
+                              }`;
                           }}
                         >
                           {() => (
@@ -861,7 +860,7 @@ export default function Sidebar() {
                   className={`w-11 h-11 rounded-2xl flex items-center justify-center group/cart cursor-pointer hover:bg-orange-50/80 dark:hover:bg-orange-900/20 transition-all shrink-0 relative active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
                   title="Open my endorsements"
                 >
-                  <ShoppingCart className="text-orange-600 dark:text-orange-300 w-7 h-7 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
+                  <Bell className="text-orange-600 dark:text-orange-300 w-9 h-9 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
                   {notificationCount > 0 && (
                     <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-orange-500 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[11px] font-black shadow-md text-white leading-none px-1.5">
                       {notificationCount > 99 ? '99+' : notificationCount}
@@ -877,7 +876,7 @@ export default function Sidebar() {
               className={`w-11 h-11 rounded-2xl flex items-center justify-center group/cart cursor-pointer hover:bg-orange-50/80 dark:hover:bg-orange-900/20 transition-all shrink-0 relative active:scale-95 ${notificationCount > 0 ? 'motion-safe:animate-shake-notify' : ''}`}
               title="Open my endorsements"
             >
-              <ShoppingCart className="text-orange-600 dark:text-orange-300 w-7 h-7 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
+              <Bell className="text-orange-600 dark:text-orange-300 w-9 h-9 drop-shadow-sm transition-transform group-hover/cart:rotate-12" />
               {notificationCount > 0 && (
                 <div className="absolute -top-2 -right-2 min-w-[26px] h-[26px] bg-orange-500 border-2 border-white dark:border-[#141414] rounded-full flex items-center justify-center text-[11px] font-black shadow-md text-white leading-none px-1.5">
                   {notificationCount > 99 ? '99+' : notificationCount}
@@ -907,18 +906,18 @@ export default function Sidebar() {
                 }}
                 title={!isSidebarExpanded ? item.label : ""}
                 className={({ isActive }) => {
-                    if (item.isDisabled) {
-                        return `
+                  if (item.isDisabled) {
+                    return `
                         flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-200 relative
                         opacity-40 grayscale cursor-not-allowed pointer-events-none select-none
                         ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center px-0' : ''}
                         `;
-                    }
-                    return `
+                  }
+                  return `
                 flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-200 relative
                 ${isActive && !item.children && item.path !== "#"
-                    ? "bg-sky-500/10 dark:bg-sky-400/10 text-slate-900 dark:text-white shadow-sm before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-7 before:w-1 before:rounded-full before:bg-sky-500"
-                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-white/5"}
+                      ? "bg-sky-500/10 dark:bg-sky-400/10 text-slate-900 dark:text-white shadow-sm before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-7 before:w-1 before:rounded-full before:bg-sky-500"
+                      : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-white/5"}
                 ${(!isSidebarExpanded && !isMobileMenuOpen) ? 'justify-center' : 'justify-start'}
               `}}
               >
@@ -926,10 +925,10 @@ export default function Sidebar() {
                   <>
                     <item.icon className={`w-5 h-5 transition-transform shrink-0 ${item.color || ''}`} />
                     {(isSidebarExpanded || isMobileMenuOpen) && (
-                        <div className="flex flex-col">
-                            <span className="text-[15px] font-semibold tracking-wide leading-tight">{item.label}</span>
-                            {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
-                        </div>
+                      <div className="flex flex-col">
+                        <span className="text-[15px] font-semibold tracking-wide leading-tight">{item.label}</span>
+                        {item.isDisabled && <span className="text-[7px] font-black text-red-500 uppercase leading-none">Setup Required</span>}
+                      </div>
                     )}
                     {item.children && (isSidebarExpanded || isMobileMenuOpen) && (
                       <ChevronRight className={`w-4 h-4 ml-auto transition-transform duration-300 ${expandedMenus[item.label] ? 'rotate-90' : ''}`} />
@@ -971,9 +970,9 @@ export default function Sidebar() {
                             <child.icon className={`w-4 h-4 shrink-0 ${child.color || ''}`} />
                             <span className="text-[13px] font-semibold tracking-wide leading-tight">{child.label}</span>
                             {child.label === "Trash" && trashCount > 0 && (
-                                <span className="ml-auto min-w-[18px] h-[18px] bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black px-1 leading-none shadow-sm animate-in zoom-in duration-300">
-                                  {trashCount > 99 ? '99+' : trashCount}
-                                </span>
+                              <span className="ml-auto min-w-[18px] h-[18px] bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black px-1 leading-none shadow-sm animate-in zoom-in duration-300">
+                                {trashCount > 99 ? '99+' : trashCount}
+                              </span>
                             )}
                           </>
                         )}
