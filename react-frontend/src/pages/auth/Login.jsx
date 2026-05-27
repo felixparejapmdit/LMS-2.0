@@ -1,20 +1,40 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, Loader2, User, FileStack, ArrowRight, ShieldCheck, HelpCircle } from "lucide-react";
+import { Lock, Loader2, User, FileStack, ArrowRight, ShieldCheck, Activity, X } from "lucide-react";
 import { useUI } from "../../context/AuthContext";
+import letterService from "../../services/letterService";
+import LetterTrackingDrawer from "../../components/LetterTrackingDrawer";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
+  const [referenceCode, setReferenceCode] = useState("");
+  const [trackError, setTrackError] = useState("");
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackingLetter, setTrackingLetter] = useState(null);
+  const [isTrackDrawerOpen, setIsTrackDrawerOpen] = useState(false);
+  const trackInputRef = useRef(null);
 
   const { login, loginGuest } = useAuth();
   const navigate = useNavigate();
-  const { startTutorial, appSettings } = useUI();
+  const { appSettings } = useUI();
   const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
   const loginLogoUrl = appSettings?.login_logo ? `${backendBase}${appSettings.login_logo}` : null;
+
+  const normalizedReferenceCode = useMemo(
+    () => referenceCode.trim().toUpperCase(),
+    [referenceCode],
+  );
+
+  useEffect(() => {
+    if (!isTrackModalOpen) return;
+    const t = setTimeout(() => trackInputRef.current?.focus?.(), 50);
+    return () => clearTimeout(t);
+  }, [isTrackModalOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,6 +59,34 @@ export default function Login() {
       setError(result.error || "Login failed. Please check your credentials.");
     }
     setLoading(false);
+  };
+
+  const handleTrackLookup = async (e) => {
+    e?.preventDefault?.();
+    setTrackError("");
+
+    const ref = normalizedReferenceCode;
+    if (!ref) {
+      setTrackError("Please enter a Reference Code.");
+      return;
+    }
+
+    try {
+      setTrackLoading(true);
+      const tracked = await letterService.trackPublicByLmsId(ref);
+      setTrackingLetter(tracked);
+      setIsTrackModalOpen(false);
+      setIsTrackDrawerOpen(true);
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.error || err?.message;
+      if (status === 404) setTrackError("Reference Code not found.");
+      else if (status === 403)
+        setTrackError(msg || "Access restricted for this Reference Code.");
+      else setTrackError(msg || "Failed to fetch tracking details.");
+    } finally {
+      setTrackLoading(false);
+    }
   };
 
   return (
@@ -130,17 +178,32 @@ export default function Login() {
               <div className="h-px bg-slate-100 dark:bg-white/5 flex-1" />
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                loginGuest();
-                window.location.href = "/guest/send-letter";
-              }}
-              className="w-full py-4 bg-transparent border border-slate-100 dark:border-white/10 text-slate-400 hover:text-slate-900 dark:hover:text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-[20px] flex items-center justify-center gap-3 group"
-            >
-              <ShieldCheck className="w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity" />
-              Guest Access
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  loginGuest();
+                  window.location.href = "/guest/send-letter";
+                }}
+                className="w-full py-4 bg-transparent border border-slate-100 dark:border-white/10 text-slate-400 hover:text-slate-900 dark:hover:text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-[20px] flex items-center justify-center gap-3 group"
+              >
+                <ShieldCheck className="w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity" />
+                Guest Access
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTrackError("");
+                  setReferenceCode("");
+                  setIsTrackModalOpen(true);
+                }}
+                className="w-full py-4 bg-transparent border border-slate-100 dark:border-white/10 text-slate-400 hover:text-slate-900 dark:hover:text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-[20px] flex items-center justify-center gap-3 group"
+              >
+                <Activity className="w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity" />
+                Track Letter
+              </button>
+            </div>
           </form>
         </div>
 
@@ -153,6 +216,85 @@ export default function Login() {
           </p>
         </div>
       </div>
+
+      <LetterTrackingDrawer
+        open={isTrackDrawerOpen}
+        letter={trackingLetter}
+        onClose={() => setIsTrackDrawerOpen(false)}
+        side="left"
+      />
+
+      {isTrackModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setIsTrackModalOpen(false)}
+          />
+          <div className="relative z-10 w-full max-w-md bg-white/80 dark:bg-black/50 backdrop-blur-3xl border border-white/50 dark:border-white/10 rounded-[36px] shadow-[0px_40px_100px_rgba(0,0,0,0.10)] p-7 sm:p-8 animate-in fade-in zoom-in-95 duration-300">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <p className="text-[9px] font-black text-slate-400 dark:text-gray-600 uppercase tracking-widest">
+                  Public Tracking
+                </p>
+                <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+                  Track Letter
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTrackModalOpen(false)}
+                className="p-2 rounded-2xl hover:bg-slate-100/70 dark:hover:bg-white/5 transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 leading-relaxed mb-4">
+              Enter your Reference Code to view the activity tracking timeline and PDF preview (if available).
+            </p>
+
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  ref={trackInputRef}
+                  value={referenceCode}
+                  onChange={(e) => setReferenceCode(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleTrackLookup();
+                    }
+                  }}
+                  placeholder="Reference Code"
+                  className="flex-1 px-4 py-3 rounded-2xl bg-white dark:bg-[#0f0f0f] border border-slate-100 dark:border-white/10 outline-none font-bold text-xs text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-gray-700 focus:ring-2 focus:ring-orange-500/20"
+                  autoComplete="off"
+                  inputMode="text"
+                />
+                <button
+                  type="button"
+                  onClick={handleTrackLookup}
+                  disabled={trackLoading}
+                  className="px-4 py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2 min-w-[110px]"
+                >
+                  {trackLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Search"
+                  )}
+                </button>
+              </div>
+
+              {trackError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-2xl text-[10px] font-black text-center uppercase tracking-widest border border-red-100 dark:border-red-900/20">
+                  {trackError}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

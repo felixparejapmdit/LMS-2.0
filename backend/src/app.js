@@ -8,6 +8,7 @@ const processStepRoutes = require("./routes/processStepRoutes");
 const userRoutes = require("./routes/userRoutes");
 const attachmentRoutes = require("./routes/attachmentRoutes");
 const letterRoutes = require("./routes/letterRoutes");
+const LetterController = require("./controllers/LetterController");
 const letterAssignmentRoutes = require("./routes/letterAssignmentRoutes");
 const statsRoutes = require("./routes/statsRoutes");
 const commentRoutes = require("./routes/commentRoutes");
@@ -118,6 +119,9 @@ apiRouter.get("/test-notes", (req, res) => res.json({ message: "Test route works
 apiRouter.use("/auth", authRoutes);
 apiRouter.use("/telegram", telegramRoutes);
 apiRouter.use("/app-settings", require("./routes/appSettingsRoutes"));
+// Public: reference-code tracking (no auth required)
+apiRouter.get("/letters/track", LetterController.trackPublic);
+apiRouter.get("/letters/track/pdf", LetterController.trackPublicPdf);
 
 // Apply authentication middleware for all subsequent routes
 const { ensureAuthenticated } = require("./middleware/auth");

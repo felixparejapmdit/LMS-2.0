@@ -18,6 +18,8 @@ const sequelize = require("../config/db");
 const { Op } = require("sequelize");
 const SectionService = require("../services/SectionService");
 const TelegramService = require("../services/telegramService");
+const path = require("path");
+const fs = require("fs");
 
 const isValidId = (id) =>
   id && id !== "all" && id !== "null" && id !== "undefined" && id !== "";
@@ -537,6 +539,212 @@ class LetterController {
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async trackPublic(req, res) {
+    try {
+      const lmsIdRaw = (
+        req.query.lms_id ||
+        req.query.ref ||
+        req.query.reference_code ||
+        req.query.referenceCode ||
+        ""
+      )
+        .toString()
+        .trim();
+
+      if (!lmsIdRaw) {
+        return res.status(400).json({ error: "Reference code is required" });
+      }
+
+      const result = await Letter.findOne({
+        where: { lms_id: { [Op.like]: lmsIdRaw } },
+        attributes: [
+          "id",
+          "lms_id",
+          "is_hidden",
+          "is_resolved",
+          "atgnote",
+          "aevmnote",
+          "evemnote",
+        ],
+        include: [
+          {
+            model: Endorsement,
+            as: "endorsements",
+            attributes: ["id", "endorsed_to"],
+            required: false,
+          },
+          {
+            model: LetterLog,
+            as: "logs",
+            attributes: [
+              "id",
+              "timestamp",
+              "log_date",
+              "action_type",
+              "log_details",
+              "metadata",
+            ],
+            required: false,
+            include: [
+              {
+                model: Department,
+                as: "department",
+                attributes: ["id", "dept_code", "dept_name"],
+                required: false,
+              },
+              {
+                model: ProcessStep,
+                as: "step",
+                attributes: ["id", "step_name"],
+                required: false,
+              },
+              {
+                model: Status,
+                as: "status",
+                attributes: ["id", "status_name"],
+                required: false,
+              },
+            ],
+          },
+        ],
+      });
+
+      if (!result) return res.status(404).json({ error: "Letter not found" });
+      if (result.is_hidden) {
+        return res
+          .status(403)
+          .json({ error: "Access Restricted: This letter is hidden." });
+      }
+
+      const payload = {
+        id: result.id,
+        lms_id: result.lms_id,
+        is_resolved: !!result.is_resolved,
+        atgnote: result.atgnote || "",
+        aevmnote: result.aevmnote || "",
+        evemnote: result.evemnote || "",
+        endorsements: (result.endorsements || []).map((e) => ({
+          id: e.id,
+          endorsed_to: e.endorsed_to,
+        })),
+        logs: (result.logs || []).map((l) => ({
+          id: l.id,
+          timestamp: l.timestamp,
+          log_date: l.log_date,
+          action_type: l.action_type,
+          log_details: l.log_details,
+          metadata: l.metadata,
+          status: l.status ? { id: l.status.id, status_name: l.status.status_name } : null,
+          step: l.step ? { id: l.step.id, step_name: l.step.step_name } : null,
+          department: l.department
+            ? {
+                id: l.department.id,
+                dept_code: l.department.dept_code,
+                dept_name: l.department.dept_name,
+              }
+            : null,
+        })),
+      };
+
+      return res.json(payload);
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async trackPublicPdf(req, res) {
+    try {
+      const lmsIdRaw = (
+        req.query.lms_id ||
+        req.query.ref ||
+        req.query.reference_code ||
+        req.query.referenceCode ||
+        ""
+      )
+        .toString()
+        .trim();
+
+      if (!lmsIdRaw) {
+        return res.status(400).json({ error: "Reference code is required" });
+      }
+
+      const letter = await Letter.findOne({
+        where: { lms_id: { [Op.like]: lmsIdRaw } },
+        attributes: ["id", "lms_id", "is_hidden", "scanned_copy", "attachment_id"],
+      });
+
+      if (!letter) return res.status(404).json({ error: "Letter not found" });
+      if (letter.is_hidden) {
+        return res
+          .status(403)
+          .json({ error: "Access Restricted: This letter is hidden." });
+      }
+
+      const { PDFDocument } = require("pdf-lib");
+
+      const mergedPdf = await PDFDocument.create();
+      let pagesAdded = 0;
+      const processedPaths = new Set();
+
+      if (letter.attachment_id) {
+        const ids = String(letter.attachment_id).split(",");
+        for (const id of ids) {
+          const att = await Attachment.findByPk(id.trim());
+          if (att && att.file_path) {
+            const absPath = path.resolve(att.file_path);
+            if (processedPaths.has(absPath)) continue;
+            if (!fs.existsSync(absPath)) continue;
+
+            try {
+              const bytes = fs.readFileSync(absPath);
+              const pdf = await PDFDocument.load(bytes);
+              const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+              pages.forEach((p) => mergedPdf.addPage(p));
+              pagesAdded += pages.length;
+              processedPaths.add(absPath);
+            } catch (err) {
+              console.warn(
+                `[TRACK_PUBLIC_PDF] Failed attachment ${id}:`,
+                err.message,
+              );
+            }
+          }
+        }
+      }
+
+      if (letter.scanned_copy) {
+        const absPath = path.resolve(letter.scanned_copy);
+        if (!processedPaths.has(absPath) && fs.existsSync(absPath)) {
+          try {
+            const bytes = fs.readFileSync(absPath);
+            const pdf = await PDFDocument.load(bytes);
+            const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+            pages.forEach((p) => mergedPdf.addPage(p));
+            pagesAdded += pages.length;
+            processedPaths.add(absPath);
+          } catch (err) {
+            console.warn(`[TRACK_PUBLIC_PDF] Failed scanned_copy:`, err.message);
+          }
+        }
+      }
+
+      if (pagesAdded === 0) {
+        return res.status(404).json({ error: "No PDF files found for this letter" });
+      }
+
+      const mergedPdfBytes = await mergedPdf.save();
+      const filename = `${letter.lms_id || "document"}.pdf`;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="${filename}"`,
+      );
+      return res.send(Buffer.from(mergedPdfBytes));
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
     }
   }
 

@@ -27,6 +27,20 @@ class LetterService {
         return response.data;
     }
 
+    async trackPublicByLmsId(lms_id) {
+        const ref = (lms_id || "").toString().trim();
+        const response = await axios.get(`${API_URL}/track`, {
+            params: { lms_id: ref }
+        });
+        return response.data;
+    }
+
+    getPublicPdfUrlByLmsId(lms_id) {
+        const ref = (lms_id || "").toString().trim();
+        if (!ref) return "";
+        return `${API_URL}/track/pdf?lms_id=${encodeURIComponent(ref)}`;
+    }
+
     async create(data) {
         const response = await axios.post(API_URL, data);
         return response.data;
