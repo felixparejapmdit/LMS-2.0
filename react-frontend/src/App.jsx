@@ -146,6 +146,7 @@ function AppRoutes() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       const key = e.key.toLowerCase();
+      const code = e.code;
       
       if (e.key === 'Escape') {
         // Dispatch global event for modals to close
@@ -160,11 +161,11 @@ function AppRoutes() {
       }
 
       // Triggers (Ctrl+Y or Ctrl+A)
-      if (e.ctrlKey && key === 'y') {
+      if (e.ctrlKey && (key === 'y' || code === 'KeyY')) {
         sequenceRef.current = 'ctrl_y';
         e.preventDefault();
         console.log("[SHORTCUT] Sequence primed: ctrl_y");
-      } else if (e.ctrlKey && key === 'a') {
+      } else if (e.ctrlKey && (key === 'a' || code === 'KeyA')) {
         // Only prevent default for Ctrl+A if not in an input/textarea to allow "Select All"
         const isInput = ['input', 'textarea'].includes(e.target.tagName.toLowerCase()) || e.target.isContentEditable;
         if (!isInput) {
@@ -174,12 +175,12 @@ function AppRoutes() {
         console.log("[SHORTCUT] Sequence primed: ctrl_a");
       } 
       // Completions (X after Ctrl+Y, or M after Ctrl+A)
-      else if (sequenceRef.current === 'ctrl_y' && key === 'x') {
+      else if (sequenceRef.current === 'ctrl_y' && (key === 'x' || code === 'KeyX')) {
         e.preventDefault();
         console.log("[SHORTCUT] Navigating to VEM Resumen");
         navigate('/vem-resumen');
         sequenceRef.current = '';
-      } else if (sequenceRef.current === 'ctrl_a' && key === 'm') {
+      } else if (sequenceRef.current === 'ctrl_a' && (key === 'm' || code === 'KeyM')) {
         e.preventDefault();
         console.log("[SHORTCUT] Navigating to AEVM Resumen");
         navigate('/aevm-resumen');
@@ -191,8 +192,8 @@ function AppRoutes() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [navigate]);
 
   return (

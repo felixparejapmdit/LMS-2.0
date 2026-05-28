@@ -35,7 +35,8 @@ import {
   Printer,
   Settings,
   Pencil,
-  ChevronDown
+  ChevronDown,
+  User
 } from "lucide-react";
 import letterService from "../../services/letterService";
 import departmentService from "../../services/departmentService";
@@ -147,6 +148,10 @@ export default function MasterTable() {
   const [showAuthorizedSuggestions, setShowAuthorizedSuggestions] = useState(false);
   const [highlightedAuthIndex, setHighlightedAuthIndex] = useState(-1);
   const authorizedRef = useRef(null);
+  const [senderSuggestions, setSenderSuggestions] = useState([]);
+  const [showSenderSuggestions, setShowSenderSuggestions] = useState(false);
+  const [highlightedSenderIndex, setHighlightedSenderIndex] = useState(-1);
+  const senderRef = useRef(null);
   const canUserViewPDF = (letter) => {
     if (!letter.is_hidden) return true;
     if (isSuperAdmin) return true;
@@ -357,6 +362,51 @@ export default function MasterTable() {
     return parts.join("; ");
   };
 
+  const fetchSenderSuggestions = async (query) => {
+    const token = (query || "").toString().split(";").pop().trim();
+    if (!token || token.length < 2) {
+      setSenderSuggestions([]);
+      setShowSenderSuggestions(false);
+      setHighlightedSenderIndex(-1);
+      return;
+    }
+
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/persons/search?query=${encodeURIComponent(token)}`,
+      );
+
+      const seen = new Set();
+      const cleaned = (Array.isArray(response.data) ? response.data : [])
+        .map((p) => ({ ...p, name: (p.name || "").replace(/,+$/, "").trim() }))
+        .filter((p) => {
+          if (!p.name || seen.has(p.name)) return false;
+          seen.add(p.name);
+          return true;
+        });
+
+      setSenderSuggestions(cleaned);
+      setShowSenderSuggestions(cleaned.length > 0);
+      setHighlightedSenderIndex(cleaned.length > 0 ? 0 : -1);
+    } catch (error) {
+      console.error("Error fetching sender suggestions:", error);
+    }
+  };
+
+  const selectSenderSuggestion = (name) => {
+    const cleanName = (name || "").toString().replace(/,+$/, "").trim();
+    const currentValue = selectedLetter?.sender || "";
+    const parts = currentValue.split(";").map((p) => p.trim());
+    parts[parts.length - 1] = cleanName;
+    const joined = parts.filter((p) => p !== "").join("; ");
+    setSelectedLetter((prev) => ({
+      ...prev,
+      sender: joined ? `${joined}; ` : "",
+    }));
+    setShowSenderSuggestions(false);
+    setHighlightedSenderIndex(-1);
+  };
+
   const setEndorseLastToken = (fullValue, selectedName) => {
     const cleanName = (selectedName || "").toString().replace(/,+$/, "").trim();
     const parts = (fullValue || "").toString().split(";").map((p) => p.trim());
@@ -374,6 +424,8 @@ export default function MasterTable() {
         setShowEndorseSuggestions(false);
       if (authorizedRef.current && !authorizedRef.current.contains(e.target))
         setShowAuthorizedSuggestions(false);
+      if (senderRef.current && !senderRef.current.contains(e.target))
+        setShowSenderSuggestions(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -441,6 +493,54 @@ export default function MasterTable() {
       if (picked) selectAuthorizedSuggestion(picked.name);
     } else if (e.key === "Escape") {
       setShowAuthorizedSuggestions(false);
+    }
+  };
+
+  const handleSenderChange = (e) => {
+    const value = e.target.value;
+    setSelectedLetter((prev) => ({
+      ...prev,
+      sender: value,
+    }));
+    fetchSenderSuggestions(value);
+  };
+
+  const handleSenderKeyDown = (e) => {
+    if (!senderSuggestions || senderSuggestions.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showSenderSuggestions) setShowSenderSuggestions(true);
+      setHighlightedSenderIndex((prev) =>
+        Math.min(prev < 0 ? 0 : prev + 1, senderSuggestions.length - 1),
+      );
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!showSenderSuggestions) setShowSenderSuggestions(true);
+      setHighlightedSenderIndex((prev) => Math.max(prev < 0 ? 0 : prev - 1, 0));
+      return;
+    }
+
+    if (e.key === "Enter" && showSenderSuggestions) {
+      e.preventDefault();
+      const picked = senderSuggestions[highlightedSenderIndex < 0 ? 0 : highlightedSenderIndex];
+      if (picked) selectSenderSuggestion(picked.name);
+      return;
+    }
+
+    if (e.key === "Tab" && showSenderSuggestions) {
+      const picked = senderSuggestions[highlightedSenderIndex < 0 ? 0 : highlightedSenderIndex];
+      if (picked) selectSenderSuggestion(picked.name);
+      return;
+    }
+
+    if (e.key === "Escape" && showSenderSuggestions) {
+      e.preventDefault();
+      setShowSenderSuggestions(false);
+      setHighlightedSenderIndex(-1);
     }
   };
 
@@ -734,12 +834,9 @@ export default function MasterTable() {
     });
 
     // 1. Update core letter details with user context for logging
-    const shouldMarkPending =
-      !!updatedLetter.currentStepId &&
-      (!updatedLetter.assignments || updatedLetter.assignments.length === 0);
     const finalLetter = {
       ...updatedLetter,
-      ...(shouldMarkPending ? { global_status: 8 } : {}),
+      global_status: updatedLetter.global_status ?? 8,
       user_id: user?.id,
       date_received: new Date().toISOString() // Automatically update date on save
     };
@@ -1961,17 +2058,40 @@ export default function MasterTable() {
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                       Sender
                     </label>
-                    <input
-                      type="text"
-                      className={`w-full px-4 py-3 rounded-xl border text-sm font-bold ${"bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white"}`}
-                      value={selectedLetter.sender || ""}
-                      onChange={(e) =>
-                        setSelectedLetter({
-                          ...selectedLetter,
-                          sender: e.target.value,
-                        })
-                      }
-                    />
+                    <div ref={senderRef} className="relative">
+                      <input
+                        type="text"
+                        className={`w-full px-4 py-3 rounded-xl border text-sm font-bold ${"bg-slate-50 dark:bg-[#1a1a1a] border-gray-100 dark:border-[#333] text-slate-900 dark:text-white"}`}
+                        value={selectedLetter.sender || ""}
+                        onChange={handleSenderChange}
+                        onKeyDown={handleSenderKeyDown}
+                        onFocus={() => {
+                          if (selectedLetter.sender?.length >= 2) {
+                            fetchSenderSuggestions(selectedLetter.sender);
+                          }
+                        }}
+                      />
+                      {showSenderSuggestions && senderSuggestions.length > 0 && (
+                        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-[#141414] border border-gray-100 dark:border-[#333] rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                          {senderSuggestions.map((person, idx) => (
+                            <button
+                              key={person.id}
+                              type="button"
+                              onClick={() => selectSenderSuggestion(person.name)}
+                              onMouseEnter={() => setHighlightedSenderIndex(idx)}
+                              data-suggestion-index={idx}
+                              className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors border-b last:border-0 border-gray-50 dark:border-white/5 flex items-center gap-3 ${idx === highlightedSenderIndex
+                                ? "bg-orange-50 dark:bg-orange-900/10 text-orange-600"
+                                : "text-gray-900 dark:text-white hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600"
+                                }`}
+                            >
+                              <User className="w-3 h-3 text-orange-400" />
+                              <span>{person.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Assign This Letter To (Endorsement) */}

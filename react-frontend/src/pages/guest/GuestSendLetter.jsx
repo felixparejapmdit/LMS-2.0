@@ -29,6 +29,11 @@ import axios from "axios";
 import SuccessModal from "../../components/SuccessModal";
 import ConflictModal from "../../components/ConflictModal";
 import useAccess from "../../hooks/useAccess";
+import {
+    cleanPersonName,
+    filterPersonSuggestions,
+    getAutocompleteQuery
+} from "../../utils/personAutocomplete";
 
 export default function GuestSendLetter() {
     const { user, logout, layoutStyle, isMobileMenuOpen, setIsMobileMenuOpen, isGuest } = useAuth();
@@ -225,24 +230,17 @@ export default function GuestSendLetter() {
     }, []);
 
     const fetchSuggestions = async (query) => {
-        if (!query || query.length < 2) {
+        const normalizedQuery = getAutocompleteQuery(query);
+        if (!normalizedQuery || normalizedQuery.length < 2) {
             setSuggestions([]);
             setShowSuggestions(false);
             setHighlightedSuggestionIndex(-1);
             return;
         }
         try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/search?query=${query}`);
+            const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/persons/search?query=${encodeURIComponent(normalizedQuery)}`);
 
-            // Deduplicate and clean names in suggestions to handle existing DB inconsistencies
-            const seen = new Set();
-            const cleaned = response.data
-                .map(p => ({ ...p, name: p.name.replace(/,+$/, '').trim() }))
-                .filter(p => {
-                    if (seen.has(p.name)) return false;
-                    seen.add(p.name);
-                    return true;
-                });
+            const cleaned = filterPersonSuggestions(response.data, normalizedQuery);
 
             setSuggestions(cleaned);
             setShowSuggestions(cleaned.length > 0);
@@ -472,7 +470,7 @@ export default function GuestSendLetter() {
         if (activeSenderIndex === null) return;
 
         // Clean up name from any trailing punctuation (commas)
-        const cleanName = name.replace(/,+$/, '').trim();
+        const cleanName = cleanPersonName(name);
 
         if (activeSenderIndex === 'encoder') {
             setFormData(prev => ({ ...prev, encoder: cleanName }));
@@ -507,9 +505,14 @@ export default function GuestSendLetter() {
         }
 
         if (e.key === "Tab" && showSuggestions) {
+            e.preventDefault();
             const idx = highlightedSuggestionIndex < 0 ? 0 : highlightedSuggestionIndex;
             const picked = suggestions[idx];
             if (picked) selectSuggestion(picked.name);
+            else {
+                setShowSuggestions(false);
+                setHighlightedSuggestionIndex(-1);
+            }
             return;
         }
 
@@ -536,11 +539,13 @@ export default function GuestSendLetter() {
         }
 
         if (e.key === "Enter" && showSuggestions) {
+            e.preventDefault();
             const idx = highlightedSuggestionIndex < 0 ? 0 : highlightedSuggestionIndex;
             const picked = suggestions[idx];
-            if (picked) {
-                e.preventDefault();
-                selectSuggestion(picked.name);
+            if (picked) selectSuggestion(picked.name);
+            else {
+                setShowSuggestions(false);
+                setHighlightedSuggestionIndex(-1);
             }
             return;
         }
@@ -744,7 +749,7 @@ export default function GuestSendLetter() {
                                                             onKeyDown={(e) => handleSuggestionKeyDown(e, index)}
                                                             onFocus={() => {
                                                                 setActiveSenderIndex(index);
-                                                                if (sender.length >= 2) fetchSuggestions(sender.split(',').pop().trim());
+                                                                if (sender.length >= 2) fetchSuggestions(sender);
                                                             }}
                                                             className={`w-full px-5 py-3 ${inputBg} border-2 rounded-xl focus:border-orange-500 transition-all text-base font-semibold outline-none`}
                                                         />

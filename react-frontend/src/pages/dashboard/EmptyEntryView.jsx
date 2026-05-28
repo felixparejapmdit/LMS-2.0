@@ -137,7 +137,7 @@ export default function EmptyEntryView({ assignments, onRefresh, user }) {
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
                         <Link
-                          to={`/new-letter?ref_code=${letter.lms_id}`}
+                          to={`/new-letter?ref_code=${letter.lms_id}&source=empty-entry`}
                           className="p-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-blue-500 hover:text-white hover:bg-blue-500 transition-all shadow-sm"
                         >
                           <FileEdit className="w-3.5 h-3.5" />

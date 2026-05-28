@@ -6,6 +6,7 @@ import letterService from "../../services/letterService";
 import statusService from "../../services/statusService";
 import axios from "axios";
 import API_BASE from "../../config/apiConfig";
+import { splitDelimitedLines } from "../../utils/textFormatting";
 import {
     FileText,
     Inbox,
@@ -620,6 +621,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         }
         return `INCOMING LETTERS - ${selectedStepLabel}`;
     })();
+    const printHeaderTitleDisplay = printHeaderTitle.toUpperCase();
 
     const printHeaderStyle = (() => {
         if (isFromInbox && category) {
@@ -840,8 +842,8 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                 {/* Print Header */}
                                 <div className="hidden print:flex flex-col mb-1 border-b border-slate-900 pb-0.5">
                                     <div className="flex justify-between items-end">
-                                        <h2 className={`text-sm font-bold text-slate-900 ${isFromInbox && category && (category.toLowerCase().includes('signature') || category.toLowerCase().includes('review')) ? "" : "uppercase"}`}>
-                                            {printHeaderTitle}
+                                        <h2 className="text-sm font-bold text-slate-900 uppercase">
+                                            {printHeaderTitleDisplay}
                                         </h2>
                                         <span className="text-[11px] font-medium text-slate-900">
                                             Printed:{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -1013,7 +1015,14 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                         </td>
                                                         <td className="py-6 px-4 print:py-1.5 print:px-2 print:border-r print:border-slate-300">
                                                             <div className="flex flex-col">
-                                                                <span className="text-xs font-black text-slate-800 dark:text-white uppercase print:text-slate-900">{l.sender}</span>
+                                                                {splitDelimitedLines(l.sender).map((senderLine, index) => (
+                                                                    <span
+                                                                        key={`${l.id}-sender-${index}`}
+                                                                        className="text-xs font-black text-slate-800 dark:text-white uppercase print:text-slate-900 leading-tight"
+                                                                    >
+                                                                        {senderLine}
+                                                                    </span>
+                                                                ))}
                                                                 <span className="text-[10px] text-slate-400 font-bold print:hidden">{l.locale || 'N/A'}</span>
                                                             </div>
                                                         </td>

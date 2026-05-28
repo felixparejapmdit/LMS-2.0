@@ -12,6 +12,7 @@ import Sidebar from '../../components/Sidebar';
 import jsQR from 'jsqr';
 import axios from 'axios';
 import API_BASE from '../../config/apiConfig';
+import { splitDelimitedLines } from '../../utils/textFormatting';
 
 export default function VemResumen() {
     const navigate = useNavigate();
@@ -251,10 +252,7 @@ export default function VemResumen() {
         const lettersSnapshot = letters.slice();
         try {
             const API = API_BASE;
-            const [statuses, stepsRes] = await Promise.all([
-                statusService.getAll(),
-                axios.get(`${API}/process-steps`)
-            ]);
+            const statuses = await statusService.getAll();
 
             // Find the "Forwarded" status
             const forwardStatus = statuses.find(s =>
@@ -270,15 +268,6 @@ export default function VemResumen() {
                 const parsed = parseInt(value, 10);
                 return Number.isNaN(parsed) ? null : parsed;
             };
-
-            const normalizeStepName = (value) =>
-                (value || '').toString().toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
-
-            // Find the "VEM Letter" step (context-specific to this page)
-            const targetStep = (stepsRes.data || []).find(s => {
-                const name = normalizeStepName(s.step_name);
-                return /\bVEM\b/.test(name) && /\bLETTER\b/.test(name) && !/\bAEVM\b/.test(name) && !/\bAEVEM\b/.test(name);
-            });
 
             const withRetry = async (fn, { tries = 3, baseDelayMs = 250 } = {}) => {
                 let lastErr;
@@ -316,32 +305,6 @@ export default function VemResumen() {
                         global_status: toIntOrNull(forwardStatus.id),
                         user_id: user?.id
                     }));
-
-                    // 2) Update / create the process-step assignment so Group/Steps reflects VEM Letter
-                    if (targetStep?.id) {
-                        const currentAssign = letter.assignments
-                            ?.slice()
-                            .sort((a, b) => (b?.id || 0) - (a?.id || 0))[0];
-
-                        const assignmentPayload = {
-                            step_id: toIntOrNull(targetStep.id),
-                            status_id: toIntOrNull(forwardStatus.id),
-                            assigned_by: user?.id
-                        };
-
-                        if (currentAssign?.id) {
-                            await withRetry(() => axios.put(
-                                `${API}/letter-assignments/${currentAssign.id}`,
-                                assignmentPayload
-                            ));
-                        } else {
-                            await withRetry(() => axios.post(`${API}/letter-assignments`, {
-                                ...assignmentPayload,
-                                letter_id: letterId,
-                                department_id: toIntOrNull(targetStep.dept_id) || null
-                            }));
-                        }
-                    }
 
                     succeeded += 1;
                 } catch (err) {
@@ -439,7 +402,11 @@ export default function VemResumen() {
                                         <tr key={letter.id} className="group">
                                             <td className="border border-gray-900 p-1.5 relative">
                                                 <div className="flex flex-col">
-                                                    <span className="text-xs font-bold text-gray-900 uppercase">{letter.sender}</span>
+                                                    {splitDelimitedLines(letter.sender).map((senderLine, index) => (
+                                                        <span key={`${letter.id}-sender-${index}`} className="text-xs font-bold text-gray-900 uppercase leading-tight">
+                                                            {senderLine}
+                                                        </span>
+                                                    ))}
                                                     <span className="text-[9px] text-blue-600">{letter.lms_id}</span>
                                                 </div>
                                             </td>

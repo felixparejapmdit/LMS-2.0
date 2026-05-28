@@ -39,11 +39,18 @@ import processStepService from "../../services/processStepService";
 import ConflictModal from "../../components/ConflictModal";
 import SuccessModal from "../../components/SuccessModal";
 import useAccess from "../../hooks/useAccess";
+import {
+  cleanPersonName,
+  filterPersonSuggestions,
+  getAutocompleteQuery,
+} from "../../utils/personAutocomplete";
 
 export default function NewLetter() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const refCode = searchParams.get("ref_code");
+  const editSource = searchParams.get("source");
+  const isEmptyEntryEdit = editSource === "empty-entry";
   const { user, layoutStyle, setIsMobileMenuOpen, isSetupComplete } = useAuth();
   const access = useAccess();
   const todayDate = new Date();
@@ -157,6 +164,14 @@ export default function NewLetter() {
   const canPrintQR = canField("new-letter", "print_qr_button");
   const canEncoderField = canField("new-letter", "encoder_field");
 
+  const findStatusByName = (statusesList, names) => {
+    const targetNames = Array.isArray(names) ? names : [names];
+    return (Array.isArray(statusesList) ? statusesList : []).find((status) => {
+      const statusName = (status?.status_name || "").toString().trim().toLowerCase();
+      return targetNames.some((name) => statusName === name.toString().trim().toLowerCase());
+    });
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -269,13 +284,14 @@ export default function NewLetter() {
         setFormData((prev) => ({ ...prev, step_ids: [] }));
 
         if (statusesData.length > 0) {
-          const received = statusesData.find(
-            (s) => s.status_name === "Received" || s.status_name === "Incoming",
-          );
-          setFormData((prev) => ({
-            ...prev,
-            global_status: received?.id || statusesData[0].id,
-          }));
+          const incoming = findStatusByName(statusesData, ["Received", "Incoming"]);
+          const fallbackStatusId = incoming?.id || statusesData[0].id;
+          if (!refCode || isEmptyEntryEdit) {
+            setFormData((prev) => ({
+              ...prev,
+              global_status: fallbackStatusId,
+            }));
+          }
         }
 
         // Default to user's department
@@ -370,7 +386,8 @@ export default function NewLetter() {
   }, []);
 
   const fetchSuggestions = async (query) => {
-    if (!query || query.length < 2) {
+    const normalizedQuery = getAutocompleteQuery(query);
+    if (!normalizedQuery || normalizedQuery.length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
       setHighlightedSuggestionIndex(-1);
@@ -378,18 +395,10 @@ export default function NewLetter() {
     }
     try {
       const response = await axios.get(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/persons/search?query=${query}`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/persons/search?query=${encodeURIComponent(normalizedQuery)}`,
       );
 
-      // Deduplicate and clean names in suggestions to handle existing DB inconsistencies
-      const seen = new Set();
-      const cleaned = response.data
-        .map((p) => ({ ...p, name: p.name.replace(/,+$/, "").trim() }))
-        .filter((p) => {
-          if (seen.has(p.name)) return false;
-          seen.add(p.name);
-          return true;
-        });
+      const cleaned = filterPersonSuggestions(response.data, normalizedQuery);
 
       setSuggestions(cleaned);
       setShowSuggestions(cleaned.length > 0);
@@ -494,18 +503,12 @@ export default function NewLetter() {
     const val = e.target.value;
     setFormData({ ...formData, sender: val });
     setActiveField("sender");
-
-    const parts = val.split(";");
-    const lastPart = parts[parts.length - 1].trim();
-    const query = lastPart.includes(",")
-      ? lastPart.split(",").pop().trim()
-      : lastPart.trim();
-    fetchSuggestions(query);
+    fetchSuggestions(getAutocompleteQuery(val, { semicolonSeparated: true }));
   };
 
   const selectSuggestion = (name) => {
     if (activeField === "sender") {
-      const cleanName = name.replace(/,+$/, "").trim();
+      const cleanName = cleanPersonName(name);
       const parts = formData.sender.split(";").map((p) => p.trim());
       parts[parts.length - 1] = cleanName;
       const newValue = parts.filter((p) => p !== "").join("; ");
@@ -539,10 +542,15 @@ export default function NewLetter() {
     }
 
     if (e.key === "Tab" && showSuggestions) {
+      e.preventDefault();
       const idx =
         highlightedSuggestionIndex < 0 ? 0 : highlightedSuggestionIndex;
       const picked = suggestions[idx];
       if (picked) selectSuggestion(picked.name);
+      else {
+        setShowSuggestions(false);
+        setHighlightedSuggestionIndex(-1);
+      }
       return;
     }
 
@@ -569,12 +577,15 @@ export default function NewLetter() {
     }
 
     if (e.key === "Enter" && showSuggestions) {
+      e.preventDefault();
       const idx =
         highlightedSuggestionIndex < 0 ? 0 : highlightedSuggestionIndex;
       const picked = suggestions[idx];
       if (picked) {
-        e.preventDefault();
         selectSuggestion(picked.name);
+      } else {
+        setShowSuggestions(false);
+        setHighlightedSuggestionIndex(-1);
       }
       return;
     }
@@ -799,6 +810,12 @@ export default function NewLetter() {
         assigned_dept: parseInt(selectedDept),
         notify_karl: notifyKarl,
       };
+
+      if (isEmptyEntryEdit) {
+        const incoming = findStatusByName(statuses, ["Received", "Incoming"]);
+        submissionData.global_status = incoming?.id || submissionData.global_status;
+        submissionData.direction = "Incoming";
+      }
 
       let created;
       if (refCode) {
@@ -1242,7 +1259,14 @@ export default function NewLetter() {
                         onKeyDown={handleSenderKeyDown}
                         onFocus={() => {
                           setActiveField("sender");
-                          if (suggestions.length > 0) setShowSuggestions(true);
+                          const currentQuery = getAutocompleteQuery(formData.sender, {
+                            semicolonSeparated: true,
+                          });
+                          if (currentQuery.length >= 2) {
+                            fetchSuggestions(currentQuery);
+                          } else if (suggestions.length > 0) {
+                            setShowSuggestions(true);
+                          }
                         }}
                         autoComplete="off"
                         className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all ${"bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] text-gray-700 dark:text-gray-300"}`}

@@ -1325,6 +1325,12 @@ class LetterController {
       const oldStatusId = letter.global_status;
       const updates = { ...req.body };
 
+      const isUUID = (val) => {
+        if (!val) return false;
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test("" + val);
+      };
+      const validUserId = isUUID(updates.user_id) ? updates.user_id : null;
+
       // Normalize internal IDs
       if (Object.prototype.hasOwnProperty.call(updates, "kind")) {
         const parsed =
@@ -1352,7 +1358,7 @@ class LetterController {
             : parseInt(updates.global_status)
           : oldStatusId;
 
-      const { is_hidden, authorized_users, user_id, ...otherUpdates } = updates;
+      const { is_hidden, authorized_users, user_id, step_ids, step_id, ...otherUpdates } = updates;
 
       // Build the final update payload — only include is_hidden / authorized_users
       // when they were explicitly provided in the request body, so that a
@@ -1368,6 +1374,51 @@ class LetterController {
 
       await letter.update(finalUpdatePayload, { transaction });
 
+      const normalizeStepIds = (value) => {
+        const values = Array.isArray(value)
+          ? value
+          : value !== undefined && value !== null && value !== ""
+            ? [value]
+            : [];
+        return values
+          .map((id) => {
+            const parsed = parseInt(id, 10);
+            return Number.isNaN(parsed) ? null : parsed;
+          })
+          .filter((id) => id !== null);
+      };
+
+      const normalizedStepIds = normalizeStepIds(
+        Array.isArray(step_ids) && step_ids.length > 0 ? step_ids : step_id,
+      );
+      if (normalizedStepIds.length > 0) {
+        await LetterAssignment.destroy({
+          where: { letter_id: letter.id },
+          transaction,
+        });
+
+        const targetAssignedDept =
+          updates.assigned_dept === "" || updates.assigned_dept === undefined || updates.assigned_dept === null
+            ? (updates.dept_id === "" || updates.dept_id === undefined || updates.dept_id === null ? letter.dept_id : parseInt(updates.dept_id, 10))
+            : parseInt(updates.assigned_dept, 10);
+
+        for (const sid of normalizedStepIds) {
+          const stepObj = await ProcessStep.findByPk(sid, { transaction });
+          const stepDeptId = stepObj?.dept_id || targetAssignedDept || letter.dept_id || null;
+
+          await LetterAssignment.create(
+            {
+              letter_id: letter.id,
+              department_id: stepDeptId,
+              step_id: sid,
+              assigned_by: validUserId,
+              status_id: newStatusId,
+            },
+            { transaction },
+          );
+        }
+      }
+
       // Create log if status changed
       if (newStatusId !== oldStatusId) {
         // Find current assignment to inherit step/dept for the timeline context
@@ -1376,12 +1427,6 @@ class LetterController {
           order: [['created_at', 'DESC']],
           transaction
         });
-
-        const isUUID = (val) => {
-          if (!val) return false;
-          return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test("" + val);
-        };
-        const validUserId = isUUID(req.body.user_id) ? req.body.user_id : null;
 
         const newStatus = await Status.findByPk(newStatusId, { transaction });
         await LetterLog.create(

@@ -83,12 +83,27 @@ export default function Departments() {
         try {
             const [deptData, sectionData] = await Promise.all([
                 departmentService.getAll(),
-                sectionService.getOverview()
+                sectionService.getRegistry()
             ]);
-            
+            const registry = Array.isArray(sectionData) ? sectionData : [];
+
             const merged = (Array.isArray(deptData) ? deptData : []).map(dept => {
-                const section = sectionData.find(s => s.id === dept.id);
-                return { ...dept, ...section };
+                const deptSections = registry.filter((section) => {
+                    const sectionDeptId = section?.department?.id ?? section?.assigned_to_dept_id ?? null;
+                    return String(sectionDeptId) === String(dept.id);
+                });
+                const activeSection =
+                    deptSections.find((section) => section.status === "ACTIVE") ||
+                    deptSections[0] ||
+                    null;
+                const currentSequence = activeSection?.letter_count ?? 0;
+
+                return {
+                    ...dept,
+                    active_section: activeSection?.section_code || null,
+                    current_sequence: currentSequence,
+                    progress: Math.min(Math.round((currentSequence / 999) * 100), 100),
+                };
             });
             
             setDepartments(merged);
@@ -280,7 +295,7 @@ export default function Departments() {
                                     item.progress >= 75 ? 'text-orange-500' : 
                                     'text-emerald-500'
                                 }`}>
-                                    {item.progress >= 95 ? 'Critical' : item.progress >= 75 ? 'Warning' : 'Stable'}
+                                    {item.progress >= 95 ? 'Critical' : item.progress >= 75 ? 'Warning' : 'On Track'}
                                 </span>
                                 <span className="text-[8px] font-bold text-gray-400">
                                     {item.current_sequence || 0} / 999
