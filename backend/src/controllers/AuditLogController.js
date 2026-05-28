@@ -25,16 +25,23 @@ class AuditLogController {
 
             const User = require('../models/User');
 
+            const userDeptId = req.user?.dept_id?.id ?? req.user?.dept_id ?? null;
+            if (userDeptId) {
+                where['$user.dept_id$'] = userDeptId;
+            }
+
             const { count, rows } = await AuditLog.findAndCountAll({
                 where,
                 include: [{
                     model: User,
                     as: 'user',
-                    attributes: ['id', 'first_name', 'last_name', 'avatar']
+                    attributes: ['id', 'first_name', 'last_name', 'avatar'],
+                    required: !!userDeptId
                 }],
                 order: [['created_at', 'DESC']],
                 limit: parseInt(limit),
-                offset
+                offset,
+                subQuery: false
             });
 
             res.json({

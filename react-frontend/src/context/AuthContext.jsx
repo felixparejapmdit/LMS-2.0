@@ -191,7 +191,7 @@ const authReducer = (state, action) => {
     useEffect(() => {
         if (!authState.user) return;
 
-        const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+        const IDLE_TIMEOUT = 15 * 60 * 1000; // 15 minutes
         let idleTimer;
 
         const resetTimer = () => {

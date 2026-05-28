@@ -641,12 +641,12 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
             {notification.show && (
                 <div className="fixed top-8 right-8 z-[200] animate-in slide-in-from-right duration-500">
                     <div className={`flex items-center gap-4 p-4 rounded-2xl shadow-2xl border ${notification.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' :
-                            notification.type === 'error' ? 'bg-red-50 border-red-100 text-red-800' :
-                                'bg-amber-50 border-amber-100 text-amber-800'
+                        notification.type === 'error' ? 'bg-red-50 border-red-100 text-red-800' :
+                            'bg-amber-50 border-amber-100 text-amber-800'
                         }`}>
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${notification.type === 'success' ? 'bg-emerald-500 text-white' :
-                                notification.type === 'error' ? 'bg-red-500 text-white' :
-                                    'bg-amber-500 text-white'
+                            notification.type === 'error' ? 'bg-red-500 text-white' :
+                                'bg-amber-500 text-white'
                             }`}>
                             {notification.type === 'success' ? <CheckSquare className="w-5 h-5" /> :
                                 notification.type === 'error' ? <X className="w-5 h-5" /> :
@@ -835,7 +835,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
 
                         <div className="w-full space-y-8">
                             {/* Summary Content */}
-                            <div className={`${cardBg} rounded-[2rem] border shadow-sm flex flex-col overflow-hidden min-h-[calc(100vh - 12rem)] print:shadow-none print:border-none print:rounded-none print:bg-white`}>
+                            <div className={`${cardBg} rounded-[2rem] border shadow-sm flex flex-col overflow-hidden print:overflow-visible min-h-[calc(100vh-12rem)] print:min-h-0 print:shadow-none print:border-none print:rounded-none print:bg-white`}>
 
                                 {/* Print Header */}
                                 <div className="hidden print:flex flex-col mb-1 border-b border-slate-900 pb-0.5">
@@ -849,7 +849,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                     </div>
                                 </div>
 
-                                <div className="flex-1 p-8 lg:p-12 flex flex-col print:p-0">
+                                <div id="print-root" className="flex-1 p-8 lg:p-12 flex flex-col print:p-0">
                                     {/* Dashboard Info Section */}
                                     {!isFromInbox && (
                                         <div className="mb-8 print:hidden flex items-end justify-between gap-6 flex-wrap bg-slate-50/50 dark:bg-white/5 p-6 rounded-3xl border border-slate-100 dark:border-white/10">
@@ -1093,8 +1093,11 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                         </button>
                                     </div>
 
+                                    {/* Spacer — pushes footer to very bottom of last page */}
+                                    <div id="print-spacer" className="hidden print:block" style={{flexGrow: 1}} />
+
                                     {/* Print Footer */}
-                                    <div id="print-footer" className="hidden print:flex items-center justify-between w-full mt-8">
+                                    <div id="print-footer" className="hidden print:flex items-center justify-between w-full">
                                         <div className="flex flex-col gap-1">
                                             <span className="text-xs font-bold text-slate-900 normal-case">Prepared by: {preparedBy}</span>
                                         </div>
@@ -1107,62 +1110,83 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
 
                     <style>{`
                         @media print {
-                        /* Aggressive Reset */
-                        html, body, #root { 
-                            height: auto !important; 
-                            overflow: visible !important; 
+                        /* ── Reset ── */
+                        html, body, #root {
+                            height: auto !important;
+                            overflow: visible !important;
                             background: white !important;
                             margin: 0 !important;
                             padding: 0 !important;
                         }
 
-                        /* Hide Sidebar and Header COMPLETELY */
-                        aside, header, nav, .print-hidden, [role="navigation"] { 
-                            display: none !important; 
+                        /* ── Hide chrome ── */
+                        aside, header, nav, .print-hidden, [role="navigation"] {
+                            display: none !important;
                             width: 0 !important;
                             height: 0 !important;
                             position: absolute !important;
                             left: -9999px !important;
                         }
 
-                        main { 
-                            margin: 0 !important; 
-                            padding: 0 !important; 
-                            width: 100% !important; 
+                        main {
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            width: 100% !important;
                             height: auto !important;
                             min-height: 0 !important;
-                            overflow: visible !important; 
+                            overflow: visible !important;
                             display: block !important;
                             position: static !important;
                         }
-                        
-                        /* Layout fixes for table container */
-                        .min-h-\[calc\(100vh\ -\ 12rem\)\] { 
-                            min-height: 0 !important; 
+
+                        /* ── Page settings ── */
+                        @page {
+                            margin: 0.8cm;
+                            size: letter portrait;
+                        }
+
+                        /* ── Color accuracy ── */
+                        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                        #print-footer, #print-footer *, table, th, td, span, div, h2, h1 { color: black !important; }
+                        .text-blue-600, .text-orange-500 { color: black !important; }
+
+                        /* ── Card container: be a full-page-tall flex column ── */
+                        /* The inner flex-col + print:p-0 wrapper must stretch to fill */
+                        .overflow-hidden {
+                            min-height: 0 !important;
                             height: auto !important;
                             border: none !important;
                             box-shadow: none !important;
                             background: white !important;
+                            overflow: visible !important;
                         }
 
-                        /* Page settings */
-                        @page { 
-                            margin: 0.8cm; 
-                            size: portrait; 
+                        /* The actual card that wraps everything must fill the page */
+                        #print-root {
+                            display: flex !important;
+                            flex-direction: column !important;
+                            min-height: calc(100vh - 1.6cm) !important;
+                            background: white !important;
                         }
 
-                        /* Ensure clean text and allow background colors */
-                        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-                        /* Force black text for all table elements in print */
-                        .print-footer, table, th, td, span, div, h2, h1 { color: black !important; }
-                        .text-blue-600, .text-orange-500 { color: black !important; }
+                        /* Spacer grows to push footer to the bottom */
+                        #print-spacer {
+                            display: block !important;
+                            flex: 1 1 auto !important;
+                        }
 
-                        /* Fixed bottom-left footer */
+                        /* ── Footer: bottom of last page, no background, no extra space ── */
                         #print-footer {
-                            position: fixed !important;
-                            bottom: 0 !important;
-                            left: 0 !important;
-                            padding: 0.3cm 0.8cm !important;
+                            display: flex !important;
+                            justify-content: space-between !important;
+                            align-items: center !important;
+                            background: transparent !important;
+                            border-top: 1px solid #000000 !important;
+                            padding-top: 0.2cm !important;
+                            width: 100% !important;
+                            page-break-inside: avoid !important;
+                            page-break-before: avoid !important;
+                            margin-top: 0 !important;
                         }
                     }
                 `}</style>

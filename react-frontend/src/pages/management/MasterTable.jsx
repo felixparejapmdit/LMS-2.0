@@ -556,7 +556,7 @@ export default function MasterTable() {
     if (!statusIdOrName) return;
     try {
       setLoading(true);
-        if (statusIdOrName === "Combine Selected PDFs") {
+      if (statusIdOrName === "Combine Selected PDFs") {
         const res = await axios.post(`${API_BASE}/attachments/combine-selected`, {
           letter_ids: selectedIds,
         });
