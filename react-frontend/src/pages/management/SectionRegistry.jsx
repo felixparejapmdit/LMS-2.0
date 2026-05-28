@@ -221,9 +221,9 @@ export default function SectionRegistry() {
                                         >
                                             <div className="flex flex-col items-center">
                                                 <span className="text-2xl font-black tracking-tighter text-slate-800 dark:text-white">{section.section_code}</span>
-                                                {section.usage && (
+                                                {section.letter_count !== undefined && (
                                                     <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 mt-1">
-                                                        {section.usage.current_sequence}/999
+                                                        {section.letter_count}/999
                                                     </span>
                                                 )}
                                             </div>
@@ -268,7 +268,7 @@ export default function SectionRegistry() {
                                             </div>
                                             <div className="col-span-1 flex justify-center">
                                                 <span className="text-[10px] font-black text-orange-600 dark:text-orange-400">
-                                                    {section.usage ? `${section.usage.current_sequence}/999` : '0/999'}
+                                                    {(section.letter_count ?? 0)}/999
                                                 </span>
                                             </div>
                                             <div className="col-span-2 flex justify-center">

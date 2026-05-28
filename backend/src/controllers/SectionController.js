@@ -7,19 +7,83 @@ class SectionController {
      */
     static async getRegistry(req, res) {
         try {
-            const sections = await RefSectionRegistry.findAll({
-                include: [
-                    { model: Department, as: 'department', attributes: ['id', 'dept_name', 'dept_code'] },
-                    { 
-                        model: DeptSectionUsage, 
-                        as: 'usage', 
-                        where: { is_active: true }, 
-                        required: false 
-                    }
-                ],
-                order: [['section_code', 'ASC']]
+            const { Letter } = require('../models/associations');
+            const { Op } = require('sequelize');
+            const currentYear = new Date().getFullYear();
+            const shortYear = currentYear.toString().slice(-2);
+
+            // Run both queries in parallel for efficiency
+            const [sections, allLetters] = await Promise.all([
+                RefSectionRegistry.findAll({
+                    include: [
+                        { model: Department, as: 'department', attributes: ['id', 'dept_name', 'dept_code', 'group_id'] },
+                        {
+                            model: DeptSectionUsage,
+                            as: 'usage',
+                            where: { is_active: true },
+                            required: false
+                        }
+                    ],
+                    order: [['section_code', 'ASC']]
+                }),
+                // Fetch only lms_id for all non-deleted letters in the current year
+                Letter.findAll({
+                    where: {
+                        is_deleted: false,
+                        date_received: { [Op.gte]: new Date(currentYear, 0, 1) }
+                    },
+                    attributes: ['lms_id']
+                })
+            ]);
+
+            // Build count maps from letter lms_ids
+            // ATG format:     ATG{shortYear}-{sectionCode}{3-digit-seq}  e.g. ATG26-03001
+            // Non-ATG format: {dept_code}{shortYear}-{5-digit-seq}       e.g. DEPED26-00001
+            const atgCountMap = {};    // { sectionCode: count }
+            const deptCountMap = {};   // { 'DEPTCODE26': count }
+
+            for (const letter of allLetters) {
+                const lmsId = letter.lms_id || '';
+                const dashIdx = lmsId.indexOf('-');
+                if (dashIdx === -1) continue;
+
+                const prefix = lmsId.substring(0, dashIdx); // e.g. 'ATG26' or 'DEPED26'
+                const rest = lmsId.substring(dashIdx + 1);  // e.g. '03001' or '00001'
+
+                if (prefix === `ATG${shortYear}` && rest.length >= 2) {
+                    // ATG: section code is first 2 chars of the sequence part
+                    const sectionCode = rest.substring(0, 2);
+                    atgCountMap[sectionCode] = (atgCountMap[sectionCode] || 0) + 1;
+                } else {
+                    // Non-ATG: count all letters under this dept prefix
+                    deptCountMap[prefix] = (deptCountMap[prefix] || 0) + 1;
+                }
+            }
+
+            // Attach real letter_count to each section
+            const result = sections.map(section => {
+                const sectionJson = section.toJSON();
+
+                if (!section.department) {
+                    sectionJson.letter_count = 0;
+                    return sectionJson;
+                }
+
+                const dept = section.department;
+                // group_id === 3 marks ATG-family departments (same logic as SectionService)
+                const isATG = dept.group_id === 3;
+
+                if (isATG) {
+                    sectionJson.letter_count = atgCountMap[section.section_code] || 0;
+                } else {
+                    const deptKey = `${dept.dept_code}${shortYear}`;
+                    sectionJson.letter_count = deptCountMap[deptKey] || 0;
+                }
+
+                return sectionJson;
             });
-            res.json(sections);
+
+            res.json(result);
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
