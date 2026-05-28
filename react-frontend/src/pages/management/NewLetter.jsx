@@ -302,6 +302,8 @@ export default function NewLetter() {
   }, []);
 
   useEffect(() => {
+    if (refCode) return;
+
     const fetchNextId = async () => {
       try {
         if (!selectedDept) {
@@ -319,7 +321,7 @@ export default function NewLetter() {
     };
 
     fetchNextId();
-  }, [selectedDept]);
+  }, [selectedDept, refCode]);
 
   // Inaccessibility check for Access Manager
   useEffect(() => {

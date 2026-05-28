@@ -39,6 +39,7 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const isFromInbox = searchParams.get('source') === 'inbox';
+    const category = searchParams.get('category');
 
     const [lmsIdInput, setLmsIdInput] = useState("");
     const [modalLetters, setModalLetters] = useState(() => {
@@ -336,8 +337,8 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
 
             for (const id of selectedIds) {
                 try {
-                    await letterService.update(id, { 
-                        global_status: targetStatusId, 
+                    await letterService.update(id, {
+                        global_status: targetStatusId,
                         tray_id: null,
                         user_id: user?.id,
                         full_name: `${user?.first_name} ${user?.last_name}`.trim(),
@@ -349,29 +350,29 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                     failed.push(id);
                 }
             }
-            
+
             setModalLetters(prev => prev.filter(l => !selectedIds.includes(l.id) || failed.includes(l.id)));
             setSelectedIds(failed); // Keep failed ones selected
 
             if (failed.length === 0) {
-                setNotification({ 
-                    show: true, 
-                    type: 'success', 
-                    message: `Successfully transitioned ${succeeded} letters to ATG Note.` 
+                setNotification({
+                    show: true,
+                    type: 'success',
+                    message: `Successfully transitioned ${succeeded} letters to ATG Note.`
                 });
             } else {
-                setNotification({ 
-                    show: true, 
-                    type: 'warning', 
-                    message: `${succeeded} succeeded, ${failed.length} failed. See console for details.` 
+                setNotification({
+                    show: true,
+                    type: 'warning',
+                    message: `${succeeded} succeeded, ${failed.length} failed. See console for details.`
                 });
             }
         } catch (err) {
             console.error("ATG Note bulk process failed:", err);
-            setNotification({ 
-                show: true, 
-                type: 'error', 
-                message: "Bulk process failed. Please try again." 
+            setNotification({
+                show: true,
+                type: 'error',
+                message: "Bulk process failed. Please try again."
             });
         } finally {
             setLoading(false);
@@ -394,8 +395,8 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
 
             for (const id of selectedIds) {
                 try {
-                    await letterService.update(id, { 
-                        global_status: reviewStatus.id, 
+                    await letterService.update(id, {
+                        global_status: reviewStatus.id,
                         tray_id: null,
                         user_id: user?.id,
                         full_name: `${user?.first_name} ${user?.last_name}`.trim(),
@@ -407,29 +408,29 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                     failed.push(id);
                 }
             }
-            
+
             setModalLetters(prev => prev.filter(l => !selectedIds.includes(l.id) || failed.includes(l.id)));
             setSelectedIds(failed); // Keep failed ones selected
 
             if (failed.length === 0) {
-                setNotification({ 
-                    show: true, 
-                    type: 'success', 
-                    message: `Successfully transitioned ${succeeded} letters to Being Reviewed.` 
+                setNotification({
+                    show: true,
+                    type: 'success',
+                    message: `Successfully transitioned ${succeeded} letters to Being Reviewed.`
                 });
             } else {
-                setNotification({ 
-                    show: true, 
-                    type: 'warning', 
-                    message: `${succeeded} succeeded, ${failed.length} failed. See console for details.` 
+                setNotification({
+                    show: true,
+                    type: 'warning',
+                    message: `${succeeded} succeeded, ${failed.length} failed. See console for details.`
                 });
             }
         } catch (err) {
             console.error("Being Reviewed bulk process failed:", err);
-            setNotification({ 
-                show: true, 
-                type: 'error', 
-                message: "Bulk process failed. Please try again." 
+            setNotification({
+                show: true,
+                type: 'error',
+                message: "Bulk process failed. Please try again."
             });
         } finally {
             setLoading(false);
@@ -567,6 +568,40 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         return step?.step_name || "Unknown";
     };
 
+    const hasSortedRef = useRef(false);
+
+    useEffect(() => {
+        if (isFromInbox && !hasSortedRef.current && steps.length > 0 && modalLetters.length > 0) {
+            const getStepPriority = (letter) => {
+                const stepId = getLatestStepId(letter);
+                if (!stepId) return 99; // No Group
+
+                const step = steps.find(s => String(s.id) === String(stepId));
+                const stepName = (step?.step_name || "").toLowerCase();
+
+                if (stepName.includes('signature')) return 1;
+                if (stepName.includes('review')) return 2;
+                if (stepName.includes('vem')) return 3;
+                if (stepName.includes('aevm')) return 4;
+                return 5;
+            };
+
+            const sorted = [...modalLetters].sort((a, b) => {
+                const priorityA = getStepPriority(a);
+                const priorityB = getStepPriority(b);
+                if (priorityA !== priorityB) {
+                    return priorityA - priorityB;
+                }
+                const refA = a.lms_id || "";
+                const refB = b.lms_id || "";
+                return refA.localeCompare(refB, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            setModalLetters(sorted);
+            hasSortedRef.current = true;
+        }
+    }, [isFromInbox, steps, modalLetters]);
+
     const selectedStepLabel = (() => {
         if (!selectedStepId) return "All";
         const step = steps.find((s) => String(s.id) === String(selectedStepId));
@@ -577,7 +612,22 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
         ? modalLetters.filter((l) => String(getLatestStepId(l) || "") === String(selectedStepId))
         : modalLetters;
 
+    const printHeaderTitle = (() => {
+        if (isFromInbox && category) {
+            const cat = category.toLowerCase();
+            if (cat.includes('signature')) return "Incoming Letters - For Signature";
+            if (cat.includes('review')) return "Incoming Letters - For Review";
+        }
+        return `INCOMING LETTERS - ${selectedStepLabel}`;
+    })();
+
     const printHeaderStyle = (() => {
+        if (isFromInbox && category) {
+            const cat = category.toLowerCase();
+            if (cat.includes('signature')) return { bg: '#e2efda', text: 'text-slate-900' };
+            if (cat.includes('review')) return { bg: '#b7b7b7', text: 'text-slate-900' };
+        }
+
         if (!selectedStepId) return { bg: 'transparent', text: 'text-slate-900' };
         const label = selectedStepLabel.toLowerCase();
         if (label.includes('signature')) return { bg: '#e2efda', text: 'text-slate-900' };
@@ -590,25 +640,23 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
             {/* Notification Toast */}
             {notification.show && (
                 <div className="fixed top-8 right-8 z-[200] animate-in slide-in-from-right duration-500">
-                    <div className={`flex items-center gap-4 p-4 rounded-2xl shadow-2xl border ${
-                        notification.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 
-                        notification.type === 'error' ? 'bg-red-50 border-red-100 text-red-800' : 
-                        'bg-amber-50 border-amber-100 text-amber-800'
-                    }`}>
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                            notification.type === 'success' ? 'bg-emerald-500 text-white' : 
-                            notification.type === 'error' ? 'bg-red-500 text-white' : 
-                            'bg-amber-500 text-white'
+                    <div className={`flex items-center gap-4 p-4 rounded-2xl shadow-2xl border ${notification.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' :
+                            notification.type === 'error' ? 'bg-red-50 border-red-100 text-red-800' :
+                                'bg-amber-50 border-amber-100 text-amber-800'
                         }`}>
-                            {notification.type === 'success' ? <CheckSquare className="w-5 h-5" /> : 
-                             notification.type === 'error' ? <X className="w-5 h-5" /> : 
-                             <RefreshCw className="w-5 h-5" />}
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${notification.type === 'success' ? 'bg-emerald-500 text-white' :
+                                notification.type === 'error' ? 'bg-red-500 text-white' :
+                                    'bg-amber-500 text-white'
+                            }`}>
+                            {notification.type === 'success' ? <CheckSquare className="w-5 h-5" /> :
+                                notification.type === 'error' ? <X className="w-5 h-5" /> :
+                                    <RefreshCw className="w-5 h-5" />}
                         </div>
                         <div className="pr-4">
                             <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">System Notification</h4>
                             <p className="text-xs font-bold leading-relaxed">{notification.message}</p>
                         </div>
-                        <button 
+                        <button
                             onClick={() => setNotification(n => ({ ...n, show: false }))}
                             className="p-1.5 hover:bg-black/5 rounded-lg transition-colors"
                         >
@@ -742,11 +790,13 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                         setLoading(true);
                                         const updated = await Promise.all(
                                             modalLetters.map(async (l) => {
-                                                try { return await letterService.getByLmsId(l.lms_id, {
-                                                    user_id: user?.id,
-                                                    role: user?.roleData?.name || user?.role || "",
-                                                    full_name: `${user?.first_name} ${user?.last_name}`.trim(),
-                                                }); } catch { return l; }
+                                                try {
+                                                    return await letterService.getByLmsId(l.lms_id, {
+                                                        user_id: user?.id,
+                                                        role: user?.roleData?.name || user?.role || "",
+                                                        full_name: `${user?.first_name} ${user?.last_name}`.trim(),
+                                                    });
+                                                } catch { return l; }
 
                                             })
                                         );
@@ -790,8 +840,8 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                 {/* Print Header */}
                                 <div className="hidden print:flex flex-col mb-1 border-b border-slate-900 pb-0.5">
                                     <div className="flex justify-between items-end">
-                                        <h2 className="text-sm font-bold text-slate-900 uppercase">
-                                            INCOMING LETTERS - {selectedStepLabel}
+                                        <h2 className={`text-sm font-bold text-slate-900 ${isFromInbox && category && (category.toLowerCase().includes('signature') || category.toLowerCase().includes('review')) ? "" : "uppercase"}`}>
+                                            {printHeaderTitle}
                                         </h2>
                                         <span className="text-[11px] font-medium text-slate-900">
                                             Printed:{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -857,14 +907,14 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                             </div>
 
                                             <div className="flex flex-col gap-2 min-w-[150px]">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prepared by:</label>
-                                                    <input
-                                                        type="text"
-                                                        value={preparedBy}
-                                                        onChange={(e) => setPreparedBy(e.target.value)}
-                                                        placeholder="Enter name..."
-                                                        className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300 normal-case"
-                                                    />
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prepared by:</label>
+                                                <input
+                                                    type="text"
+                                                    value={preparedBy}
+                                                    onChange={(e) => setPreparedBy(e.target.value)}
+                                                    placeholder="Enter name..."
+                                                    className="px-6 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-[1rem] text-xs font-black focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-600 dark:text-slate-300 normal-case"
+                                                />
                                             </div>
 
 
@@ -919,8 +969,8 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                 </tr>
                                             ) : (
                                                 filteredLetters.map((l, idx) => (
-                                                    <tr 
-                                                        key={l.id} 
+                                                    <tr
+                                                        key={l.id}
                                                         className={`border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/2 transition-colors print:border-slate-300 cursor-move ${selectedIds.includes(l.id) ? 'bg-blue-50/50 dark:bg-blue-500/5' : ''}`}
                                                         draggable
                                                         onDragStart={(e) => handleDragStart(e, idx)}
@@ -968,8 +1018,8 @@ export default function ResumenPage({ embedded = false, onClose = null } = {}) {
                                                             </div>
                                                         </td>
                                                         <td className="py-6 px-4 print:py-1.5 print:px-2">
-                                                            <div 
-                                                                className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-w-lg print:text-slate-900 italic focus:outline-none focus:bg-white dark:focus:bg-[#1A1A1B] hover:bg-slate-100 dark:hover:bg-white/5 p-1 -m-1 rounded transition-colors" 
+                                                            <div
+                                                                className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-w-lg print:text-slate-900 italic focus:outline-none focus:bg-white dark:focus:bg-[#1A1A1B] hover:bg-slate-100 dark:hover:bg-white/5 p-1 -m-1 rounded transition-colors"
                                                                 contentEditable
                                                                 suppressContentEditableWarning
                                                                 onBlur={(e) => handleSummaryEdit(l.id, e.target.innerHTML)}

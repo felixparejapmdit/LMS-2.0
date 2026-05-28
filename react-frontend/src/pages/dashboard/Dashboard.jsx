@@ -253,13 +253,28 @@ export default function Dashboard({ view = "inbox", forcedDeptId = null }) {
     try {
       const letters = assignments
         .filter(a => selectedIds.includes(a.id))
-        .map(a => a.letter)
+        .map(a => {
+          if (!a.letter) return null;
+          // Ensure assignments array is populated so ResumenPage can find the group/step
+          const stepObj = a.step ? { id: a.step.id, step_name: a.step.step_name } : null;
+          return {
+            ...a.letter,
+            assignments: [
+              {
+                id: a.id,
+                step_id: a.step_id || a.step?.id,
+                step: stepObj,
+                department: a.department
+              }
+            ]
+          };
+        })
         .filter(Boolean);
       localStorage.setItem('resumen_letters', JSON.stringify(letters));
-      navigate('/resumen?source=inbox');
+      navigate(`/resumen?source=inbox&category=${activeStepTab}`);
     } catch (err) {
       console.warn("Failed to prepare Resumen data:", err);
-      navigate('/resumen?source=inbox');
+      navigate(`/resumen?source=inbox&category=${activeStepTab}`);
     }
   };
 
