@@ -1839,19 +1839,15 @@ export default function MasterTable() {
                                 className="hidden"
                                 checked={isSelected}
                                 disabled={isDisabled}
-                                onChange={() => {
+                              onChange={() => {
                                   if (isDisabled) return;
-                                  const incomingStatus = statuses.find(
-                                    (s) => s.status_name === "Incoming",
-                                  );
-                                  const isVem = step.step_name === "VEM Letter";
                                   setSelectedLetter((prev) => ({
                                     ...prev,
                                     currentStepId: step.id,
-                                    evemnote: isVem ? "c/o Jojo" : prev.evemnote,
-                                    global_status: incomingStatus
-                                      ? incomingStatus.id
-                                      : prev.global_status,
+                                    evemnote:
+                                      step.step_name === "VEM Letter"
+                                        ? "c/o Jojo"
+                                        : prev.evemnote,
                                   }));
                                   setValidationError("");
                                 }}
