@@ -1839,7 +1839,7 @@ export default function MasterTable() {
                                 className="hidden"
                                 checked={isSelected}
                                 disabled={isDisabled}
-                              onChange={() => {
+                                onChange={() => {
                                   if (isDisabled) return;
                                   setSelectedLetter((prev) => ({
                                     ...prev,
