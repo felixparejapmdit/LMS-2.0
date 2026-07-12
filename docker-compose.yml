@@ -47,8 +47,7 @@ services:
       retries: 10
     restart: unless-stopped
     networks:
-      lms-net:
-        ipv4_address: 10.50.0.10
+      - lms-net
 
   backend:
     container_name: lms-backend
@@ -102,6 +101,3 @@ services:
 networks:
   lms-net:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 10.50.0.0/16
