@@ -51,8 +51,11 @@ export default function NewLetter() {
   const refCode = searchParams.get("ref_code");
   const editSource = searchParams.get("source");
   const isEmptyEntryEdit = editSource === "empty-entry";
-  const { user, layoutStyle, setIsMobileMenuOpen, isSetupComplete } = useAuth();
+  const { user, layoutStyle, setIsMobileMenuOpen, isSetupComplete, appSettings } = useAuth();
   const access = useAccess();
+  const referenceCodePrefix = (appSettings?.reference_code_prefix || "LMS").toString().trim() || "LMS";
+  const useDepartmentReferenceCode = appSettings?.reference_code_department_mode !== false;
+  const departmentSelectorDisabled = !useDepartmentReferenceCode;
   const todayDate = new Date();
   const today = todayDate.toLocaleDateString("en-PH", {
     month: "long",
@@ -264,7 +267,7 @@ export default function NewLetter() {
               dept_id: existing.dept_id || prev.dept_id,
             }));
           }
-        } else {
+        } else if (useDepartmentReferenceCode) {
           setPredictedLmsId("Select Department");
         }
 
@@ -317,27 +320,47 @@ export default function NewLetter() {
     }));
   }, []);
 
-  useEffect(() => {
+  const fetchPreviewReferenceCode = async (deptId = selectedDept) => {
+    if (!useDepartmentReferenceCode) {
+      const legacyCode = await letterService.getLegacyPreviewReferenceCode(referenceCodePrefix);
+      return legacyCode ? { lms_id: legacyCode } : null;
+    }
+
+    return letterService.getPreviewIds(referenceCodePrefix, deptId || null);
+  };
+
+  const refreshPredictedLmsId = async (deptId = selectedDept) => {
     if (refCode) return;
 
-    const fetchNextId = async () => {
-      try {
-        if (!selectedDept) {
-          setPredictedLmsId("Select Department");
-          return;
-        }
-
-        const previews = await letterService.getPreviewIds("ATG", selectedDept);
-        if (previews) {
-          setPredictedLmsId(previews.lms_id);
-        }
-      } catch (err) {
-        console.error("Failed to fetch next ID for selected department:", selectedDept, err);
+    try {
+      if (useDepartmentReferenceCode && !deptId) {
+        setPredictedLmsId("Select Department");
+        return;
       }
-    };
 
-    fetchNextId();
-  }, [selectedDept, refCode]);
+      setPredictedLmsId("Generating...");
+      const previews = await fetchPreviewReferenceCode(deptId);
+      if (previews?.lms_id) {
+        setPredictedLmsId(previews.lms_id);
+      } else {
+        setPredictedLmsId("Check Connection");
+      }
+    } catch (err) {
+      console.error("Failed to fetch next ID for selected department:", selectedDept, err);
+      setPredictedLmsId("Check Connection");
+    }
+  };
+
+  useEffect(() => {
+    refreshPredictedLmsId();
+  }, [selectedDept, refCode, referenceCodePrefix, useDepartmentReferenceCode]);
+
+  useEffect(() => {
+    if (departmentSelectorDisabled) {
+      setShowDeptResults(false);
+      setDeptSearch("");
+    }
+  }, [departmentSelectorDisabled]);
 
   // Inaccessibility check for Access Manager
   useEffect(() => {
@@ -703,7 +726,7 @@ export default function NewLetter() {
     setLoading(true);
     setError("");
 
-    if (!selectedDept) {
+    if (useDepartmentReferenceCode && !selectedDept) {
       setError("Submission Failed: Please select a Department.");
       setLoading(false);
       if (scrollContainerRef.current) {
@@ -800,14 +823,27 @@ export default function NewLetter() {
           ? parseInt(formData.selectedRefIds[0])
           : null;
 
+      let lmsIdToUse = predictedLmsId;
+      const normalizedRef = (predictedLmsId || "").trim();
+      const isReadyRef = normalizedRef && !["Generating...", "Select Department", "Check Connection"].includes(normalizedRef);
+      if (!isReadyRef) {
+        const preview = await fetchPreviewReferenceCode(selectedDept);
+        if (preview?.lms_id) {
+          lmsIdToUse = preview.lms_id;
+          setPredictedLmsId(preview.lms_id);
+        } else {
+          setPredictedLmsId("Check Connection");
+        }
+      }
+
       const submissionData = {
         ...formData,
         attachment_id: Number.isNaN(attachmentId) ? null : attachmentId,
-        lms_id: predictedLmsId,
+        lms_id: lmsIdToUse,
         scanned_copy: scannedCopyPath,
         encoder_id: user.id,
-        dept_id: parseInt(selectedDept),
-        assigned_dept: parseInt(selectedDept),
+        dept_id: selectedDept ? parseInt(selectedDept, 10) : null,
+        assigned_dept: selectedDept ? parseInt(selectedDept, 10) : null,
         notify_karl: notifyKarl,
       };
 
@@ -977,15 +1013,19 @@ export default function NewLetter() {
                         <Building2 className="w-3 h-3 text-blue-400" />
                         Departments
                       </div>
-                      <span className="text-[9px] text-red-500 font-black tracking-widest uppercase">
-                        Required
+                      <span className={`text-[9px] font-black tracking-widest uppercase ${useDepartmentReferenceCode ? "text-red-500" : "text-slate-400"}`}>
+                        {useDepartmentReferenceCode ? "Required" : "Disabled"}
                       </span>
                     </label>
                     <div className="relative" ref={deptSearchRef}>
                       {/* Custom Searchable Dropdown Toggle */}
                       <div
-                        onClick={() => setShowDeptResults(!showDeptResults)}
-                        className={`w-full px-4 py-2.5 rounded-xl border transition-all outline-none text-xs font-black flex items-center justify-between cursor-pointer ${"bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] hover:border-orange-500/50 uppercase"}`}
+                        aria-disabled={departmentSelectorDisabled}
+                        onClick={() => {
+                          if (departmentSelectorDisabled) return;
+                          setShowDeptResults(!showDeptResults);
+                        }}
+                        className={`w-full px-4 py-2.5 rounded-xl border transition-all outline-none text-xs font-black flex items-center justify-between uppercase ${departmentSelectorDisabled ? "bg-gray-100 dark:bg-white/10 border-gray-200 dark:border-[#333] text-gray-400 cursor-not-allowed" : "bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-[#333] hover:border-orange-500/50 cursor-pointer"}`}
                       >
                         <div className="flex items-center gap-2 truncate pr-4">
                           <Building2 className="w-4 h-4 text-gray-300 pointer-events-none" />
@@ -994,7 +1034,9 @@ export default function NewLetter() {
                               ? departments.find(
                                 (d) => String(d.id) === String(selectedDept),
                               )?.dept_name || "Department Selected"
-                              : "Select Department"}
+                              : departmentSelectorDisabled
+                                ? "Department Disabled"
+                                : "Select Department"}
                           </span>
                         </div>
                         <ChevronDown

@@ -3,6 +3,50 @@ import API_BASE from '../config/apiConfig';
 
 const API_URL = `${API_BASE}/letters`;
 
+const escapeRegExp = (value = "") =>
+    String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const findLatestLegacyReferenceCode = (rows, { prefix, shortYear }) => {
+    const exactPattern = new RegExp(`^${escapeRegExp(prefix)}${shortYear}-(\\d+)$`, 'i');
+    const genericPattern = new RegExp(`^([A-Z0-9]+)${shortYear}-(\\d+)$`, 'i');
+
+    let exactMatch = null;
+    let fallbackMatch = null;
+
+    for (const row of rows) {
+        const candidates = [row?.atg_id, row?.lms_id, row?.entry_id, row?.id];
+        for (const candidateRaw of candidates) {
+            const candidate = (candidateRaw ?? '').toString().trim();
+            if (!candidate) continue;
+
+            const exact = candidate.match(exactPattern);
+            if (exact) {
+                const parsed = parseInt(exact[1], 10);
+                if (Number.isNaN(parsed)) continue;
+                if (!exactMatch || parsed > exactMatch.sequence) {
+                    exactMatch = { prefix, sequence: parsed };
+                }
+                continue;
+            }
+
+            const generic = candidate.match(genericPattern);
+            if (!generic) continue;
+
+            const parsed = parseInt(generic[2], 10);
+            if (Number.isNaN(parsed)) continue;
+            const detectedPrefix = generic[1].toUpperCase();
+            if (!fallbackMatch || parsed > fallbackMatch.sequence) {
+                fallbackMatch = { prefix: detectedPrefix, sequence: parsed };
+            }
+        }
+    }
+
+    const winner = exactMatch || fallbackMatch;
+    if (!winner) return null;
+
+    return `${winner.prefix}${shortYear}-${(winner.sequence + 1).toString().padStart(5, '0')}`;
+};
+
 class LetterService {
     async getAll(params = {}) {
         try {
@@ -88,6 +132,24 @@ class LetterService {
         // Direct PHP endpoint as remote MySQL is restricted
         const response = await axios.get(`http://172.18.162.84/api/letters_detailed.php?page=${page}&limit=${limit}&search=${search}`);
         return response.data;
+    }
+
+    async getLegacyPreviewReferenceCode(prefix = 'LMS') {
+        const cleanedPrefix = (prefix || 'LMS').toString().toUpperCase().replace(/[^A-Z0-9]/g, '') || 'LMS';
+        const shortYear = new Date().getFullYear().toString().slice(-2);
+        const response = await this.getLegacyData(1, 500, '');
+        const rows = Array.isArray(response)
+            ? response
+            : Array.isArray(response?.data)
+                ? response.data
+                : Array.isArray(response?.letters)
+                    ? response.letters
+                    : [];
+
+        return findLatestLegacyReferenceCode(rows, {
+            prefix: cleanedPrefix,
+            shortYear,
+        });
     }
 }
 

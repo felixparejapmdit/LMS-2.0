@@ -17,6 +17,10 @@ const {
 const sequelize = require("../config/db");
 const { Op } = require("sequelize");
 const SectionService = require("../services/SectionService");
+const {
+  getPreviewReferenceCode,
+  getCreateReferenceCode,
+} = require("../services/referenceCodeService");
 const TelegramService = require("../services/telegramService");
 const path = require("path");
 const fs = require("fs");
@@ -385,91 +389,12 @@ class LetterController {
 
   static async getPreviewIds(req, res) {
     try {
-      const { prefix: queryPrefix = "LMS" } = req.query;
-      const dept_id = req.query.dept_id;
-      const now = new Date();
-      const yearStr = now.getFullYear().toString();
-      const shortYear = yearStr.slice(-2);
-      const ymd =
-        yearStr +
-        (now.getMonth() + 1).toString().padStart(2, "0") +
-        now.getDate().toString().padStart(2, "0");
-
-      if (!dept_id || dept_id === "null" || dept_id === "") {
-        // No Department Selected (Guest Page rule)
-        // Format: YYYYMMDDNNN
-        const lastDayEntry = await Letter.findOne({
-          where: { entry_id: { [Op.like]: `${ymd}%` } },
-          order: [["entry_id", "DESC"]],
-        });
-        let dailySequence = 1;
-        if (lastDayEntry) {
-          // Check if last entry_id is timestamp-based or old entry_id
-          const lastEntryId = lastDayEntry.entry_id;
-          if (lastEntryId.length >= 11 && lastEntryId.startsWith(ymd)) {
-            const lastSeqStr = lastEntryId.slice(-3);
-            const lastSeq = parseInt(lastSeqStr);
-            if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
-          }
-        }
-        const lms_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
-        return res.json({ lms_id, entry_id: lms_id });
-      }
-
-      const dept = await Department.findByPk(dept_id);
-      if (!dept) return res.status(404).json({ error: "Department not found" });
-
-      // Determine Prefix
-      let prefix = dept.dept_code || queryPrefix;
-      if (dept.group_id === 3) {
-        prefix = "ATG";
-      }
-
-      const usage = await SectionService.getActiveSection(dept_id);
-      
-      // Determine the next available sequence number by checking for gaps
-      let { sequence: previewSeq, section_code: previewCode } = await SectionService.findNextAvailableSequence(
-          dept_id, 
-          prefix, 
-          usage.section_code, 
-          dept.group_id === 3 ? 3 : 5
-      );
-
-      // Handle section rollover for preview if ATG and currently full
-      if (dept.group_id === 3 && previewSeq >= 1000) {
-        const { RefSectionRegistry } = require('../models/associations');
-        const nextAvailable = await RefSectionRegistry.findOne({
-          where: { status: 'AVAILABLE' },
-          order: [['section_code', 'ASC']]
-        });
-        previewCode = nextAvailable ? nextAvailable.section_code : "XX";
-        previewSeq = 1;
-      }
-
-      // Format based on Group ID
-      let lms_id;
-      if (dept.group_id === 3) {
-        // ATG Format: ATG26-06001 (SectionCode + 3-digit Seq)
-        lms_id = `${prefix}${shortYear}-${previewCode}${previewSeq.toString().padStart(3, "0")}`;
-      } else {
-        // Non-ATG Format: DeptCodeYY-00001 (5-digit Counter)
-        lms_id = `${prefix}${shortYear}-${previewSeq.toString().padStart(5, "0")}`;
-      }
-      
-      const lastDayEntry = await Letter.findOne({
-        where: { entry_id: { [Op.like]: `${ymd}%` } },
-        order: [["entry_id", "DESC"]],
+      const preview = await getPreviewReferenceCode({
+        deptId: req.query.dept_id,
+        prefixOverride: req.query.prefix,
       });
-      let dailySequence = 1;
-      if (lastDayEntry) {
-        const lastEntryId = lastDayEntry.entry_id;
-        const lastSeqStr = lastEntryId.slice(-3);
-        const lastSeq = parseInt(lastSeqStr);
-        if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
-      }
-      const entry_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
 
-      res.json({ lms_id, entry_id });
+      res.json(preview);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -886,83 +811,11 @@ class LetterController {
       }
       console.log("[LETTER_CREATE_DEBUG] Core validation passed.");
 
-      // Generate IDs
-      const now = new Date();
-      const yearStr = now.getFullYear().toString();
-      const shortYear = yearStr.slice(-2);
-      const ymd =
-        yearStr +
-        (now.getMonth() + 1).toString().padStart(2, "0") +
-        now.getDate().toString().padStart(2, "0");
-
       const targetDeptIdForId = isValidId(dept_id) ? dept_id : null;
-
-      let lms_id;
-      if (targetDeptIdForId) {
-        const dept = await Department.findByPk(targetDeptIdForId, { transaction });
-        let prefix = dept.dept_code || "LMS";
-        if (dept.group_id === 3) {
-            prefix = "ATG";
-            const { section_code, sequence } = await SectionService.incrementAndGetNextSequence(targetDeptIdForId, transaction);
-            // ATG Format: ATG26-06001
-            lms_id = `${prefix}${shortYear}-${section_code}${sequence.toString().padStart(3, "0")}`;
-        } else {
-            // Non-ATG Format: DeptCodeYY-00001 (5-digit Counter)
-            const lastDeptEntry = await Letter.findOne({
-                where: { 
-                    dept_id: targetDeptIdForId,
-                    lms_id: { [Op.like]: `${prefix}${shortYear}-%` }
-                },
-                order: [["lms_id", "DESC"]],
-                transaction
-            });
-            
-            let deptSequence = 1;
-            if (lastDeptEntry) {
-                const parts = lastDeptEntry.lms_id.split("-");
-                if (parts.length > 1) {
-                    const lastSeq = parseInt(parts[1]);
-                    if (!isNaN(lastSeq)) deptSequence = lastSeq + 1;
-                }
-            }
-            lms_id = `${prefix}${shortYear}-${deptSequence.toString().padStart(5, "0")}`;
-            
-            // We still increment section sequence in background if desired, but for non-ATG we don't use it in ID.
-            // Actually, better to keep it synced if they ever switch.
-            await SectionService.incrementAndGetNextSequence(targetDeptIdForId, transaction).catch(() => {});
-        }
-      } else {
-        // No Department (Guest Page rule)
-        // Format: YYYYMMDDNNN
-        const lastDayEntryForId = await Letter.findOne({
-          where: { entry_id: { [Op.like]: `${ymd}%` } },
-          order: [["entry_id", "DESC"]],
-          transaction,
-        });
-        let guestSeq = 1;
-        if (lastDayEntryForId) {
-          const lastId = lastDayEntryForId.entry_id;
-          if (lastId.length >= 11 && lastId.startsWith(ymd)) {
-            const lastSeq = parseInt(lastId.slice(-3));
-            if (!isNaN(lastSeq)) guestSeq = lastSeq + 1;
-          }
-        }
-        lms_id = `${ymd}${guestSeq.toString().padStart(3, "0")}`;
-      }
-
-      const lastDayEntry = await Letter.findOne({
-        where: { entry_id: { [Op.like]: `${ymd}%` } },
-        order: [["entry_id", "DESC"]],
+      let { lms_id, entry_id } = await getCreateReferenceCode({
+        deptId: targetDeptIdForId,
         transaction,
       });
-
-      let dailySequence = 1;
-      if (lastDayEntry) {
-        const lastSeqStr = lastDayEntry.entry_id.slice(-3);
-        const lastSeq = parseInt(lastSeqStr);
-        if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
-      }
-      let entry_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
 
       // Check for collisions
       const providedLmsId = req.body.lms_id;
@@ -972,46 +825,10 @@ class LetterController {
           // If the user provided an LMS_ID (from preview) and it already exists, 
           // we need to suggest the NEXT one.
           if (transaction) await transaction.rollback();
-          
-          // Re-calculate the actual next one (without the stale provided one)
-          // The lms_id variable already contains the "freshly calculated" one from lines 561-612
-          // BUT, we should make sure we didn't just calculate the SAME one.
-          // Since we are inside the same logic, lms_id is what the backend THINKS is next.
-          // If it matches providedLmsId, it means the sequence hasn't moved yet or we have a race.
-          
-          let nextAvailableCode = lms_id;
-          if (nextAvailableCode === providedLmsId) {
-              // Try to increment again or find gap
-              // For ATG
-              if (targetDeptIdForId) {
-                  const dept = await Department.findByPk(targetDeptIdForId);
-                  if (dept.group_id === 3) {
-                      const prefix = "ATG";
-                      const usage = await SectionService.getActiveSection(targetDeptIdForId);
-                      const { sequence, section_code } = await SectionService.findNextAvailableSequence(targetDeptIdForId, prefix, usage.section_code, 3);
-                      nextAvailableCode = `${prefix}${shortYear}-${section_code}${sequence.toString().padStart(3, "0")}`;
-                  } else {
-                      const prefix = dept.dept_code || "LMS";
-                      const { sequence } = await SectionService.findNextAvailableSequence(targetDeptIdForId, prefix, "", 5);
-                      nextAvailableCode = `${prefix}${shortYear}-${sequence.toString().padStart(5, "0")}`;
-                  }
-              } else {
-                  // Guest
-                  const lastDayEntryForId = await Letter.findOne({
-                    where: { entry_id: { [Op.like]: `${ymd}%` } },
-                    order: [["entry_id", "DESC"]],
-                  });
-                  let guestSeq = 1;
-                  if (lastDayEntryForId) {
-                    const lastId = lastDayEntryForId.entry_id;
-                    if (lastId.length >= 11 && lastId.startsWith(ymd)) {
-                      const lastSeq = parseInt(lastId.slice(-3));
-                      if (!isNaN(lastSeq)) guestSeq = lastSeq + 1;
-                    }
-                  }
-                  nextAvailableCode = `${ymd}${guestSeq.toString().padStart(3, "0")}`;
-              }
-          }
+          const nextPreview = await getCreateReferenceCode({
+            deptId: targetDeptIdForId,
+          });
+          const nextAvailableCode = nextPreview?.lms_id || lms_id;
 
           return res.status(409).json({ 
               error: "Conflict", 
@@ -1029,13 +846,12 @@ class LetterController {
       const existingEntry = await Letter.findOne({ where: { entry_id }, transaction });
       if (existingEntry) {
           // If entry_id collides (daily sequence), we can still try to increment it manually as it's just a timestamp-based ID
-          let altDailySeq = dailySequence;
-          let altEntryId = entry_id;
-          while (await Letter.findOne({ where: { entry_id: altEntryId }, transaction })) {
-              altDailySeq++;
-              altEntryId = `${ymd}${altDailySeq.toString().padStart(3, "0")}`;
+          const nextReference = await getCreateReferenceCode({
+            deptId: targetDeptIdForId,
+          });
+          if (nextReference?.entry_id) {
+            entry_id = nextReference.entry_id;
           }
-          entry_id = altEntryId;
       }
 
       console.log(
@@ -1623,63 +1439,14 @@ class LetterController {
 
       const createdLetters = [];
 
-      // Pre-fetch department if possible
-      let dept = null;
-      if (targetDeptId) {
-        dept = await Department.findByPk(targetDeptId, { transaction });
-      }
-
       for (let i = 0; i < numCount; i++) {
         const now = new Date();
-        const yearStr = now.getFullYear().toString();
-        const shortYear = yearStr.slice(-2);
-        const ymd =
-          yearStr +
-          (now.getMonth() + 1).toString().padStart(2, "0") +
-          now.getDate().toString().padStart(2, "0");
-
-        let lms_id;
-        if (targetDeptId && dept) {
-          let prefix = dept.dept_code || "LMS";
-          if (dept.group_id === 3) {
-            prefix = "ATG";
-            const { section_code, sequence } = await SectionService.incrementAndGetNextSequence(targetDeptId, transaction);
-            lms_id = `${prefix}${shortYear}-${section_code}${sequence.toString().padStart(3, "0")}`;
-          } else {
-            const { sequence } = await SectionService.incrementAndGetNextSequence(targetDeptId, transaction);
-            lms_id = `${prefix}${shortYear}-${sequence.toString().padStart(5, "0")}`;
-          }
-        } else {
-          // Fallback/Legacy logic
-          const lastDayEntryForId = await Letter.findOne({
-            where: { entry_id: { [Op.like]: `${ymd}%` } },
-            order: [["entry_id", "DESC"]],
-            transaction,
-          });
-          let guestSeq = 1;
-          if (lastDayEntryForId) {
-            const lastId = lastDayEntryForId.entry_id;
-            if (lastId.length >= 11 && lastId.startsWith(ymd)) {
-              const lastSeq = parseInt(lastId.slice(-3));
-              if (!isNaN(lastSeq)) guestSeq = lastSeq + 1;
-            }
-          }
-          lms_id = `${ymd}${guestSeq.toString().padStart(3, "0")}`;
-        }
-
-        // Daily sequence (entry_id)
-        const lastDayEntry = await Letter.findOne({
-          where: { entry_id: { [Op.like]: `${ymd}%` } },
-          order: [["entry_id", "DESC"]],
+        const nextReference = await getCreateReferenceCode({
+          deptId: targetDeptId,
           transaction,
         });
-        let dailySequence = 1;
-        if (lastDayEntry) {
-          const lastSeqStr = lastDayEntry.entry_id.slice(-3);
-          const lastSeq = parseInt(lastSeqStr);
-          if (!isNaN(lastSeq)) dailySequence = lastSeq + 1;
-        }
-        let entry_id = `${ymd}${dailySequence.toString().padStart(3, "0")}`;
+        const lms_id = nextReference?.lms_id;
+        const entry_id = nextReference?.entry_id;
 
         const letter = await Letter.create(
           {

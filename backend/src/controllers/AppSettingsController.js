@@ -1,7 +1,12 @@
 const fs = require('fs');
 const path = require('path');
+const {
+    DEFAULT_APP_SETTINGS,
+    readAppSettings,
+    sanitizeReferencePrefix,
+    writeAppSettings,
+} = require('../services/appSettingsService');
 
-const SETTINGS_FILE = path.join(__dirname, '../config/app_settings.json');
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 const UPLOADS_DIR_RESOLVED = path.resolve(UPLOADS_DIR);
 
@@ -19,27 +24,10 @@ const safeUnlinkUploadUrl = (uploadUrl) => {
     }
 };
 
-const getSettingsData = () => {
-    try {
-        if (fs.existsSync(SETTINGS_FILE)) {
-            const raw = fs.readFileSync(SETTINGS_FILE, 'utf8');
-            return JSON.parse(raw);
-        }
-    } catch (e) {
-        console.error("Failed to read settings file", e);
-    }
-    return {
-        favicon: null,
-        sidebar_logo: null,
-        login_logo: null,
-        system_theme: 'default'
-    };
-};
-
 class AppSettingsController {
     static async getSettings(req, res) {
         try {
-            const data = getSettingsData();
+            const data = readAppSettings();
             return res.json(data);
         } catch (error) {
             console.error("Error in getSettings:", error);
@@ -49,11 +37,30 @@ class AppSettingsController {
 
     static async saveSettings(req, res) {
         try {
-            const currentSettings = getSettingsData();
-            const { system_theme, reset_favicon, reset_sidebar_logo, reset_login_logo } = req.body;
+            const currentSettings = readAppSettings();
+            const {
+                system_theme,
+                reference_code_prefix,
+                reference_code_department_mode,
+                reset_favicon,
+                reset_sidebar_logo,
+                reset_login_logo
+            } = req.body;
 
             if (system_theme) {
                 currentSettings.system_theme = system_theme;
+            }
+
+            if (reference_code_prefix !== undefined) {
+                currentSettings.reference_code_prefix = sanitizeReferencePrefix(
+                    reference_code_prefix,
+                    DEFAULT_APP_SETTINGS.reference_code_prefix,
+                );
+            }
+
+            if (reference_code_department_mode !== undefined) {
+                const normalized = String(reference_code_department_mode).trim().toLowerCase();
+                currentSettings.reference_code_department_mode = !["false", "0", "no", "off"].includes(normalized);
             }
 
             // Handle resets
@@ -87,11 +94,7 @@ class AppSettingsController {
             }
 
             // Save back to JSON file
-            const dir = path.dirname(SETTINGS_FILE);
-            if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-            }
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(currentSettings, null, 2), 'utf8');
+            writeAppSettings(currentSettings);
 
             return res.json(currentSettings);
         } catch (error) {

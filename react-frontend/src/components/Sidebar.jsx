@@ -55,6 +55,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
   const logoUrl = appSettings?.sidebar_logo ? `${backendBase}${appSettings.sidebar_logo}` : null;
+  const brandPrefix = (appSettings?.reference_code_prefix || "LMS").toString().trim() || "LMS";
   const location = useLocation();
   const navScrollRef = useRef(null);
   const NAV_SCROLL_KEY = "sidebar_nav_scroll";
@@ -275,10 +276,10 @@ export default function Sidebar() {
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 transition-all min-w-0 select-none py-1">
                     {logoUrl ? (
-                      <img src={logoUrl} alt="LMS Logo" className="h-8 max-w-[120px] object-contain" />
+                      <img src={logoUrl} alt={`${brandPrefix} Logo`} className="h-8 max-w-[120px] object-contain" />
                     ) : (
                       <>
-                        <span className="text-[28px] font-black leading-none tracking-tighter text-slate-900 dark:text-white">LMS</span>
+                        <span className="text-[28px] font-black leading-none tracking-tighter text-slate-900 dark:text-white">{brandPrefix}</span>
                         <span className="text-[24px] font-black text-orange-500 tracking-tighter leading-none">2.0</span>
                       </>
                     )}
@@ -489,10 +490,10 @@ export default function Sidebar() {
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 transition-all min-w-0 select-none py-1">
                     {logoUrl ? (
-                      <img src={logoUrl} alt="LMS Logo" className="h-8 max-w-[120px] object-contain" />
+                      <img src={logoUrl} alt={`${brandPrefix} Logo`} className="h-8 max-w-[120px] object-contain" />
                     ) : (
                       <>
-                        <span className="text-[24px] font-black leading-none tracking-tighter text-slate-900 dark:text-white">LMS</span>
+                        <span className="text-[24px] font-black leading-none tracking-tighter text-slate-900 dark:text-white">{brandPrefix}</span>
                         <span className="text-[20px] font-black text-orange-500 tracking-tighter leading-none">2.0</span>
                       </>
                     )}
@@ -686,10 +687,10 @@ export default function Sidebar() {
               {(isSidebarExpanded || isMobileMenuOpen) && (
                 <div className="flex items-center gap-1.5 select-none min-w-0 py-1">
                   {logoUrl ? (
-                    <img src={logoUrl} alt="LMS Logo" className="h-8 max-w-[120px] object-contain" />
+                    <img src={logoUrl} alt={`${brandPrefix} Logo`} className="h-8 max-w-[120px] object-contain" />
                   ) : (
                     <>
-                      <span className="text-[32px] font-black leading-none tracking-tighter text-slate-900 dark:text-white">LMS</span>
+                      <span className="text-[32px] font-black leading-none tracking-tighter text-slate-900 dark:text-white">{brandPrefix}</span>
                       <span className="text-[28px] font-black text-orange-500 tracking-tighter leading-none">2.0</span>
                     </>
                   )}
@@ -851,7 +852,7 @@ export default function Sidebar() {
             <div className="flex items-center w-full overflow-visible z-50">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 transition-all min-w-0 select-none py-1">
-                  <span className="text-[22px] font-black leading-none tracking-tighter text-slate-900 dark:text-white">LMS</span>
+                  <span className="text-[22px] font-black leading-none tracking-tighter text-slate-900 dark:text-white">{brandPrefix}</span>
                   <span className="text-[18px] font-black text-orange-500 tracking-tighter leading-none">2.0</span>
                 </div>
                 <button

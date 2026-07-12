@@ -15,7 +15,9 @@ import {
     Menu,
     Camera,
     Upload,
-    UserCircle
+    UserCircle,
+    ToggleLeft,
+    ToggleRight
 } from "lucide-react";
 import { directus, directusUrl, getAssetUrl } from "../../hooks/useDirectus";
 import { uploadFiles } from "@directus/sdk";
@@ -55,10 +57,13 @@ export default function Settings() {
     const canFontSelector = canField("settings", "font_selector");
     const canAppCustomization = canField("settings", "app_customization");
     const canSystemTheme = canField("settings", "system_theme");
+    const canReferenceCodePrefix = canField("settings", "reference_code_prefix");
+    const canReferenceCodeMode = canField("settings", "reference_code_mode");
     const canFaviconUpload = canField("settings", "favicon_upload");
     const canSidebarLogoUpload = canField("settings", "sidebar_logo_upload");
     const canLoginLogoUpload = canField("settings", "login_logo_upload");
     const canApplySystemSettings = canField("settings", "apply_system_settings_button");
+    const canSaveSystemSettings = canAppCustomization || canApplySystemSettings;
 
     const pageBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919]' : layoutStyle === 'grid' ? 'bg-slate-50' : layoutStyle === 'minimalist' ? 'bg-[#F9FAFB] dark:bg-[#0D0D0D]' : 'bg-[#F9FAFB] dark:bg-[#0D0D0D]';
     const headerBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'grid' ? 'bg-white border-slate-200' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#0D0D0D] border-gray-100 dark:border-[#222]';
@@ -66,6 +71,8 @@ export default function Settings() {
     const cardBg = layoutStyle === 'notion' ? 'bg-white dark:bg-[#191919] border-gray-100 dark:border-[#222]' : layoutStyle === 'minimalist' ? 'bg-white dark:bg-[#0D0D0D] border-[#E5E5E5] dark:border-[#222]' : 'bg-white dark:bg-[#141414] border-gray-100 dark:border-[#222]';
 
     const [selectedTheme, setSelectedTheme] = useState(appSettings?.system_theme || 'default');
+    const [referenceCodePrefix, setReferenceCodePrefix] = useState(appSettings?.reference_code_prefix || 'LMS');
+    const [referenceCodeDepartmentMode, setReferenceCodeDepartmentMode] = useState(appSettings?.reference_code_department_mode !== false);
     const [faviconFile, setFaviconFile] = useState(null);
     const [sidebarLogoFile, setSidebarLogoFile] = useState(null);
     const [loginLogoFile, setLoginLogoFile] = useState(null);
@@ -83,6 +90,8 @@ export default function Settings() {
     useEffect(() => {
         if (appSettings) {
             setSelectedTheme(appSettings.system_theme || 'default');
+            setReferenceCodePrefix((appSettings.reference_code_prefix || 'LMS').toString().trim() || 'LMS');
+            setReferenceCodeDepartmentMode(appSettings.reference_code_department_mode !== false);
             const backendBase = API_BASE.replace('/api', '');
             setFaviconPreview(appSettings.favicon ? `${backendBase}${appSettings.favicon}` : null);
             setSidebarLogoPreview(appSettings.sidebar_logo ? `${backendBase}${appSettings.sidebar_logo}` : null);
@@ -98,8 +107,13 @@ export default function Settings() {
         document.documentElement.classList.add(themeClass);
     };
 
+    const handleReferencePrefixChange = (value) => {
+        const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+        setReferenceCodePrefix(cleaned);
+    };
+
     const handleSaveSystemSettings = async () => {
-        if (!canApplySystemSettings) {
+        if (!canSaveSystemSettings) {
             alert("You don't have permission to update system settings.");
             return;
         }
@@ -107,6 +121,8 @@ export default function Settings() {
         try {
             const formData = new FormData();
             formData.append('system_theme', selectedTheme);
+            formData.append('reference_code_prefix', referenceCodePrefix);
+            formData.append('reference_code_department_mode', String(referenceCodeDepartmentMode));
             if (faviconFile) formData.append('favicon', faviconFile);
             if (sidebarLogoFile) formData.append('sidebar_logo', sidebarLogoFile);
             if (loginLogoFile) formData.append('login_logo', loginLogoFile);
@@ -118,7 +134,6 @@ export default function Settings() {
             const token = getAuthToken();
             await axios.post(`${API_BASE}/app-settings`, formData, {
                 headers: {
-                    'Content-Type': 'multipart/form-data',
                     ...(token && { Authorization: `Bearer ${token}` })
                 }
             });
@@ -283,10 +298,71 @@ export default function Settings() {
                             <section className={`${cardBg} rounded-2xl border p-8 shadow-sm`}>
                                 <div className={`flex items-center gap-2 mb-6 ${textColor}`}>
                                     <Palette className="w-5 h-5 text-gray-400" />
-                                    <h3 className="font-bold">App Customization (Favicon & Logos)</h3>
+                                    <h3 className="font-bold">App Customization (Branding & Reference Codes)</h3>
                                 </div>
 
                                 <div className="space-y-8">
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                        {canReferenceCodePrefix && (
+                                            <label className="block">
+                                                <span className={`text-sm font-bold flex items-center gap-2 mb-3 ${textColor}`}>
+                                                    <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
+                                                    Reference Code Prefix
+                                                </span>
+                                                <input
+                                                    type="text"
+                                                    value={referenceCodePrefix}
+                                                    onChange={(e) => handleReferencePrefixChange(e.target.value)}
+                                                    maxLength={12}
+                                                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 dark:border-[#333] bg-white dark:bg-[#111] text-slate-900 dark:text-white text-sm font-black uppercase tracking-[0.15em] outline-none focus:border-brand-primary transition-colors"
+                                                    placeholder="LMS"
+                                                />
+                                                <p className="mt-2 text-[10px] text-gray-400 font-medium leading-relaxed uppercase tracking-widest">
+                                                    Letters and numbers only. This prefix updates the sidebar and login branding.
+                                                </p>
+                                            </label>
+                                        )}
+
+                                        {canReferenceCodeMode && (
+                                            <div className="rounded-2xl border border-gray-100 dark:border-[#333] bg-white dark:bg-[#111] p-4 flex flex-col justify-between">
+                                                <div>
+                                                    <span className={`text-sm font-bold flex items-center gap-2 mb-3 ${textColor}`}>
+                                                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                                                        Reference Code Mode
+                                                    </span>
+                                                    <p className="text-[10px] text-gray-400 font-medium leading-relaxed uppercase tracking-widest">
+                                                        Department-based numbering is the default.
+                                                    </p>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    disabled={!canReferenceCodeMode}
+                                                    onClick={() => canReferenceCodeMode && setReferenceCodeDepartmentMode((prev) => !prev)}
+                                                    className={`mt-4 w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border-2 transition-all ${referenceCodeDepartmentMode ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-500/10' : 'border-gray-100 dark:border-[#333] bg-white dark:bg-[#111]'} ${!canReferenceCodeMode ? 'opacity-40 pointer-events-none' : ''}`}
+                                                >
+                                                    <div className="text-left">
+                                                        <p className={`text-sm font-black uppercase tracking-widest ${textColor}`}>
+                                                            {referenceCodeDepartmentMode ? "Enabled" : "Disabled"}
+                                                        </p>
+                                                        <p className="text-[9px] text-gray-400 uppercase font-black">
+                                                            {referenceCodeDepartmentMode ? "Use department selection" : "Auto-generate from latest code"}
+                                                        </p>
+                                                    </div>
+                                                    {referenceCodeDepartmentMode ? (
+                                                        <ToggleRight className="w-8 h-8 text-emerald-500" />
+                                                    ) : (
+                                                        <ToggleLeft className="w-8 h-8 text-gray-400" />
+                                                    )}
+                                                </button>
+
+                                                <p className="mt-3 text-[10px] text-gray-400 font-medium leading-relaxed uppercase tracking-widest">
+                                                    When disabled, the reference code is generated automatically from the latest saved ID.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     {/* System Theme Selection */}
                                     <div>
                                         <h4 className={`text-sm font-bold flex items-center gap-2 mb-4 ${textColor}`}>
@@ -469,7 +545,7 @@ export default function Settings() {
                                         <button
                                             type="button"
                                             onClick={handleSaveSystemSettings}
-                                            disabled={savingSettings || !canApplySystemSettings}
+                                            disabled={savingSettings || !canSaveSystemSettings}
                                             className="flex items-center gap-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50"
                                         >
                                             {savingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

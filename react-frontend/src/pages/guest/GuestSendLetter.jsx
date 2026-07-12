@@ -36,7 +36,7 @@ import {
 } from "../../utils/personAutocomplete";
 
 export default function GuestSendLetter() {
-    const { user, logout, layoutStyle, isMobileMenuOpen, setIsMobileMenuOpen, isGuest } = useAuth();
+    const { user, logout, layoutStyle, isMobileMenuOpen, setIsMobileMenuOpen, isGuest, appSettings } = useAuth();
     const access = useAccess();
     const navigate = useNavigate();
 
@@ -44,6 +44,9 @@ export default function GuestSendLetter() {
     const isLoggedIn = !!user?.id && !isGuest;
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
     const isRegularUser = roleName === 'USER';
+    const referenceCodePrefix = (appSettings?.reference_code_prefix || 'LMS').toString().trim() || 'LMS';
+    const useDepartmentReferenceCode = appSettings?.reference_code_department_mode !== false;
+    const departmentSelectorDisabled = !useDepartmentReferenceCode;
 
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -60,7 +63,7 @@ export default function GuestSendLetter() {
     const attachmentSearchRef = useRef(null);
     const [attachments, setAttachments] = useState([]);
     const [refAttachments, setRefAttachments] = useState([]);
-    const [referenceNo, setReferenceNo] = useState("Select Department");
+    const [referenceNo, setReferenceNo] = useState("Generating...");
     const [departments, setDepartments] = useState([]);
     const [selectedDeptId, setSelectedDeptId] = useState("");
     const [kinds, setKinds] = useState([]);
@@ -113,6 +116,15 @@ export default function GuestSendLetter() {
 
     const dayName = todayDate.toLocaleDateString('en-PH', { weekday: 'long', timeZone: 'Asia/Manila' });
     const weekNumber = getWeekNumber(todayDate);
+
+    const fetchPreviewReferenceCode = async (deptId = selectedDeptId) => {
+        if (!useDepartmentReferenceCode) {
+            const legacyCode = await letterService.getLegacyPreviewReferenceCode(referenceCodePrefix);
+            return legacyCode ? { lms_id: legacyCode } : null;
+        }
+
+        return letterService.getPreviewIds(referenceCodePrefix, deptId || null);
+    };
 
     useEffect(() => {
         const fetchRefs = async () => {
@@ -191,27 +203,29 @@ export default function GuestSendLetter() {
     useEffect(() => {
         const syncPreview = async () => {
             try {
-                // Determine prefix and deptId for preview
-                const prefix = isLoggedIn ? "ATG" : "LMS";
-                const targetDeptId = isLoggedIn ? selectedDeptId : (selectedDeptId || null);
-
-                // Department is required to generate a proper Reference No on this page
-                if (!selectedDeptId) {
+                if (useDepartmentReferenceCode && !selectedDeptId) {
                     setReferenceNo("Select Department");
                     return;
                 }
 
                 setReferenceNo("Generating...");
-                // Note: backend now returns YYYYMMDDNNN if dept_id is null
-                const preview = await letterService.getPreviewIds(prefix, targetDeptId);
+                const preview = await fetchPreviewReferenceCode(selectedDeptId);
                 if (preview?.lms_id) setReferenceNo(preview.lms_id);
+                else setReferenceNo("Check Connection");
             } catch (err) {
                 console.error("Failed to fetch next Reference No:", err);
                 setReferenceNo("Check Connection");
             }
         };
         syncPreview();
-    }, [isLoggedIn, selectedDeptId]);
+    }, [selectedDeptId, referenceCodePrefix, useDepartmentReferenceCode]);
+
+    useEffect(() => {
+        if (departmentSelectorDisabled) {
+            setShowDeptResults(false);
+            setDeptSearch("");
+        }
+    }, [departmentSelectorDisabled]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -287,11 +301,11 @@ export default function GuestSendLetter() {
         });
         setAttachments([]);
         setSelectedDeptId("");
-        setReferenceNo("Select Department");
+        setReferenceNo(useDepartmentReferenceCode ? "Select Department" : "Generating...");
     };
 
     const handleReview = () => {
-        if (!selectedDeptId) {
+        if (useDepartmentReferenceCode && !selectedDeptId) {
             alert("Department is required.");
             return;
         }
@@ -308,7 +322,7 @@ export default function GuestSendLetter() {
     };
 
     const handleSend = async () => {
-        if (!selectedDeptId) {
+        if (useDepartmentReferenceCode && !selectedDeptId) {
             alert("Department is required.");
             return;
         }
@@ -352,16 +366,15 @@ export default function GuestSendLetter() {
 
             let lmsIdToUse = referenceNo;
             const normalizedRef = (referenceNo || '').trim();
-            const isValidRef = isLoggedIn
-                ? /^ATG\d{2}-[A-Z0-9]+-\d{5}$/.test(normalizedRef)
-                : /^LMS\d{2}-\d{5}$/.test(normalizedRef);
+            const isReadyRef = normalizedRef && !["Select Department", "Generating...", "Check Connection"].includes(normalizedRef);
 
-            if (!isValidRef) {
-                const prefix = isLoggedIn ? "ATG" : "LMS";
-                const preview = await letterService.getPreviewIds(prefix, selectedDeptId || null);
+            if (!isReadyRef) {
+                const preview = await fetchPreviewReferenceCode(selectedDeptId);
                 if (preview?.lms_id) {
                     lmsIdToUse = preview.lms_id;
                     setReferenceNo(preview.lms_id);
+                } else {
+                    setReferenceNo("Check Connection");
                 }
             }
 
@@ -379,8 +392,8 @@ export default function GuestSendLetter() {
                 scanned_copy: scannedCopyPath,
                 direction: 'Incoming',
                 kind: formData.kind ? parseInt(formData.kind) : null,
-                assigned_dept: parseInt(selectedDeptId),
-                dept_id: parseInt(selectedDeptId)
+                assigned_dept: selectedDeptId ? parseInt(selectedDeptId, 10) : null,
+                dept_id: selectedDeptId ? parseInt(selectedDeptId, 10) : null
             });
 
             if (response.data?.lms_id) {
@@ -649,21 +662,27 @@ export default function GuestSendLetter() {
                                                 <div className="flex items-center gap-2">
                                                     <Hash className={`w-3 h-3 ${subTextColor}`} /> Department
                                                 </div>
-                                                <span className="text-[9px] text-red-500 font-black tracking-widest">REQUIRED</span>
+                                                <span className={`text-[9px] font-black tracking-widest ${useDepartmentReferenceCode ? "text-red-500" : "text-slate-400"}`}>{useDepartmentReferenceCode ? "REQUIRED" : "DISABLED"}</span>
                                             </label>
                                             
                                             <div className="relative">
                                                 {/* Custom Searchable Dropdown Toggle */}
                                                 <div
-                                                    onClick={() => setShowDeptResults(!showDeptResults)}
-                                                    className={`w-full px-5 py-3 rounded-xl border-2 transition-all outline-none text-base font-semibold flex items-center justify-between cursor-pointer ${'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] hover:border-orange-500/50'}`}
+                                                    aria-disabled={departmentSelectorDisabled}
+                                                    onClick={() => {
+                                                        if (departmentSelectorDisabled) return;
+                                                        setShowDeptResults(!showDeptResults);
+                                                    }}
+                                                    className={`w-full px-5 py-3 rounded-xl border-2 transition-all outline-none text-base font-semibold flex items-center justify-between ${departmentSelectorDisabled ? "bg-slate-100 dark:bg-white/10 border-slate-200 dark:border-[#333] text-slate-400 cursor-not-allowed" : "bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-[#333] hover:border-orange-500/50 cursor-pointer"}`}
                                                 >
                                                     <span className="truncate max-w-[85%] uppercase tracking-wider">
                                                         {selectedDeptId
                                                             ? departments.find(d => String(d.id) === String(selectedDeptId))?.dept_name || 
                                                               departments.find(d => String(d.id) === String(selectedDeptId))?.name || 
                                                               "Department Selected"
-                                                            : "Select department..."}
+                                                            : departmentSelectorDisabled
+                                                                ? "Department Disabled"
+                                                                : "Select department..."}
                                                     </span>
                                                     <ChevronDown className={`w-4 h-4 transition-transform ${showDeptResults ? 'rotate-180' : ''}`} />
                                                 </div>
@@ -1171,7 +1190,7 @@ export default function GuestSendLetter() {
 
                 {/* Modern Footer Branding */}
                 <footer className={`h-auto md:h-16 py-6 md:py-0 ${headerBg} border-t px-4 md:px-12 flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase tracking-widest`}>
-                    <span>&copy; 2026 LMS 2026</span>
+                    <span>&copy; 2026 {referenceCodePrefix} 2026</span>
                 </footer>
             </div>
 
@@ -1198,13 +1217,13 @@ export default function GuestSendLetter() {
                             selectedRefIds: [],
                         }));
                         setAttachments([]);
-
-                        if (!selectedDeptId) {
+                        if (useDepartmentReferenceCode && !selectedDeptId) {
                             setReferenceNo("Select Department");
                             return;
                         }
-                        const preview = await letterService.getPreviewIds("ATG", selectedDeptId);
+                        const preview = await fetchPreviewReferenceCode(selectedDeptId);
                         if (preview?.lms_id) setReferenceNo(preview.lms_id);
+                        else setReferenceNo("Check Connection");
                     } catch { }
                 }}
                 referenceNo={referenceNo}

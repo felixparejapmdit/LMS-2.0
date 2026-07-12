@@ -24,6 +24,7 @@ export default function Login() {
   const { appSettings } = useUI();
   const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
   const loginLogoUrl = appSettings?.login_logo ? `${backendBase}${appSettings.login_logo}` : null;
+  const brandPrefix = (appSettings?.reference_code_prefix || "LMS").toString().trim() || "LMS";
 
   const normalizedReferenceCode = useMemo(
     () => referenceCode.trim().toUpperCase(),
@@ -104,14 +105,14 @@ export default function Login() {
           <div className="flex flex-col items-center mb-12">
             <div className="flex items-center gap-4 group">
               {loginLogoUrl ? (
-                <img src={loginLogoUrl} alt="LMS Logo" className="h-16 max-w-[200px] object-contain" />
+                <img src={loginLogoUrl} alt={`${brandPrefix} Logo`} className="h-16 max-w-[200px] object-contain" />
               ) : (
                 <>
                   <div className="w-12 h-12 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-black/10 transition-transform group-hover:scale-110 duration-500">
                     <FileStack className="text-white dark:text-black w-6 h-6" />
                   </div>
                   <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white">
-                    LMS <span className="text-orange-500 tracking-normal">2.0</span>
+                    {brandPrefix} <span className="text-orange-500 tracking-normal">2.0</span>
                   </h1>
                 </>
               )}
@@ -209,7 +210,7 @@ export default function Login() {
 
         <div className="mt-12 flex flex-col items-center gap-2">
           <span className="px-3 py-1 bg-slate-100 dark:bg-white/5 rounded-full text-[9px] font-black text-slate-400 dark:text-gray-600 uppercase tracking-widest">
-            LMS 2.0
+            {brandPrefix} 2.0
           </span>
           <p className="text-center text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em] opacity-60">
             Developed by PMD-IT

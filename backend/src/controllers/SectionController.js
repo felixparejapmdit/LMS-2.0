@@ -1,5 +1,6 @@
 const { RefSectionRegistry, DeptSectionUsage, Department } = require('../models/associations');
 const SectionService = require('../services/SectionService');
+const { getReferenceCodePrefix } = require('../services/appSettingsService');
 
 class SectionController {
     /**
@@ -11,6 +12,7 @@ class SectionController {
             const { Op } = require('sequelize');
             const currentYear = new Date().getFullYear();
             const shortYear = currentYear.toString().slice(-2);
+            const atgPrefix = getReferenceCodePrefix();
 
             // Run both queries in parallel for efficiency
             const [sections, allLetters] = await Promise.all([
@@ -50,7 +52,7 @@ class SectionController {
                 const prefix = lmsId.substring(0, dashIdx); // e.g. 'ATG26' or 'DEPED26'
                 const rest = lmsId.substring(dashIdx + 1);  // e.g. '03001' or '00001'
 
-                if (prefix === `ATG${shortYear}` && rest.length >= 2) {
+                if (prefix === `${atgPrefix}${shortYear}` && rest.length >= 2) {
                     // ATG: section code is first 2 chars of the sequence part
                     const sectionCode = rest.substring(0, 2);
                     atgCountMap[sectionCode] = (atgCountMap[sectionCode] || 0) + 1;

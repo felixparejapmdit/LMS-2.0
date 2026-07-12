@@ -125,13 +125,20 @@ const authReducer = (state, action) => {
         favicon: null,
         sidebar_logo: null,
         login_logo: null,
-        system_theme: 'default'
+        system_theme: 'default',
+        reference_code_prefix: 'LMS',
+        reference_code_department_mode: true
     });
 
     const fetchAppSettings = useCallback(async () => {
         try {
             const res = await axios.get(`${BACKEND_URL}/app-settings`);
-            setAppSettings(res.data);
+            setAppSettings(prev => ({
+                ...prev,
+                ...res.data,
+                reference_code_prefix: (res.data?.reference_code_prefix || prev.reference_code_prefix || 'LMS').toString().trim() || 'LMS',
+                reference_code_department_mode: res.data?.reference_code_department_mode !== false
+            }));
         } catch (e) {
             console.error("Failed to load app settings", e);
         }

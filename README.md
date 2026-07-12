@@ -27,7 +27,7 @@ Core goals:
 | ORM | Sequelize |
 | Auth/Identity | Directus |
 | Infrastructure | Docker, Docker Compose |
-| Database | SQLite (dev), MariaDB/PostgreSQL (prod-ready) |
+| Database | SQLite (shared file-backed DB) |
 
 ---
 
@@ -107,28 +107,86 @@ The backend currently uses these Sequelize models and tables:
 - Docker Desktop
 - Git
 
+### Environment Files
+
+- `backend/.env` contains backend-local defaults.
+- Root `.env` is used by Docker Compose and shared runtime values.
+- `react-frontend/.env.local` is used when running the frontend with Vite locally.
+- `react-frontend/.env` is used for production-style frontend builds.
+- If you move the project to another machine or host, update `DIRECTUS_PUBLIC_URL`, `VITE_API_URL`, and `VITE_DIRECTUS_URL` so they match your URL.
+
 ### Installation Steps
 
-1. Clone repository:
+1. Clone the repository:
 ```bash
 git clone https://github.com/felixparejapmdit/LMS-2.0.git
 cd LMS-2.0
 ```
 
-2. Install dependencies:
+2. Install the root dependencies:
+```bash
+npm install
+```
+
+3. Install the backend and frontend dependencies:
 ```bash
 npm run install-all
 ```
 
-3. Start infrastructure:
+### Run With Docker
+
+Start the complete stack:
+
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
-4. Start frontend and backend:
+This starts:
+
+- Frontend: `http://localhost`
+- Backend API: `http://localhost:5000`
+- Directus: `http://localhost:8055`
+
+Useful Docker commands:
+
+```bash
+docker compose ps
+docker compose logs -f directus
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose down
+```
+
+### Run In Local Dev Mode
+
+If you want to run the backend and frontend on your machine instead of in containers:
+
+1. Start Directus only:
+```bash
+docker compose up -d directus
+```
+
+2. Start the host development servers:
 ```bash
 npm run dev
 ```
+
+`npm run dev` starts the backend and frontend together, but it does not start Directus, so keep the Directus container running in this mode.
+
+Local dev URLs:
+
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:5000`
+
+### Database Credentials / Access
+
+- Default database: SQLite file at `directus/database/data.db`
+- SQLite does not use a username/password login
+- Default Directus admin credentials used by the Docker bootstrap:
+  - Email: `admin@example.com`
+  - Password: `password`
+- You can override the Directus admin credentials with `DIRECTUS_ADMIN_EMAIL` and `DIRECTUS_ADMIN_PASSWORD` in `.env`
+- You can override the backend SQLite file path with `DB_PATH`
 
 ---
 
@@ -151,4 +209,3 @@ LMS 2.0/
 |-- directus/
 `-- docker-compose.yml
 ```
-

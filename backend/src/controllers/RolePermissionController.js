@@ -30,6 +30,8 @@ const PAGE_FIELD_PRESETS = {
         'layout_selector',
         'font_selector',
         'app_customization',
+        'reference_code_prefix',
+        'reference_code_mode',
         'system_theme',
         'favicon_upload',
         'sidebar_logo_upload',

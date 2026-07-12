@@ -61,6 +61,7 @@ services:
     volumes:
       - ./directus/database:/directus/database
       - ./backend/uploads:/app/uploads
+      - ./backend/src/config:/app/src/config
       - ./scripts:/app/scripts
     networks:
       - lms-net
@@ -101,7 +102,6 @@ services:
 networks:
   lms-net:
     driver: bridge
-    name: lms_network
     ipam:
       config:
         - subnet: 10.50.0.0/16

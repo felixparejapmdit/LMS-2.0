@@ -1,5 +1,6 @@
 const { RefSectionRegistry, DeptSectionUsage, Department } = require('../models/associations');
 const { Op } = require('sequelize');
+const { getReferenceCodePrefix } = require('./appSettingsService');
 
 class SectionService {
     /**
@@ -16,6 +17,7 @@ class SectionService {
         if (!dept) throw new Error("Department not found");
         
         const isATG = dept.group_id === 3;
+        const atgPrefix = getReferenceCodePrefix();
 
         // If ATG, we MUST strictly follow the assigned sequence order (e.g., 01, 02, 03...)
         if (isATG) {
@@ -29,7 +31,7 @@ class SectionService {
                 // Check if this specific section has any available slot (1-999)
                 const { sequence } = await this.findNextAvailableSequence(
                     deptId, 
-                    "ATG", 
+                    atgPrefix, 
                     section.section_code, 
                     3, 
                     transaction
@@ -161,7 +163,7 @@ class SectionService {
         if (!dept) throw new Error("Department not found");
 
         const isATG = dept.group_id === 3;
-        const prefix = isATG ? "ATG" : (dept.dept_code || "LMS");
+        const prefix = isATG ? getReferenceCodePrefix() : (dept.dept_code || "LMS");
         const currentYear = new Date().getFullYear();
         const shortYear = currentYear.toString().slice(-2);
         
