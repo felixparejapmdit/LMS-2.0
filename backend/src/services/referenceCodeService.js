@@ -3,22 +3,21 @@ const { Op } = require("sequelize");
 const { Letter, Department, RefSectionRegistry } = require("../models/associations");
 const SectionService = require("./SectionService");
 const {
-  getReferenceCodePrefix,
   isReferenceCodeDepartmentModeEnabled,
-  sanitizeReferencePrefix,
 } = require("./appSettingsService");
 
 const LEGACY_LETTERS_API_URL =
   process.env.LEGACY_LETTERS_API_URL ||
   "http://172.18.162.84/api/letters_detailed.php";
 const LEGACY_LETTERS_PAGE_LIMIT = Number.parseInt(
-  process.env.LEGACY_LETTERS_PAGE_LIMIT || "500",
+  process.env.LEGACY_LETTERS_PAGE_LIMIT || "1",
   10,
 );
 const LEGACY_LETTERS_TIMEOUT_MS = Number.parseInt(
-  process.env.LEGACY_LETTERS_TIMEOUT_MS || "2000",
+  process.env.LEGACY_LETTERS_TIMEOUT_MS || "5000",
   10,
 );
+const REFERENCE_CODE_PREFIX = "ATG";
 
 const escapeRegExp = (value = "") =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -113,7 +112,7 @@ const getGlobalReferenceCode = async ({
   shortYear,
   transaction = null,
 }) => {
-  const searchPrefix = `${prefix}${shortYear}-00`;
+  const searchPrefix = `${prefix}${shortYear}-`;
   const lastGlobalEntry = await Letter.findOne({
     where: { lms_id: { [Op.like]: `${searchPrefix}%` } },
     order: [["lms_id", "DESC"]],
@@ -220,16 +219,12 @@ const getDepartmentReferenceCode = async ({
 
 const getPreviewReferenceCode = async ({
   deptId = null,
-  prefixOverride = null,
   transaction = null,
 } = {}) => {
   const now = new Date();
   const { shortYear } = getNowParts(now);
   const entry_id = await getDailyEntryId(transaction, now);
-  const prefix = sanitizeReferencePrefix(
-    prefixOverride,
-    getReferenceCodePrefix(),
-  );
+  const prefix = REFERENCE_CODE_PREFIX;
 
   if (!isReferenceCodeDepartmentModeEnabled()) {
     const legacyCode = await getLegacyGlobalReferenceCode({
@@ -269,7 +264,7 @@ const getCreateReferenceCode = async ({
   const now = new Date();
   const { shortYear } = getNowParts(now);
   const entry_id = await getDailyEntryId(transaction, now);
-  const prefix = getReferenceCodePrefix();
+  const prefix = REFERENCE_CODE_PREFIX;
 
   if (!isReferenceCodeDepartmentModeEnabled()) {
     const legacyCode = await getLegacyGlobalReferenceCode({

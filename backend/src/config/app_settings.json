@@ -4,5 +4,5 @@
   "login_logo": null,
   "system_theme": "default",
   "reference_code_prefix": "LMS",
-  "reference_code_department_mode": false
+  "reference_code_department_mode": true
 }

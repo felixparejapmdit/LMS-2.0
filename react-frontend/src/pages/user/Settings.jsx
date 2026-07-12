@@ -298,7 +298,7 @@ export default function Settings() {
                             <section className={`${cardBg} rounded-2xl border p-8 shadow-sm`}>
                                 <div className={`flex items-center gap-2 mb-6 ${textColor}`}>
                                     <Palette className="w-5 h-5 text-gray-400" />
-                                    <h3 className="font-bold">App Customization (Branding & Reference Codes)</h3>
+                                    <h3 className="font-bold">App Customization (Branding)</h3>
                                 </div>
 
                                 <div className="space-y-8">
@@ -307,7 +307,7 @@ export default function Settings() {
                                             <label className="block">
                                                 <span className={`text-sm font-bold flex items-center gap-2 mb-3 ${textColor}`}>
                                                     <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
-                                                    Reference Code Prefix
+                                                    Project Title Prefix
                                                 </span>
                                                 <input
                                                     type="text"
@@ -318,7 +318,7 @@ export default function Settings() {
                                                     placeholder="LMS"
                                                 />
                                                 <p className="mt-2 text-[10px] text-gray-400 font-medium leading-relaxed uppercase tracking-widest">
-                                                    Letters and numbers only. This prefix updates the sidebar and login branding.
+                                                    Letters and numbers only. This prefix updates the sidebar and login branding only.
                                                 </p>
                                             </label>
                                         )}

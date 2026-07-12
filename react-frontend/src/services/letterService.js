@@ -115,10 +115,9 @@ class LetterService {
         return response.data;
     }
 
-    async getPreviewIds(prefix = 'LMS', dept_id = null) {
+    async getPreviewIds(dept_id = null) {
         try {
             const params = new URLSearchParams();
-            if (prefix) params.set('prefix', prefix);
             if (dept_id) params.set('dept_id', dept_id);
             const response = await axios.get(`${API_URL}/preview/ids?${params.toString()}`);
             return response.data;
@@ -134,10 +133,10 @@ class LetterService {
         return response.data;
     }
 
-    async getLegacyPreviewReferenceCode(prefix = 'LMS') {
-        const cleanedPrefix = (prefix || 'LMS').toString().toUpperCase().replace(/[^A-Z0-9]/g, '') || 'LMS';
+    async getLegacyPreviewReferenceCode() {
+        const cleanedPrefix = 'ATG';
         const shortYear = new Date().getFullYear().toString().slice(-2);
-        const response = await this.getLegacyData(1, 500, '');
+        const response = await this.getLegacyData(1, 1, '');
         const rows = Array.isArray(response)
             ? response
             : Array.isArray(response?.data)

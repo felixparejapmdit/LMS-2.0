@@ -1,6 +1,6 @@
 const { RefSectionRegistry, DeptSectionUsage, Department } = require('../models/associations');
 const { Op } = require('sequelize');
-const { getReferenceCodePrefix } = require('./appSettingsService');
+const ATG_REFERENCE_PREFIX = 'ATG';
 
 class SectionService {
     /**
@@ -17,7 +17,7 @@ class SectionService {
         if (!dept) throw new Error("Department not found");
         
         const isATG = dept.group_id === 3;
-        const atgPrefix = getReferenceCodePrefix();
+        const atgPrefix = ATG_REFERENCE_PREFIX;
 
         // If ATG, we MUST strictly follow the assigned sequence order (e.g., 01, 02, 03...)
         if (isATG) {
@@ -163,7 +163,7 @@ class SectionService {
         if (!dept) throw new Error("Department not found");
 
         const isATG = dept.group_id === 3;
-        const prefix = isATG ? getReferenceCodePrefix() : (dept.dept_code || "LMS");
+        const prefix = isATG ? ATG_REFERENCE_PREFIX : (dept.dept_code || "LMS");
         const currentYear = new Date().getFullYear();
         const shortYear = currentYear.toString().slice(-2);
         

@@ -53,7 +53,6 @@ export default function NewLetter() {
   const isEmptyEntryEdit = editSource === "empty-entry";
   const { user, layoutStyle, setIsMobileMenuOpen, isSetupComplete, appSettings } = useAuth();
   const access = useAccess();
-  const referenceCodePrefix = (appSettings?.reference_code_prefix || "LMS").toString().trim() || "LMS";
   const useDepartmentReferenceCode = appSettings?.reference_code_department_mode !== false;
   const departmentSelectorDisabled = !useDepartmentReferenceCode;
   const todayDate = new Date();
@@ -322,11 +321,11 @@ export default function NewLetter() {
 
   const fetchPreviewReferenceCode = async (deptId = selectedDept) => {
     if (!useDepartmentReferenceCode) {
-      const legacyCode = await letterService.getLegacyPreviewReferenceCode(referenceCodePrefix);
+      const legacyCode = await letterService.getLegacyPreviewReferenceCode();
       return legacyCode ? { lms_id: legacyCode } : null;
     }
 
-    return letterService.getPreviewIds(referenceCodePrefix, deptId || null);
+    return letterService.getPreviewIds(deptId || null);
   };
 
   const refreshPredictedLmsId = async (deptId = selectedDept) => {
@@ -353,7 +352,7 @@ export default function NewLetter() {
 
   useEffect(() => {
     refreshPredictedLmsId();
-  }, [selectedDept, refCode, referenceCodePrefix, useDepartmentReferenceCode]);
+  }, [selectedDept, refCode, useDepartmentReferenceCode]);
 
   useEffect(() => {
     if (departmentSelectorDisabled) {

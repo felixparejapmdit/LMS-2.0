@@ -391,7 +391,6 @@ class LetterController {
     try {
       const preview = await getPreviewReferenceCode({
         deptId: req.query.dept_id,
-        prefixOverride: req.query.prefix,
       });
 
       res.json(preview);

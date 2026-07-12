@@ -44,7 +44,7 @@ export default function GuestSendLetter() {
     const isLoggedIn = !!user?.id && !isGuest;
     const roleName = (user?.roleData?.name || user?.role || '').toString().toUpperCase();
     const isRegularUser = roleName === 'USER';
-    const referenceCodePrefix = (appSettings?.reference_code_prefix || 'LMS').toString().trim() || 'LMS';
+    const brandPrefix = (appSettings?.reference_code_prefix || 'LMS').toString().trim() || 'LMS';
     const useDepartmentReferenceCode = appSettings?.reference_code_department_mode !== false;
     const departmentSelectorDisabled = !useDepartmentReferenceCode;
 
@@ -119,11 +119,11 @@ export default function GuestSendLetter() {
 
     const fetchPreviewReferenceCode = async (deptId = selectedDeptId) => {
         if (!useDepartmentReferenceCode) {
-            const legacyCode = await letterService.getLegacyPreviewReferenceCode(referenceCodePrefix);
+            const legacyCode = await letterService.getLegacyPreviewReferenceCode();
             return legacyCode ? { lms_id: legacyCode } : null;
         }
 
-        return letterService.getPreviewIds(referenceCodePrefix, deptId || null);
+        return letterService.getPreviewIds(deptId || null);
     };
 
     useEffect(() => {
@@ -218,7 +218,7 @@ export default function GuestSendLetter() {
             }
         };
         syncPreview();
-    }, [selectedDeptId, referenceCodePrefix, useDepartmentReferenceCode]);
+    }, [selectedDeptId, useDepartmentReferenceCode]);
 
     useEffect(() => {
         if (departmentSelectorDisabled) {
@@ -1190,7 +1190,7 @@ export default function GuestSendLetter() {
 
                 {/* Modern Footer Branding */}
                 <footer className={`h-auto md:h-16 py-6 md:py-0 ${headerBg} border-t px-4 md:px-12 flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase tracking-widest`}>
-                    <span>&copy; 2026 {referenceCodePrefix} 2026</span>
+                    <span>&copy; 2026 {brandPrefix} 2026</span>
                 </footer>
             </div>
 

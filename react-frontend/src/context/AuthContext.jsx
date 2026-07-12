@@ -39,6 +39,23 @@ const writeCachedJson = (key, value) => {
     }
 };
 
+const APP_SETTINGS_CACHE_KEY = "app_settings";
+const DEFAULT_APP_SETTINGS = {
+    favicon: null,
+    sidebar_logo: null,
+    login_logo: null,
+    system_theme: 'default',
+    reference_code_prefix: 'LMS',
+    reference_code_department_mode: true
+};
+
+const normalizeAppSettings = (settings = {}) => ({
+    ...DEFAULT_APP_SETTINGS,
+    ...settings,
+    reference_code_prefix: (settings?.reference_code_prefix || DEFAULT_APP_SETTINGS.reference_code_prefix || 'LMS').toString().trim() || 'LMS',
+    reference_code_department_mode: settings?.reference_code_department_mode !== false
+});
+
 // --- CONTEXTS ---
 
 const AuthContext = createContext();
@@ -121,24 +138,16 @@ const authReducer = (state, action) => {
         return saved ? JSON.parse(saved) : {};
     });
 
-    const [appSettings, setAppSettings] = useState({
-        favicon: null,
-        sidebar_logo: null,
-        login_logo: null,
-        system_theme: 'default',
-        reference_code_prefix: 'LMS',
-        reference_code_department_mode: true
-    });
+    const [appSettings, setAppSettings] = useState(() =>
+        normalizeAppSettings(readCachedJson(APP_SETTINGS_CACHE_KEY, null) || {})
+    );
 
     const fetchAppSettings = useCallback(async () => {
         try {
             const res = await axios.get(`${BACKEND_URL}/app-settings`);
-            setAppSettings(prev => ({
-                ...prev,
-                ...res.data,
-                reference_code_prefix: (res.data?.reference_code_prefix || prev.reference_code_prefix || 'LMS').toString().trim() || 'LMS',
-                reference_code_department_mode: res.data?.reference_code_department_mode !== false
-            }));
+            const normalized = normalizeAppSettings(res.data || {});
+            setAppSettings(normalized);
+            writeCachedJson(APP_SETTINGS_CACHE_KEY, normalized);
         } catch (e) {
             console.error("Failed to load app settings", e);
         }

@@ -1,6 +1,6 @@
 const { RefSectionRegistry, DeptSectionUsage, Department } = require('../models/associations');
 const SectionService = require('../services/SectionService');
-const { getReferenceCodePrefix } = require('../services/appSettingsService');
+const ATG_REFERENCE_PREFIX = 'ATG';
 
 class SectionController {
     /**
@@ -12,7 +12,7 @@ class SectionController {
             const { Op } = require('sequelize');
             const currentYear = new Date().getFullYear();
             const shortYear = currentYear.toString().slice(-2);
-            const atgPrefix = getReferenceCodePrefix();
+            const atgPrefix = ATG_REFERENCE_PREFIX;
 
             // Run both queries in parallel for efficiency
             const [sections, allLetters] = await Promise.all([
