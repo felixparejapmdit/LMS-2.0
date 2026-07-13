@@ -488,6 +488,16 @@ const authReducer = (state, action) => {
 
     const loginGuest = async () => {
         localStorage.setItem("isGuest", "true");
+        localStorage.removeItem("directus_auth");
+        localStorage.removeItem(AUTH_USER_KEY);
+        localStorage.removeItem(AUTH_PERMS_KEY);
+
+        try {
+            await directus.logout().catch(() => {});
+        } catch (e) {
+            // Ignore logout issues when entering guest mode.
+        }
+
         let perms = [];
         try {
             const response = await axios.get(`${BACKEND_URL}/auth/guest-config`);

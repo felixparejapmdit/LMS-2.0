@@ -127,7 +127,7 @@ export default function Login() {
             )}
 
             <div className="space-y-6">
-              {/* Username Input - Implicit Label */}
+              {/* Username / Email Input - Implicit Label */}
               <div className="relative group">
                 <div className="absolute left-6 top-1/2 -translate-y-1/2 transition-all duration-300 transform group-focus-within:scale-110 group-focus-within:left-5">
                   <User className="w-4 h-4 text-slate-300 group-focus-within:text-slate-900 dark:group-focus-within:text-white" />
@@ -137,7 +137,7 @@ export default function Login() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full pl-14 pr-8 py-4 bg-[#f8fafc]/50 dark:bg-white/[0.02] border border-transparent rounded-[20px] focus:border-slate-900/10 dark:focus:border-white/10 focus:bg-white dark:focus:bg-white/[0.05] transition-all outline-none font-bold text-sm text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-gray-600 shadow-sm"
-                  placeholder="Username"
+                  placeholder="Username or Email"
                   required
                 />
               </div>
@@ -182,9 +182,9 @@ export default function Login() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  loginGuest();
-                  window.location.href = "/guest/send-letter";
+                onClick={async () => {
+                  await loginGuest();
+                  navigate("/guest/send-letter", { replace: true });
                 }}
                 className="w-full py-4 bg-transparent border border-slate-100 dark:border-white/10 text-slate-400 hover:text-slate-900 dark:hover:text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-[20px] flex items-center justify-center gap-3 group"
               >

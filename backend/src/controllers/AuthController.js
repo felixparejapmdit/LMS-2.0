@@ -466,6 +466,89 @@ const normalizePermissions = (perms) =>
     };
   });
 
+const normalizeLoginKey = (value = "") =>
+  value
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]/g, "");
+
+const buildInputCandidates = (identifier = "") => {
+  const raw = (identifier ?? "").toString().trim();
+  const localPart = raw.includes("@") ? raw.split("@")[0].trim() : raw;
+  const tokens = [raw, localPart, firstToken(raw)];
+
+  return tokens
+    .map((value) => value?.toString().trim())
+    .filter(Boolean)
+    .map((value) => normalizeLoginKey(value))
+    .filter(Boolean);
+};
+
+const firstToken = (value = "") =>
+  value
+    .toString()
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)[0] || "";
+
+const buildLoginCandidates = (user) => {
+  const first = firstToken(user?.first_name);
+  const last = firstToken(user?.last_name);
+  const emailLocal = (user?.email || "").toString().trim().split("@")[0];
+
+  return [
+    user?.username,
+    user?.email,
+    emailLocal,
+    `${first}.${last}`,
+    `${last}.${first}`,
+    `${first}${last}`,
+    `${last}${first}`,
+    first,
+    last,
+  ]
+    .map((value) => value?.toString().trim())
+    .filter(Boolean);
+};
+
+const resolveLocalUserForLogin = async (identifier) => {
+  const raw = (identifier ?? "").toString().trim();
+  if (!raw) return null;
+
+  const exactUser = await User.findOne({
+    where: { [Op.or]: [{ username: raw }, { email: raw }] },
+    include: ["roleData", "department"],
+  });
+  if (exactUser) return exactUser;
+
+  const normalizedInputCandidates = new Set(buildInputCandidates(raw));
+  if (normalizedInputCandidates.size === 0) return null;
+
+  const users = await User.findAll({
+    attributes: [
+      "id",
+      "first_name",
+      "last_name",
+      "username",
+      "email",
+      "password",
+      "role",
+      "dept_id",
+    ],
+    include: ["roleData", "department"],
+  });
+
+  return (
+    users.find((user) =>
+      buildLoginCandidates(user).some(
+        (candidate) =>
+          normalizedInputCandidates.has(normalizeLoginKey(candidate)),
+      ),
+    ) || null
+  );
+};
+
 class AuthController {
   static async login(req, res) {
     const startTime = Date.now();
@@ -485,10 +568,7 @@ class AuthController {
 
       // STEP 1: PARALLEL LOCAL LOOKUP
       const [user, systemPages] = await Promise.all([
-        User.findOne({
-          where: { [Op.or]: [{ username }, { email: username }] },
-          include: ["roleData", "department"],
-        }),
+        resolveLocalUserForLogin(username),
         !cachedPages || Date.now() - cachedPagesTimestamp > PAGES_CACHE_TTL
           ? SystemPage.findAll({ attributes: ["page_id"] })
           : Promise.resolve(cachedPages),
@@ -640,10 +720,7 @@ class AuthController {
           .json({ error: "Username and password are required" });
       }
 
-      const user = await User.findOne({
-        where: { [Op.or]: [{ username }, { email: username }] },
-        include: ["roleData", "department"],
-      });
+      const user = await resolveLocalUserForLogin(username);
 
       lap("Local Resolve");
 

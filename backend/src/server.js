@@ -17,6 +17,9 @@ const {
     LetterAssignment, LetterLog, Attachment, Comment, 
     LinkLetter, Role, RefSectionRegistry, DeptSectionUsage, AuditLog, DashboardNote
 } = require('./models/associations');
+const {
+    ensureDirectusAdminContentPermissions,
+} = require('./scripts/fix_directus_admin_content_permissions');
 
 const PORT = process.env.PORT || 5000;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -132,6 +135,12 @@ async function startServer() {
         await ensureColumn('letters', 'is_deleted', "BOOLEAN DEFAULT 0");
         await ensureColumn('letters', 'deleted_at', "DATETIME DEFAULT NULL");
         await ensureColumn('endorsements', 'notified_at', "DATETIME DEFAULT NULL");
+
+        try {
+            await ensureDirectusAdminContentPermissions();
+        } catch (repairErr) {
+            console.warn('[DIRECTUS] Admin content permission repair skipped:', repairErr.message);
+        }
 
         // Normalize any invalid tray_id=0 back to NULL (FK-safe unassigned tray)
         try {
