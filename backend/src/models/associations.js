@@ -99,27 +99,6 @@ Department.hasMany(RefSectionRegistry, { foreignKey: 'assigned_to_dept_id', as: 
 // --- Audit Logs ---
 AuditLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-// --- Migration: Set all role dept_id to null for global visibility as requested ---
-Role.update({ dept_id: null }, { where: { dept_id: { [sequelize.Sequelize.Op.ne]: null } } })
-    .then(count => { if (count[0] > 0) console.log(`[MIGRATION] ${count[0]} roles set to global (dept_id = null)`); })
-    .catch(err => console.error('[MIGRATION] Role update failed:', err));
-
-// --- Migration: Cleanup unused roles (No users and not core) ---
-const CORE_ROLES = ['ADMINISTRATOR', 'USER', 'ENCODER', 'VIP', 'GUEST', 'ACCESS MANAGER', 'DEVELOPER', 'ROOT', 'SUPER ADMIN'];
-Role.findAll({
-    include: [{ model: User, as: 'users' }]
-}).then(async (roles) => {
-    for (const role of roles) {
-        const isCore = CORE_ROLES.includes(role.name?.toUpperCase());
-        const userCount = role.users?.length || 0;
-        if (!isCore && userCount === 0) {
-            console.log(`[CLEANUP] Deleting unused role: ${role.name} (${role.id})`);
-            await RolePermission.destroy({ where: { role_id: role.id } });
-            await role.destroy();
-        }
-    }
-}).catch(err => console.error('[CLEANUP] Role cleanup failed:', err));
-
 module.exports = {
     Letter,
     User,

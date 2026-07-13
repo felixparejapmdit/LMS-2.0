@@ -329,7 +329,7 @@ class RolePermissionController {
             const [attachments, kinds, roles, statuses, steps, trays] = await Promise.all([
                 Attachment.count({ where }),
                 LetterKind.count({ where }),
-                Role.count({ where }),
+                Role.count(),
                 Status.count({ where }),
                 ProcessStep.count({ where }),
                 Tray.count({ where })

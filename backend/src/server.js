@@ -10,8 +10,9 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const axios = require('axios');
 const app = require('./app');
 const sequelize = require('./config/db');
+const { Op } = require('sequelize');
 const { 
-    Person, User, Endorsement, RolePermission, SystemPage, 
+    Department, Person, User, Endorsement, RolePermission, SystemPage,
     LetterKind, Status, ProcessStep, Letter, Tray, 
     LetterAssignment, LetterLog, Attachment, Comment, 
     LinkLetter, Role, RefSectionRegistry, DeptSectionUsage, AuditLog, DashboardNote
@@ -66,19 +67,25 @@ async function startServer() {
         // Helper to safely add columns (safer than sync({alter:true}) for SQLite)
         const ensureColumn = async (table, col, definition) => {
             try {
+                const [columns] = await sequelize.query(`PRAGMA table_info(${table})`);
+                if (Array.isArray(columns) && columns.some((c) => c.name === col)) {
+                    return false;
+                }
                 await sequelize.query(`ALTER TABLE ${table} ADD COLUMN ${col} ${definition}`);
                 console.log(`Added missing column ${col} to ${table}.`);
+                return true;
             } catch (e) {
                 const msg = e.message.toLowerCase();
                 if (!msg.includes('duplicate column name') && !msg.includes('already exists')) {
                     console.warn(`Column check (${col}) in table ${table} warning:`, e.message);
                 }
+                return false;
             }
         };
 
         // 1. Manually Sync Tables (Safe for Create If Not Exists)
         const models = [
-            Person, User, Endorsement, RolePermission, SystemPage,
+            Department, Person, User, Endorsement, RolePermission, SystemPage,
             LetterKind, Status, ProcessStep, Letter, Tray,
             LetterAssignment, LetterLog, Attachment, Comment,
             LinkLetter, Role, RefSectionRegistry, DeptSectionUsage, AuditLog, DashboardNote
@@ -111,9 +118,11 @@ async function startServer() {
 
         // 2. Self-Healing: Specific Column additions (Legacy/Directus tables)
         await ensureColumn('person', 'telegram_chat_id', 'VARCHAR(255)');
+        await ensureColumn('directus_users', 'dept_id', 'INTEGER');
         await ensureColumn('directus_users', 'layout_style', "VARCHAR(255) DEFAULT 'notion'");
         await ensureColumn('directus_users', 'theme_preference', "VARCHAR(255) DEFAULT 'light'");
         await ensureColumn('directus_users', 'telegram_chat_id', "VARCHAR(255)");
+        await ensureColumn('directus_roles', 'dept_id', 'INTEGER');
         await ensureColumn('letter_logs', 'step_id', "INTEGER");
         await ensureColumn('letter_logs', 'department_id', "INTEGER");
         await ensureColumn('letter_logs', 'status_id', "INTEGER");
@@ -128,6 +137,41 @@ async function startServer() {
             await sequelize.query("UPDATE letters SET tray_id = NULL WHERE tray_id = 0");
         } catch (e) {
             console.warn("Tray ID cleanup skipped:", e.message);
+        }
+
+        try {
+            const [roleColumns] = await sequelize.query("PRAGMA table_info(directus_roles)");
+            const roleHasDeptId = Array.isArray(roleColumns) && roleColumns.some((col) => col.name === 'dept_id');
+            if (roleHasDeptId) {
+                const [updatedCount] = await Role.update(
+                    { dept_id: null },
+                    { where: { dept_id: { [Op.ne]: null } } }
+                );
+                if (updatedCount > 0) {
+                    console.log(`[MIGRATION] ${updatedCount} roles set to global (dept_id = null)`);
+                }
+            }
+        } catch (e) {
+            console.warn('[MIGRATION] Role normalization skipped:', e.message);
+        }
+
+        try {
+            const CORE_ROLES = ['ADMINISTRATOR', 'USER', 'ENCODER', 'VIP', 'GUEST', 'ACCESS MANAGER', 'DEVELOPER', 'ROOT', 'SUPER ADMIN'];
+            const roles = await Role.findAll({
+                attributes: ['id', 'name'],
+                include: [{ model: User, as: 'users', attributes: ['id'], required: false }]
+            });
+            for (const role of roles) {
+                const isCore = CORE_ROLES.includes(role.name?.toUpperCase());
+                const userCount = role.users?.length || 0;
+                if (!isCore && userCount === 0) {
+                    console.log(`[CLEANUP] Deleting unused role: ${role.name} (${role.id})`);
+                    await RolePermission.destroy({ where: { role_id: role.id } });
+                    await role.destroy();
+                }
+            }
+        } catch (e) {
+            console.warn('[CLEANUP] Role cleanup skipped:', e.message);
         }
 
         // 3. Specific Index & UI Performance Fixes
