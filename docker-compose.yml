@@ -9,6 +9,7 @@ services:
       - ./directus/database:/directus/database
       - ./directus/uploads:/directus/uploads
       - ./directus/extensions:/directus/extensions
+      - ./directus/snapshots:/directus/snapshots
     environment:
       KEY: "${DIRECTUS_KEY:-felix-lms-key}"
       SECRET: "${DIRECTUS_SECRET:-felix-lms-secret-32-chars-long-!!}"

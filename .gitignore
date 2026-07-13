@@ -22,9 +22,16 @@ yarn-debug.log*
 yarn-error.log*
 
 # Database (SQLite file contains real data)
-directus/database/*.db 
+directus/database/*.db
 directus/database/*.db-shm
 directus/database/*.db-wal
+backend/src/config/database.sqlite
+
+# Runtime-mutated app settings (backend recreates with defaults if absent)
+backend/src/config/app_settings.json
+
+# Deploy-time SQLite backups (created by scripts/deploy.sh on servers)
+backups/
 
 # Uploaded files (can be large)
 backend/uploads/
