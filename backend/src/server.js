@@ -118,6 +118,7 @@ async function startServer() {
 
         // 2. Self-Healing: Specific Column additions (Legacy/Directus tables)
         await ensureColumn('person', 'telegram_chat_id', 'VARCHAR(255)');
+        await ensureColumn('directus_users', 'username', 'VARCHAR(255)');
         await ensureColumn('directus_users', 'dept_id', 'INTEGER');
         await ensureColumn('directus_users', 'layout_style', "VARCHAR(255) DEFAULT 'notion'");
         await ensureColumn('directus_users', 'theme_preference', "VARCHAR(255) DEFAULT 'light'");
