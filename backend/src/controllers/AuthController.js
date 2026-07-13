@@ -35,6 +35,42 @@ const PAGES_CACHE_TTL = 3600000;
 // Most installs treat Directus "email" as the LMS username, so default to username first.
 const directusLoginHint = new Map();
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isTransientDirectusError = (error) => {
+  const status = error?.response?.status;
+  const code = String(error?.code || "").toUpperCase();
+  return (
+    [429, 500, 502, 503, 504].includes(status) ||
+    ["ECONNREFUSED", "ECONNABORTED", "ETIMEDOUT", "EAI_AGAIN", "ENOTFOUND"].includes(code)
+  );
+};
+
+const retryDirectusRequest = async (
+  operation,
+  { attempts = 3, baseDelayMs = 400, label = "Directus request" } = {},
+) => {
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      const status = error?.response?.status ?? error?.code ?? "unknown";
+      const shouldRetry =
+        attempt < attempts && isTransientDirectusError(error);
+
+      if (!shouldRetry) throw error;
+
+      console.warn(
+        `[AUTH] ${label} attempt ${attempt} failed (${status}); retrying...`,
+      );
+      await sleep(baseDelayMs * attempt);
+    }
+  }
+  throw lastError;
+};
+
 const ensureRolePermissionsForAllPages = async (
   roleId,
   roleName = "",
@@ -508,7 +544,13 @@ class AuthController {
         user.role,
         user.roleData?.name,
         systemPages,
-      );
+      ).catch((syncError) => {
+        console.warn(
+          "[LOGIN] Permission sync skipped:",
+          syncError?.message || syncError,
+        );
+        return false;
+      });
       if (ensured) {
         permsCache.delete(user.role);
         normalizedPerms = normalizePermissions(
@@ -627,13 +669,18 @@ class AuthController {
       const hint = directusLoginHint.get(user.id) || "email";
       const candidates = [];
 
-      // Helper to check if identifier is a valid email format
-      const isEmail = (str) =>
-        typeof str === "string" && str.includes("@") && str.includes(".");
+      const pushCandidate = (value) => {
+        const candidate = (value ?? "").toString().trim();
+        if (candidate) candidates.push(candidate);
+      };
 
-      if (hint === "email" && isEmail(user.email)) candidates.push(user.email);
-      if (isEmail(user.username)) candidates.push(user.username);
-      if (isEmail(user.email)) candidates.push(user.email);
+      if (hint === "email") {
+        pushCandidate(user.email);
+        pushCandidate(user.username);
+      } else {
+        pushCandidate(user.username);
+        pushCandidate(user.email);
+      }
 
       const uniq = candidates
         .filter(Boolean)
@@ -654,10 +701,18 @@ class AuthController {
           console.log(
             `[AUTH] Attempting Directus authentication for ${identifier}...`,
           );
-          const response = await directusClient.post("/auth/login", {
-            email: identifier,
-            password: password,
-          });
+          const response = await retryDirectusRequest(
+            () =>
+              directusClient.post("/auth/login", {
+                email: identifier,
+                password: password,
+              }),
+            {
+              attempts: 3,
+              baseDelayMs: 500,
+              label: `Directus auth for ${identifier}`,
+            },
+          );
           timings["Directus Login"] = Date.now() - directusStart;
           directusLoginHint.set(
             user.id,
@@ -707,10 +762,18 @@ class AuthController {
         return res.status(401).json({ error: "Missing Authorization token" });
 
       const token = match[1];
-      const meRes = await directusClient.get("/users/me", {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { fields: "id" },
-      });
+      const meRes = await retryDirectusRequest(
+        () =>
+          directusClient.get("/users/me", {
+            headers: { Authorization: `Bearer ${token}` },
+            params: { fields: "id" },
+          }),
+        {
+          attempts: 3,
+          baseDelayMs: 400,
+          label: "Directus session validation",
+        },
+      );
       const directusUserId = meRes?.data?.data?.id ?? meRes?.data?.id;
       if (!directusUserId)
         return res.status(401).json({ error: "Invalid session" });
@@ -724,7 +787,13 @@ class AuthController {
         user.role,
         user.roleData?.name,
         cachedPages,
-      );
+      ).catch((syncError) => {
+        console.warn(
+          "[AUTH CONFIG] Permission sync skipped:",
+          syncError?.message || syncError,
+        );
+        return false;
+      });
       if (ensured) permsCache.delete(user.role);
 
       let normalizedPerms = getCachedPerms(user.role);
@@ -741,6 +810,11 @@ class AuthController {
       const status = error.response?.status;
       if (status === 401 || status === 403) {
         return res.status(401).json({ error: "Invalid or expired session" });
+      }
+      if (isTransientDirectusError(error)) {
+        return res.status(503).json({
+          error: "Authentication service temporarily unavailable. Please try again.",
+        });
       }
       res.status(500).json({ error: error.message });
     }
