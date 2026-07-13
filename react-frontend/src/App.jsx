@@ -88,13 +88,13 @@ const ProtectedRoute = ({ children }) => {
   const pageKey = getPageKeyFromPath(location.pathname);
 
   useEffect(() => {
-    if (!user || !pageKey) return;
+    if (!user || !pageKey || isGuest) return;
     systemPageService.ensurePage({
       page_id: pageKey,
       page_name: humanizePageId(pageKey),
       description: `Auto-discovered from route: ${location.pathname}`
     }).catch(() => { });
-  }, [user, pageKey, location.pathname]);
+  }, [user, pageKey, location.pathname, isGuest]);
 
   useEffect(() => {
     console.log(`[NAV] ProtectedRoute mounted for ${location.pathname}. Loading: ${loading}, PermsLoaded: ${permissionsLoaded}`);
@@ -131,7 +131,7 @@ const ProtectedRoute = ({ children }) => {
 
 function AppRoutes() {
   const navigate = useNavigate();
-  const { user, permissionsLoaded } = useSession();
+  const { user, permissionsLoaded, isGuest } = useSession();
 
   const sequenceRef = useRef("");
 
@@ -139,9 +139,9 @@ function AppRoutes() {
   // user is authenticated. This makes them appear in the Role Access Matrix
   // without requiring an admin to visit each route individually.
   useEffect(() => {
-    if (!user || !permissionsLoaded) return;
+    if (!user || !permissionsLoaded || isGuest) return;
     systemPageService.syncPages(BASE_SYSTEM_PAGES).catch(() => { /* silent */ });
-  }, [user?.id, permissionsLoaded]);
+  }, [user?.id, permissionsLoaded, isGuest]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {

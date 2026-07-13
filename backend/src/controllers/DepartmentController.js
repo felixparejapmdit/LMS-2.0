@@ -1,13 +1,21 @@
-const { Department, User, RefSectionRegistry } = require('../models/associations');
+const { Department, RefSectionRegistry } = require('../models/associations');
 
 class DepartmentController {
     static async getAll(req, res) {
         try {
             const depts = await Department.findAll({
+                attributes: ['id', 'dept_name', 'dept_code', 'group_id'],
                 include: [
-                    { model: User, as: 'members' },
-                    { model: RefSectionRegistry, as: 'activeRegistrySection' },
-                    { model: RefSectionRegistry, as: 'assignedSections' }
+                    {
+                        model: RefSectionRegistry,
+                        as: 'activeRegistrySection',
+                        attributes: ['section_code', 'status', 'assigned_to_dept_id']
+                    },
+                    {
+                        model: RefSectionRegistry,
+                        as: 'assignedSections',
+                        attributes: ['section_code', 'status', 'assigned_to_dept_id']
+                    }
                 ]
             });
             res.json(depts);
